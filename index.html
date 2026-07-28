@@ -136,8 +136,7 @@
                             <input type="hidden" id="editId">
                             <div>
                                 <label class="block text-xs font-medium text-gray-700 mb-1">Toplam Tutar (TL)</label>
-                                <input type="text" id="amountFormatted" inputmode="decimal" required oninput="formatInputWithDots(this)" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="0,00">
-                                <input type="hidden" id="amount">
+                                <input type="number" step="any" id="amount" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="0.00">
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-700 mb-1">Taksit Sayısı (Peşin için 1 bırakın)</label>
@@ -256,14 +255,12 @@
                                     <!-- Minimum Tutar -->
                                     <div>
                                         <label class="block text-[11px] font-medium text-gray-600 mb-1">Min Tutar (TL)</label>
-                                        <input type="text" inputmode="decimal" id="filterMinAmountFormatted" oninput="formatInputWithDots(this); applyFilters();" placeholder="0" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
-                                        <input type="hidden" id="filterMinAmount">
+                                        <input type="number" step="any" id="filterMinAmount" oninput="applyFilters()" placeholder="0" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
                                     </div>
                                     <!-- Maksimum Tutar -->
                                     <div>
                                         <label class="block text-[11px] font-medium text-gray-600 mb-1">Max Tutar (TL)</label>
-                                        <input type="text" inputmode="decimal" id="filterMaxAmountFormatted" oninput="formatInputWithDots(this); applyFilters();" placeholder="Sınırsız" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
-                                        <input type="hidden" id="filterMaxAmount">
+                                        <input type="number" step="any" id="filterMaxAmount" oninput="applyFilters()" placeholder="Sınırsız" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
                                     </div>
                                 </div>
                             </div>
@@ -382,8 +379,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tutar (TL)</label>
-                    <input type="text" id="incomeAmountFormatted" inputmode="decimal" required oninput="formatInputWithDots(this)" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="0,00">
-                    <input type="hidden" id="incomeAmount">
+                    <input type="number" step="any" id="incomeAmount" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="0.00">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tarih</label>
@@ -447,43 +443,6 @@
         };
 
         window.checkPassword = checkPassword;
-
-        // Binlik Ayraç Formatlama Fonksiyonu (10.000 şeklinde)
-        window.formatInputWithDots = function(inputEl) {
-            let val = inputEl.value.replace(/[^\d,\.]/g, '');
-            // Virgül veya noktayı tek standarda (virgül) çevirelim
-            val = val.replace(/\./g, ',');
-            
-            let parts = val.split(',');
-            let integerPart = parts[0].replace(/\./g, '');
-            
-            if (integerPart) {
-                integerPart = parseInt(integerPart, 10).toLocaleString('tr-TR');
-            }
-            
-            let formatted = integerPart;
-            if (parts.length > 1) {
-                formatted += ',' + parts[1].substring(0, 2);
-            } else if (val.endsWith(',')) {
-                formatted += ',';
-            }
-            
-            inputEl.value = formatted;
-
-            // Gizli ham sayı alanını güncelle (Veritabanı için)
-            let rawVal = formatted.replace(/\./g, '').replace(',', '.');
-            let parsedNum = parseFloat(rawVal) || 0;
-            
-            if (inputEl.id === 'amountFormatted') {
-                document.getElementById('amount').value = parsedNum;
-            } else if (inputEl.id === 'incomeAmountFormatted') {
-                document.getElementById('incomeAmount').value = parsedNum;
-            } else if (inputEl.id === 'filterMinAmountFormatted') {
-                document.getElementById('filterMinAmount').value = parsedNum ? parsedNum : '';
-            } else if (inputEl.id === 'filterMaxAmountFormatted') {
-                document.getElementById('filterMaxAmount').value = parsedNum ? parsedNum : '';
-            }
-        }
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -787,7 +746,7 @@
             });
         }
 
-        // Alışveriş Listesi Fonksiyonları
+        // Alışveriş Listesi Fonksiyonları (İstediğiniz gibi güncellenmiş kutucuk ve numeric klavye desteğiyle)
         window.handleShoppingSubmit = async function(e) {
             e.preventDefault();
             const input = document.getElementById('shoppingItemInput');
@@ -807,9 +766,7 @@
             if (!currentStatus) {
                 let priceInput = prompt("Ürün fiyatını girin (TL):", "");
                 if (priceInput !== null) {
-                    // Virgülü noktaya çevirip parse edelim
-                    let normalized = priceInput.replace(/\./g, '').replace(',', '.');
-                    let parsedPrice = parseFloat(normalized);
+                    let parsedPrice = parseFloat(priceInput);
                     if (!isNaN(parsedPrice) && parsedPrice >= 0) {
                         updateData.price = parsedPrice;
                     } else {
@@ -825,11 +782,9 @@
         }
 
         window.updateItemPrice = async function(id, currentPrice) {
-            let currentFormatted = currentPrice ? currentPrice.toLocaleString('tr-TR', {minimumFractionDigits: 2}) : '';
-            let newPriceStr = prompt("Ürün fiyatını güncelleyin (TL):", currentFormatted);
+            let newPriceStr = prompt("Ürün fiyatını güncelleyin (TL):", currentPrice || '');
             if (newPriceStr !== null) {
-                let normalized = newPriceStr.replace(/\./g, '').replace(',', '.');
-                let newPrice = parseFloat(normalized);
+                let newPrice = parseFloat(newPriceStr);
                 if (!isNaN(newPrice) && newPrice >= 0) {
                     await updateDoc(doc(db, "shoppingList", id), {
                         price: newPrice
@@ -904,13 +859,11 @@
 
         window.setCardDebt = async function(person) {
             let currentVal = person === 'bekir' ? bekirDebt.amount : duyguDebt.amount;
-            let currentFormatted = currentVal ? currentVal.toLocaleString('tr-TR', {minimumFractionDigits: 2}) : '';
             let title = person === 'bekir' ? "Bekir Kredi Kartı Borcunu Girin (TL):" : "Duygu Kredi Kartı Borcunu Girin (TL):";
-            let newAmountStr = prompt(title, currentFormatted);
+            let newAmountStr = prompt(title, currentVal || '');
             
             if (newAmountStr !== null) {
-                let normalized = newAmountStr.replace(/\./g, '').replace(',', '.');
-                let val = parseFloat(normalized);
+                let val = parseFloat(newAmountStr);
                 if (!isNaN(val) && val >= 0) {
                     if (person === 'bekir') {
                         bekirDebt.amount = val;
@@ -1101,9 +1054,7 @@
             document.getElementById('filterShowInstallments').checked = false;
             document.getElementById('filterStartDate').value = '';
             document.getElementById('filterEndDate').value = '';
-            document.getElementById('filterMinAmountFormatted').value = '';
             document.getElementById('filterMinAmount').value = '';
-            document.getElementById('filterMaxAmountFormatted').value = '';
             document.getElementById('filterMaxAmount').value = '';
             applyFilters();
         }
@@ -1161,11 +1112,7 @@
             if (!expense) return;
 
             document.getElementById('editId').value = expense.id;
-            
-            let formattedAmount = expense.amount.toLocaleString('tr-TR', {minimumFractionDigits: (expense.amount % 1 !== 0 ? 2 : 0)});
-            document.getElementById('amountFormatted').value = formattedAmount;
             document.getElementById('amount').value = expense.amount;
-
             document.getElementById('installmentCount').value = expense.installmentCount || 1;
             document.getElementById('person').value = expense.person || 'Bekir';
             document.getElementById('category').value = expense.category;
@@ -1183,7 +1130,6 @@
         window.resetForm = function() {
             document.getElementById('expenseForm').reset();
             document.getElementById('editId').value = '';
-            document.getElementById('amount').value = '';
             document.getElementById('installmentCount').value = 1;
             document.getElementById('date').valueAsDate = new Date();
             document.getElementById('formTitle').innerText = "Yeni Harcama Ekle";
