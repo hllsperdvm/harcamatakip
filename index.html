@@ -308,7 +308,7 @@
 
         let expenses = [];
         let monthlyBudget = 5000;
-        let categories = ["Gıda", "Ulaşım", "Faturalar", "Eğlence", "Sağlık", "Eğitim", "Diğer"];
+        let categories = ["Gıda", "Ulaşım", "Faturalar", "Eğlence", "Sağlık", "Eğitim", "Diğer", "Kredi Kartı Borcu"];
         let paymentTypes = ["Nakit", "Kredi Kartı"];
         let expenseChart = null;
 
@@ -376,7 +376,12 @@
             const catDocRef = doc(db, "settings", "categories");
             onSnapshot(catDocRef, (docSnap) => {
                 if (docSnap.exists()) {
-                    categories = docSnap.data().list || categories;
+                    let remoteCats = docSnap.data().list || [];
+                    if (!remoteCats.includes("Kredi Kartı Borcu")) {
+                        remoteCats.push("Kredi Kartı Borcu");
+                        setDoc(catDocRef, { list: remoteCats });
+                    }
+                    categories = remoteCats;
                 } else {
                     setDoc(catDocRef, { list: categories });
                 }
@@ -415,6 +420,26 @@
         }
 
         window.toggleCardDebt = async function(person) {
+            let targetDebt = person === 'bekir' ? bekirDebt : duyguDebt;
+            let personName = person === 'bekir' ? 'Bekir' : 'Duygu';
+
+            // Eğer ödenecek durumuna geçiyorsa ve borç tutarı 0'dan büyükse otomatik harcama ekle
+            if (!targetDebt.paid && targetDebt.amount > 0) {
+                let todayStr = new Date().toISOString().split('T')[0];
+                let confirmAdd = confirm(`${personName} için ${targetDebt.amount.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'})} tutarındaki borç ödendi olarak işaretlenecek ve harcama geçmişine eklensin mi?`);
+                
+                if (confirmAdd) {
+                    await addDoc(collection(db, "expenses"), {
+                        amount: targetDebt.amount,
+                        person: personName,
+                        category: "Kredi Kartı Borcu",
+                        paymentType: paymentTypes.includes("Kredi Kartı") ? "Kredi Kartı" : (paymentTypes[0] || "Nakit"),
+                        date: todayStr,
+                        description: `${personName} Kredi Kartı Ekstre Ödemesi`
+                    });
+                }
+            }
+
             if (person === 'bekir') {
                 bekirDebt.paid = !bekirDebt.paid;
                 await setDoc(doc(db, "settings", "bekirDebt"), bekirDebt);
