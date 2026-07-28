@@ -16,18 +16,31 @@
     <!-- Şifre Doğrulanana Kadar Gizli Kalacak Ana Alan -->
     <div id="appContainer" class="hidden">
         <div id="pdfContent" class="max-w-6xl mx-auto px-4 py-8">
-            <!-- Başlık ve PDF İndir Butonu -->
+            <!-- Başlık ve İndir Seçenekleri -->
             <header class="mb-8 flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div>
                     <h1 class="text-3xl font-bold text-indigo-600 text-center sm:text-left">Ortak Harcama Takibi</h1>
                     <p class="text-sm text-gray-500 mt-1 text-center sm:text-left">Canlı Ortak Çalışma Alanı</p>
                 </div>
-                <button onclick="downloadPDF()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    PDF İndir
-                </button>
+                
+                <!-- İndir Başlığı ve Butonlar -->
+                <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 flex flex-col sm:flex-row items-center gap-3">
+                    <span class="text-xs font-bold text-gray-700 uppercase tracking-wider px-1">İndir</span>
+                    <div class="flex items-center gap-2">
+                        <button onclick="downloadPDF()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition shadow-sm flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            PDF İndir
+                        </button>
+                        <button onclick="downloadExcel()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition shadow-sm flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Excel İndir
+                        </button>
+                    </div>
+                </div>
             </header>
 
             <!-- Özet Kartları & Bütçe Ayarı -->
@@ -236,7 +249,7 @@
 
         // KENDİ FIREBASE BİLGİLERİNİZİ BURAYA YAPIŞTIRIN:
         const firebaseConfig = {
-           apiKey: "AIzaSyDFTQa5FV8kKBqICWAg_vst8AnLdIrfBVw",
+            apiKey: "AIzaSyDFTQa5FV8kKBqICWAg_vst8AnLdIrfBVw",
   authDomain: "harcama-takibi-1c48b.firebaseapp.com",
   projectId: "harcama-takibi-1c48b",
   storageBucket: "harcama-takibi-1c48b.firebasestorage.app",
@@ -244,7 +257,7 @@
   appId: "1:1051789650081:web:3c7d4bc099eb7b5f0f68e0"
         };
 
-        const DOGRU_SIFRE = "7536"; 
+        const DOGRU_SIFRE = "1453"; 
 
         function checkPassword() {
             let girilenSifre = prompt("Lütfen şifreyi girin:");
@@ -420,6 +433,44 @@
                 formContainer.style.display = 'block';
                 actionElements.forEach(el => el.style.display = '');
             });
+        }
+
+        window.downloadExcel = function() {
+            const filtered = getFilteredExpenses();
+            if (filtered.length === 0) {
+                alert("İndirilecek filtrelenmiş harcama bulunamadı!");
+                return;
+            }
+
+            // CSV Başlıkları
+            let csvContent = "\uFEFFTarih;Kişi;Kategori;Ödeme Tipi;Açıklama;Tutar (TL)\n";
+
+            filtered.forEach(item => {
+                let row = [
+                    item.date,
+                    item.person || 'Bekir',
+                    item.category,
+                    item.paymentType || 'Nakit',
+                    `"${(item.description || '-').replace(/"/g, '""')}"`,
+                    item.amount.toString().replace('.', ',')
+                ];
+                csvContent += row.join(";") + "\n";
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            
+            let fileName = "harcama-gecmisi.csv";
+            if (currentStartDate || currentEndDate) {
+                fileName = `harcama-raporu_${currentStartDate || 'baslangic'}_ile_${currentEndDate || 'bitis'}.csv`;
+            }
+
+            link.setAttribute("href", url);
+            link.setAttribute("download", fileName);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
 
         function renderApp() {
