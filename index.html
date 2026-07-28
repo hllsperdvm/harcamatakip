@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YUVAM - Ortak Harcama ve Alışveriş</title>
+    <title>YUVAM - Ortak Bütçe ve Alışveriş</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js -->
@@ -46,7 +46,7 @@
             <!-- Sekme (Tab) Butonları -->
             <div class="flex border-b border-gray-200 mb-6 gap-2">
                 <button id="tabBtnExpense" onclick="switchTab('expense')" class="px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600">
-                    Harcama Takip
+                    Bütçe Takip
                 </button>
                 <button id="tabBtnNotes" onclick="switchTab('notes')" class="px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700">
                     Notlar
@@ -56,37 +56,39 @@
                 </button>
             </div>
 
-            <!-- SEKME 1: HARCAMA TAKİP İÇERİĞİ -->
+            <!-- SEKME 1: BÜTÇE TAKİP İÇERİĞİ -->
             <div id="tabContentExpense" class="space-y-8">
-                <!-- Özet Kartları & Bütçe Ayarı -->
+                <!-- Özet Kartları -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                     <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-                        <p class="text-xs text-gray-500 font-medium">Toplam Bütçe</p>
+                        <p class="text-xs text-gray-500 font-medium">Toplam Bütçe (Gelirler)</p>
                         <div class="flex items-center justify-between mt-2">
-                            <span id="displayBudget" class="text-xl font-bold text-gray-900">0.00 TL</span>
-                            <button onclick="setBudget()" class="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded hover:bg-indigo-100 font-medium transition">Düzenle</button>
+                            <span id="displayBudget" class="text-xl font-bold text-gray-900">0,00 TL</span>
+                            <button onclick="openIncomeModal()" class="text-xs bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-lg hover:bg-indigo-100 font-medium transition flex items-center gap-1">
+                                + Gelir Ekle
+                            </button>
                         </div>
                     </div>
 
                     <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
                         <p class="text-xs text-gray-500 font-medium">Toplam Harcama</p>
-                        <p id="totalExpense" class="text-xl font-bold text-red-600 mt-2">0.00 TL</p>
+                        <p id="totalExpense" class="text-xl font-bold text-red-600 mt-2">0,00 TL</p>
                     </div>
 
                     <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
                         <p class="text-xs text-gray-500 font-medium">Bekir'in Harcaması</p>
-                        <p id="bekirExpense" class="text-xl font-bold text-blue-600 mt-2">0.00 TL</p>
+                        <p id="bekirExpense" class="text-xl font-bold text-blue-600 mt-2">0,00 TL</p>
                     </div>
 
                     <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
                         <p class="text-xs text-gray-500 font-medium">Duygu'nun Harcaması</p>
-                        <p id="duyguExpense" class="text-xl font-bold text-pink-600 mt-2">0.00 TL</p>
+                        <p id="duyguExpense" class="text-xl font-bold text-pink-600 mt-2">0,00 TL</p>
                     </div>
 
                     <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 sm:col-span-2 lg:col-span-1">
                         <p class="text-xs text-gray-500 font-medium">Kalan Bütçe Durumu</p>
                         <div class="flex items-center justify-between mt-2">
-                            <span id="remainingBudget" class="text-xl font-bold text-green-600">0.00 TL</span>
+                            <span id="remainingBudget" class="text-xl font-bold text-green-600">0,00 TL</span>
                             <span id="budgetStatusText" class="text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium">İyi</span>
                         </div>
                     </div>
@@ -99,7 +101,7 @@
                         <div>
                             <p class="text-xs text-gray-500 font-medium">Bekir Kredi Kartı Borcu</p>
                             <div class="flex items-center gap-2 mt-1">
-                                <span id="bekirDebtDisplay" class="text-lg font-bold text-gray-900">0.00 TL</span>
+                                <span id="bekirDebtDisplay" class="text-lg font-bold text-gray-900">0,00 TL</span>
                                 <span id="bekirDebtStatusBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-medium">Ödenmedi</span>
                             </div>
                         </div>
@@ -114,7 +116,7 @@
                         <div>
                             <p class="text-xs text-gray-500 font-medium">Duygu Kredi Kartı Borcu</p>
                             <div class="flex items-center gap-2 mt-1">
-                                <span id="duyguDebtDisplay" class="text-lg font-bold text-gray-900">0.00 TL</span>
+                                <span id="duyguDebtDisplay" class="text-lg font-bold text-gray-900">0,00 TL</span>
                                 <span id="duyguDebtStatusBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-medium">Ödenmedi</span>
                             </div>
                         </div>
@@ -134,7 +136,8 @@
                             <input type="hidden" id="editId">
                             <div>
                                 <label class="block text-xs font-medium text-gray-700 mb-1">Toplam Tutar (TL)</label>
-                                <input type="number" id="amount" step="0.01" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="0.00">
+                                <input type="text" id="amountFormatted" inputmode="decimal" required oninput="formatInputWithDots(this)" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="0,00">
+                                <input type="hidden" id="amount">
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-700 mb-1">Taksit Sayısı (Peşin için 1 bırakın)</label>
@@ -180,7 +183,7 @@
                         </form>
                     </div>
 
-                    <!-- Sağ Kolon: Grafik ve Liste -->
+                    <!-- Sağ Kolon: Grafik ve İşlem Geçmişi -->
                     <div class="lg:col-span-2 space-y-8">
                         <!-- Grafik -->
                         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center">
@@ -192,9 +195,9 @@
                             </div>
                         </div>
 
-                        <!-- Harcama Listesi ve Detaylı Filtreler -->
+                        <!-- İşlem Geçmişi ve Detaylı Filtreler -->
                         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                            <h2 class="text-lg font-semibold text-gray-900 mb-4">Harcama Geçmişi</h2>
+                            <h2 class="text-lg font-semibold text-gray-900 mb-4">İşlem Geçmişi</h2>
 
                             <!-- Filtrele Bölümü -->
                             <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-6 space-y-3">
@@ -218,11 +221,12 @@
                                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                     <!-- Kişi Filtresi -->
                                     <div>
-                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">Kişi</label>
+                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">Kişi / Tür</label>
                                         <select id="filterPerson" onchange="applyFilters()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
                                             <option value="Tümü">Tümü</option>
                                             <option value="Bekir">Bekir</option>
                                             <option value="Duygu">Duygu</option>
+                                            <option value="Gelir">Gelir</option>
                                         </select>
                                     </div>
                                     <!-- Kategori Filtresi -->
@@ -252,12 +256,14 @@
                                     <!-- Minimum Tutar -->
                                     <div>
                                         <label class="block text-[11px] font-medium text-gray-600 mb-1">Min Tutar (TL)</label>
-                                        <input type="number" step="0.01" id="filterMinAmount" oninput="applyFilters()" placeholder="0" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+                                        <input type="text" inputmode="decimal" id="filterMinAmountFormatted" oninput="formatInputWithDots(this); applyFilters();" placeholder="0" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+                                        <input type="hidden" id="filterMinAmount">
                                     </div>
                                     <!-- Maksimum Tutar -->
                                     <div>
                                         <label class="block text-[11px] font-medium text-gray-600 mb-1">Max Tutar (TL)</label>
-                                        <input type="number" step="0.01" id="filterMaxAmount" oninput="applyFilters()" placeholder="Sınırsız" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+                                        <input type="text" inputmode="decimal" id="filterMaxAmountFormatted" oninput="formatInputWithDots(this); applyFilters();" placeholder="Sınırsız" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+                                        <input type="hidden" id="filterMaxAmount">
                                     </div>
                                 </div>
                             </div>
@@ -268,9 +274,9 @@
                                     <thead>
                                         <tr class="border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase">
                                             <th onclick="sortTable('date')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Tarih ↕</th>
-                                            <th onclick="sortTable('person')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Kişi ↕</th>
+                                            <th onclick="sortTable('person')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Kişi / Tür ↕</th>
                                             <th onclick="sortTable('category')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Kategori ↕</th>
-                                            <th onclick="sortTable('paymentType')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Ödeme ↕</th>
+                                            <th onclick="sortTable('paymentType')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Ödeme / Tip ↕</th>
                                             <th onclick="sortTable('description')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Açıklama ↕</th>
                                             <th onclick="sortTable('amount')" class="py-3 px-2 text-right cursor-pointer hover:text-indigo-600 transition select-none">Tutar ↕</th>
                                             <th class="py-3 px-2 text-center action-col">İşlem</th>
@@ -353,12 +359,45 @@
                             <!-- Sepet Toplam Tutar -->
                             <div class="mt-6 pt-3 border-t border-indigo-200 flex justify-between items-center">
                                 <span class="text-xs font-bold text-indigo-900 uppercase">Sepet Tutarı:</span>
-                                <span id="cartTotalPrice" class="text-lg font-bold text-indigo-600">0.00 TL</span>
+                                <span id="cartTotalPrice" class="text-lg font-bold text-indigo-600">0,00 TL</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- GELİR EKLEME MODALI -->
+    <div id="incomeModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white p-6 rounded-xl shadow-lg w-full max-w-md">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Yeni Gelir Ekle</h2>
+            <form id="incomeForm" onsubmit="handleIncomeSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Gelir Türü</label>
+                    <select id="incomeType" onchange="onIncomeTypeChange()" required class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                        <option value="MAAŞ">MAAŞ</option>
+                        <option value="DİĞER">DİĞER</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Tutar (TL)</label>
+                    <input type="text" id="incomeAmountFormatted" inputmode="decimal" required oninput="formatInputWithDots(this)" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="0,00">
+                    <input type="hidden" id="incomeAmount">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Tarih</label>
+                    <input type="date" id="incomeDate" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                </div>
+                <div id="incomeDescContainer">
+                    <label id="incomeDescLabel" class="block text-xs font-medium text-gray-700 mb-1">Açıklama</label>
+                    <input type="text" id="incomeDescription" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="Açıklama giriniz...">
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg hover:bg-indigo-700 font-medium text-sm transition shadow-sm">Geliri Kaydet</button>
+                    <button type="button" onclick="closeIncomeModal()" class="w-1/3 bg-gray-200 text-gray-700 py-2.5 rounded-lg hover:bg-gray-300 font-medium text-sm transition">İptal</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -409,13 +448,50 @@
 
         window.checkPassword = checkPassword;
 
+        // Binlik Ayraç Formatlama Fonksiyonu (10.000 şeklinde)
+        window.formatInputWithDots = function(inputEl) {
+            let val = inputEl.value.replace(/[^\d,\.]/g, '');
+            // Virgül veya noktayı tek standarda (virgül) çevirelim
+            val = val.replace(/\./g, ',');
+            
+            let parts = val.split(',');
+            let integerPart = parts[0].replace(/\./g, '');
+            
+            if (integerPart) {
+                integerPart = parseInt(integerPart, 10).toLocaleString('tr-TR');
+            }
+            
+            let formatted = integerPart;
+            if (parts.length > 1) {
+                formatted += ',' + parts[1].substring(0, 2);
+            } else if (val.endsWith(',')) {
+                formatted += ',';
+            }
+            
+            inputEl.value = formatted;
+
+            // Gizli ham sayı alanını güncelle (Veritabanı için)
+            let rawVal = formatted.replace(/\./g, '').replace(',', '.');
+            let parsedNum = parseFloat(rawVal) || 0;
+            
+            if (inputEl.id === 'amountFormatted') {
+                document.getElementById('amount').value = parsedNum;
+            } else if (inputEl.id === 'incomeAmountFormatted') {
+                document.getElementById('incomeAmount').value = parsedNum;
+            } else if (inputEl.id === 'filterMinAmountFormatted') {
+                document.getElementById('filterMinAmount').value = parsedNum ? parsedNum : '';
+            } else if (inputEl.id === 'filterMaxAmountFormatted') {
+                document.getElementById('filterMaxAmount').value = parsedNum ? parsedNum : '';
+            }
+        }
+
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
         let expenses = [];
+        let incomes = [];
         let shoppingItems = [];
-        let notes = []; // Notlar state
-        let monthlyBudget = 5000;
+        let notes = [];
         let categories = ["Gıda", "Ulaşım", "Faturalar", "Eğlence", "Sağlık", "Eğitim", "Diğer", "Kredi Kartı Borcu"];
         let paymentTypes = ["Nakit", "Kredi Kartı"];
         let expenseChart = null;
@@ -436,6 +512,7 @@
         let sortDirection = 'desc';
 
         document.getElementById('date').valueAsDate = new Date();
+        document.getElementById('incomeDate').valueAsDate = new Date();
 
         // Sekme Değiştirme Fonksiyonu
         window.switchTab = function(tabName) {
@@ -447,7 +524,6 @@
             const contentNotes = document.getElementById('tabContentNotes');
             const contentShopping = document.getElementById('tabContentShopping');
 
-            // Hepsini pasif yap
             btnExpense.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700";
             btnNotes.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700";
             btnShopping.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700";
@@ -468,12 +544,85 @@
             }
         }
 
+        // Gelir Modal Fonksiyonları
+        window.openIncomeModal = function() {
+            document.getElementById('incomeForm').reset();
+            document.getElementById('incomeAmount').value = '';
+            document.getElementById('incomeDate').valueAsDate = new Date();
+            document.getElementById('incomeModal').classList.remove('hidden');
+            document.getElementById('incomeModal').classList.add('flex');
+            onIncomeTypeChange();
+        }
+
+        window.closeIncomeModal = function() {
+            document.getElementById('incomeModal').classList.remove('flex');
+            document.getElementById('incomeModal').classList.add('hidden');
+        }
+
+        window.onIncomeTypeChange = function() {
+            const type = document.getElementById('incomeType').value;
+            const descInput = document.getElementById('incomeDescription');
+            const descLabel = document.getElementById('incomeDescLabel');
+            if (type === 'DİĞER') {
+                descInput.required = true;
+                descLabel.innerHTML = 'Açıklama <span class="text-red-500">*</span>';
+            } else {
+                descInput.required = false;
+                descLabel.innerHTML = 'Açıklama';
+            }
+        }
+
+        window.handleIncomeSubmit = async function(e) {
+            e.preventDefault();
+            const type = document.getElementById('incomeType').value;
+            const amount = parseFloat(document.getElementById('incomeAmount').value);
+            const date = document.getElementById('incomeDate').value;
+            const description = document.getElementById('incomeDescription').value.trim();
+
+            if (isNaN(amount) || amount <= 0) {
+                alert("Lütfen geçerli bir tutar giriniz!");
+                return;
+            }
+
+            if (type === 'DİĞER' && !description) {
+                alert("Diğer gelirler için açıklama yazılması zorunludur!");
+                return;
+            }
+
+            const incomeMonth = date.substring(0, 7);
+
+            await addDoc(collection(db, "incomes"), {
+                type,
+                amount,
+                date,
+                incomeMonth,
+                description: description || (type === 'MAAŞ' ? 'Maaş Geliri' : '-')
+            });
+
+            closeIncomeModal();
+        }
+
+        window.deleteIncome = async function(id) {
+            if (confirm("Bu geliri silmek istediğinize emin misiniz?")) {
+                await deleteDoc(doc(db, "incomes", id));
+            }
+        }
+
         function initRealtimeSync() {
             // Harcamalar
             onSnapshot(collection(db, "expenses"), (snapshot) => {
                 expenses = [];
                 snapshot.forEach((docSnap) => {
                     expenses.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                renderApp();
+            });
+
+            // Gelirler
+            onSnapshot(collection(db, "incomes"), (snapshot) => {
+                incomes = [];
+                snapshot.forEach((docSnap) => {
+                    incomes.push({ id: docSnap.id, ...docSnap.data() });
                 });
                 renderApp();
             });
@@ -494,17 +643,6 @@
                     notes.push({ id: docSnap.id, ...docSnap.data() });
                 });
                 renderNotesList();
-            });
-
-            // Bütçe
-            const budgetDocRef = doc(db, "settings", "budget");
-            onSnapshot(budgetDocRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    monthlyBudget = docSnap.data().amount;
-                } else {
-                    setDoc(budgetDocRef, { amount: 5000 });
-                }
-                renderApp();
             });
 
             // Bekir Kredi Kartı Borcu
@@ -574,14 +712,12 @@
             const timestamp = `${dateStr} ${timeStr}`;
 
             if (editId) {
-                // Güncelleme (Düzenleme yapıldığında tarihi ve yazanı güncelleyebilir veya saklayabilirsiniz, burada güncelleniyor)
                 await updateDoc(doc(db, "notes", editId), {
                     person: person,
                     content: content,
                     timestamp: timestamp
                 });
             } else {
-                // Yeni Ekleme
                 await addDoc(collection(db, "notes"), {
                     person: person,
                     content: content,
@@ -669,9 +805,16 @@
         window.toggleShoppingItem = async function(id, currentStatus) {
             let updateData = { completed: !currentStatus };
             if (!currentStatus) {
-                let priceInput = prompt("Ürün fiyatını girin (TL):", "0");
-                if (priceInput !== null && !isNaN(priceInput) && priceInput >= 0) {
-                    updateData.price = parseFloat(priceInput);
+                let priceInput = prompt("Ürün fiyatını girin (TL):", "");
+                if (priceInput !== null) {
+                    // Virgülü noktaya çevirip parse edelim
+                    let normalized = priceInput.replace(/\./g, '').replace(',', '.');
+                    let parsedPrice = parseFloat(normalized);
+                    if (!isNaN(parsedPrice) && parsedPrice >= 0) {
+                        updateData.price = parsedPrice;
+                    } else {
+                        return;
+                    }
                 } else {
                     return;
                 }
@@ -682,11 +825,16 @@
         }
 
         window.updateItemPrice = async function(id, currentPrice) {
-            let newPrice = prompt("Ürün fiyatını güncelleyin (TL):", currentPrice);
-            if (newPrice !== null && !isNaN(newPrice) && newPrice >= 0) {
-                await updateDoc(doc(db, "shoppingList", id), {
-                    price: parseFloat(newPrice)
-                });
+            let currentFormatted = currentPrice ? currentPrice.toLocaleString('tr-TR', {minimumFractionDigits: 2}) : '';
+            let newPriceStr = prompt("Ürün fiyatını güncelleyin (TL):", currentFormatted);
+            if (newPriceStr !== null) {
+                let normalized = newPriceStr.replace(/\./g, '').replace(',', '.');
+                let newPrice = parseFloat(normalized);
+                if (!isNaN(newPrice) && newPrice >= 0) {
+                    await updateDoc(doc(db, "shoppingList", id), {
+                        price: newPrice
+                    });
+                }
             }
         }
 
@@ -756,17 +904,21 @@
 
         window.setCardDebt = async function(person) {
             let currentVal = person === 'bekir' ? bekirDebt.amount : duyguDebt.amount;
+            let currentFormatted = currentVal ? currentVal.toLocaleString('tr-TR', {minimumFractionDigits: 2}) : '';
             let title = person === 'bekir' ? "Bekir Kredi Kartı Borcunu Girin (TL):" : "Duygu Kredi Kartı Borcunu Girin (TL):";
-            let newAmount = prompt(title, currentVal);
+            let newAmountStr = prompt(title, currentFormatted);
             
-            if (newAmount !== null && !isNaN(newAmount) && newAmount >= 0) {
-                let val = parseFloat(newAmount);
-                if (person === 'bekir') {
-                    bekirDebt.amount = val;
-                    await setDoc(doc(db, "settings", "bekirDebt"), bekirDebt);
-                } else {
-                    duyguDebt.amount = val;
-                    await setDoc(doc(db, "settings", "duyguDebt"), duyguDebt);
+            if (newAmountStr !== null) {
+                let normalized = newAmountStr.replace(/\./g, '').replace(',', '.');
+                let val = parseFloat(normalized);
+                if (!isNaN(val) && val >= 0) {
+                    if (person === 'bekir') {
+                        bekirDebt.amount = val;
+                        await setDoc(doc(db, "settings", "bekirDebt"), bekirDebt);
+                    } else {
+                        duyguDebt.amount = val;
+                        await setDoc(doc(db, "settings", "duyguDebt"), duyguDebt);
+                    }
                 }
             }
         }
@@ -777,7 +929,7 @@
 
             if (!targetDebt.paid && targetDebt.amount > 0) {
                 let todayStr = new Date().toISOString().split('T')[0];
-                let confirmAdd = confirm(`${personName} için ${targetDebt.amount.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'})} tutarındaki borç ödendi olarak işaretlenecek ve harcama geçmişine eklensin mi?`);
+                let confirmAdd = confirm(`${personName} için ${targetDebt.amount.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'})} tutarındaki borç ödendi olarak işaretlenecek ve işlem geçmişine eklensin mi?`);
                 
                 if (confirmAdd) {
                     const docRef = await addDoc(collection(db, "expenses"), {
@@ -949,7 +1101,9 @@
             document.getElementById('filterShowInstallments').checked = false;
             document.getElementById('filterStartDate').value = '';
             document.getElementById('filterEndDate').value = '';
+            document.getElementById('filterMinAmountFormatted').value = '';
             document.getElementById('filterMinAmount').value = '';
+            document.getElementById('filterMaxAmountFormatted').value = '';
             document.getElementById('filterMaxAmount').value = '';
             applyFilters();
         }
@@ -964,14 +1118,6 @@
             renderApp();
         }
 
-        window.setBudget = async function() {
-            let newBudget = prompt("Yeni aylık bütçenizi girin (TL):", monthlyBudget);
-            if (newBudget !== null && !isNaN(newBudget) && newBudget >= 0) {
-                monthlyBudget = parseFloat(newBudget);
-                await setDoc(doc(db, "settings", "budget"), { amount: monthlyBudget });
-            }
-        }
-
         window.handleFormSubmit = async function(e) {
             e.preventDefault();
             
@@ -983,6 +1129,11 @@
             const paymentType = document.getElementById('paymentType').value;
             const date = document.getElementById('date').value;
             const description = document.getElementById('description').value || '-';
+
+            if (isNaN(totalAmount) || totalAmount <= 0) {
+                alert("Lütfen geçerli bir tutar giriniz!");
+                return;
+            }
 
             const amountPerInstallment = totalAmount / installmentCount;
             const expenseMonth = date.substring(0, 7);
@@ -1010,7 +1161,11 @@
             if (!expense) return;
 
             document.getElementById('editId').value = expense.id;
+            
+            let formattedAmount = expense.amount.toLocaleString('tr-TR', {minimumFractionDigits: (expense.amount % 1 !== 0 ? 2 : 0)});
+            document.getElementById('amountFormatted').value = formattedAmount;
             document.getElementById('amount').value = expense.amount;
+
             document.getElementById('installmentCount').value = expense.installmentCount || 1;
             document.getElementById('person').value = expense.person || 'Bekir';
             document.getElementById('category').value = expense.category;
@@ -1028,6 +1183,7 @@
         window.resetForm = function() {
             document.getElementById('expenseForm').reset();
             document.getElementById('editId').value = '';
+            document.getElementById('amount').value = '';
             document.getElementById('installmentCount').value = 1;
             document.getElementById('date').valueAsDate = new Date();
             document.getElementById('formTitle').innerText = "Yeni Harcama Ekle";
@@ -1060,6 +1216,7 @@
                 if (count <= 1) {
                     processed.push({
                         ...item,
+                        type: 'expense',
                         displayAmount: item.amount,
                         installmentLabel: 'Peşin',
                         effectiveMonth: startMonth
@@ -1078,6 +1235,7 @@
 
                             processed.push({
                                 ...item,
+                                type: 'expense',
                                 id: `${item.id}_taksit_${i+1}`,
                                 displayAmount: perAmount,
                                 installmentLabel: `Taksit ${i+1}/${count}`,
@@ -1089,6 +1247,7 @@
                         if (passedMonths >= 0 && passedMonths < count) {
                             processed.push({
                                 ...item,
+                                type: 'expense',
                                 displayAmount: perAmount,
                                 installmentLabel: `Taksit ${passedMonths + 1}/${count}`,
                                 effectiveMonth: currentPeriod
@@ -1096,6 +1255,27 @@
                         }
                     }
                 }
+            });
+
+            return processed;
+        }
+
+        function getProcessedIncomes() {
+            const currentPeriod = getCurrentPeriod();
+            let processed = [];
+
+            incomes.forEach(item => {
+                const startMonth = item.incomeMonth || (item.date ? item.date.substring(0, 7) : currentPeriod);
+                processed.push({
+                    ...item,
+                    type: 'income',
+                    displayAmount: item.amount,
+                    installmentLabel: 'Gelir',
+                    effectiveMonth: startMonth,
+                    person: `Gelir (${item.type})`,
+                    category: item.type,
+                    paymentType: 'Gelir'
+                });
             });
 
             return processed;
@@ -1111,7 +1291,7 @@
 
             const options = {
                 margin:       10,
-                filename:     'yuvam-harcama-raporu.pdf',
+                filename:     'yuvam-butce-raporu.pdf',
                 image:        { type: 'jpeg', quality: 0.98 },
                 html2canvas:  { scale: 2, useCORS: true },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -1124,20 +1304,20 @@
         }
 
         window.downloadExcel = function() {
-            const filtered = getFilteredExpenses();
+            const filtered = getFilteredTransactions();
             if (filtered.length === 0) {
-                alert("İndirilecek filtrelenmiş harcama bulunamadı!");
+                alert("İndirilecek filtrelenmiş işlem bulunamadı!");
                 return;
             }
 
-            let csvContent = "\uFEFFTarih;Kişi;Kategori;Ödeme Tipi;Açıklama;Tutar (TL)\n";
+            let csvContent = "\uFEFFTarih;Tür / Kişi;Kategori;Ödeme / Tip;Açıklama;Tutar (TL)\n";
 
             filtered.forEach(item => {
                 let row = [
                     item.date,
-                    item.person || 'Bekir',
+                    item.person,
                     item.category,
-                    item.paymentType || 'Nakit',
+                    item.paymentType,
                     `"${(item.description || '-').replace(/"/g, '""')} (${item.installmentLabel})"`,
                     item.displayAmount.toString().replace('.', ',')
                 ];
@@ -1148,7 +1328,7 @@
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
             
-            let fileName = "yuvam-harcama-gecmisi.csv";
+            let fileName = "yuvam-islem-gecmisi.csv";
             if (currentStartDate || currentEndDate) {
                 fileName = `yuvam-raporu_${currentStartDate || 'baslangic'}_ile_${currentEndDate || 'bitis'}.csv`;
             }
@@ -1167,17 +1347,19 @@
         }
 
         function renderBudgetInfo() {
-            const processedList = getProcessedExpenses();
             const currentPeriod = getCurrentPeriod();
 
-            const currentMonthItems = processedList.filter(i => i.effectiveMonth === currentPeriod);
+            const currentMonthIncomes = getProcessedIncomes().filter(i => i.effectiveMonth === currentPeriod);
+            const totalBudget = currentMonthIncomes.reduce((sum, item) => sum + item.displayAmount, 0);
 
-            const total = currentMonthItems.reduce((sum, item) => sum + item.displayAmount, 0);
-            const bekirTotal = currentMonthItems.filter(i => i.person === 'Bekir').reduce((sum, item) => sum + item.displayAmount, 0);
-            const duyguTotal = currentMonthItems.filter(i => i.person === 'Duygu').reduce((sum, item) => sum + item.displayAmount, 0);
-            const remaining = monthlyBudget - total;
+            const currentMonthExpenses = getProcessedExpenses().filter(i => i.effectiveMonth === currentPeriod);
 
-            document.getElementById('displayBudget').innerText = monthlyBudget.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
+            const total = currentMonthExpenses.reduce((sum, item) => sum + item.displayAmount, 0);
+            const bekirTotal = currentMonthExpenses.filter(i => i.person === 'Bekir').reduce((sum, item) => sum + item.displayAmount, 0);
+            const duyguTotal = currentMonthExpenses.filter(i => i.person === 'Duygu').reduce((sum, item) => sum + item.displayAmount, 0);
+            const remaining = totalBudget - total;
+
+            document.getElementById('displayBudget').innerText = totalBudget.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
             document.getElementById('totalExpense').innerText = total.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
             document.getElementById('bekirExpense').innerText = bekirTotal.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
             document.getElementById('duyguExpense').innerText = duyguTotal.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
@@ -1198,11 +1380,23 @@
             }
         }
 
-        function getFilteredExpenses() {
-            const processed = getProcessedExpenses();
+        function getAllTransactions() {
+            return [...getProcessedExpenses(), ...getProcessedIncomes()];
+        }
 
-            return processed.filter(item => {
-                const matchPerson = (currentPersonFilter === 'Tümü' || item.person === currentPersonFilter);
+        function getFilteredTransactions() {
+            const allTransactions = getAllTransactions();
+
+            return allTransactions.filter(item => {
+                let matchPerson = false;
+                if (currentPersonFilter === 'Tümü') {
+                    matchPerson = true;
+                } else if (currentPersonFilter === 'Gelir') {
+                    matchPerson = (item.type === 'income');
+                } else {
+                    matchPerson = (item.person === currentPersonFilter);
+                }
+
                 const matchCategory = (currentCategoryFilter === 'Tümü' || item.category === currentCategoryFilter);
                 const matchPayment = (currentPaymentFilter === 'Tümü' || item.paymentType === currentPaymentFilter);
                 
@@ -1223,10 +1417,10 @@
             const tbody = document.getElementById('expenseTableBody');
             tbody.innerHTML = '';
 
-            let filtered = getFilteredExpenses();
+            let filtered = getFilteredTransactions();
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-gray-400 text-xs">Bu kriterlere uygun harcama bulunamadı.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-gray-400 text-xs">Bu kriterlere uygun işlem bulunamadı.</td></tr>`;
                 return;
             }
 
@@ -1251,23 +1445,35 @@
             });
 
             filtered.forEach(item => {
-                const personBadgeColor = item.person === 'Bekir' ? 'bg-blue-50 text-blue-700' : 'bg-pink-50 text-pink-700';
-                const paymentBadgeColor = item.paymentType === 'Kredi Kartı' ? 'bg-purple-50 text-purple-700' : 'bg-amber-50 text-amber-700';
+                let personBadgeColor = 'bg-gray-100 text-gray-800';
+                if (item.type === 'income') {
+                    personBadgeColor = 'bg-green-50 text-green-700 font-bold';
+                } else if (item.person === 'Bekir') {
+                    personBadgeColor = 'bg-blue-50 text-blue-700';
+                } else if (item.person === 'Duygu') {
+                    personBadgeColor = 'bg-pink-50 text-pink-700';
+                }
+
+                const paymentBadgeColor = item.paymentType === 'Kredi Kartı' ? 'bg-purple-50 text-purple-700' : (item.type === 'income' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700');
+                const amountClass = item.type === 'income' ? 'text-green-600 font-bold' : 'text-red-600 font-medium';
+                const amountSign = item.type === 'income' ? '+' : '-';
                 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td class="py-3 px-2 text-gray-600">${item.date}</td>
-                    <td class="py-3 px-2"><span class="px-2 py-1 ${personBadgeColor} rounded-md text-xs font-semibold">${item.person || 'Bekir'}</span></td>
+                    <td class="py-3 px-2"><span class="px-2 py-1 ${personBadgeColor} rounded-md text-xs font-semibold">${item.person}</span></td>
                     <td class="py-3 px-2"><span class="px-2 py-1 bg-gray-100 rounded-md text-xs font-medium text-gray-600">${item.category}</span></td>
-                    <td class="py-3 px-2"><span class="px-2 py-1 ${paymentBadgeColor} rounded-md text-xs font-medium">${item.paymentType || 'Nakit'}</span></td>
+                    <td class="py-3 px-2"><span class="px-2 py-1 ${paymentBadgeColor} rounded-md text-xs font-medium">${item.paymentType}</span></td>
                     <td class="py-3 px-2 text-gray-800">
                         ${item.description} 
                         <span class="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded ml-1 font-medium">${item.installmentLabel}</span>
                     </td>
-                    <td class="py-3 px-2 text-right font-medium text-red-600">${item.displayAmount.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'})}</td>
+                    <td class="py-3 px-2 text-right ${amountClass}">${amountSign}${item.displayAmount.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'})}</td>
                     <td class="py-3 px-2 text-center space-x-2">
-                        ${!item.id.includes('_taksit_') ? `<button onclick="editExpense('${item.id}')" class="text-indigo-600 hover:text-indigo-800 text-xs font-medium">Düzenle</button>` : ''}
-                        ${!item.id.includes('_taksit_') ? `<button onclick="deleteExpense('${item.id}')" class="text-red-500 hover:text-red-700 text-xs font-medium">Sil</button>` : '<span class="text-gray-400 text-xs">Oto</span>'}
+                        ${item.type === 'expense' && !item.id.includes('_taksit_') ? `<button onclick="editExpense('${item.id}')" class="text-indigo-600 hover:text-indigo-800 text-xs font-medium">Düzenle</button>` : ''}
+                        ${item.type === 'expense' && !item.id.includes('_taksit_') ? `<button onclick="deleteExpense('${item.id}')" class="text-red-500 hover:text-red-700 text-xs font-medium">Sil</button>` : ''}
+                        ${item.type === 'income' ? `<button onclick="deleteIncome('${item.id}')" class="text-red-500 hover:text-red-700 text-xs font-medium">Sil</button>` : ''}
+                        ${item.id && item.id.includes('_taksit_') ? '<span class="text-gray-400 text-xs">Oto</span>' : ''}
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -1275,7 +1481,7 @@
         }
 
         function renderChart() {
-            let chartDataList = getFilteredExpenses();
+            let chartDataList = getFilteredTransactions().filter(i => i.type === 'expense');
 
             let titleText = `Kategorilere Göre Dağılım (${currentPersonFilter})`;
             if (currentCategoryFilter !== 'Tümü') {
