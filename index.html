@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ortak Harcama Takip Uygulaması</title>
+    <title>YUVAM - Ortak Harcama ve Alışveriş</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js -->
@@ -17,10 +17,10 @@
     <div id="appContainer" class="hidden">
         <div id="pdfContent" class="max-w-6xl mx-auto px-4 py-8">
             <!-- Başlık ve İndir Seçenekleri -->
-            <header class="mb-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <header class="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div>
-                    <h1 class="text-3xl font-bold text-indigo-600 text-center sm:text-left">Ortak Harcama Takibi</h1>
-                    <p class="text-sm text-gray-500 mt-1 text-center sm:text-left">Canlı Ortak Çalışma Alanı</p>
+                    <h1 class="text-3xl font-bold text-indigo-600 text-center sm:text-left">YUVAM</h1>
+                    <p class="text-sm text-gray-500 mt-1 text-center sm:text-left">Evimizin Ortak Uygulaması</p>
                 </div>
                 
                 <!-- İndir Başlığı ve Butonlar -->
@@ -43,228 +43,282 @@
                 </div>
             </header>
 
-            <!-- Özet Kartları & Bütçe Ayarı -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-                    <p class="text-xs text-gray-500 font-medium">Toplam Bütçe</p>
-                    <div class="flex items-center justify-between mt-2">
-                        <span id="displayBudget" class="text-xl font-bold text-gray-900">0.00 TL</span>
-                        <button onclick="setBudget()" class="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded hover:bg-indigo-100 font-medium transition">Düzenle</button>
-                    </div>
-                </div>
-
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-                    <p class="text-xs text-gray-500 font-medium">Toplam Harcama</p>
-                    <p id="totalExpense" class="text-xl font-bold text-red-600 mt-2">0.00 TL</p>
-                </div>
-
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-                    <p class="text-xs text-gray-500 font-medium">Bekir'in Harcaması</p>
-                    <p id="bekirExpense" class="text-xl font-bold text-blue-600 mt-2">0.00 TL</p>
-                </div>
-
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-                    <p class="text-xs text-gray-500 font-medium">Duygu'nun Harcaması</p>
-                    <p id="duyguExpense" class="text-xl font-bold text-pink-600 mt-2">0.00 TL</p>
-                </div>
-
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 sm:col-span-2 lg:col-span-1">
-                    <p class="text-xs text-gray-500 font-medium">Kalan Bütçe Durumu</p>
-                    <div class="flex items-center justify-between mt-2">
-                        <span id="remainingBudget" class="text-xl font-bold text-green-600">0.00 TL</span>
-                        <span id="budgetStatusText" class="text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium">İyi</span>
-                    </div>
-                </div>
+            <!-- Sekme (Tab) Butonları -->
+            <div class="flex border-b border-gray-200 mb-6 gap-2">
+                <button id="tabBtnExpense" onclick="switchTab('expense')" class="px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600">
+                    Harcama Takip
+                </button>
+                <button id="tabBtnShopping" onclick="switchTab('shopping')" class="px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700">
+                    Alışveriş Listesi
+                </button>
             </div>
 
-            <!-- Kredi Kartı Borçları Paneli -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-                <!-- Bekir Kredi Kartı Borcu -->
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-                    <div>
-                        <p class="text-xs text-gray-500 font-medium">Bekir Kredi Kartı Borcu</p>
-                        <div class="flex items-center gap-2 mt-1">
-                            <span id="bekirDebtDisplay" class="text-lg font-bold text-gray-900">0.00 TL</span>
-                            <span id="bekirDebtStatusBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-medium">Ödenmedi</span>
+            <!-- SEKME 1: HARCAMA TAKİP İÇERİĞİ -->
+            <div id="tabContentExpense" class="space-y-8">
+                <!-- Özet Kartları & Bütçe Ayarı -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <p class="text-xs text-gray-500 font-medium">Toplam Bütçe</p>
+                        <div class="flex items-center justify-between mt-2">
+                            <span id="displayBudget" class="text-xl font-bold text-gray-900">0.00 TL</span>
+                            <button onclick="setBudget()" class="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded hover:bg-indigo-100 font-medium transition">Düzenle</button>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <button onclick="setCardDebt('bekir')" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg font-medium transition">Tutar Gir</button>
-                        <button id="bekirDebtToggleBtn" onclick="toggleCardDebt('bekir')" class="text-xs px-3 py-1.5 rounded-lg font-medium transition bg-red-600 hover:bg-red-700 text-white">Ödendi Yap</button>
+
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <p class="text-xs text-gray-500 font-medium">Toplam Harcama</p>
+                        <p id="totalExpense" class="text-xl font-bold text-red-600 mt-2">0.00 TL</p>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <p class="text-xs text-gray-500 font-medium">Bekir'in Harcaması</p>
+                        <p id="bekirExpense" class="text-xl font-bold text-blue-600 mt-2">0.00 TL</p>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <p class="text-xs text-gray-500 font-medium">Duygu'nun Harcaması</p>
+                        <p id="duyguExpense" class="text-xl font-bold text-pink-600 mt-2">0.00 TL</p>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 sm:col-span-2 lg:col-span-1">
+                        <p class="text-xs text-gray-500 font-medium">Kalan Bütçe Durumu</p>
+                        <div class="flex items-center justify-between mt-2">
+                            <span id="remainingBudget" class="text-xl font-bold text-green-600">0.00 TL</span>
+                            <span id="budgetStatusText" class="text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium">İyi</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Duygu Kredi Kartı Borcu -->
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-                    <div>
-                        <p class="text-xs text-gray-500 font-medium">Duygu Kredi Kartı Borcu</p>
-                        <div class="flex items-center gap-2 mt-1">
-                            <span id="duyguDebtDisplay" class="text-lg font-bold text-gray-900">0.00 TL</span>
-                            <span id="duyguDebtStatusBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-medium">Ödenmedi</span>
+                <!-- Kredi Kartı Borçları Paneli -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Bekir Kredi Kartı Borcu -->
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-gray-500 font-medium">Bekir Kredi Kartı Borcu</p>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span id="bekirDebtDisplay" class="text-lg font-bold text-gray-900">0.00 TL</span>
+                                <span id="bekirDebtStatusBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-medium">Ödenmedi</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="setCardDebt('bekir')" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg font-medium transition">Tutar Gir</button>
+                            <button id="bekirDebtToggleBtn" onclick="toggleCardDebt('bekir')" class="text-xs px-3 py-1.5 rounded-lg font-medium transition bg-red-600 hover:bg-red-700 text-white">Ödendi Yap</button>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <button onclick="setCardDebt('duygu')" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg font-medium transition">Tutar Gir</button>
-                        <button id="duyguDebtToggleBtn" onclick="toggleCardDebt('duygu')" class="text-xs px-3 py-1.5 rounded-lg font-medium transition bg-red-600 hover:bg-red-700 text-white">Ödendi Yap</button>
+
+                    <!-- Duygu Kredi Kartı Borcu -->
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-gray-500 font-medium">Duygu Kredi Kartı Borcu</p>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span id="duyguDebtDisplay" class="text-lg font-bold text-gray-900">0.00 TL</span>
+                                <span id="duyguDebtStatusBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-medium">Ödenmedi</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="setCardDebt('duygu')" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg font-medium transition">Tutar Gir</button>
+                            <button id="duyguDebtToggleBtn" onclick="toggleCardDebt('duygu')" class="text-xs px-3 py-1.5 rounded-lg font-medium transition bg-red-600 hover:bg-red-700 text-white">Ödendi Yap</button>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Ana İçerik Grid -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <!-- Sol Kolon: Harcama Ekleme / Düzenleme Formu -->
-                <div id="formContainer" class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit">
-                    <h2 id="formTitle" class="text-lg font-semibold text-gray-900 mb-4">Yeni Harcama Ekle</h2>
-                    <form id="expenseForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
-                        <input type="hidden" id="editId">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Toplam Tutar (TL)</label>
-                            <input type="number" id="amount" step="0.01" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="0.00">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Taksit Sayısı (Peşin için 1 bırakın)</label>
-                            <input type="number" id="installmentCount" min="1" value="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Harcama Yapan Kişi</label>
-                            <select id="person" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                                <option value="Bekir">Bekir</option>
-                                <option value="Duygu">Duygu</option>
-                            </select>
-                        </div>
-                        <div>
-                            <div class="flex justify-between items-center mb-1">
-                                <label class="block text-xs font-medium text-gray-700">Kategori</label>
-                                <button type="button" onclick="addNewCategory()" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-0.5">+ Yeni Ekle</button>
+                <!-- Ana İçerik Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Sol Kolon: Harcama Ekleme / Düzenleme Formu -->
+                    <div id="formContainer" class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit">
+                        <h2 id="formTitle" class="text-lg font-semibold text-gray-900 mb-4">Yeni Harcama Ekle</h2>
+                        <form id="expenseForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
+                            <input type="hidden" id="editId">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Toplam Tutar (TL)</label>
+                                <input type="number" id="amount" step="0.01" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="0.00">
                             </div>
-                            <select id="category" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                                <!-- Dinamik Dolacak -->
-                            </select>
-                        </div>
-                        <div>
-                            <div class="flex justify-between items-center mb-1">
-                                <label class="block text-xs font-medium text-gray-700">Ödeme Tipi</label>
-                                <button type="button" onclick="addNewPaymentType()" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-0.5">+ Yeni Ekle</button>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Taksit Sayısı (Peşin için 1 bırakın)</label>
+                                <input type="number" id="installmentCount" min="1" value="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
                             </div>
-                            <select id="paymentType" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                                <!-- Dinamik Dolacak -->
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Tarih</label>
-                            <input type="date" id="date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Açıklama</label>
-                            <input type="text" id="description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="Örn: Market alışverişi">
-                        </div>
-                        <div class="flex gap-2">
-                            <button type="submit" id="submitBtn" class="w-full bg-indigo-600 text-white py-2.5 rounded-lg hover:bg-indigo-700 font-medium text-sm transition shadow-sm">Harcama Ekle</button>
-                            <button type="button" id="cancelEditBtn" onclick="resetForm()" class="hidden w-1/3 bg-gray-200 text-gray-700 py-2.5 rounded-lg hover:bg-gray-300 font-medium text-sm transition">İptal</button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Sağ Kolon: Grafik ve Liste -->
-                <div class="lg:col-span-2 space-y-8">
-                    <!-- Grafik -->
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center">
-                        <div class="w-full flex justify-between items-center mb-4">
-                            <h2 id="chartTitle" class="text-lg font-semibold text-gray-900">Kategorilere Göre Dağılım (Tümü)</h2>
-                        </div>
-                        <div class="w-full max-w-xs h-64">
-                            <canvas id="expenseChart"></canvas>
-                        </div>
-                    </div>
-
-                    <!-- Harcama Listesi ve Detaylı Filtreler -->
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <h2 class="text-lg font-semibold text-gray-900 mb-4">Harcama Geçmişi</h2>
-
-                        <!-- Filtrele Bölümü -->
-                        <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-6 space-y-3">
-                            <div class="flex justify-between items-center">
-                                <span class="text-xs font-bold text-gray-700 uppercase tracking-wider">Filtrele</span>
-                                <button onclick="resetFilters()" class="text-xs text-indigo-600 hover:underline font-medium">Filtreleri Temizle</button>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Harcama Yapan Kişi</label>
+                                <select id="person" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                                    <option value="Bekir">Bekir</option>
+                                    <option value="Duygu">Duygu</option>
+                                </select>
                             </div>
-
-                            <!-- Taksit Gösterim Filtresi -->
-                            <div class="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100 flex items-center justify-between">
-                                <div>
-                                    <span class="text-xs font-bold text-indigo-900 block">Taksit Takvimi Görünümü</span>
-                                    <span class="text-[11px] text-gray-500">İşaretlendiğinde gelecekteki tüm taksitler tabloda listelenir.</span>
+                            <div>
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="block text-xs font-medium text-gray-700">Kategori</label>
+                                    <button type="button" onclick="addNewCategory()" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-0.5">+ Yeni Ekle</button>
                                 </div>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="filterShowInstallments" onchange="applyFilters()" class="sr-only peer">
-                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-                                </label>
-                            </div>
-                            
-                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                <!-- Kişi Filtresi -->
-                                <div>
-                                    <label class="block text-[11px] font-medium text-gray-600 mb-1">Kişi</label>
-                                    <select id="filterPerson" onchange="applyFilters()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
-                                        <option value="Tümü">Tümü</option>
-                                        <option value="Bekir">Bekir</option>
-                                        <option value="Duygu">Duygu</option>
-                                    </select>
-                                </div>
-                                <!-- Kategori Filtresi -->
-                                <div>
-                                    <label class="block text-[11px] font-medium text-gray-600 mb-1">Kategori</label>
-                                    <select id="filterCategory" onchange="applyFilters()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
-                                        <!-- Dinamik Dolacak -->
-                                    </select>
-                                </div>
-                                <!-- Ödeme Tipi Filtresi -->
-                                <div>
-                                    <label class="block text-[11px] font-medium text-gray-600 mb-1">Ödeme Tipi</label>
-                                    <select id="filterPayment" onchange="applyFilters()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
-                                        <!-- Dinamik Dolacak -->
-                                    </select>
-                                </div>
-                                <!-- Başlangıç Tarihi -->
-                                <div>
-                                    <label class="block text-[11px] font-medium text-gray-600 mb-1">Başlangıç Tarihi</label>
-                                    <input type="date" id="filterStartDate" onchange="applyFilters()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
-                                </div>
-                                <!-- Bitiş Tarihi -->
-                                <div>
-                                    <label class="block text-[11px] font-medium text-gray-600 mb-1">Bitiş Tarihi</label>
-                                    <input type="date" id="filterEndDate" onchange="applyFilters()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
-                                </div>
-                                <!-- Minimum Tutar -->
-                                <div>
-                                    <label class="block text-[11px] font-medium text-gray-600 mb-1">Min Tutar (TL)</label>
-                                    <input type="number" step="0.01" id="filterMinAmount" oninput="applyFilters()" placeholder="0" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
-                                </div>
-                                <!-- Maksimum Tutar -->
-                                <div>
-                                    <label class="block text-[11px] font-medium text-gray-600 mb-1">Max Tutar (TL)</label>
-                                    <input type="number" step="0.01" id="filterMaxAmount" oninput="applyFilters()" placeholder="Sınırsız" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Liste Tablosu -->
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
-                                <thead>
-                                    <tr class="border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase">
-                                        <th onclick="sortTable('date')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Tarih ↕</th>
-                                        <th onclick="sortTable('person')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Kişi ↕</th>
-                                        <th onclick="sortTable('category')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Kategori ↕</th>
-                                        <th onclick="sortTable('paymentType')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Ödeme ↕</th>
-                                        <th onclick="sortTable('description')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Açıklama ↕</th>
-                                        <th onclick="sortTable('amount')" class="py-3 px-2 text-right cursor-pointer hover:text-indigo-600 transition select-none">Tutar ↕</th>
-                                        <th class="py-3 px-2 text-center action-col">İşlem</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="expenseTableBody" class="text-sm divide-y divide-gray-100">
+                                <select id="category" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
                                     <!-- Dinamik Dolacak -->
-                                </tbody>
-                            </table>
+                                </select>
+                            </div>
+                            <div>
+                                <div class="flex justify-between items-center mb-1">
+                                    <label class="block text-xs font-medium text-gray-700">Ödeme Tipi</label>
+                                    <button type="button" onclick="addNewPaymentType()" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-0.5">+ Yeni Ekle</button>
+                                </div>
+                                <select id="paymentType" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                                    <!-- Dinamik Dolacak -->
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Tarih</label>
+                                <input type="date" id="date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Açıklama</label>
+                                <input type="text" id="description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="Örn: Market alışverişi">
+                            </div>
+                            <div class="flex gap-2">
+                                <button type="submit" id="submitBtn" class="w-full bg-indigo-600 text-white py-2.5 rounded-lg hover:bg-indigo-700 font-medium text-sm transition shadow-sm">Harcama Ekle</button>
+                                <button type="button" id="cancelEditBtn" onclick="resetForm()" class="hidden w-1/3 bg-gray-200 text-gray-700 py-2.5 rounded-lg hover:bg-gray-300 font-medium text-sm transition">İptal</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Sağ Kolon: Grafik ve Liste -->
+                    <div class="lg:col-span-2 space-y-8">
+                        <!-- Grafik -->
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center">
+                            <div class="w-full flex justify-between items-center mb-4">
+                                <h2 id="chartTitle" class="text-lg font-semibold text-gray-900">Kategorilere Göre Dağılım (Tümü)</h2>
+                            </div>
+                            <div class="w-full max-w-xs h-64">
+                                <canvas id="expenseChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Harcama Listesi ve Detaylı Filtreler -->
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                            <h2 class="text-lg font-semibold text-gray-900 mb-4">Harcama Geçmişi</h2>
+
+                            <!-- Filtrele Bölümü -->
+                            <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-6 space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-bold text-gray-700 uppercase tracking-wider">Filtrele</span>
+                                    <button onclick="resetFilters()" class="text-xs text-indigo-600 hover:underline font-medium">Filtreleri Temizle</button>
+                                </div>
+
+                                <!-- Taksit Gösterim Filtresi -->
+                                <div class="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100 flex items-center justify-between">
+                                    <div>
+                                        <span class="text-xs font-bold text-indigo-900 block">Taksit Takvimi Görünümü</span>
+                                        <span class="text-[11px] text-gray-500">İşaretlendiğinde gelecekteki tüm taksitler tabloda listelenir.</span>
+                                    </div>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="filterShowInstallments" onchange="applyFilters()" class="sr-only peer">
+                                        <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                    </label>
+                                </div>
+                                
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                    <!-- Kişi Filtresi -->
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">Kişi</label>
+                                        <select id="filterPerson" onchange="applyFilters()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+                                            <option value="Tümü">Tümü</option>
+                                            <option value="Bekir">Bekir</option>
+                                            <option value="Duygu">Duygu</option>
+                                        </select>
+                                    </div>
+                                    <!-- Kategori Filtresi -->
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">Kategori</label>
+                                        <select id="filterCategory" onchange="applyFilters()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+                                            <!-- Dinamik Dolacak -->
+                                        </select>
+                                    </div>
+                                    <!-- Ödeme Tipi Filtresi -->
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">Ödeme Tipi</label>
+                                        <select id="filterPayment" onchange="applyFilters()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+                                            <!-- Dinamik Dolacak -->
+                                        </select>
+                                    </div>
+                                    <!-- Başlangıç Tarihi -->
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">Başlangıç Tarihi</label>
+                                        <input type="date" id="filterStartDate" onchange="applyFilters()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+                                    </div>
+                                    <!-- Bitiş Tarihi -->
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">Bitiş Tarihi</label>
+                                        <input type="date" id="filterEndDate" onchange="applyFilters()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+                                    </div>
+                                    <!-- Minimum Tutar -->
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">Min Tutar (TL)</label>
+                                        <input type="number" step="0.01" id="filterMinAmount" oninput="applyFilters()" placeholder="0" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+                                    </div>
+                                    <!-- Maksimum Tutar -->
+                                    <div>
+                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">Max Tutar (TL)</label>
+                                        <input type="number" step="0.01" id="filterMaxAmount" oninput="applyFilters()" placeholder="Sınırsız" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Liste Tablosu -->
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase">
+                                            <th onclick="sortTable('date')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Tarih ↕</th>
+                                            <th onclick="sortTable('person')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Kişi ↕</th>
+                                            <th onclick="sortTable('category')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Kategori ↕</th>
+                                            <th onclick="sortTable('paymentType')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Ödeme ↕</th>
+                                            <th onclick="sortTable('description')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Açıklama ↕</th>
+                                            <th onclick="sortTable('amount')" class="py-3 px-2 text-right cursor-pointer hover:text-indigo-600 transition select-none">Tutar ↕</th>
+                                            <th class="py-3 px-2 text-center action-col">İşlem</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="expenseTableBody" class="text-sm divide-y divide-gray-100">
+                                        <!-- Dinamik Dolacak -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEKME 2: ALIŞVERİŞ LİSTESİ İÇERİĞİ -->
+            <div id="tabContentShopping" class="hidden space-y-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-4xl mx-auto">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Ortak Alışveriş Listesi</h2>
+                    
+                    <!-- Yeni Ürün Ekleme Formu (Üstte) -->
+                    <form id="shoppingForm" onsubmit="handleShoppingSubmit(event)" class="flex gap-2 mb-8">
+                        <input type="text" id="shoppingItemInput" required placeholder="Alınacak ürün adı (Örn: Süt, Ekmek)..." class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition shadow-sm">Ekle</button>
+                    </form>
+
+                    <!-- Alt Bölüm: İki Sütun (Sol: Alınacaklar, Sağ: Sepette) -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Sol Taraf: Alınacaklar -->
+                        <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col justify-between">
+                            <div>
+                                <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3">Alınacaklar</h3>
+                                <ul id="todoListContainer" class="divide-y divide-gray-200">
+                                    <!-- Dinamik Dolacak -->
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Sağ Taraf: Sepette -->
+                        <div class="bg-indigo-50/40 p-4 rounded-xl border border-indigo-100 flex flex-col justify-between">
+                            <div>
+                                <h3 class="text-sm font-bold text-indigo-900 uppercase tracking-wider mb-3">Sepette</h3>
+                                <ul id="cartListContainer" class="divide-y divide-indigo-100">
+                                    <!-- Dinamik Dolacak -->
+                                </ul>
+                            </div>
+                            <!-- Sepet Toplam Tutar -->
+                            <div class="mt-6 pt-3 border-t border-indigo-200 flex justify-between items-center">
+                                <span class="text-xs font-bold text-indigo-900 uppercase">Sepet Tutarı:</span>
+                                <span id="cartTotalPrice" class="text-lg font-bold text-indigo-600">0.00 TL</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -323,12 +377,12 @@
         const db = getFirestore(app);
 
         let expenses = [];
+        let shoppingItems = []; // Alışveriş listesi state
         let monthlyBudget = 5000;
         let categories = ["Gıda", "Ulaşım", "Faturalar", "Eğlence", "Sağlık", "Eğitim", "Diğer", "Kredi Kartı Borcu"];
         let paymentTypes = ["Nakit", "Kredi Kartı"];
         let expenseChart = null;
 
-        // Kredi Kartı Borçları State Verileri
         let bekirDebt = { amount: 0, paid: false, lastExpenseId: null };
         let duyguDebt = { amount: 0, paid: false, lastExpenseId: null };
 
@@ -346,6 +400,26 @@
 
         document.getElementById('date').valueAsDate = new Date();
 
+        // Sekme Değiştirme Fonksiyonu
+        window.switchTab = function(tabName) {
+            const btnExpense = document.getElementById('tabBtnExpense');
+            const btnShopping = document.getElementById('tabBtnShopping');
+            const contentExpense = document.getElementById('tabContentExpense');
+            const contentShopping = document.getElementById('tabContentShopping');
+
+            if (tabName === 'expense') {
+                btnExpense.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600";
+                btnShopping.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700";
+                contentExpense.classList.remove('hidden');
+                contentShopping.classList.add('hidden');
+            } else {
+                btnShopping.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600";
+                btnExpense.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700";
+                contentShopping.classList.remove('hidden');
+                contentExpense.classList.add('hidden');
+            }
+        }
+
         function initRealtimeSync() {
             // Harcamalar
             onSnapshot(collection(db, "expenses"), (snapshot) => {
@@ -354,6 +428,15 @@
                     expenses.push({ id: docSnap.id, ...docSnap.data() });
                 });
                 renderApp();
+            });
+
+            // Alışveriş Listesi (Firebase)
+            onSnapshot(collection(db, "shoppingList"), (snapshot) => {
+                shoppingItems = [];
+                snapshot.forEach((docSnap) => {
+                    shoppingItems.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                renderShoppingList();
             });
 
             // Bütçe
@@ -417,6 +500,114 @@
                 updatePaymentSelects();
                 renderApp();
             });
+        }
+
+        // Alışveriş Listesi Fonksiyonları
+        window.handleShoppingSubmit = async function(e) {
+            e.preventDefault();
+            const input = document.getElementById('shoppingItemInput');
+            const title = input.value.trim();
+            if (title) {
+                await addDoc(collection(db, "shoppingList"), {
+                    title: title,
+                    completed: false,
+                    price: 0
+                });
+                input.value = '';
+            }
+        }
+
+        window.toggleShoppingItem = async function(id, currentStatus) {
+            let updateData = { completed: !currentStatus };
+            if (!currentStatus) {
+                // Sepete atılırken fiyat soralım
+                let priceInput = prompt("Ürün fiyatını girin (TL):", "0");
+                if (priceInput !== null && !isNaN(priceInput) && priceInput >= 0) {
+                    updateData.price = parseFloat(priceInput);
+                } else {
+                    return; // İptal edilirse veya geçersizse işlemi durdur
+                }
+            } else {
+                updateData.price = 0;
+            }
+            await updateDoc(doc(db, "shoppingList", id), updateData);
+        }
+
+        window.updateItemPrice = async function(id, currentPrice) {
+            let newPrice = prompt("Ürün fiyatını güncelleyin (TL):", currentPrice);
+            if (newPrice !== null && !isNaN(newPrice) && newPrice >= 0) {
+                await updateDoc(doc(db, "shoppingList", id), {
+                    price: parseFloat(newPrice)
+                });
+            }
+        }
+
+        // Alınacaklar kısmındaki "Sil" butonu ürünü tamamen siler
+        window.deleteShoppingItemCompletely = async function(id) {
+            await deleteDoc(doc(db, "shoppingList", id));
+        }
+
+        // Sepetteki "Sil" butonu ise ürünü tekrar alınacaklar kısmına döndürür (completed: false yapılır, fiyat 0'lanır)
+        window.returnToTodoList = async function(id) {
+            await updateDoc(doc(db, "shoppingList", id), {
+                completed: false,
+                price: 0
+            });
+        }
+
+        function renderShoppingList() {
+            const todoContainer = document.getElementById('todoListContainer');
+            const cartContainer = document.getElementById('cartListContainer');
+            const cartTotalPriceEl = document.getElementById('cartTotalPrice');
+
+            todoContainer.innerHTML = '';
+            cartContainer.innerHTML = '';
+
+            let todos = shoppingItems.filter(item => !item.completed);
+            let carts = shoppingItems.filter(item => item.completed);
+
+            // Alışveriş listesi boşsa
+            if (todos.length === 0) {
+                todoContainer.innerHTML = `<li class="py-3 text-center text-gray-400 text-xs">Alınacak ürün yok.</li>`;
+            } else {
+                todos.forEach(item => {
+                    const li = document.createElement('li');
+                    li.className = "py-2.5 flex items-center justify-between";
+                    li.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" onchange="toggleShoppingItem('${item.id}', ${item.completed})" class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer">
+                            <span class="text-sm text-gray-800">${item.title}</span>
+                        </div>
+                        <button onclick="deleteShoppingItemCompletely('${item.id}')" class="text-red-500 hover:text-red-700 text-xs font-medium">Sil</button>
+                    `;
+                    todoContainer.appendChild(li);
+                });
+            }
+
+            // Sepet boşsa
+            let totalCartPrice = 0;
+            if (carts.length === 0) {
+                cartContainer.innerHTML = `<li class="py-3 text-center text-gray-400 text-xs">Sepet boş.</li>`;
+            } else {
+                carts.forEach(item => {
+                    totalCartPrice += (item.price || 0);
+                    const li = document.createElement('li');
+                    li.className = "py-2.5 flex items-center justify-between";
+                    li.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" checked onchange="toggleShoppingItem('${item.id}', ${item.completed})" class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer" title="Alınacaklara Geri Döndür">
+                            <span class="text-sm text-gray-800 line-through">${item.title}</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span onclick="updateItemPrice('${item.id}', ${item.price || 0})" class="text-xs font-semibold text-indigo-600 cursor-pointer hover:underline" title="Fiyatı Düzenle">${(item.price || 0).toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'})}</span>
+                            <button onclick="returnToTodoList('${item.id}')" class="text-red-500 hover:text-red-700 text-xs font-medium" title="Alınacaklar Listesine Geri Döndür">Sil</button>
+                        </div>
+                    `;
+                    cartContainer.appendChild(li);
+                });
+            }
+
+            cartTotalPriceEl.innerText = totalCartPrice.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
         }
 
         window.setCardDebt = async function(person) {
@@ -776,7 +967,7 @@
 
             const options = {
                 margin:       10,
-                filename:     'ortak-harcama-raporu.pdf',
+                filename:     'yuvam-harcama-raporu.pdf',
                 image:        { type: 'jpeg', quality: 0.98 },
                 html2canvas:  { scale: 2, useCORS: true },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -813,9 +1004,9 @@
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
             
-            let fileName = "harcama-gecmisi.csv";
+            let fileName = "yuvam-harcama-gecmisi.csv";
             if (currentStartDate || currentEndDate) {
-                fileName = `harcama-raporu_${currentStartDate || 'baslangic'}_ile_${currentEndDate || 'bitis'}.csv`;
+                fileName = `yuvam-raporu_${currentStartDate || 'baslangic'}_ile_${currentEndDate || 'bitis'}.csv`;
             }
 
             link.setAttribute("href", url);
