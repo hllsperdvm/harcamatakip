@@ -118,8 +118,12 @@
                     <form id="expenseForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
                         <input type="hidden" id="editId">
                         <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Tutar (TL)</label>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Toplam Tutar (TL)</label>
                             <input type="number" id="amount" step="0.01" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="0.00">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Taksit Sayısı (Peşin için 1 bırakın)</label>
+                            <input type="number" id="installmentCount" min="1" value="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-700 mb-1">Harcama Yapan Kişi</label>
@@ -182,6 +186,18 @@
                             <div class="flex justify-between items-center">
                                 <span class="text-xs font-bold text-gray-700 uppercase tracking-wider">Filtrele</span>
                                 <button onclick="resetFilters()" class="text-xs text-indigo-600 hover:underline font-medium">Filtreleri Temizle</button>
+                            </div>
+
+                            <!-- Taksit Gösterim Filtresi -->
+                            <div class="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100 flex items-center justify-between">
+                                <div>
+                                    <span class="text-xs font-bold text-indigo-900 block">Taksit Takvimi Görünümü</span>
+                                    <span class="text-[11px] text-gray-500">İşaretlendiğinde gelecekteki tüm taksitler tabloda listelenir.</span>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="filterShowInstallments" onchange="applyFilters()" class="sr-only peer">
+                                    <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                </label>
                             </div>
                             
                             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -319,6 +335,7 @@
         let currentPersonFilter = 'Tümü';
         let currentCategoryFilter = 'Tümü';
         let currentPaymentFilter = 'Tümü';
+        let currentShowInstallments = false;
         let currentStartDate = '';
         let currentEndDate = '';
         let currentMinAmount = '';
@@ -423,7 +440,6 @@
             let targetDebt = person === 'bekir' ? bekirDebt : duyguDebt;
             let personName = person === 'bekir' ? 'Bekir' : 'Duygu';
 
-            // Eğer ödenecek durumuna geçiyorsa ve borç tutarı 0'dan büyükse otomatik harcama ekle
             if (!targetDebt.paid && targetDebt.amount > 0) {
                 let todayStr = new Date().toISOString().split('T')[0];
                 let confirmAdd = confirm(`${personName} için ${targetDebt.amount.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'})} tutarındaki borç ödendi olarak işaretlenecek ve harcama geçmişine eklensin mi?`);
@@ -431,6 +447,9 @@
                 if (confirmAdd) {
                     await addDoc(collection(db, "expenses"), {
                         amount: targetDebt.amount,
+                        installmentCount: 1,
+                        amountPerInstallment: targetDebt.amount,
+                        expenseMonth: todayStr.substring(0, 7),
                         person: personName,
                         category: "Kredi Kartı Borcu",
                         paymentType: paymentTypes.includes("Kredi Kartı") ? "Kredi Kartı" : (paymentTypes[0] || "Nakit"),
@@ -571,6 +590,7 @@
             currentPersonFilter = document.getElementById('filterPerson').value;
             currentCategoryFilter = document.getElementById('filterCategory').value;
             currentPaymentFilter = document.getElementById('filterPayment').value;
+            currentShowInstallments = document.getElementById('filterShowInstallments').checked;
             currentStartDate = document.getElementById('filterStartDate').value;
             currentEndDate = document.getElementById('filterEndDate').value;
             currentMinAmount = document.getElementById('filterMinAmount').value;
@@ -582,6 +602,7 @@
             document.getElementById('filterPerson').value = 'Tümü';
             document.getElementById('filterCategory').value = 'Tümü';
             document.getElementById('filterPayment').value = 'Tümü';
+            document.getElementById('filterShowInstallments').checked = false;
             document.getElementById('filterStartDate').value = '';
             document.getElementById('filterEndDate').value = '';
             document.getElementById('filterMinAmount').value = '';
@@ -611,18 +632,30 @@
             e.preventDefault();
             
             const editId = document.getElementById('editId').value;
-            const amount = parseFloat(document.getElementById('amount').value);
+            const totalAmount = parseFloat(document.getElementById('amount').value);
+            const installmentCount = parseInt(document.getElementById('installmentCount').value) || 1;
             const person = document.getElementById('person').value;
             const category = document.getElementById('category').value;
             const paymentType = document.getElementById('paymentType').value;
             const date = document.getElementById('date').value;
             const description = document.getElementById('description').value || '-';
 
+            const amountPerInstallment = totalAmount / installmentCount;
+            const expenseMonth = date.substring(0, 7);
+
+            const expenseData = {
+                amount: totalAmount,
+                installmentCount: installmentCount,
+                amountPerInstallment: amountPerInstallment,
+                expenseMonth: expenseMonth,
+                person, category, paymentType, date, description
+            };
+
             if (editId) {
                 const docRef = doc(db, "expenses", editId);
-                await updateDoc(docRef, { amount, person, category, paymentType, date, description });
+                await updateDoc(docRef, expenseData);
             } else {
-                await addDoc(collection(db, "expenses"), { amount, person, category, paymentType, date, description });
+                await addDoc(collection(db, "expenses"), expenseData);
             }
 
             resetForm();
@@ -634,6 +667,7 @@
 
             document.getElementById('editId').value = expense.id;
             document.getElementById('amount').value = expense.amount;
+            document.getElementById('installmentCount').value = expense.installmentCount || 1;
             document.getElementById('person').value = expense.person || 'Bekir';
             document.getElementById('category').value = expense.category;
             document.getElementById('paymentType').value = expense.paymentType || 'Nakit';
@@ -650,6 +684,7 @@
         window.resetForm = function() {
             document.getElementById('expenseForm').reset();
             document.getElementById('editId').value = '';
+            document.getElementById('installmentCount').value = 1;
             document.getElementById('date').valueAsDate = new Date();
             document.getElementById('formTitle').innerText = "Yeni Harcama Ekle";
             document.getElementById('submitBtn').innerText = "Harcama Ekle";
@@ -660,6 +695,66 @@
             if (confirm("Bu harcamayı silmek istediğinize emin misiniz?")) {
                 await deleteDoc(doc(db, "expenses", id));
             }
+        }
+
+        function getCurrentPeriod() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            return `${year}-${month}`;
+        }
+
+        function getProcessedExpenses() {
+            const currentPeriod = getCurrentPeriod();
+            let processed = [];
+
+            expenses.forEach(item => {
+                const count = item.installmentCount || 1;
+                const perAmount = item.amountPerInstallment || item.amount;
+                const startMonth = item.expenseMonth || (item.date ? item.date.substring(0, 7) : currentPeriod);
+
+                if (count <= 1) {
+                    processed.push({
+                        ...item,
+                        displayAmount: item.amount,
+                        installmentLabel: 'Peşin',
+                        effectiveMonth: startMonth
+                    });
+                } else {
+                    const [startYear, startM] = startMonth.split('-').map(Number);
+                    const [currYear, currM] = currentPeriod.split('-').map(Number);
+                    const passedMonths = (currYear - startYear) * 12 + (currM - startM);
+
+                    if (currentShowInstallments) {
+                        for (let i = 0; i < count; i++) {
+                            let targetDateObj = new Date(startYear, startM - 1 + i, 1);
+                            let tYear = targetDateObj.getFullYear();
+                            let tMonth = String(targetDateObj.getMonth() + 1).padStart(2, '0');
+                            let targetPeriod = `${tYear}-${tMonth}`;
+
+                            processed.push({
+                                ...item,
+                                id: `${item.id}_taksit_${i+1}`,
+                                displayAmount: perAmount,
+                                installmentLabel: `Taksit ${i+1}/${count}`,
+                                effectiveMonth: targetPeriod,
+                                date: `${targetPeriod}-01`
+                            });
+                        }
+                    } else {
+                        if (passedMonths >= 0 && passedMonths < count) {
+                            processed.push({
+                                ...item,
+                                displayAmount: perAmount,
+                                installmentLabel: `Taksit ${passedMonths + 1}/${count}`,
+                                effectiveMonth: currentPeriod
+                            });
+                        }
+                    }
+                }
+            });
+
+            return processed;
         }
 
         window.downloadPDF = function() {
@@ -699,8 +794,8 @@
                     item.person || 'Bekir',
                     item.category,
                     item.paymentType || 'Nakit',
-                    `"${(item.description || '-').replace(/"/g, '""')}"`,
-                    item.amount.toString().replace('.', ',')
+                    `"${(item.description || '-').replace(/"/g, '""')} (${item.installmentLabel})"`,
+                    item.displayAmount.toString().replace('.', ',')
                 ];
                 csvContent += row.join(";") + "\n";
             });
@@ -728,9 +823,14 @@
         }
 
         function renderBudgetInfo() {
-            const total = expenses.reduce((sum, item) => sum + item.amount, 0);
-            const bekirTotal = expenses.filter(i => i.person === 'Bekir').reduce((sum, item) => sum + item.amount, 0);
-            const duyguTotal = expenses.filter(i => i.person === 'Duygu').reduce((sum, item) => sum + item.amount, 0);
+            const processedList = getProcessedExpenses();
+            const currentPeriod = getCurrentPeriod();
+
+            const currentMonthItems = processedList.filter(i => i.effectiveMonth === currentPeriod);
+
+            const total = currentMonthItems.reduce((sum, item) => sum + item.displayAmount, 0);
+            const bekirTotal = currentMonthItems.filter(i => i.person === 'Bekir').reduce((sum, item) => sum + item.displayAmount, 0);
+            const duyguTotal = currentMonthItems.filter(i => i.person === 'Duygu').reduce((sum, item) => sum + item.displayAmount, 0);
             const remaining = monthlyBudget - total;
 
             document.getElementById('displayBudget').innerText = monthlyBudget.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
@@ -755,18 +855,21 @@
         }
 
         function getFilteredExpenses() {
-            return expenses.filter(item => {
+            const processed = getProcessedExpenses();
+
+            return processed.filter(item => {
                 const matchPerson = (currentPersonFilter === 'Tümü' || item.person === currentPersonFilter);
                 const matchCategory = (currentCategoryFilter === 'Tümü' || item.category === currentCategoryFilter);
                 const matchPayment = (currentPaymentFilter === 'Tümü' || item.paymentType === currentPaymentFilter);
                 
                 let matchDate = true;
-                if (currentStartDate && item.date < currentStartDate) matchDate = false;
-                if (currentEndDate && item.date > currentEndDate) matchDate = false;
+                let checkDate = item.effectiveMonth || item.date;
+                if (currentStartDate && checkDate < currentStartDate) matchDate = false;
+                if (currentEndDate && checkDate > currentEndDate) matchDate = false;
 
                 let matchAmount = true;
-                if (currentMinAmount !== '' && item.amount < parseFloat(currentMinAmount)) matchAmount = false;
-                if (currentMaxAmount !== '' && item.amount > parseFloat(currentMaxAmount)) matchAmount = false;
+                if (currentMinAmount !== '' && item.displayAmount < parseFloat(currentMinAmount)) matchAmount = false;
+                if (currentMaxAmount !== '' && item.displayAmount > parseFloat(currentMaxAmount)) matchAmount = false;
 
                 return matchPerson && matchCategory && matchPayment && matchDate && matchAmount;
             });
@@ -791,8 +894,8 @@
                     valA = new Date(a.date);
                     valB = new Date(b.date);
                 } else if (sortColumn === 'amount') {
-                    valA = parseFloat(a.amount);
-                    valB = parseFloat(b.amount);
+                    valA = parseFloat(a.displayAmount);
+                    valB = parseFloat(b.displayAmount);
                 } else {
                     valA = (valA || '').toString().toLowerCase();
                     valB = (valB || '').toString().toLowerCase();
@@ -813,11 +916,14 @@
                     <td class="py-3 px-2"><span class="px-2 py-1 ${personBadgeColor} rounded-md text-xs font-semibold">${item.person || 'Bekir'}</span></td>
                     <td class="py-3 px-2"><span class="px-2 py-1 bg-gray-100 rounded-md text-xs font-medium text-gray-600">${item.category}</span></td>
                     <td class="py-3 px-2"><span class="px-2 py-1 ${paymentBadgeColor} rounded-md text-xs font-medium">${item.paymentType || 'Nakit'}</span></td>
-                    <td class="py-3 px-2 text-gray-800">${item.description}</td>
-                    <td class="py-3 px-2 text-right font-medium text-red-600">${item.amount.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'})}</td>
+                    <td class="py-3 px-2 text-gray-800">
+                        ${item.description} 
+                        <span class="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded ml-1 font-medium">${item.installmentLabel}</span>
+                    </td>
+                    <td class="py-3 px-2 text-right font-medium text-red-600">${item.displayAmount.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'})}</td>
                     <td class="py-3 px-2 text-center space-x-2">
-                        <button onclick="editExpense('${item.id}')" class="text-indigo-600 hover:text-indigo-800 text-xs font-medium">Düzenle</button>
-                        <button onclick="deleteExpense('${item.id}')" class="text-red-500 hover:text-red-700 text-xs font-medium">Sil</button>
+                        ${!item.id.includes('_taksit_') ? `<button onclick="editExpense('${item.id}')" class="text-indigo-600 hover:text-indigo-800 text-xs font-medium">Düzenle</button>` : ''}
+                        ${!item.id.includes('_taksit_') ? `<button onclick="deleteExpense('${item.id}')" class="text-red-500 hover:text-red-700 text-xs font-medium">Sil</button>` : '<span class="text-gray-400 text-xs">Oto</span>'}
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -825,20 +931,7 @@
         }
 
         function renderChart() {
-            let chartDataList = expenses.filter(item => {
-                const matchPerson = (currentPersonFilter === 'Tümü' || item.person === currentPersonFilter);
-                const matchPayment = (currentPaymentFilter === 'Tümü' || item.paymentType === currentPaymentFilter);
-                
-                let matchDate = true;
-                if (currentStartDate && item.date < currentStartDate) matchDate = false;
-                if (currentEndDate && item.date > currentEndDate) matchDate = false;
-
-                let matchAmount = true;
-                if (currentMinAmount !== '' && item.amount < parseFloat(currentMinAmount)) matchAmount = false;
-                if (currentMaxAmount !== '' && item.amount > parseFloat(currentMaxAmount)) matchAmount = false;
-
-                return matchPerson && matchPayment && matchDate && matchAmount;
-            });
+            let chartDataList = getFilteredExpenses();
 
             let titleText = `Kategorilere Göre Dağılım (${currentPersonFilter})`;
             if (currentCategoryFilter !== 'Tümü') {
@@ -854,7 +947,7 @@
             }
 
             sourceForChart.forEach(item => {
-                categoryTotals[item.category] = (categoryTotals[item.category] || 0) + item.amount;
+                categoryTotals[item.category] = (categoryTotals[item.category] || 0) + item.displayAmount;
             });
 
             const labels = Object.keys(categoryTotals);
