@@ -77,6 +77,39 @@
                 </div>
             </div>
 
+            <!-- Kredi Kartı Borçları Paneli -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                <!-- Bekir Kredi Kartı Borcu -->
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-500 font-medium">Bekir Kredi Kartı Borcu</p>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span id="bekirDebtDisplay" class="text-lg font-bold text-gray-900">0.00 TL</span>
+                            <span id="bekirDebtStatusBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-medium">Ödenmedi</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="setCardDebt('bekir')" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg font-medium transition">Tutar Gir</button>
+                        <button id="bekirDebtToggleBtn" onclick="toggleCardDebt('bekir')" class="text-xs px-3 py-1.5 rounded-lg font-medium transition bg-red-600 hover:bg-red-700 text-white">Ödendi Yap</button>
+                    </div>
+                </div>
+
+                <!-- Duygu Kredi Kartı Borcu -->
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-gray-500 font-medium">Duygu Kredi Kartı Borcu</p>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span id="duyguDebtDisplay" class="text-lg font-bold text-gray-900">0.00 TL</span>
+                            <span id="duyguDebtStatusBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-medium">Ödenmedi</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="setCardDebt('duygu')" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg font-medium transition">Tutar Gir</button>
+                        <button id="duyguDebtToggleBtn" onclick="toggleCardDebt('duygu')" class="text-xs px-3 py-1.5 rounded-lg font-medium transition bg-red-600 hover:bg-red-700 text-white">Ödendi Yap</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Ana İçerik Grid -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <!-- Sol Kolon: Harcama Ekleme / Düzenleme Formu -->
@@ -223,7 +256,7 @@
         </div>
     </div>
 
-    <!-- Şifre Giriş Ekranı (Tarayıcı prompt'u yerine ekrandan şifre almak ve rakam klavyesi açmak için güncellendi) -->
+    <!-- Şifre Giriş Ekranı -->
     <div id="errorContainer" class="flex items-center justify-center h-screen bg-gray-100">
         <div class="text-center p-8 bg-white rounded-xl shadow-md w-80">
             <h2 class="text-xl font-bold text-red-600 mb-2">Erişim Şifresi</h2>
@@ -238,7 +271,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
         import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-        // FIREBASE BİLGİLERİNİZ
         const firebaseConfig = {
             apiKey: "AIzaSyDFTQa5FV8kKBqICWAg_vst8AnLdIrfBVw",
             authDomain: "harcama-takibi-1c48b.firebaseapp.com",
@@ -280,6 +312,10 @@
         let paymentTypes = ["Nakit", "Kredi Kartı"];
         let expenseChart = null;
 
+        // Kredi Kartı Borçları State Verileri
+        let bekirDebt = { amount: 0, paid: false };
+        let duyguDebt = { amount: 0, paid: false };
+
         let currentPersonFilter = 'Tümü';
         let currentCategoryFilter = 'Tümü';
         let currentPaymentFilter = 'Tümü';
@@ -314,6 +350,28 @@
                 renderApp();
             });
 
+            // Bekir Kredi Kartı Borcu
+            const bekirDebtRef = doc(db, "settings", "bekirDebt");
+            onSnapshot(bekirDebtRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    bekirDebt = docSnap.data();
+                } else {
+                    setDoc(bekirDebtRef, { amount: 0, paid: false });
+                }
+                renderCardDebtUI('bekir');
+            });
+
+            // Duygu Kredi Kartı Borcu
+            const duyguDebtRef = doc(db, "settings", "duyguDebt");
+            onSnapshot(duyguDebtRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    duyguDebt = docSnap.data();
+                } else {
+                    setDoc(duyguDebtRef, { amount: 0, paid: false });
+                }
+                renderCardDebtUI('duygu');
+            });
+
             // Kategoriler
             const catDocRef = doc(db, "settings", "categories");
             onSnapshot(catDocRef, (docSnap) => {
@@ -337,6 +395,67 @@
                 updatePaymentSelects();
                 renderApp();
             });
+        }
+
+        window.setCardDebt = async function(person) {
+            let currentVal = person === 'bekir' ? bekirDebt.amount : duyguDebt.amount;
+            let title = person === 'bekir' ? "Bekir Kredi Kartı Borcunu Girin (TL):" : "Duygu Kredi Kartı Borcunu Girin (TL):";
+            let newAmount = prompt(title, currentVal);
+            
+            if (newAmount !== null && !isNaN(newAmount) && newAmount >= 0) {
+                let val = parseFloat(newAmount);
+                if (person === 'bekir') {
+                    bekirDebt.amount = val;
+                    await setDoc(doc(db, "settings", "bekirDebt"), bekirDebt);
+                } else {
+                    duyguDebt.amount = val;
+                    await setDoc(doc(db, "settings", "duyguDebt"), duyguDebt);
+                }
+            }
+        }
+
+        window.toggleCardDebt = async function(person) {
+            if (person === 'bekir') {
+                bekirDebt.paid = !bekirDebt.paid;
+                await setDoc(doc(db, "settings", "bekirDebt"), bekirDebt);
+            } else {
+                duyguDebt.paid = !duyguDebt.paid;
+                await setDoc(doc(db, "settings", "duyguDebt"), duyguDebt);
+            }
+        }
+
+        function renderCardDebtUI(person) {
+            if (person === 'bekir') {
+                document.getElementById('bekirDebtDisplay').innerText = bekirDebt.amount.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
+                let badge = document.getElementById('bekirDebtStatusBadge');
+                let btn = document.getElementById('bekirDebtToggleBtn');
+                if (bekirDebt.paid) {
+                    badge.className = "text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium";
+                    badge.innerText = "Ödendi";
+                    btn.className = "text-xs px-3 py-1.5 rounded-lg font-medium transition bg-gray-200 hover:bg-gray-300 text-gray-700";
+                    btn.innerText = "Ödenmedi Yap";
+                } else {
+                    badge.className = "text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-medium";
+                    badge.innerText = "Ödenmedi";
+                    btn.className = "text-xs px-3 py-1.5 rounded-lg font-medium transition bg-red-600 hover:bg-red-700 text-white";
+                    btn.innerText = "Ödendi Yap";
+                }
+            } else {
+                document.getElementById('duyguDebtDisplay').innerText = duyguDebt.amount.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
+                let badge = document.getElementById('duyguDebtStatusBadge');
+                let btn = document.getElementById('duyguDebtToggleBtn');
+                if (duyguDebt.paid) {
+                    badge.className = "text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium";
+                    badge.innerText = "Ödendi";
+                    btn.className = "text-xs px-3 py-1.5 rounded-lg font-medium transition bg-gray-200 hover:bg-gray-300 text-gray-700";
+                    btn.innerText = "Ödenmedi Yap";
+                } else {
+                    badge.className = "text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-medium";
+                    badge.innerText = "Ödenmedi";
+                    btn.className = "text-xs px-3 py-1.5 rounded-lg font-medium transition bg-red-600 hover:bg-red-700 text-white";
+                    btn.innerText = "Ödendi Yap";
+                }
+            }
         }
 
         function updateCategorySelects() {
