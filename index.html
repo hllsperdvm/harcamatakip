@@ -10,17 +10,29 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- html2pdf.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Geleneksel Ev Logolu Mobil İkon Tanımlamaları -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%234f46e5'/><path d='M50 22L20 45v35h60V45L50 22z' fill='none' stroke='%23ffffff' stroke-width='6' stroke-linejoin='round'/><path d='M68 35v10h8v-6h4V35h-12z' fill='%23ffffff'/><rect x='38' y='52' width='12' height='16' rx='2' fill='%23ffffff'/><rect x='56' y='52' width='12' height='16' rx='2' fill='%23ffffff'/></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%234f46e5'/><path d='M50 22L20 45v35h60V45L50 22z' fill='none' stroke='%23ffffff' stroke-width='6' stroke-linejoin='round'/><path d='M68 35v10h8v-6h4V35h-12z' fill='%23ffffff'/><rect x='38' y='52' width='12' height='16' rx='2' fill='%23ffffff'/><rect x='56' y='52' width='12' height='16' rx='2' fill='%23ffffff'/></svg>">
 </head>
 <body class="bg-gray-50 text-gray-800 font-sans antialiased">
 
     <!-- Şifre Doğrulanana Kadar Gizli Kalacak Ana Alan -->
     <div id="appContainer" class="hidden">
         <div id="pdfContent" class="max-w-6xl mx-auto px-4 py-8">
-            <!-- Başlık ve İndir Seçenekleri -->
+            <!-- Başlık, Geleneksel Ev Logosu ve İndir Seçenekleri -->
             <header class="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div>
-                    <h1 class="text-3xl font-bold text-indigo-600 text-center sm:text-left">YUVAM</h1>
-                    <p class="text-sm text-gray-500 mt-1 text-center sm:text-left">Evimizin Ortak Uygulaması</p>
+                <div class="flex items-center gap-3">
+                    <!-- Özel Çatılı Ev Logosu -->
+                    <div class="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                            <polyline points="9 22 9 12 15 12 15 22"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-3xl font-bold text-indigo-600 text-center sm:text-left">YUVAM</h1>
+                        <p class="text-sm text-gray-500 mt-0.5 text-center sm:text-left">Evimizin Ortak Uygulaması</p>
+                    </div>
                 </div>
                 
                 <!-- İndir Başlığı ve Butonlar -->
@@ -400,10 +412,16 @@
     <!-- Şifre Giriş Ekranı -->
     <div id="errorContainer" class="flex items-center justify-center h-screen bg-gray-100">
         <div class="text-center p-8 bg-white rounded-xl shadow-md w-80">
-            <h2 class="text-xl font-bold text-red-600 mb-2">Erişim Şifresi</h2>
-            <p class="text-gray-600 text-sm mb-4">Uygulamayı görüntülemek için şifreyi girin.</p>
-            <input type="password" id="sifreInput" inputmode="numeric" pattern="[0-9]*" placeholder="Şifre" class="w-full px-3 py-2 border border-gray-300 rounded-lg mb-4 text-center text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <button onclick="checkPassword()" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">Giriş Yap</button>
+            <!-- Giriş Ekranı Çatılı Ev Logosu -->
+            <div class="w-16 h-16 bg-indigo-600 rounded-2xl mx-auto flex items-center justify-center shadow-md text-white mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-9 h-9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                    <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+            </div>
+            <h2 class="text-xl font-bold text-gray-800 mb-4">Lütfen Şifreyi Giriniz</h2>
+            <input type="password" id="sifreInput" inputmode="numeric" pattern="[0-9]*" placeholder="Şifre" onkeydown="handlePasswordKeydown(event)" class="w-full px-3 py-2 border border-gray-300 rounded-lg mb-4 text-center text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <button onclick="checkPassword()" class="w-full bg-indigo-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition shadow-sm">Giriş Yap</button>
         </div>
     </div>
 
@@ -436,6 +454,12 @@
                 document.getElementById('appContainer').style.display = 'none';
             }
         }
+
+        function handlePasswordKeydown(event) {
+            if (event.key === 'Enter') {
+                checkPassword();
+            }
+        }
         
         window.onload = function() {
             document.getElementById('appContainer').style.display = 'none';
@@ -443,6 +467,7 @@
         };
 
         window.checkPassword = checkPassword;
+        window.handlePasswordKeydown = handlePasswordKeydown;
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -746,7 +771,7 @@
             });
         }
 
-        // Alışveriş Listesi Fonksiyonları (İstediğiniz gibi güncellenmiş kutucuk ve numeric klavye desteğiyle)
+        // Alışveriş Listesi Fonksiyonları
         window.handleShoppingSubmit = async function(e) {
             e.preventDefault();
             const input = document.getElementById('shoppingItemInput');
