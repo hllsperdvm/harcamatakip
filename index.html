@@ -48,6 +48,9 @@
                 <button id="tabBtnExpense" onclick="switchTab('expense')" class="px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600">
                     Harcama Takip
                 </button>
+                <button id="tabBtnNotes" onclick="switchTab('notes')" class="px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700">
+                    Notlar
+                </button>
                 <button id="tabBtnShopping" onclick="switchTab('shopping')" class="px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700">
                     Alışveriş Listesi
                 </button>
@@ -283,7 +286,40 @@
                 </div>
             </div>
 
-            <!-- SEKME 2: ALIŞVERİŞ LİSTESİ İÇERİĞİ -->
+            <!-- SEKME 2: NOTLAR İÇERİĞİ -->
+            <div id="tabContentNotes" class="hidden space-y-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-4xl mx-auto">
+                    <h2 id="noteFormTitle" class="text-lg font-semibold text-gray-900 mb-4">Yeni Not Ekle</h2>
+                    
+                    <!-- Not Ekleme / Düzenleme Formu -->
+                    <form id="noteForm" onsubmit="handleNoteSubmit(event)" class="space-y-4 mb-8 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                        <input type="hidden" id="editNoteId">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Notu Yazan Kişi</label>
+                            <select id="notePerson" required class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                                <option value="Bekir">Bekir</option>
+                                <option value="Duygu">Duygu</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Not İçeriği</label>
+                            <textarea id="noteContent" rows="3" required placeholder="Notunuzu buraya yazın..." class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"></textarea>
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="submit" id="noteSubmitBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition shadow-sm">Not Ekle</button>
+                            <button type="button" id="cancelNoteEditBtn" onclick="resetNoteForm()" class="hidden bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2 rounded-lg text-sm font-medium transition">İptal</button>
+                        </div>
+                    </form>
+
+                    <!-- Notlar Listesi -->
+                    <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">Paylaşılan Notlar</h3>
+                    <div id="notesContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Dinamik Dolacak -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEKME 3: ALIŞVERİŞ LİSTESİ İÇERİĞİ -->
             <div id="tabContentShopping" class="hidden space-y-6">
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-4xl mx-auto">
                     <h2 class="text-lg font-semibold text-gray-900 mb-4">Ortak Alışveriş Listesi</h2>
@@ -377,7 +413,8 @@
         const db = getFirestore(app);
 
         let expenses = [];
-        let shoppingItems = []; // Alışveriş listesi state
+        let shoppingItems = [];
+        let notes = []; // Notlar state
         let monthlyBudget = 5000;
         let categories = ["Gıda", "Ulaşım", "Faturalar", "Eğlence", "Sağlık", "Eğitim", "Diğer", "Kredi Kartı Borcu"];
         let paymentTypes = ["Nakit", "Kredi Kartı"];
@@ -403,20 +440,31 @@
         // Sekme Değiştirme Fonksiyonu
         window.switchTab = function(tabName) {
             const btnExpense = document.getElementById('tabBtnExpense');
+            const btnNotes = document.getElementById('tabBtnNotes');
             const btnShopping = document.getElementById('tabBtnShopping');
+            
             const contentExpense = document.getElementById('tabContentExpense');
+            const contentNotes = document.getElementById('tabContentNotes');
             const contentShopping = document.getElementById('tabContentShopping');
+
+            // Hepsini pasif yap
+            btnExpense.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700";
+            btnNotes.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700";
+            btnShopping.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700";
+
+            contentExpense.classList.add('hidden');
+            contentNotes.classList.add('hidden');
+            contentShopping.classList.add('hidden');
 
             if (tabName === 'expense') {
                 btnExpense.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600";
-                btnShopping.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700";
                 contentExpense.classList.remove('hidden');
-                contentShopping.classList.add('hidden');
-            } else {
+            } else if (tabName === 'notes') {
+                btnNotes.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600";
+                contentNotes.classList.remove('hidden');
+            } else if (tabName === 'shopping') {
                 btnShopping.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600";
-                btnExpense.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700";
                 contentShopping.classList.remove('hidden');
-                contentExpense.classList.add('hidden');
             }
         }
 
@@ -430,13 +478,22 @@
                 renderApp();
             });
 
-            // Alışveriş Listesi (Firebase)
+            // Alışveriş Listesi
             onSnapshot(collection(db, "shoppingList"), (snapshot) => {
                 shoppingItems = [];
                 snapshot.forEach((docSnap) => {
                     shoppingItems.push({ id: docSnap.id, ...docSnap.data() });
                 });
                 renderShoppingList();
+            });
+
+            // Notlar
+            onSnapshot(collection(db, "notes"), (snapshot) => {
+                notes = [];
+                snapshot.forEach((docSnap) => {
+                    notes.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                renderNotesList();
             });
 
             // Bütçe
@@ -502,6 +559,98 @@
             });
         }
 
+        // Notlar Fonksiyonları
+        window.handleNoteSubmit = async function(e) {
+            e.preventDefault();
+            const editId = document.getElementById('editNoteId').value;
+            const person = document.getElementById('notePerson').value;
+            const content = document.getElementById('noteContent').value.trim();
+
+            if (!content) return;
+
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('tr-TR');
+            const timeStr = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+            const timestamp = `${dateStr} ${timeStr}`;
+
+            if (editId) {
+                // Güncelleme (Düzenleme yapıldığında tarihi ve yazanı güncelleyebilir veya saklayabilirsiniz, burada güncelleniyor)
+                await updateDoc(doc(db, "notes", editId), {
+                    person: person,
+                    content: content,
+                    timestamp: timestamp
+                });
+            } else {
+                // Yeni Ekleme
+                await addDoc(collection(db, "notes"), {
+                    person: person,
+                    content: content,
+                    timestamp: timestamp
+                });
+            }
+            resetNoteForm();
+        }
+
+        window.editNote = function(id) {
+            const note = notes.find(n => n.id === id);
+            if (!note) return;
+
+            document.getElementById('editNoteId').value = note.id;
+            document.getElementById('notePerson').value = note.person;
+            document.getElementById('noteContent').value = note.content;
+
+            document.getElementById('noteFormTitle').innerText = "Notu Düzenle";
+            document.getElementById('noteSubmitBtn').innerText = "Güncelle";
+            document.getElementById('cancelNoteEditBtn').classList.remove('hidden');
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        window.resetNoteForm = function() {
+            document.getElementById('noteForm').reset();
+            document.getElementById('editNoteId').value = '';
+            document.getElementById('noteFormTitle').innerText = "Yeni Not Ekle";
+            document.getElementById('noteSubmitBtn').innerText = "Not Ekle";
+            document.getElementById('cancelNoteEditBtn').classList.add('hidden');
+        }
+
+        window.deleteNote = async function(id) {
+            if (confirm("Bu notu silmek istediğinize emin misiniz?")) {
+                await deleteDoc(doc(db, "notes", id));
+            }
+        }
+
+        function renderNotesList() {
+            const container = document.getElementById('notesContainer');
+            container.innerHTML = '';
+
+            if (notes.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-6 text-gray-400 text-xs">Henüz eklenmiş bir not yok.</div>`;
+                return;
+            }
+
+            notes.forEach(note => {
+                const personBadgeColor = note.person === 'Bekir' ? 'bg-blue-50 text-blue-700' : 'bg-pink-50 text-pink-700';
+                
+                const card = document.createElement('div');
+                card.className = "bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col justify-between space-y-3";
+                card.innerHTML = `
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="px-2.5 py-1 ${personBadgeColor} rounded-md text-xs font-semibold">${note.person}</span>
+                            <span class="text-[11px] text-gray-400">${note.timestamp || '-'}</span>
+                        </div>
+                        <p class="text-sm text-gray-800 whitespace-pre-wrap">${note.content}</p>
+                    </div>
+                    <div class="flex justify-end gap-3 pt-2 border-t border-gray-200 text-xs font-medium">
+                        <button onclick="editNote('${note.id}')" class="text-indigo-600 hover:text-indigo-800">Düzenle</button>
+                        <button onclick="deleteNote('${note.id}')" class="text-red-500 hover:text-red-700">Sil</button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
         // Alışveriş Listesi Fonksiyonları
         window.handleShoppingSubmit = async function(e) {
             e.preventDefault();
@@ -520,12 +669,11 @@
         window.toggleShoppingItem = async function(id, currentStatus) {
             let updateData = { completed: !currentStatus };
             if (!currentStatus) {
-                // Sepete atılırken fiyat soralım
                 let priceInput = prompt("Ürün fiyatını girin (TL):", "0");
                 if (priceInput !== null && !isNaN(priceInput) && priceInput >= 0) {
                     updateData.price = parseFloat(priceInput);
                 } else {
-                    return; // İptal edilirse veya geçersizse işlemi durdur
+                    return;
                 }
             } else {
                 updateData.price = 0;
@@ -542,12 +690,10 @@
             }
         }
 
-        // Alınacaklar kısmındaki "Sil" butonu ürünü tamamen siler
         window.deleteShoppingItemCompletely = async function(id) {
             await deleteDoc(doc(db, "shoppingList", id));
         }
 
-        // Sepetteki "Sil" butonu ise ürünü tekrar alınacaklar kısmına döndürür (completed: false yapılır, fiyat 0'lanır)
         window.returnToTodoList = async function(id) {
             await updateDoc(doc(db, "shoppingList", id), {
                 completed: false,
@@ -566,7 +712,6 @@
             let todos = shoppingItems.filter(item => !item.completed);
             let carts = shoppingItems.filter(item => item.completed);
 
-            // Alışveriş listesi boşsa
             if (todos.length === 0) {
                 todoContainer.innerHTML = `<li class="py-3 text-center text-gray-400 text-xs">Alınacak ürün yok.</li>`;
             } else {
@@ -584,7 +729,6 @@
                 });
             }
 
-            // Sepet boşsa
             let totalCartPrice = 0;
             if (carts.length === 0) {
                 cartContainer.innerHTML = `<li class="py-3 text-center text-gray-400 text-xs">Sepet boş.</li>`;
