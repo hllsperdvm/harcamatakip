@@ -329,8 +329,8 @@
         let expenseChart = null;
 
         // Kredi Kartı Borçları State Verileri
-        let bekirDebt = { amount: 0, paid: false };
-        let duyguDebt = { amount: 0, paid: false };
+        let bekirDebt = { amount: 0, paid: false, lastExpenseId: null };
+        let duyguDebt = { amount: 0, paid: false, lastExpenseId: null };
 
         let currentPersonFilter = 'Tümü';
         let currentCategoryFilter = 'Tümü';
@@ -373,7 +373,7 @@
                 if (docSnap.exists()) {
                     bekirDebt = docSnap.data();
                 } else {
-                    setDoc(bekirDebtRef, { amount: 0, paid: false });
+                    setDoc(bekirDebtRef, { amount: 0, paid: false, lastExpenseId: null });
                 }
                 renderCardDebtUI('bekir');
             });
@@ -384,7 +384,7 @@
                 if (docSnap.exists()) {
                     duyguDebt = docSnap.data();
                 } else {
-                    setDoc(duyguDebtRef, { amount: 0, paid: false });
+                    setDoc(duyguDebtRef, { amount: 0, paid: false, lastExpenseId: null });
                 }
                 renderCardDebtUI('duygu');
             });
@@ -445,7 +445,7 @@
                 let confirmAdd = confirm(`${personName} için ${targetDebt.amount.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'})} tutarındaki borç ödendi olarak işaretlenecek ve harcama geçmişine eklensin mi?`);
                 
                 if (confirmAdd) {
-                    await addDoc(collection(db, "expenses"), {
+                    const docRef = await addDoc(collection(db, "expenses"), {
                         amount: targetDebt.amount,
                         installmentCount: 1,
                         amountPerInstallment: targetDebt.amount,
@@ -454,8 +454,17 @@
                         category: "Kredi Kartı Borcu",
                         paymentType: paymentTypes.includes("Kredi Kartı") ? "Kredi Kartı" : (paymentTypes[0] || "Nakit"),
                         date: todayStr,
-                        description: `${personName} Kredi Kartı Ekstre Ödemesi`
+                        description: `${personName} Kredi Kartı Ekstre Ödemesi`,
+                        isCardDebtPayment: true
                     });
+                    targetDebt.lastExpenseId = docRef.id;
+                }
+            } else if (targetDebt.paid && targetDebt.lastExpenseId) {
+                try {
+                    await deleteDoc(doc(db, "expenses", targetDebt.lastExpenseId));
+                    targetDebt.lastExpenseId = null;
+                } catch (error) {
+                    console.error("Borç harcaması silinirken hata oluştu:", error);
                 }
             }
 
