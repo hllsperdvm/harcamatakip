@@ -8,8 +8,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- html2pdf.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <!-- Geleneksel Ev Logolu Mobil İkon Tanımlamaları -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%234f46e5'/><path d='M50 22L20 45v35h60V45L50 22z' fill='none' stroke='%23ffffff' stroke-width='6' stroke-linejoin='round'/><path d='M68 35v10h8v-6h4V35h-12z' fill='%23ffffff'/><rect x='38' y='52' width='12' height='16' rx='2' fill='%23ffffff'/><rect x='56' y='52' width='12' height='16' rx='2' fill='%23ffffff'/></svg>">
     <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%234f46e5'/><path d='M50 22L20 45v35h60V45L50 22z' fill='none' stroke='%23ffffff' stroke-width='6' stroke-linejoin='round'/><path d='M68 35v10h8v-6h4V35h-12z' fill='%23ffffff'/><rect x='38' y='52' width='12' height='16' rx='2' fill='%23ffffff'/><rect x='56' y='52' width='12' height='16' rx='2' fill='%23ffffff'/></svg>">
@@ -39,12 +37,6 @@
                 <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 flex flex-col sm:flex-row items-center gap-3">
                     <span class="text-xs font-bold text-gray-700 uppercase tracking-wider px-1">İndir</span>
                     <div class="flex items-center gap-2">
-                        <button onclick="downloadPDF()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition shadow-sm flex items-center gap-1.5">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            PDF İndir
-                        </button>
                         <button onclick="downloadExcel()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition shadow-sm flex items-center gap-1.5">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -202,7 +194,7 @@
                 <!-- Ana İçerik Grid -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <!-- Grafik Kolonu -->
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center h-fit">
+                    <div id="categoryDistributionPanel" class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center h-fit">
                         <div class="w-full flex justify-between items-center mb-4">
                             <h2 id="chartTitle" class="text-lg font-semibold text-gray-900">Kategorilere Göre Dağılım (Tümü)</h2>
                         </div>
@@ -213,7 +205,7 @@
 
                     <!-- İşlem Geçmişi ve Detaylı Filtreler Kolonu -->
                     <div class="lg:col-span-2 space-y-8">
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <div id="transactionHistoryPanel" class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                             <h2 class="text-lg font-semibold text-gray-900 mb-4">İşlem Geçmişi</h2>
 
                             <!-- Filtrele Bölümü -->
@@ -655,6 +647,24 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        // Açılış sayfasını sade tut: grafik ve işlem geçmişini ilgili sekmelerde göster.
+        function organizeTabSections() {
+            const categoryDistributionPanel = document.getElementById('categoryDistributionPanel');
+            const transactionHistoryPanel = document.getElementById('transactionHistoryPanel');
+            const statsContent = document.getElementById('tabContentStats');
+            const reportsContent = document.getElementById('tabContentReports');
+
+            if (categoryDistributionPanel && statsContent) {
+                statsContent.appendChild(categoryDistributionPanel);
+            }
+
+            if (transactionHistoryPanel && reportsContent) {
+                reportsContent.appendChild(transactionHistoryPanel);
+            }
+        }
+
+        organizeTabSections();
+
         let expenses = [];
         let incomes = [];
         let shoppingItems = [];
@@ -735,6 +745,7 @@
                 btnStats.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600";
                 contentStats.classList.remove('hidden');
                 updateStatsPanel();
+                if (expenseChart) expenseChart.resize();
             } else if (tabName === 'reports') {
                 btnReports.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600";
                 contentReports.classList.remove('hidden');
@@ -1637,24 +1648,6 @@
             return processed;
         }
 
-        window.downloadPDF = function() {
-            const element = document.getElementById('pdfContent');
-            const actionElements = document.querySelectorAll('.action-col, td:last-child');
-            actionElements.forEach(el => el.style.display = 'none');
-
-            const options = {
-                margin:       10,
-                filename:     'yuvam-butce-raporu.pdf',
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-
-            html2pdf().from(element).set(options).save().then(() => {
-                actionElements.forEach(el => el.style.display = '');
-            });
-        }
-
         window.downloadExcel = function() {
             const filtered = getFilteredTransactions();
             if (filtered.length === 0) {
@@ -2221,7 +2214,6 @@
         window.resetFilters = resetFilters;
         window.applyFilters = applyFilters;
         window.sortTable = sortTable;
-        window.downloadPDF = downloadPDF;
         window.downloadExcel = downloadExcel;
         window.openNoteModal = openNoteModal;
         window.closeNoteModal = closeNoteModal;
