@@ -56,9 +56,18 @@
             </header>
 
             <!-- Sekme (Tab) Butonları -->
-            <div class="flex border-b border-gray-200 mb-6 gap-2">
+            <div class="flex border-b border-gray-200 mb-6 gap-2 flex-wrap">
                 <button id="tabBtnExpense" onclick="switchTab('expense')" class="px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600">
                     Bütçe Takip
+                </button>
+                <button id="tabBtnStats" onclick="switchTab('stats')" class="px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700">
+                    📊 İstatistikler
+                </button>
+                <button id="tabBtnReports" onclick="switchTab('reports')" class="px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700">
+                    📈 Raporlar
+                </button>
+                <button id="tabBtnTrash" onclick="switchTab('trash')" class="px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700">
+                    🗑️ Çöp Kutusu
                 </button>
                 <button id="tabBtnNotes" onclick="switchTab('notes')" class="px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700">
                     Notlar
@@ -298,7 +307,107 @@
                 </div>
             </div>
 
-            <!-- SEKME 2: NOTLAR İÇERİĞİ -->
+            <!-- SEKME 2: İSTATİSTİKLER -->
+            <div id="tabContentStats" class="hidden space-y-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl shadow-sm border border-blue-200">
+                        <div class="text-xs font-semibold text-blue-600 uppercase mb-2">Ortalama Günlük Harcama</div>
+                        <div id="avgDailyExpense" class="text-3xl font-bold text-blue-900">₺0.00</div>
+                        <div class="text-xs text-blue-700 mt-2">Bu ay ortalaması</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl shadow-sm border border-orange-200">
+                        <div class="text-xs font-semibold text-orange-600 uppercase mb-2">En Yüksek Kategori</div>
+                        <div id="topCategory" class="text-2xl font-bold text-orange-900">-</div>
+                        <div id="topCategoryAmount" class="text-xs text-orange-700 mt-2">₺0.00</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl shadow-sm border border-purple-200">
+                        <div class="text-xs font-semibold text-purple-600 uppercase mb-2">Geçen Ay vs Bu Ay</div>
+                        <div id="monthComparison" class="text-2xl font-bold text-purple-900">-</div>
+                        <div id="comparisonPercent" class="text-xs text-purple-700 mt-2">%0</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl shadow-sm border border-green-200">
+                        <div class="text-xs font-semibold text-green-600 uppercase mb-2">En Yüksek Harcama Günü</div>
+                        <div id="highestSpendDay" class="text-2xl font-bold text-green-900">-</div>
+                        <div id="highestSpendAmount" class="text-xs text-green-700 mt-2">₺0.00</div>
+                    </div>
+                </div>
+
+                <!-- Haftalık Trend Grafiği -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">📈 Haftalık Trend</h2>
+                    <div class="w-full h-80">
+                        <canvas id="weeklyTrendChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Aylık Trend Grafiği -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">📊 Aylık Trend</h2>
+                    <div class="w-full h-80">
+                        <canvas id="monthlyTrendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEKME 3: RAPORLAR -->
+            <div id="tabContentReports" class="hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Aylık Özet -->
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h2 class="text-lg font-semibold text-gray-900 mb-6">📅 Aylık Özet Raporu</h2>
+                        <div id="monthlySummaryReport" class="space-y-4">
+                            <!-- Dinamik Dolacak -->
+                        </div>
+                    </div>
+
+                    <!-- Kişi Bazında Özet -->
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h2 class="text-lg font-semibold text-gray-900 mb-6">👥 Kişi Bazında Özet</h2>
+                        <div id="personSummaryReport" class="space-y-4">
+                            <!-- Dinamik Dolacak -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detaylı Aylık Rapor -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">📊 Detaylı Aylık Rapor</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3" id="detailedMonthlyReport">
+                        <!-- Dinamik Dolacak -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEKME 4: ÇÖP KUTUSU -->
+            <div id="tabContentTrash" class="hidden space-y-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-lg font-semibold text-gray-900">🗑️ Silinen İşlemler</h2>
+                        <button onclick="emptyTrash()" class="text-xs bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg font-medium transition">Çöpü Boşalt</button>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-gray-700 font-semibold">Silinme Tarihi</th>
+                                    <th class="px-4 py-3 text-left text-gray-700 font-semibold">Orijinal Tarih</th>
+                                    <th class="px-4 py-3 text-left text-gray-700 font-semibold">Kişi</th>
+                                    <th class="px-4 py-3 text-left text-gray-700 font-semibold">Kategori</th>
+                                    <th class="px-4 py-3 text-left text-gray-700 font-semibold">Açıklama</th>
+                                    <th class="px-4 py-3 text-right text-gray-700 font-semibold">Tutar</th>
+                                    <th class="px-4 py-3 text-center text-gray-700 font-semibold">İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="trashTableBody" class="divide-y divide-gray-200">
+                                <tr><td colspan="7" class="text-center py-4 text-gray-400 text-xs">Çöp kutusu boş</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEKME 5: NOTLAR İÇERİĞİ -->
             <div id="tabContentNotes" class="hidden space-y-6">
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-4xl mx-auto">
                     <h2 id="noteFormTitle" class="text-lg font-semibold text-gray-900 mb-4">Yeni Not Ekle</h2>
@@ -493,7 +602,7 @@
                 </svg>
             </div>
             <h2 class="text-xl font-bold text-gray-800 mb-4">Lütfen Şifreyi Giriniz</h2>
-            <input type="password" id="sifreInput" inputmode="numeric" pattern="[0-9]*" placeholder="Şifre" onkeydown="handlePasswordKeydown(event)" class="w-full px-3 py-2 border border-gray-300 rounded-lg mb-4 text-center text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <input type="password" id="sifreInput" inputmode="numeric" pattern="[0-9]*" placeholder="Şifre" onkeydown="if(event.key === 'Enter') checkPassword();" class="w-full px-3 py-2 border border-gray-300 rounded-lg mb-4 text-center text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500">
             <button onclick="checkPassword()" class="w-full bg-indigo-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition shadow-sm">Giriş Yap</button>
         </div>
     </div>
@@ -527,20 +636,21 @@
                 document.getElementById('appContainer').style.display = 'none';
             }
         }
-
-        function handlePasswordKeydown(event) {
-            if (event.key === 'Enter') {
-                checkPassword();
+        
+        // Window objesine ekle - global erişim sağla
+        window.checkPassword = checkPassword;
+        
+        // Tüm fonksiyonları tekrar tekrar kontrol et (module scope sorunu için)
+        const exposeFunctions = setInterval(() => {
+            if (window.checkPassword && window.switchTab) {
+                clearInterval(exposeFunctions);
             }
-        }
+        }, 10);
         
         window.onload = function() {
             document.getElementById('appContainer').style.display = 'none';
             document.getElementById('errorContainer').style.display = 'flex';
         };
-
-        window.checkPassword = checkPassword;
-        window.handlePasswordKeydown = handlePasswordKeydown;
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -549,9 +659,12 @@
         let incomes = [];
         let shoppingItems = [];
         let notes = [];
+        let deletedExpenses = []; // Çöp kutusu
         let categories = ["Gıda", "Ulaşım", "Faturalar", "Eğlence", "Sağlık", "Eğitim", "Diğer", "Kredi Kartı Borcu"];
         let paymentTypes = ["Nakit", "Kredi Kartı"];
         let expenseChart = null;
+        let weeklyTrendChart = null;
+        let monthlyTrendChart = null;
 
         let bekirDebt = { amount: 0, paid: false, lastExpenseId: null, dueDate: '' };
         let duyguDebt = { amount: 0, paid: false, lastExpenseId: null, dueDate: '' };
@@ -591,24 +704,45 @@
         // Sekme Değiştirme Fonksiyonu
         window.switchTab = function(tabName) {
             const btnExpense = document.getElementById('tabBtnExpense');
+            const btnStats = document.getElementById('tabBtnStats');
+            const btnReports = document.getElementById('tabBtnReports');
+            const btnTrash = document.getElementById('tabBtnTrash');
             const btnNotes = document.getElementById('tabBtnNotes');
             const btnShopping = document.getElementById('tabBtnShopping');
             
             const contentExpense = document.getElementById('tabContentExpense');
+            const contentStats = document.getElementById('tabContentStats');
+            const contentReports = document.getElementById('tabContentReports');
+            const contentTrash = document.getElementById('tabContentTrash');
             const contentNotes = document.getElementById('tabContentNotes');
             const contentShopping = document.getElementById('tabContentShopping');
 
-            btnExpense.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700";
-            btnNotes.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700";
-            btnShopping.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700";
+            // Tüm butonları gri yap
+            [btnExpense, btnStats, btnReports, btnTrash, btnNotes, btnShopping].forEach(btn => {
+                btn.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700";
+            });
 
-            contentExpense.classList.add('hidden');
-            contentNotes.classList.add('hidden');
-            contentShopping.classList.add('hidden');
+            // Tüm içerikleri gizle
+            [contentExpense, contentStats, contentReports, contentTrash, contentNotes, contentShopping].forEach(content => {
+                content.classList.add('hidden');
+            });
 
+            // Seçilen sekmeyi göster
             if (tabName === 'expense') {
                 btnExpense.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600";
                 contentExpense.classList.remove('hidden');
+            } else if (tabName === 'stats') {
+                btnStats.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600";
+                contentStats.classList.remove('hidden');
+                updateStatsPanel();
+            } else if (tabName === 'reports') {
+                btnReports.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600";
+                contentReports.classList.remove('hidden');
+                renderMonthlyReports();
+            } else if (tabName === 'trash') {
+                btnTrash.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600";
+                contentTrash.classList.remove('hidden');
+                renderTrash();
             } else if (tabName === 'notes') {
                 btnNotes.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600";
                 contentNotes.classList.remove('hidden');
@@ -683,6 +817,16 @@
         }
 
         function initRealtimeSync() {
+            // Çöp kutusunu localStorage'dan yükle
+            const savedTrash = localStorage.getItem('deletedExpenses');
+            if (savedTrash) {
+                try {
+                    deletedExpenses = JSON.parse(savedTrash);
+                } catch (e) {
+                    deletedExpenses = [];
+                }
+            }
+
             // Harcamalar
             onSnapshot(collection(db, "expenses"), (snapshot) => {
                 expenses = [];
@@ -1141,39 +1285,54 @@
             const dueDate = new Date(dueDateStr);
             dueDate.setHours(0,0,0,0);
 
-            const diffTime = dueDate - today;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            // Başlama tarihi: Son ödeme tarihinin bir önceki ayının 28'i
+            const startDate = new Date(dueDate);
+            startDate.setMonth(startDate.getMonth() - 1);
+            startDate.setDate(28);
+            startDate.setHours(0,0,0,0);
 
-            if (isNaN(diffDays)) {
+            // Toplam gün sayısı (başlangıçtan son ödeme tarihine kadar)
+            const totalDiffTime = dueDate - startDate;
+            const totalDays = Math.ceil(totalDiffTime / (1000 * 60 * 60 * 24));
+
+            // Bugünden son ödeme tarihine kadar kalan günler
+            const remainingDiffTime = dueDate - today;
+            const remainingDays = Math.ceil(remainingDiffTime / (1000 * 60 * 60 * 24));
+
+            // Başlangıçtan bugüne kadar geçen gün sayısı
+            const elapsedDiffTime = today - startDate;
+            const elapsedDays = Math.floor(elapsedDiffTime / (1000 * 60 * 60 * 24));
+
+            if (isNaN(remainingDays)) {
                 textEl.innerText = "Geçersiz tarih formatı";
                 percentEl.innerText = "0%";
                 barEl.style.width = "0%";
                 return;
             }
 
-            if (diffDays < 0) {
-                textEl.innerText = `Süresi geçti (${Math.abs(diffDays)} gün oldu)`;
+            if (remainingDays < 0) {
+                textEl.innerText = `Süresi geçti (${Math.abs(remainingDays)} gün oldu)`;
                 percentEl.innerText = "100%";
                 barEl.style.width = "100%";
                 barEl.className = "h-2 rounded-full transition-all duration-500 bg-red-600 animate-pulse";
-            } else if (diffDays === 0) {
+            } else if (remainingDays === 0) {
                 textEl.innerText = "Son gün (Bugün!)";
                 percentEl.innerText = "100%";
                 barEl.style.width = "100%";
                 barEl.className = "h-2 rounded-full transition-all duration-500 bg-red-600 animate-pulse";
             } else {
-                textEl.innerText = `Son ${diffDays} gün kaldı`;
+                textEl.innerText = `Son ${remainingDays} gün kaldı`;
                 
-                let maxDays = 30;
-                let percentage = Math.max(5, Math.min(100, Math.round((diffDays / maxDays) * 100)));
-                percentEl.innerText = `${diffDays} gün`;
+                // İlerleme yüzdesini hesapla (başlangıçtan itibaren)
+                let percentage = Math.max(5, Math.min(100, Math.round((elapsedDays / totalDays) * 100)));
+                percentEl.innerText = `${remainingDays} gün`;
                 barEl.style.width = `${percentage}%`;
 
-                if (diffDays <= 3) {
+                if (remainingDays <= 3) {
                     barEl.className = "h-2 rounded-full transition-all duration-500 bg-red-500";
-                } else if (diffDays <= 7) {
+                } else if (remainingDays <= 7) {
                     barEl.className = "h-2 rounded-full transition-all duration-500 bg-orange-500";
-                } else if (diffDays <= 15) {
+                } else if (remainingDays <= 15) {
                     barEl.className = "h-2 rounded-full transition-all duration-500 bg-yellow-500";
                 } else {
                     barEl.className = "h-2 rounded-full transition-all duration-500 bg-green-500";
@@ -1373,8 +1532,21 @@
         }
 
         window.deleteExpense = async function(id) {
+            const expense = expenses.find(e => e.id === id);
+            if (!expense) return;
+            
             if (confirm("Bu harcamayı silmek istediğinize emin misiniz?")) {
+                // Çöp kutusuna taşı
+                deletedExpenses.push({
+                    ...expense,
+                    deletedAt: new Date().toISOString()
+                });
+                
+                // Veri tabanından sil
                 await deleteDoc(doc(db, "expenses", id));
+                
+                // Çöp kutusunun localStorage'da kaydedildiğinden emin ol
+                localStorage.setItem('deletedExpenses', JSON.stringify(deletedExpenses));
             }
         }
 
@@ -1414,15 +1586,18 @@
                             let tMonth = String(targetDateObj.getMonth() + 1).padStart(2, '0');
                             let targetPeriod = `${tYear}-${tMonth}`;
 
-                            processed.push({
-                                ...item,
-                                type: 'expense',
-                                id: `${item.id}_taksit_${i+1}`,
-                                displayAmount: perAmount,
-                                installmentLabel: `Taksit ${i+1}/${count}`,
-                                effectiveMonth: targetPeriod,
-                                date: `${targetPeriod}-01`
-                            });
+                            // Sadece gelecekteki taksitleri göster (currentPeriod'den sonrası)
+                            if (targetPeriod >= currentPeriod) {
+                                processed.push({
+                                    ...item,
+                                    type: 'expense',
+                                    id: `${item.id}_taksit_${i+1}`,
+                                    displayAmount: perAmount,
+                                    installmentLabel: `Taksit ${i+1}/${count}`,
+                                    effectiveMonth: targetPeriod,
+                                    date: `${targetPeriod}-01`
+                                });
+                            }
                         }
                     } else {
                         if (passedMonths >= 0 && passedMonths < count) {
@@ -1517,6 +1692,315 @@
             document.body.removeChild(link);
         }
 
+        // ===== ÇÖPKUTUSU FONKSİYONLARI =====
+        function renderTrash() {
+            const tbody = document.getElementById('trashTableBody');
+            tbody.innerHTML = '';
+
+            if (deletedExpenses.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-gray-400 text-xs">Çöp kutusu boş</td></tr>`;
+                return;
+            }
+
+            deletedExpenses.forEach(item => {
+                const deletedDate = new Date(item.deletedAt).toLocaleDateString('tr-TR');
+                const originalDate = item.date || '-';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-4 py-3 text-gray-600">${deletedDate}</td>
+                    <td class="px-4 py-3 text-gray-600">${originalDate}</td>
+                    <td class="px-4 py-3"><span class="px-2 py-1 bg-gray-100 rounded-md text-xs font-semibold">${item.person || '-'}</span></td>
+                    <td class="px-4 py-3"><span class="px-2 py-1 bg-gray-100 rounded-md text-xs">${item.category || '-'}</span></td>
+                    <td class="px-4 py-3 text-gray-800">${item.description || '-'}</td>
+                    <td class="px-4 py-3 text-right font-medium text-red-600">-₺${item.amount.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td class="px-4 py-3 text-center space-x-2">
+                        <button onclick="restoreFromTrash('${item.id}')" class="text-green-600 hover:text-green-800 text-xs font-medium">Geri Yükle</button>
+                        <button onclick="deleteFromTrashPermanently('${item.id}')" class="text-red-600 hover:text-red-800 text-xs font-medium">Kalıcı Sil</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        window.restoreFromTrash = async function(id) {
+            const index = deletedExpenses.findIndex(e => e.id === id);
+            if (index === -1) return;
+
+            if (confirm("Bu harcamayı geri yüklemek istediğinize emin misiniz?")) {
+                const restored = deletedExpenses[index];
+                deletedExpenses.splice(index, 1);
+
+                // Veri tabanına geri ekle
+                await addDoc(collection(db, "expenses"), {
+                    amount: restored.amount,
+                    installmentCount: restored.installmentCount || 1,
+                    amountPerInstallment: restored.amountPerInstallment || restored.amount,
+                    expenseMonth: restored.expenseMonth || restored.date.substring(0, 7),
+                    person: restored.person,
+                    category: restored.category,
+                    paymentType: restored.paymentType,
+                    date: restored.date,
+                    description: restored.description
+                });
+
+                localStorage.setItem('deletedExpenses', JSON.stringify(deletedExpenses));
+                renderTrash();
+                renderApp();
+            }
+        }
+
+        window.deleteFromTrashPermanently = function(id) {
+            if (confirm("Bu işlemi kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz!")) {
+                deletedExpenses = deletedExpenses.filter(e => e.id !== id);
+                localStorage.setItem('deletedExpenses', JSON.stringify(deletedExpenses));
+                renderTrash();
+            }
+        }
+
+        window.emptyTrash = function() {
+            if (confirm("Çöp kutusunu boşaltmak istediğinize emin misiniz? Tüm silinen işlemler kalıcı olarak silinecektir!")) {
+                deletedExpenses = [];
+                localStorage.setItem('deletedExpenses', JSON.stringify(deletedExpenses));
+                renderTrash();
+            }
+        }
+
+        // ===== İSTATİSTİK FONKSİYONLARI =====
+        function updateStatsPanel() {
+            const currentPeriod = getCurrentPeriod();
+            const currentMonthExpenses = getProcessedExpenses().filter(i => i.effectiveMonth === currentPeriod && i.type === 'expense');
+            
+            // Ortalama günlük harcama
+            const daysInMonth = new Date(parseInt(currentPeriod.split('-')[0]), parseInt(currentPeriod.split('-')[1]), 0).getDate();
+            const totalExpense = currentMonthExpenses.reduce((sum, i) => sum + i.displayAmount, 0);
+            const avgDaily = totalExpense / daysInMonth;
+            document.getElementById('avgDailyExpense').textContent = '₺' + avgDaily.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+            // En yüksek kategori
+            const categoryTotals = {};
+            currentMonthExpenses.forEach(item => {
+                categoryTotals[item.category] = (categoryTotals[item.category] || 0) + item.displayAmount;
+            });
+            let topCat = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1])[0];
+            if (topCat) {
+                document.getElementById('topCategory').textContent = topCat[0];
+                document.getElementById('topCategoryAmount').textContent = '₺' + topCat[1].toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            } else {
+                document.getElementById('topCategory').textContent = '-';
+                document.getElementById('topCategoryAmount').textContent = '₺0.00';
+            }
+
+            // Geçen ay vs bu ay
+            const lastMonth = new Date();
+            lastMonth.setMonth(lastMonth.getMonth() - 1);
+            const lastMonthPeriod = lastMonth.getFullYear() + '-' + String(lastMonth.getMonth() + 1).padStart(2, '0');
+            const lastMonthExpenses = getProcessedExpenses().filter(i => i.effectiveMonth === lastMonthPeriod && i.type === 'expense');
+            const lastMonthTotal = lastMonthExpenses.reduce((sum, i) => sum + i.displayAmount, 0);
+            
+            const diff = totalExpense - lastMonthTotal;
+            const percent = lastMonthTotal > 0 ? ((diff / lastMonthTotal) * 100).toFixed(1) : 0;
+            const sign = diff >= 0 ? '+' : '';
+            
+            document.getElementById('monthComparison').textContent = sign + '₺' + Math.abs(diff).toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            document.getElementById('comparisonPercent').textContent = (percent >= 0 ? '+' : '') + percent + '%';
+
+            // En yüksek harcama yapılan gün
+            const dailyExpenses = {};
+            currentMonthExpenses.forEach(item => {
+                const date = item.date || item.effectiveMonth + '-01';
+                dailyExpenses[date] = (dailyExpenses[date] || 0) + item.displayAmount;
+            });
+            let highestDay = Object.entries(dailyExpenses).sort((a, b) => b[1] - a[1])[0];
+            if (highestDay) {
+                document.getElementById('highestSpendDay').textContent = new Date(highestDay[0]).toLocaleDateString('tr-TR');
+                document.getElementById('highestSpendAmount').textContent = '₺' + highestDay[1].toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            } else {
+                document.getElementById('highestSpendDay').textContent = '-';
+                document.getElementById('highestSpendAmount').textContent = '₺0.00';
+            }
+
+            renderWeeklyTrendChart();
+            renderMonthlyTrendChart();
+        }
+
+        function renderWeeklyTrendChart() {
+            const labels = [];
+            const data = [];
+            const today = new Date();
+
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+                labels.push(date.toLocaleDateString('tr-TR', { weekday: 'short' }));
+
+                const dayExpenses = getProcessedExpenses().filter(ex => ex.date === dateStr && ex.type === 'expense');
+                const total = dayExpenses.reduce((sum, ex) => sum + ex.displayAmount, 0);
+                data.push(total);
+            }
+
+            const ctx = document.getElementById('weeklyTrendChart');
+            if (!ctx) return;
+
+            if (weeklyTrendChart) weeklyTrendChart.destroy();
+
+            weeklyTrendChart = new Chart(ctx.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Günlük Harcama',
+                        data: data,
+                        backgroundColor: '#6366f1',
+                        borderColor: '#4f46e5',
+                        borderWidth: 1,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '₺' + value.toLocaleString('tr-TR');
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderMonthlyTrendChart() {
+            const labels = [];
+            const data = [];
+
+            for (let i = 5; i >= 0; i--) {
+                const date = new Date();
+                date.setMonth(date.getMonth() - i);
+                const monthPeriod = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+                labels.push(date.toLocaleDateString('tr-TR', { month: 'short', year: '2-digit' }));
+
+                const monthExpenses = getProcessedExpenses().filter(ex => ex.effectiveMonth === monthPeriod && ex.type === 'expense');
+                const total = monthExpenses.reduce((sum, ex) => sum + ex.displayAmount, 0);
+                data.push(total);
+            }
+
+            const ctx = document.getElementById('monthlyTrendChart');
+            if (!ctx) return;
+
+            if (monthlyTrendChart) monthlyTrendChart.destroy();
+
+            monthlyTrendChart = new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Aylık Harcama',
+                        data: data,
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#6366f1',
+                        pointBorderColor: '#4f46e5',
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: true }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '₺' + value.toLocaleString('tr-TR');
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ===== RAPOR FONKSİYONLARI =====
+        function renderMonthlyReports() {
+            const currentPeriod = getCurrentPeriod();
+            const allExpenses = getProcessedExpenses().filter(i => i.effectiveMonth === currentPeriod && i.type === 'expense');
+            
+            // Aylık özet
+            const totalExpense = allExpenses.reduce((sum, i) => sum + i.displayAmount, 0);
+            const bekirExpense = allExpenses.filter(i => i.person === 'Bekir').reduce((sum, i) => sum + i.displayAmount, 0);
+            const duyguExpense = allExpenses.filter(i => i.person === 'Duygu').reduce((sum, i) => sum + i.displayAmount, 0);
+
+            const monthlySummary = `
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center pb-3 border-b">
+                        <span class="text-sm text-gray-700">Toplam Harcama</span>
+                        <span class="font-bold text-red-600">₺${totalExpense.toLocaleString('tr-TR', {minimumFractionDigits: 2})}</span>
+                    </div>
+                    <div class="flex justify-between items-center pb-3">
+                        <span class="text-sm text-gray-700">Bekir'in Harcaması</span>
+                        <span class="font-bold text-blue-600">₺${bekirExpense.toLocaleString('tr-TR', {minimumFractionDigits: 2})}</span>
+                    </div>
+                    <div class="flex justify-between items-center pb-3">
+                        <span class="text-sm text-gray-700">Duygu'nun Harcaması</span>
+                        <span class="font-bold text-pink-600">₺${duyguExpense.toLocaleString('tr-TR', {minimumFractionDigits: 2})}</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-3 border-t">
+                        <span class="text-sm font-semibold text-gray-700">Ortalama / Kişi</span>
+                        <span class="font-bold text-purple-600">₺${((totalExpense / 2).toLocaleString('tr-TR', {minimumFractionDigits: 2}))}</span>
+                    </div>
+                </div>
+            `;
+            document.getElementById('monthlySummaryReport').innerHTML = monthlySummary;
+
+            // Kişi bazında özet
+            const personSummary = `
+                <div class="space-y-4">
+                    <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                        <div class="text-xs font-semibold text-blue-600 mb-2">Bekir</div>
+                        <div class="text-2xl font-bold text-blue-900">₺${bekirExpense.toLocaleString('tr-TR', {minimumFractionDigits: 2})}</div>
+                        <div class="text-xs text-blue-700 mt-1">${((bekirExpense/totalExpense)*100).toFixed(1)}% of total</div>
+                    </div>
+                    <div class="bg-pink-50 p-3 rounded-lg border border-pink-200">
+                        <div class="text-xs font-semibold text-pink-600 mb-2">Duygu</div>
+                        <div class="text-2xl font-bold text-pink-900">₺${duyguExpense.toLocaleString('tr-TR', {minimumFractionDigits: 2})}</div>
+                        <div class="text-xs text-pink-700 mt-1">${((duyguExpense/totalExpense)*100).toFixed(1)}% of total</div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('personSummaryReport').innerHTML = personSummary;
+
+            // Detaylı aylık rapor
+            const categoryTotals = {};
+            allExpenses.forEach(item => {
+                categoryTotals[item.category] = (categoryTotals[item.category] || 0) + item.displayAmount;
+            });
+
+            const detailedReport = Object.entries(categoryTotals).map(([cat, amount]) => `
+                <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                    <div class="text-xs font-semibold text-gray-700 mb-1 truncate">${cat}</div>
+                    <div class="text-lg font-bold text-gray-900">₺${amount.toLocaleString('tr-TR', {minimumFractionDigits: 2})}</div>
+                    <div class="text-xs text-gray-600 mt-1">${((amount/totalExpense)*100).toFixed(1)}%</div>
+                </div>
+            `).join('');
+
+            document.getElementById('detailedMonthlyReport').innerHTML = detailedReport || '<div class="col-span-full text-center text-gray-400 text-xs py-4">Bu ay veri yok</div>';
+        }
+
         function renderApp() {
             renderBudgetInfo();
             renderTable();
@@ -1565,6 +2049,14 @@
             const allTransactions = getAllTransactions();
 
             return allTransactions.filter(item => {
+                // Taksit Takvimi görünümü aktif ise sadece taksitleri göster
+                if (currentShowInstallments) {
+                    // Sadece taksit işlemlerini göster (id'de _taksit_ var olanlar)
+                    if (!item.id || !item.id.includes('_taksit_')) {
+                        return false;
+                    }
+                }
+
                 let matchPerson = false;
                 if (currentPersonFilter === 'Tümü') {
                     matchPerson = true;
@@ -1716,6 +2208,45 @@
                 }
             });
         }
+
+        // ============ TÜM FONKSİYONLARI WINDOW OBJESINE EKLE (Module Scope Sorunu İçin) ============
+        window.checkPassword = checkPassword;
+        window.switchTab = switchTab;
+        window.openIncomeModal = openIncomeModal;
+        window.openExpenseModal = openExpenseModal;
+        window.closeExpenseModal = closeExpenseModal;
+        window.setCardDueDate = setCardDueDate;
+        window.setCardDebt = setCardDebt;
+        window.toggleCardDebt = toggleCardDebt;
+        window.resetFilters = resetFilters;
+        window.applyFilters = applyFilters;
+        window.sortTable = sortTable;
+        window.downloadPDF = downloadPDF;
+        window.downloadExcel = downloadExcel;
+        window.openNoteModal = openNoteModal;
+        window.closeNoteModal = closeNoteModal;
+        window.handleNoteSubmit = handleNoteSubmit;
+        window.resetNoteForm = resetNoteForm;
+        window.editNote = editNote;
+        window.deleteNote = deleteNote;
+        window.handleShoppingSubmit = handleShoppingSubmit;
+        window.toggleShoppingItem = toggleShoppingItem;
+        window.deleteShoppingItem = deleteShoppingItem;
+        window.openShoppingPriceModal = openShoppingPriceModal;
+        window.closeShoppingPriceModal = closeShoppingPriceModal;
+        window.saveShoppingItemPrice = saveShoppingItemPrice;
+        window.editExpense = editExpense;
+        window.deleteExpense = deleteExpense;
+        window.deleteIncome = deleteIncome;
+        // Yeni fonksiyonlar
+        window.renderTrash = renderTrash;
+        window.restoreFromTrash = restoreFromTrash;
+        window.deleteFromTrashPermanently = deleteFromTrashPermanently;
+        window.emptyTrash = emptyTrash;
+        window.updateStatsPanel = updateStatsPanel;
+        window.renderWeeklyTrendChart = renderWeeklyTrendChart;
+        window.renderMonthlyTrendChart = renderMonthlyTrendChart;
+        window.renderMonthlyReports = renderMonthlyReports;
     </script>
 </body>
 </html>
