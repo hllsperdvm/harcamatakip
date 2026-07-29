@@ -1,300 +1,84 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YUVAM - Ortak Bütçe ve Alışveriş</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- html2pdf.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <!-- Geleneksel Ev Logolu Mobil İkon Tanımlamaları -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%234f46e5'/><path d='M50 22L20 45v35h60V45L50 22z' fill='none' stroke='%23ffffff' stroke-width='6' stroke-linejoin='round'/><path d='M68 35v10h8v-6h4V35h-12z' fill='%23ffffff'/><rect x='38' y='52' width='12' height='16' rx='2' fill='%23ffffff'/><rect x='56' y='52' width='12' height='16' rx='2' fill='%23ffffff'/></svg>">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%234f46e5'/><path d='M50 22L20 45v35h60V45L50 22z' fill='none' stroke='%23ffffff' stroke-width='6' stroke-linejoin='round'/><path d='M68 35v10h8v-6h4V35h-12z' fill='%23ffffff'/><rect x='38' y='52' width='12' height='16' rx='2' fill='%23ffffff'/><rect x='56' y='52' width='12' height='16' rx='2' fill='%23ffffff'/></svg>">
-</head>
-<body class="bg-gray-50 text-gray-800 font-sans antialiased">
-
-    <!-- Şifre Doğrulanana Kadar Gizli Kalacak Ana Alan -->
-    <div id="appContainer" class="hidden">
-        <div id="pdfContent" class="max-w-6xl mx-auto px-4 py-8">
-            <!-- Başlık, Geleneksel Ev Logosu ve İndir Seçenekleri -->
-            <header class="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div class="flex items-center gap-3">
-                    <!-- Özel Çatılı Ev Logosu -->
-                    <div class="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md text-white">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                            <polyline points="9 22 9 12 15 12 15 22"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <h1 class="text-3xl font-bold text-indigo-600 text-center sm:text-left">YUVAM</h1>
-                        <p class="text-sm text-gray-500 mt-0.5 text-center sm:text-left">Evimizin Ortak Uygulaması</p>
-                    </div>
-                </div>
-                
-                <!-- İndir Başlığı ve Butonlar -->
-                <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 flex flex-col sm:flex-row items-center gap-3">
-                    <span class="text-xs font-bold text-gray-700 uppercase tracking-wider px-1">İndir</span>
-                    <div class="flex items-center gap-2">
-                        <button onclick="downloadPDF()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition shadow-sm flex items-center gap-1.5">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            PDF İndir
-                        </button>
-                        <button onclick="downloadExcel()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition shadow-sm flex items-center gap-1.5">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                            </svg>
-                            Excel İndir
-                        </button>
-                    </div>
-                </div>
-            </header>
-
-            <!-- Sekme (Tab) Butonları -->
-            <div class="flex border-b border-gray-200 mb-6 gap-2">
-                <button id="tabBtnExpense" onclick="switchTab('expense')" class="px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600">
-                    Bütçe Takip
-                </button>
-                <button id="tabBtnNotes" onclick="switchTab('notes')" class="px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700">
-                    Notlar
-                </button>
-                <button id="tabBtnShopping" onclick="switchTab('shopping')" class="px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700">
-                    Alışveriş Listesi
-                </button>
-            </div>
-
-            <!-- SEKME 1: BÜTÇE TAKİP İÇERİĞİ -->
-            <div id="tabContentExpense" class="space-y-8">
-                <!-- Özet Kartları -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-                        <p class="text-xs text-gray-500 font-medium">Toplam Bütçe (Gelirler)</p>
-                        <div class="flex items-center justify-between mt-2">
-                            <span id="displayBudget" class="text-xl font-bold text-gray-900">0,00 TL</span>
-                            <button onclick="openIncomeModal()" class="text-xs bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-lg hover:bg-indigo-100 font-medium transition flex items-center gap-1">
-                                + Gelir Ekle
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-                        <p class="text-xs text-gray-500 font-medium">Toplam Harcama</p>
-                        <p id="totalExpense" class="text-xl font-bold text-red-600 mt-2">0,00 TL</p>
-                    </div>
-
-                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-                        <p class="text-xs text-gray-500 font-medium">Bekir'in Harcaması</p>
-                        <p id="bekirExpense" class="text-xl font-bold text-blue-600 mt-2">0,00 TL</p>
-                    </div>
-
-                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-                        <p class="text-xs text-gray-500 font-medium">Duygu'nun Harcaması</p>
-                        <p id="duyguExpense" class="text-xl font-bold text-pink-600 mt-2">0,00 TL</p>
-                    </div>
-
-                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 sm:col-span-2 lg:col-span-1">
-                        <p class="text-xs text-gray-500 font-medium">Kalan Bütçe Durumu</p>
-                        <div class="flex items-center justify-between mt-2">
-                            <span id="remainingBudget" class="text-xl font-bold text-green-600">0,00 TL</span>
-                            <span id="budgetStatusText" class="text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium">İyi</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Kredi Kartı Borçları Paneli -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <!-- Bekir Kredi Kartı Borcu -->
-                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-                        <div>
-                            <p class="text-xs text-gray-500 font-medium">Bekir Kredi Kartı Borcu</p>
-                            <div class="flex items-center gap-2 mt-1">
-                                <span id="bekirDebtDisplay" class="text-lg font-bold text-gray-900">0,00 TL</span>
-                                <span id="bekirDebtStatusBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-medium">Ödenmedi</span>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <button onclick="setCardDebt('bekir')" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg font-medium transition">Tutar Gir</button>
-                            <button id="bekirDebtToggleBtn" onclick="toggleCardDebt('bekir')" class="text-xs px-3 py-1.5 rounded-lg font-medium transition bg-red-600 hover:bg-red-700 text-white">Ödendi Yap</button>
-                        </div>
-                    </div>
-
-                    <!-- Duygu Kredi Kartı Borcu -->
-                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
-                        <div>
-                            <p class="text-xs text-gray-500 font-medium">Duygu Kredi Kartı Borcu</p>
-                            <div class="flex items-center gap-2 mt-1">
-                                <span id="duyguDebtDisplay" class="text-lg font-bold text-gray-900">0,00 TL</span>
-                                <span id="duyguDebtStatusBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-medium">Ödenmedi</span>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <button onclick="setCardDebt('duygu')" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg font-medium transition">Tutar Gir</button>
-                            <button id="duyguDebtToggleBtn" onclick="toggleCardDebt('duygu')" class="text-xs px-3 py-1.5 rounded-lg font-medium transition bg-red-600 hover:bg-red-700 text-white">Ödendi Yap</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Ana İçerik Grid -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <!-- Sol Kolon: Harcama Ekleme / Düzenleme Formu -->
-                    <div id="formContainer" class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit">
-                        <h2 id="formTitle" class="text-lg font-semibold text-gray-900 mb-4">Yeni Harcama Ekle</h2>
-                        <form id="expenseForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
-                            <input type="hidden" id="editId">
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Toplam Tutar (TL)</label>
-                                <input type="number" step="any" id="amount" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="0.00">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Taksit Sayısı (Peşin için 1 bırakın)</label>
-                                <input type="number" id="installmentCount" min="1" value="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Harcama Yapan Kişi</label>
-                                <select id="person" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                                    <option value="Bekir">Bekir</option>
-                                    <option value="Duygu">Duygu</option>
-                                </select>
-                            </div>
-                            <div>
-                                <div class="flex justify-between items-center mb-1">
-                                    <label class="block text-xs font-medium text-gray-700">Kategori</label>
-                                    <button type="button" onclick="addNewCategory()" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-0.5">+ Yeni Ekle</button>
-                                </div>
-                                <select id="category" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+<select id="paymentType" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
                                     <!-- Dinamik Dolacak -->
                                 </select>
                             </div>
                             <div>
-                                <div class="flex justify-between items-center mb-1">
-                                    <label class="block text-xs font-medium text-gray-700">Ödeme Tipi</label>
-                                    <button type="button" onclick="addNewPaymentType()" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-0.5">+ Yeni Ekle</button>
-                                </div>
-                                <select id="paymentType" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                                    <!-- Dinamik Dolacak -->
-                                </select>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">Açıklama</label>
+                                <input type="text" id="description" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="Harcama açıklaması...">
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-700 mb-1">Tarih</label>
                                 <input type="date" id="date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
                             </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Açıklama</label>
-                                <input type="text" id="description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="Örn: Market alışverişi">
-                            </div>
-                            <div class="flex gap-2">
-                                <button type="submit" id="submitBtn" class="w-full bg-indigo-600 text-white py-2.5 rounded-lg hover:bg-indigo-700 font-medium text-sm transition shadow-sm">Harcama Ekle</button>
-                                <button type="button" id="cancelEditBtn" onclick="resetForm()" class="hidden w-1/3 bg-gray-200 text-gray-700 py-2.5 rounded-lg hover:bg-gray-300 font-medium text-sm transition">İptal</button>
+                            <div class="flex gap-2 pt-2">
+                                <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg text-sm font-medium transition shadow-sm">
+                                    Harcama Ekle
+                                </button>
+                                <button type="button" id="cancelEditBtn" onclick="resetForm()" class="hidden bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium transition">
+                                    İptal
+                                </button>
                             </div>
                         </form>
                     </div>
 
-                    <!-- Sağ Kolon: Grafik ve İşlem Geçmişi -->
-                    <div class="lg:col-span-2 space-y-8">
-                        <!-- Grafik -->
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center">
-                            <div class="w-full flex justify-between items-center mb-4">
-                                <h2 id="chartTitle" class="text-lg font-semibold text-gray-900">Kategorilere Göre Dağılım (Tümü)</h2>
+                    <!-- Sağ Kolon: Harcama Listesi ve Grafikler -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <!-- Filtreleme ve Arama Alanı -->
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col sm:flex-row gap-3 justify-between items-center">
+                            <div class="w-full sm:w-auto flex-1">
+                                <input type="text" id="searchInput" oninput="renderExpenses()" placeholder="Açıklama, kategori veya kişiye göre ara..." class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                             </div>
-                            <div class="w-full max-w-xs h-64">
-                                <canvas id="expenseChart"></canvas>
+                            <div class="flex gap-2 w-full sm:w-auto">
+                                <select id="filterPerson" onchange="renderExpenses()" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                                    <option value="">Tüm Kişiler</option>
+                                    <option value="Bekir">Bekir</option>
+                                    <option value="Duygu">Duygu</option>
+                                </select>
+                                <select id="filterCategory" onchange="renderExpenses()" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                                    <option value="">Tüm Kategoriler</option>
+                                </select>
                             </div>
                         </div>
 
-                        <!-- İşlem Geçmişi ve Detaylı Filtreler -->
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                            <h2 class="text-lg font-semibold text-gray-900 mb-4">İşlem Geçmişi</h2>
-
-                            <!-- Filtrele Bölümü -->
-                            <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-6 space-y-3">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-xs font-bold text-gray-700 uppercase tracking-wider">Filtrele</span>
-                                    <button onclick="resetFilters()" class="text-xs text-indigo-600 hover:underline font-medium">Filtreleri Temizle</button>
-                                </div>
-
-                                <!-- Taksit Gösterim Filtresi -->
-                                <div class="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100 flex items-center justify-between">
-                                    <div>
-                                        <span class="text-xs font-bold text-indigo-900 block">Taksit Takvimi Görünümü</span>
-                                        <span class="text-[11px] text-gray-500">İşaretlendiğinde gelecekteki tüm taksitler tabloda listelenir.</span>
-                                    </div>
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" id="filterShowInstallments" onchange="applyFilters()" class="sr-only peer">
-                                        <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-                                    </label>
-                                </div>
-                                
-                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                    <!-- Kişi Filtresi -->
-                                    <div>
-                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">Kişi / Tür</label>
-                                        <select id="filterPerson" onchange="applyFilters()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
-                                            <option value="Tümü">Tümü</option>
-                                            <option value="Bekir">Bekir</option>
-                                            <option value="Duygu">Duygu</option>
-                                            <option value="Gelir">Gelir</option>
-                                        </select>
-                                    </div>
-                                    <!-- Kategori Filtresi -->
-                                    <div>
-                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">Kategori</label>
-                                        <select id="filterCategory" onchange="applyFilters()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
-                                            <!-- Dinamik Dolacak -->
-                                        </select>
-                                    </div>
-                                    <!-- Ödeme Tipi Filtresi -->
-                                    <div>
-                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">Ödeme Tipi</label>
-                                        <select id="filterPayment" onchange="applyFilters()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
-                                            <!-- Dinamik Dolacak -->
-                                        </select>
-                                    </div>
-                                    <!-- Başlangıç Tarihi -->
-                                    <div>
-                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">Başlangıç Tarihi</label>
-                                        <input type="date" id="filterStartDate" onchange="applyFilters()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
-                                    </div>
-                                    <!-- Bitiş Tarihi -->
-                                    <div>
-                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">Bitiş Tarihi</label>
-                                        <input type="date" id="filterEndDate" onchange="applyFilters()" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
-                                    </div>
-                                    <!-- Minimum Tutar -->
-                                    <div>
-                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">Min Tutar (TL)</label>
-                                        <input type="number" step="any" id="filterMinAmount" oninput="applyFilters()" placeholder="0" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
-                                    </div>
-                                    <!-- Maksimum Tutar -->
-                                    <div>
-                                        <label class="block text-[11px] font-medium text-gray-600 mb-1">Max Tutar (TL)</label>
-                                        <input type="number" step="any" id="filterMaxAmount" oninput="applyFilters()" placeholder="Sınırsız" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
-                                    </div>
-                                </div>
+                        <!-- Harcama Tablosu -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div class="p-4 border-b border-gray-100 flex justify-between items-center">
+                                <h3 class="font-semibold text-gray-900 text-sm">Harcama Geçmişi</h3>
+                                <span id="expenseCountBadge" class="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-medium">0 harcama</span>
                             </div>
-
-                            <!-- Liste Tablosu -->
                             <div class="overflow-x-auto">
                                 <table class="w-full text-left border-collapse">
                                     <thead>
-                                        <tr class="border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase">
-                                            <th onclick="sortTable('date')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Tarih ↕</th>
-                                            <th onclick="sortTable('person')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Kişi / Tür ↕</th>
-                                            <th onclick="sortTable('category')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Kategori ↕</th>
-                                            <th onclick="sortTable('paymentType')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Ödeme / Tip ↕</th>
-                                            <th onclick="sortTable('description')" class="py-3 px-2 cursor-pointer hover:text-indigo-600 transition select-none">Açıklama ↕</th>
-                                            <th onclick="sortTable('amount')" class="py-3 px-2 text-right cursor-pointer hover:text-indigo-600 transition select-none">Tutar ↕</th>
-                                            <th class="py-3 px-2 text-center action-col">İşlem</th>
+                                        <tr class="bg-gray-50/70 border-b border-gray-100 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                                            <th class="py-3 px-4">Tarih</th>
+                                            <th class="py-3 px-4">Kişi</th>
+                                            <th class="py-3 px-4">Kategori</th>
+                                            <th class="py-3 px-4">Açıklama</th>
+                                            <th class="py-3 px-4">Ödeme / Taksit</th>
+                                            <th class="py-3 px-4 text-right">Tutar</th>
+                                            <th class="py-3 px-4 text-center">İşlem</th>
                                         </tr>
                                     </thead>
-                                    <tbody id="expenseTableBody" class="text-sm divide-y divide-gray-100">
+                                    <tbody id="expenseTableBody" class="divide-y divide-gray-100 text-sm">
                                         <!-- Dinamik Dolacak -->
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+
+                        <!-- Grafik Alanı -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center">
+                                <h3 class="font-semibold text-gray-900 text-sm mb-4 w-full text-left">Kategorilere Göre Harcamalar</h3>
+                                <div class="w-full h-64 flex justify-center items-center">
+                                    <canvas id="categoryChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center">
+                                <h3 class="font-semibold text-gray-900 text-sm mb-4 w-full text-left">Kişilere Göre Dağılım</h3>
+                                <div class="w-full h-64 flex justify-center items-center">
+                                    <canvas id="personChart"></canvas>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -303,1048 +87,772 @@
 
             <!-- SEKME 2: NOTLAR İÇERİĞİ -->
             <div id="tabContentNotes" class="hidden space-y-6">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-4xl mx-auto">
-                    <h2 id="noteFormTitle" class="text-lg font-semibold text-gray-900 mb-4">Yeni Not Ekle</h2>
-                    
-                    <!-- Not Ekleme / Düzenleme Formu -->
-                    <form id="noteForm" onsubmit="handleNoteSubmit(event)" class="space-y-4 mb-8 bg-gray-50 p-4 rounded-xl border border-gray-200">
-                        <input type="hidden" id="editNoteId">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Notu Yazan Kişi</label>
-                            <select id="notePerson" required class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                                <option value="Bekir">Bekir</option>
-                                <option value="Duygu">Duygu</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-700 mb-1">Not İçeriği</label>
-                            <textarea id="noteContent" rows="3" required placeholder="Notunuzu buraya yazın..." class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"></textarea>
-                        </div>
-                        <div class="flex gap-2">
-                            <button type="submit" id="noteSubmitBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition shadow-sm">Not Ekle</button>
-                            <button type="button" id="cancelNoteEditBtn" onclick="resetNoteForm()" class="hidden bg-gray-200 hover:bg-gray-300 text-gray-700 px-5 py-2 rounded-lg text-sm font-medium transition">İptal</button>
-                        </div>
-                    </form>
-
-                    <!-- Notlar Listesi -->
-                    <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">Paylaşılan Notlar</h3>
-                    <div id="notesContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <!-- Dinamik Dolacak -->
-                    </div>
+                <div class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <h2 class="text-lg font-semibold text-gray-900">Ortak Notlar</h2>
+                    <button onclick="openNoteModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Yeni Not Ekle
+                    </button>
+                </div>
+                <!-- Not Kartları Grid -->
+                <div id="notesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Dinamik Dolacak -->
                 </div>
             </div>
 
             <!-- SEKME 3: ALIŞVERİŞ LİSTESİ İÇERİĞİ -->
             <div id="tabContentShopping" class="hidden space-y-6">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-4xl mx-auto">
-                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Ortak Alışveriş Listesi</h2>
-                    
-                    <!-- Yeni Ürün Ekleme Formu (Üstte) -->
-                    <form id="shoppingForm" onsubmit="handleShoppingSubmit(event)" class="flex gap-2 mb-8">
-                        <input type="text" id="shoppingItemInput" required placeholder="Alınacak ürün adı (Örn: Süt, Ekmek)..." class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition shadow-sm">Ekle</button>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-3">
+                    <h2 class="text-lg font-semibold text-gray-900">Alışveriş Listesi</h2>
+                    <form onsubmit="handleShoppingSubmit(event)" class="flex gap-2 w-full sm:w-auto">
+                        <input type="text" id="shoppingInput" required placeholder="Alınacak ürün..." class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 flex-1 sm:w-64">
+                        <select id="shoppingCategory" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                            <option value="Genel">Genel</option>
+                            <option value="Market">Market</option>
+                            <option value="Manav">Manav</option>
+                            <option value="Temizlik">Temizlik</option>
+                            <option value="Ev Eşyası">Ev Eşyası</option>
+                        </select>
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-sm whitespace-nowrap">
+                            Ekle
+                        </button>
                     </form>
-
-                    <!-- Alt Bölüm: İki Sütun (Sol: Alınacaklar, Sağ: Sepette) -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Sol Taraf: Alınacaklar -->
-                        <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col justify-between">
-                            <div>
-                                <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3">Alınacaklar</h3>
-                                <ul id="todoListContainer" class="divide-y divide-gray-200">
-                                    <!-- Dinamik Dolacak -->
-                                </ul>
-                            </div>
-                        </div>
-
-                        <!-- Sağ Taraf: Sepette -->
-                        <div class="bg-indigo-50/40 p-4 rounded-xl border border-indigo-100 flex flex-col justify-between">
-                            <div>
-                                <h3 class="text-sm font-bold text-indigo-900 uppercase tracking-wider mb-3">Sepette</h3>
-                                <ul id="cartListContainer" class="divide-y divide-indigo-100">
-                                    <!-- Dinamik Dolacak -->
-                                </ul>
-                            </div>
-                            <!-- Sepet Toplam Tutar -->
-                            <div class="mt-6 pt-3 border-t border-indigo-200 flex justify-between items-center">
-                                <span class="text-xs font-bold text-indigo-900 uppercase">Sepet Tutarı:</span>
-                                <span id="cartTotalPrice" class="text-lg font-bold text-indigo-600">0,00 TL</span>
-                            </div>
-                        </div>
+                </div>
+                <!-- Alışveriş Listesi Tablosu / Kartları -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-4 border-b border-gray-100 flex justify-between items-center">
+                        <h3 class="font-semibold text-gray-900 text-sm">Alınacak Ürünler</h3>
+                        <span id="shoppingCountBadge" class="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full font-medium">0 ürün</span>
+                    </div>
+                    <div id="shoppingListContainer" class="divide-y divide-gray-100">
+                        <!-- Dinamik Dolacak -->
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- GELİR EKLEME MODALI -->
-    <div id="incomeModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
-        <div class="bg-white p-6 rounded-xl shadow-lg w-full max-w-md">
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">Yeni Gelir Ekle</h2>
-            <form id="incomeForm" onsubmit="handleIncomeSubmit(event)" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-1">Gelir Türü</label>
-                    <select id="incomeType" onchange="onIncomeTypeChange()" required class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                        <option value="MAAŞ">MAAŞ</option>
-                        <option value="DİĞER">DİĞER</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-1">Tutar (TL)</label>
-                    <input type="number" step="any" id="incomeAmount" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="0.00">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-1">Tarih</label>
-                    <input type="date" id="incomeDate" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                </div>
-                <div id="incomeDescContainer">
-                    <label id="incomeDescLabel" class="block text-xs font-medium text-gray-700 mb-1">Açıklama</label>
-                    <input type="text" id="incomeDescription" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="Açıklama giriniz...">
-                </div>
-                <div class="flex gap-2 pt-2">
-                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg hover:bg-indigo-700 font-medium text-sm transition shadow-sm">Geliri Kaydet</button>
-                    <button type="button" onclick="closeIncomeModal()" class="w-1/3 bg-gray-200 text-gray-700 py-2.5 rounded-lg hover:bg-gray-300 font-medium text-sm transition">İptal</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- ALIŞVERİŞ FİYAT GİRİŞ MODALI (TELEFONDA NUMERİK KLAVYE İÇİN) -->
-    <div id="shoppingPriceModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
-        <div class="bg-white p-6 rounded-xl shadow-lg w-full max-w-sm">
-            <h2 id="shoppingPriceModalTitle" class="text-lg font-semibold text-gray-900 mb-2">Ürün Fiyatı Girin</h2>
-            <p id="shoppingPriceItemName" class="text-xs text-gray-500 mb-4 font-medium"></p>
-            <form id="shoppingPriceForm" onsubmit="handleShoppingPriceSubmit(event)" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-medium text-gray-700 mb-1">Tutar (TL)</label>
-                    <input type="number" inputmode="decimal" step="any" id="shoppingModalPriceInput" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base" placeholder="0.00">
-                </div>
-                <div class="flex gap-2 pt-2">
-                    <button type="submit" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg hover:bg-indigo-700 font-medium text-sm transition shadow-sm">Kaydet</button>
-                    <button type="button" onclick="closeShoppingPriceModal()" class="w-1/3 bg-gray-200 text-gray-700 py-2.5 rounded-lg hover:bg-gray-300 font-medium text-sm transition">İptal</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Şifre Giriş Ekranı -->
-    <div id="errorContainer" class="flex items-center justify-center h-screen bg-gray-100">
-        <div class="text-center p-8 bg-white rounded-xl shadow-md w-80">
-            <!-- Giriş Ekranı Çatılı Ev Logosu -->
-            <div class="w-16 h-16 bg-indigo-600 rounded-2xl mx-auto flex items-center justify-center shadow-md text-white mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-9 h-9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                    <polyline points="9 22 9 12 15 12 15 22"/>
+    <!-- ŞİFRE GİRİŞ EKRANI MODALI -->
+    <div id="passwordModal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 text-center space-y-4">
+            <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mx-auto text-indigo-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
             </div>
-            <h2 class="text-xl font-bold text-gray-800 mb-4">Lütfen Şifreyi Giriniz</h2>
-            <input type="password" id="sifreInput" inputmode="numeric" pattern="[0-9]*" placeholder="Şifre" onkeydown="handlePasswordKeydown(event)" class="w-full px-3 py-2 border border-gray-300 rounded-lg mb-4 text-center text-lg tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <button onclick="checkPassword()" class="w-full bg-indigo-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition shadow-sm">Giriş Yap</button>
+            <div>
+                <h2 class="text-lg font-bold text-gray-900">YUVAM Korumalı Alan</h2>
+                <p class="text-xs text-gray-500 mt-1">Devam etmek için ortak şifreyi giriniz.</p>
+            </div>
+            <form onsubmit="checkPassword(event)" class="space-y-3">
+                <input type="password" id="appPasswordInput" required placeholder="Şifre" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 tracking-widest">
+                <p id="passwordError" class="text-xs text-red-600 hidden">Hatalı şifre! Lütfen tekrar deneyin.</p>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg text-sm font-medium transition shadow-sm">
+                    Giriş Yap
+                </button>
+            </form>
         </div>
     </div>
 
-    <!-- Firebase SDK & Mantık -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    <!-- GELİR EKLEME / DÜZENLEME MODALI -->
+    <div id="incomeModal" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-gray-900 text-base">Toplam Bütçe / Gelir Düzenle</h3>
+                <button onclick="closeIncomeModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <form onsubmit="handleIncomeSubmit(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Toplam Bütçe (TL)</label>
+                    <input type="number" step="any" id="modalIncomeInput" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="0.00">
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium transition shadow-sm">
+                        Kaydet
+                    </button>
+                    <button type="button" onclick="closeIncomeModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition">
+                        İptal
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyDFTQa5FV8kKBqICWAg_vst8AnLdIrfBVw",
-            authDomain: "harcama-takibi-1c48b.firebaseapp.com",
-            projectId: "harcama-takibi-1c48b",
-            storageBucket: "harcama-takibi-1c48b.firebasestorage.app",
-            messagingSenderId: "1051789650081",
-            appId: "1:1051789650081:web:3c7d4bc099eb7b5f0f68e0"
+    <!-- NOT EKLEME / DÜZENLEME MODALI -->
+    <div id="noteModal" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 id="noteModalTitle" class="font-bold text-gray-900 text-base">Yeni Not Ekle</h3>
+                <button onclick="closeNoteModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <form onsubmit="handleNoteSubmit(event)" class="space-y-3">
+                <input type="hidden" id="noteEditId">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Not Başlığı</label>
+                    <input type="text" id="noteTitleInput" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Başlık...">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Not İçeriği</label>
+                    <textarea id="noteContentInput" required rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Notunuzu buraya yazın..."></textarea>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium transition shadow-sm">
+                        Notu Kaydet
+                    </button>
+                    <button type="button" onclick="closeNoteModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition">
+                        İptal
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- KREDİ KARTI BORÇ TUTARI GİRME MODALI -->
+    <div id="cardDebtModal" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 id="cardDebtModalTitle" class="font-bold text-gray-900 text-base">Kredi Kartı Borcu Belirle</h3>
+                <button onclick="closeCardDebtModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <form onsubmit="handleCardDebtSubmit(event)" class="space-y-3">
+                <input type="hidden" id="cardDebtPerson">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Güncel Borç Tutarı (TL)</label>
+                    <input type="number" step="any" id="cardDebtInput" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="0.00">
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium transition shadow-sm">
+                        Kaydet
+                    </button>
+                    <button type="button" onclick="closeCardDebtModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition">
+                        İptal
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT UYGULAMA MANTIĞI -->
+    <script>
+        // Varsayılan Veriler ve Yapılandırma
+        let appData = {
+            password: "yuvam", // Varsayılan şifre
+            totalBudget: 0,
+            bekirCardDebt: 0,
+            bekirCardPaid: false,
+            duyguCardDebt: 0,
+            duyguCardPaid: false,
+            categories: ["Kira", "Market", "Faturalar", "Eğlence", "Ulaşım", "Sağlık", "Giyim", "Diğer"],
+            paymentTypes: ["Nakit", "Bekir Kredi Kartı", "Duygu Kredi Kartı", "Ortak Kredi Kartı", "Havale / EFT"],
+            expenses: [],
+            notes: [],
+            shopping: []
         };
 
-        const DOGRU_SIFRE = "7536"; 
+        let categoryChartInstance = null;
+        let personChartInstance = null;
 
-        function checkPassword() {
-            let girilenSifre = document.getElementById('sifreInput').value;
-            if (girilenSifre === DOGRU_SIFRE) {
-                document.getElementById('errorContainer').style.display = 'none';
-                document.getElementById('appContainer').style.display = 'block';
-                initRealtimeSync();
-            } else {
-                alert("Hatalı şifre!");
-                document.getElementById('sifreInput').value = "";
-                document.getElementById('errorContainer').style.display = 'flex';
-                document.getElementById('appContainer').style.display = 'none';
-            }
-        }
-
-        function handlePasswordKeydown(event) {
-            if (event.key === 'Enter') {
-                checkPassword();
-            }
-        }
-        
-        window.onload = function() {
-            document.getElementById('appContainer').style.display = 'none';
-            document.getElementById('errorContainer').style.display = 'flex';
-        };
-
-        window.checkPassword = checkPassword;
-        window.handlePasswordKeydown = handlePasswordKeydown;
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        let expenses = [];
-        let incomes = [];
-        let shoppingItems = [];
-        let notes = [];
-        let categories = ["Gıda", "Ulaşım", "Faturalar", "Eğlence", "Sağlık", "Eğitim", "Diğer", "Kredi Kartı Borcu"];
-        let paymentTypes = ["Nakit", "Kredi Kartı"];
-        let expenseChart = null;
-
-        let bekirDebt = { amount: 0, paid: false, lastExpenseId: null };
-        let duyguDebt = { amount: 0, paid: false, lastExpenseId: null };
-
-        let currentPersonFilter = 'Tümü';
-        let currentCategoryFilter = 'Tümü';
-        let currentPaymentFilter = 'Tümü';
-        let currentShowInstallments = false;
-        let currentStartDate = '';
-        let currentEndDate = '';
-        let currentMinAmount = '';
-        let currentMaxAmount = '';
-        
-        let sortColumn = 'date';
-        let sortDirection = 'desc';
-
-        // Alışveriş Fiyat Modal Akışı için Değişkenler
-        let activeShoppingId = null;
-        let activeShoppingAction = 'complete'; // 'complete' veya 'edit'
-
-        document.getElementById('date').valueAsDate = new Date();
-        document.getElementById('incomeDate').valueAsDate = new Date();
-
-        // Sekme Değiştirme Fonksiyonu
-        window.switchTab = function(tabName) {
-            const btnExpense = document.getElementById('tabBtnExpense');
-            const btnNotes = document.getElementById('tabBtnNotes');
-            const btnShopping = document.getElementById('tabBtnShopping');
+        // Sayfa Yüklendiğinde
+        window.addEventListener('DOMContentLoaded', () => {
+            loadFromLocalStorage();
+            // Bugünün tarihini form tarih alanına ata
+            document.getElementById('date').valueAsDate = new Date();
             
-            const contentExpense = document.getElementById('tabContentExpense');
-            const contentNotes = document.getElementById('tabContentNotes');
-            const contentShopping = document.getElementById('tabContentShopping');
+            // Eğer daha önce giriş yapıldıysa direkt açabiliriz veya şifre isteyebiliriz. Güvenlik için şifre modalı açık kalır.
+        });
 
-            btnExpense.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700";
-            btnNotes.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700";
-            btnShopping.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700";
+        function checkPassword(e) {
+            e.preventDefault();
+            const val = document.getElementById('appPasswordInput').value;
+            if (val === appData.password) {
+                document.getElementById('passwordModal').classList.add('hidden');
+                document.getElementById('appContainer').classList.remove('hidden');
+                initializeApp();
+            } else {
+                document.getElementById('passwordError').classList.remove('hidden');
+            }
+        }
 
-            contentExpense.classList.add('hidden');
-            contentNotes.classList.add('hidden');
-            contentShopping.classList.add('hidden');
+        function initializeApp() {
+            populateCategoriesAndPaymentTypes();
+            renderExpenses();
+            renderNotes();
+            renderShopping();
+            updateDashboard();
+            initCharts();
+        }
+
+        // LocalStorage İşlemleri
+        function saveToLocalStorage() {
+            localStorage.setItem('yuvam_app_data', JSON.stringify(appData));
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('yuvam_app_data');
+            if (saved) {
+                try {
+                    appData = JSON.parse(saved);
+                } catch(e) {
+                    console.error("Veri yüklenemedi", e);
+                }
+            }
+        }
+
+        // Sekme Değiştirme
+        function switchTab(tabName) {
+            const expBtn = document.getElementById('tabBtnExpense');
+            const notesBtn = document.getElementById('tabBtnNotes');
+            const shopBtn = document.getElementById('tabBtnShopping');
+
+            const expContent = document.getElementById('tabContentExpense');
+            const notesContent = document.getElementById('tabContentNotes');
+            const shopContent = document.getElementById('tabContentShopping');
+
+            // Reset classes
+            [expBtn, notesBtn, shopBtn].forEach(btn => {
+                btn.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-gray-500 border-transparent hover:text-gray-700";
+            });
+            [expContent, notesContent, shopContent].forEach(c => c.classList.add('hidden'));
 
             if (tabName === 'expense') {
-                btnExpense.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600";
-                contentExpense.classList.remove('hidden');
+                expBtn.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600";
+                expContent.classList.remove('hidden');
+                updateCharts();
             } else if (tabName === 'notes') {
-                btnNotes.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600";
-                contentNotes.classList.remove('hidden');
+                notesBtn.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600";
+                notesContent.classList.remove('hidden');
             } else if (tabName === 'shopping') {
-                btnShopping.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600";
-                contentShopping.classList.remove('hidden');
+                shopBtn.className = "px-5 py-2.5 text-sm font-semibold border-b-2 transition text-indigo-600 border-indigo-600";
+                shopContent.classList.remove('hidden');
             }
         }
 
-        // Gelir Modal Fonksiyonları
-        window.openIncomeModal = function() {
-            document.getElementById('incomeForm').reset();
-            document.getElementById('incomeAmount').value = '';
-            document.getElementById('incomeDate').valueAsDate = new Date();
-            document.getElementById('incomeModal').classList.remove('hidden');
-            document.getElementById('incomeModal').classList.add('flex');
-            onIncomeTypeChange();
-        }
+        // Kategori ve Ödeme Tiplerini Select Elementlerine Doldurma
+        function populateCategoriesAndPaymentTypes() {
+            const catSelect = document.getElementById('category');
+            const filterCatSelect = document.getElementById('filterCategory');
+            const shopCatSelect = document.getElementById('shoppingCategory');
 
-        window.closeIncomeModal = function() {
-            document.getElementById('incomeModal').classList.remove('flex');
-            document.getElementById('incomeModal').classList.add('hidden');
-        }
+            catSelect.innerHTML = '';
+            filterCatSelect.innerHTML = '<option value="">Tüm Kategoriler</option>';
 
-        window.onIncomeTypeChange = function() {
-            const type = document.getElementById('incomeType').value;
-            const descInput = document.getElementById('incomeDescription');
-            const descLabel = document.getElementById('incomeDescLabel');
-            if (type === 'DİĞER') {
-                descInput.required = true;
-                descLabel.innerHTML = 'Açıklama <span class="text-red-500">*</span>';
-            } else {
-                descInput.required = false;
-                descLabel.innerHTML = 'Açıklama';
-            }
-        }
-
-        window.handleIncomeSubmit = async function(e) {
-            e.preventDefault();
-            const type = document.getElementById('incomeType').value;
-            const amount = parseFloat(document.getElementById('incomeAmount').value);
-            const date = document.getElementById('incomeDate').value;
-            const description = document.getElementById('incomeDescription').value.trim();
-
-            if (isNaN(amount) || amount <= 0) {
-                alert("Lütfen geçerli bir tutar giriniz!");
-                return;
-            }
-
-            if (type === 'DİĞER' && !description) {
-                alert("Diğer gelirler için açıklama yazılması zorunludur!");
-                return;
-            }
-
-            const incomeMonth = date.substring(0, 7);
-
-            await addDoc(collection(db, "incomes"), {
-                type,
-                amount,
-                date,
-                incomeMonth,
-                description: description || (type === 'MAAŞ' ? 'Maaş Geliri' : '-')
+            appData.categories.forEach(cat => {
+                catSelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+                filterCatSelect.innerHTML += `<option value="${cat}">${cat}</option>`;
             });
 
+            const paySelect = document.getElementById('paymentType');
+            paySelect.innerHTML = '';
+            appData.paymentTypes.forEach(pt => {
+                paySelect.innerHTML += `<option value="${pt}">${pt}</option>`;
+            });
+        }
+
+        // Yeni Kategori Ekleme Prompt
+        function addNewCategory() {
+            const newCat = prompt("Yeni kategori adını giriniz:");
+            if (newCat && newCat.trim() !== "") {
+                const formatted = newCat.trim();
+                if (!appData.categories.includes(formatted)) {
+                    appData.categories.push(formatted);
+                    saveToLocalStorage();
+                    populateCategoriesAndPaymentTypes();
+                    document.getElementById('category').value = formatted;
+                } else {
+                    alert("Bu kategori zaten mevcut.");
+                }
+            }
+        }
+
+        // Yeni Ödeme Tipi Ekleme Prompt
+        function addNewPaymentType() {
+            const newPt = prompt("Yeni ödeme tipi adını giriniz (Örn: Ek Kart, Yemek Kartı vb.):");
+            if (newPt && newPt.trim() !== "") {
+                const formatted = newPt.trim();
+                if (!appData.paymentTypes.includes(formatted)) {
+                    appData.paymentTypes.push(formatted);
+                    saveToLocalStorage();
+                    populateCategoriesAndPaymentTypes();
+                    document.getElementById('paymentType').value = formatted;
+                } else {
+                    alert("Bu ödeme tipi zaten mevcut.");
+                }
+            }
+        }
+
+        // Gelir Modal Yönetimi
+        function openIncomeModal() {
+            document.getElementById('modalIncomeInput').value = appData.totalBudget;
+            document.getElementById('incomeModal').classList.remove('hidden');
+        }
+        function closeIncomeModal() {
+            document.getElementById('incomeModal').classList.add('hidden');
+        }
+        function handleIncomeSubmit(e) {
+            e.preventDefault();
+            const val = parseFloat(document.getElementById('modalIncomeInput').value) || 0;
+            appData.totalBudget = val;
+            saveToLocalStorage();
+            updateDashboard();
             closeIncomeModal();
         }
 
-        window.deleteIncome = async function(id) {
-            if (confirm("Bu geliri silmek istediğinize emin misiniz?")) {
-                await deleteDoc(doc(db, "incomes", id));
-            }
+        // Kredi Kartı Borç Modal Yönetimi
+        function setCardDebt(person) {
+            document.getElementById('cardDebtPerson').value = person;
+            document.getElementById('cardDebtModalTitle').innerText = (person === 'bekir' ? "Bekir" : "Duygu") + " Kredi Kartı Borcu Belirle";
+            document.getElementById('cardDebtInput').value = person === 'bekir' ? appData.bekirCardDebt : appData.duyguCardDebt;
+            document.getElementById('cardDebtModal').classList.remove('hidden');
         }
-
-        function initRealtimeSync() {
-            // Harcamalar
-            onSnapshot(collection(db, "expenses"), (snapshot) => {
-                expenses = [];
-                snapshot.forEach((docSnap) => {
-                    expenses.push({ id: docSnap.id, ...docSnap.data() });
-                });
-                renderApp();
-            });
-
-            // Gelirler
-            onSnapshot(collection(db, "incomes"), (snapshot) => {
-                incomes = [];
-                snapshot.forEach((docSnap) => {
-                    incomes.push({ id: docSnap.id, ...docSnap.data() });
-                });
-                renderApp();
-            });
-
-            // Alışveriş Listesi
-            onSnapshot(collection(db, "shoppingList"), (snapshot) => {
-                shoppingItems = [];
-                snapshot.forEach((docSnap) => {
-                    shoppingItems.push({ id: docSnap.id, ...docSnap.data() });
-                });
-                renderShoppingList();
-            });
-
-            // Notlar
-            onSnapshot(collection(db, "notes"), (snapshot) => {
-                notes = [];
-                snapshot.forEach((docSnap) => {
-                    notes.push({ id: docSnap.id, ...docSnap.data() });
-                });
-                renderNotesList();
-            });
-
-            // Bekir Kredi Kartı Borcu
-            const bekirDebtRef = doc(db, "settings", "bekirDebt");
-            onSnapshot(bekirDebtRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    bekirDebt = docSnap.data();
-                } else {
-                    setDoc(bekirDebtRef, { amount: 0, paid: false, lastExpenseId: null });
-                }
-                renderCardDebtUI('bekir');
-            });
-
-            // Duygu Kredi Kartı Borcu
-            const duyguDebtRef = doc(db, "settings", "duyguDebt");
-            onSnapshot(duyguDebtRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    duyguDebt = docSnap.data();
-                } else {
-                    setDoc(duyguDebtRef, { amount: 0, paid: false, lastExpenseId: null });
-                }
-                renderCardDebtUI('duygu');
-            });
-
-            // Kategoriler
-            const catDocRef = doc(db, "settings", "categories");
-            onSnapshot(catDocRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    let remoteCats = docSnap.data().list || [];
-                    if (!remoteCats.includes("Kredi Kartı Borcu")) {
-                        remoteCats.push("Kredi Kartı Borcu");
-                        setDoc(catDocRef, { list: remoteCats });
-                    }
-                    categories = remoteCats;
-                } else {
-                    setDoc(catDocRef, { list: categories });
-                }
-                updateCategorySelects();
-                renderApp();
-            });
-
-            // Ödeme Tipleri
-            const payDocRef = doc(db, "settings", "paymentTypes");
-            onSnapshot(payDocRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    paymentTypes = docSnap.data().list || paymentTypes;
-                } else {
-                    setDoc(payDocRef, { list: paymentTypes });
-                }
-                updatePaymentSelects();
-                renderApp();
-            });
+        function closeCardDebtModal() {
+            document.getElementById('cardDebtModal').classList.add('hidden');
         }
-
-        // Notlar Fonksiyonları
-        window.handleNoteSubmit = async function(e) {
+        function handleCardDebtSubmit(e) {
             e.preventDefault();
-            const editId = document.getElementById('editNoteId').value;
-            const person = document.getElementById('notePerson').value;
-            const content = document.getElementById('noteContent').value.trim();
-
-            if (!content) return;
-
-            const now = new Date();
-            const dateStr = now.toLocaleDateString('tr-TR');
-            const timeStr = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-            const timestamp = `${dateStr} ${timeStr}`;
-
-            if (editId) {
-                await updateDoc(doc(db, "notes", editId), {
-                    person: person,
-                    content: content,
-                    timestamp: timestamp
-                });
-            } else {
-                await addDoc(collection(db, "notes"), {
-                    person: person,
-                    content: content,
-                    timestamp: timestamp
-                });
-            }
-            resetNoteForm();
-        }
-
-        window.editNote = function(id) {
-            const note = notes.find(n => n.id === id);
-            if (!note) return;
-
-            document.getElementById('editNoteId').value = note.id;
-            document.getElementById('notePerson').value = note.person;
-            document.getElementById('noteContent').value = note.content;
-
-            document.getElementById('noteFormTitle').innerText = "Notu Düzenle";
-            document.getElementById('noteSubmitBtn').innerText = "Güncelle";
-            document.getElementById('cancelNoteEditBtn').classList.remove('hidden');
-
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        window.resetNoteForm = function() {
-            document.getElementById('noteForm').reset();
-            document.getElementById('editNoteId').value = '';
-            document.getElementById('noteFormTitle').innerText = "Yeni Not Ekle";
-            document.getElementById('noteSubmitBtn').innerText = "Not Ekle";
-            document.getElementById('cancelNoteEditBtn').classList.add('hidden');
-        }
-
-        window.deleteNote = async function(id) {
-            if (confirm("Bu notu silmek istediğinize emin misiniz?")) {
-                await deleteDoc(doc(db, "notes", id));
-            }
-        }
-
-        function renderNotesList() {
-            const container = document.getElementById('notesContainer');
-            container.innerHTML = '';
-
-            if (notes.length === 0) {
-                container.innerHTML = `<div class="col-span-full text-center py-6 text-gray-400 text-xs">Henüz eklenmiş bir not yok.</div>`;
-                return;
-            }
-
-            notes.forEach(note => {
-                const personBadgeColor = note.person === 'Bekir' ? 'bg-blue-50 text-blue-700' : 'bg-pink-50 text-pink-700';
-                
-                const card = document.createElement('div');
-                card.className = "bg-gray-50 p-4 rounded-xl border border-gray-200 flex flex-col justify-between space-y-3";
-                card.innerHTML = `
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="px-2.5 py-1 ${personBadgeColor} rounded-md text-xs font-semibold">${note.person}</span>
-                            <span class="text-[11px] text-gray-400">${note.timestamp || '-'}</span>
-                        </div>
-                        <p class="text-sm text-gray-800 whitespace-pre-wrap">${note.content}</p>
-                    </div>
-                    <div class="flex justify-end gap-3 pt-2 border-t border-gray-200 text-xs font-medium">
-                        <button onclick="editNote('${note.id}')" class="text-indigo-600 hover:text-indigo-800">Düzenle</button>
-                        <button onclick="deleteNote('${note.id}')" class="text-red-500 hover:text-red-700">Sil</button>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        // Alışveriş Listesi Fonksiyonları
-        window.handleShoppingSubmit = async function(e) {
-            e.preventDefault();
-            const input = document.getElementById('shoppingItemInput');
-            const title = input.value.trim();
-            if (title) {
-                await addDoc(collection(db, "shoppingList"), {
-                    title: title,
-                    completed: false,
-                    price: 0
-                });
-                input.value = '';
-            }
-        }
-
-        window.toggleShoppingItem = async function(id, currentStatus) {
-            if (!currentStatus) {
-                // Sepete atılıyor, fiyat girmek gerekiyor
-                const item = shoppingItems.find(i => i.id === id);
-                activeShoppingId = id;
-                activeShoppingAction = 'complete';
-                document.getElementById('shoppingPriceModalTitle').innerText = "Ürün Fiyatı Girin";
-                document.getElementById('shoppingPriceItemName').innerText = item ? item.title : '';
-                document.getElementById('shoppingModalPriceInput').value = '';
-                document.getElementById('shoppingPriceModal').classList.remove('hidden');
-                document.getElementById('shoppingPriceModal').classList.add('flex');
-                setTimeout(() => document.getElementById('shoppingModalPriceInput').focus(), 100);
-            } else {
-                // Alınacaklara geri döndürülüyor
-                await updateDoc(doc(db, "shoppingList", id), {
-                    completed: false,
-                    price: 0
-                });
-            }
-        }
-
-        window.updateItemPrice = function(id, currentPrice) {
-            const item = shoppingItems.find(i => i.id === id);
-            activeShoppingId = id;
-            activeShoppingAction = 'edit';
-            document.getElementById('shoppingPriceModalTitle').innerText = "Fiyatı Güncelle";
-            document.getElementById('shoppingPriceItemName').innerText = item ? item.title : '';
-            document.getElementById('shoppingModalPriceInput').value = currentPrice || '';
-            document.getElementById('shoppingPriceModal').classList.remove('hidden');
-            document.getElementById('shoppingPriceModal').classList.add('flex');
-            setTimeout(() => document.getElementById('shoppingModalPriceInput').focus(), 100);
-        }
-
-        window.closeShoppingPriceModal = function() {
-            document.getElementById('shoppingPriceModal').classList.remove('flex');
-            document.getElementById('shoppingPriceModal').classList.add('hidden');
-            activeShoppingId = null;
-        }
-
-        window.handleShoppingPriceSubmit = async function(e) {
-            e.preventDefault();
-            const priceVal = parseFloat(document.getElementById('shoppingModalPriceInput').value);
-            if (isNaN(priceVal) || priceVal < 0) {
-                alert("Lütfen geçerli bir tutar giriniz!");
-                return;
-            }
-
-            if (activeShoppingId) {
-                if (activeShoppingAction === 'complete') {
-                    await updateDoc(doc(db, "shoppingList", activeShoppingId), {
-                        completed: true,
-                        price: priceVal
-                    });
-                } else if (activeShoppingAction === 'edit') {
-                    await updateDoc(doc(db, "shoppingList", activeShoppingId), {
-                        price: priceVal
-                    });
-                }
-            }
-            closeShoppingPriceModal();
-        }
-
-        window.deleteShoppingItemCompletely = async function(id) {
-            await deleteDoc(doc(db, "shoppingList", id));
-        }
-
-        window.returnToTodoList = async function(id) {
-            await updateDoc(doc(db, "shoppingList", id), {
-                completed: false,
-                price: 0
-            });
-        }
-
-        function renderShoppingList() {
-            const todoContainer = document.getElementById('todoListContainer');
-            const cartContainer = document.getElementById('cartListContainer');
-            const cartTotalPriceEl = document.getElementById('cartTotalPrice');
-
-            todoContainer.innerHTML = '';
-            cartContainer.innerHTML = '';
-
-            let todos = shoppingItems.filter(item => !item.completed);
-            let carts = shoppingItems.filter(item => item.completed);
-
-            if (todos.length === 0) {
-                todoContainer.innerHTML = `<li class="py-3 text-center text-gray-400 text-xs">Alınacak ürün yok.</li>`;
-            } else {
-                todos.forEach(item => {
-                    const li = document.createElement('li');
-                    li.className = "py-2.5 flex items-center justify-between";
-                    li.innerHTML = `
-                        <div class="flex items-center gap-3">
-                            <input type="checkbox" onchange="toggleShoppingItem('${item.id}', ${item.completed})" class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer">
-                            <span class="text-sm text-gray-800">${item.title}</span>
-                        </div>
-                        <button onclick="deleteShoppingItemCompletely('${item.id}')" class="text-red-500 hover:text-red-700 text-xs font-medium">Sil</button>
-                    `;
-                    todoContainer.appendChild(li);
-                });
-            }
-
-            let totalCartPrice = 0;
-            if (carts.length === 0) {
-                cartContainer.innerHTML = `<li class="py-3 text-center text-gray-400 text-xs">Sepet boş.</li>`;
-            } else {
-                carts.forEach(item => {
-                    totalCartPrice += (item.price || 0);
-                    const li = document.createElement('li');
-                    li.className = "py-2.5 flex items-center justify-between";
-                    li.innerHTML = `
-                        <div class="flex items-center gap-3">
-                            <input type="checkbox" checked onchange="toggleShoppingItem('${item.id}', ${item.completed})" class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer" title="Alınacaklara Geri Döndür">
-                            <span class="text-sm text-gray-800 line-through">${item.title}</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span onclick="updateItemPrice('${item.id}', ${item.price || 0})" class="text-xs font-semibold text-indigo-600 cursor-pointer hover:underline" title="Fiyatı Düzenle">${(item.price || 0).toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'})}</span>
-                            <button onclick="returnToTodoList('${item.id}')" class="text-red-500 hover:text-red-700 text-xs font-medium" title="Alınacaklar Listesine Geri Döndür">Sil</button>
-                        </div>
-                    `;
-                    cartContainer.appendChild(li);
-                });
-            }
-
-            cartTotalPriceEl.innerText = totalCartPrice.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
-        }
-
-        window.setCardDebt = async function(person) {
-            let currentVal = person === 'bekir' ? bekirDebt.amount : duyguDebt.amount;
-            let title = person === 'bekir' ? "Bekir Kredi Kartı Borcunu Girin (TL):" : "Duygu Kredi Kartı Borcunu Girin (TL):";
-            let newAmountStr = prompt(title, currentVal || '');
-            
-            if (newAmountStr !== null) {
-                let val = parseFloat(newAmountStr.replace(',', '.'));
-                if (!isNaN(val) && val >= 0) {
-                    if (person === 'bekir') {
-                        bekirDebt.amount = val;
-                        await setDoc(doc(db, "settings", "bekirDebt"), bekirDebt);
-                    } else {
-                        duyguDebt.amount = val;
-                        await setDoc(doc(db, "settings", "duyguDebt"), duyguDebt);
-                    }
-                }
-            }
-        }
-
-        window.toggleCardDebt = async function(person) {
-            let targetDebt = person === 'bekir' ? bekirDebt : duyguDebt;
-            let personName = person === 'bekir' ? 'Bekir' : 'Duygu';
-
-            if (!targetDebt.paid && targetDebt.amount > 0) {
-                let todayStr = new Date().toISOString().split('T')[0];
-                let confirmAdd = confirm(`${personName} için ${targetDebt.amount.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'})} tutarındaki borç ödendi olarak işaretlenecek ve işlem geçmişine eklensin mi?`);
-                
-                if (confirmAdd) {
-                    const docRef = await addDoc(collection(db, "expenses"), {
-                        amount: targetDebt.amount,
-                        installmentCount: 1,
-                        amountPerInstallment: targetDebt.amount,
-                        expenseMonth: todayStr.substring(0, 7),
-                        person: personName,
-                        category: "Kredi Kartı Borcu",
-                        paymentType: paymentTypes.includes("Kredi Kartı") ? "Kredi Kartı" : (paymentTypes[0] || "Nakit"),
-                        date: todayStr,
-                        description: `${personName} Kredi Kartı Ekstre Ödemesi`,
-                        isCardDebtPayment: true
-                    });
-                    targetDebt.lastExpenseId = docRef.id;
-                }
-            } else if (targetDebt.paid && targetDebt.lastExpenseId) {
-                try {
-                    await deleteDoc(doc(db, "expenses", targetDebt.lastExpenseId));
-                    targetDebt.lastExpenseId = null;
-                } catch (error) {
-                    console.error("Borç harcaması silinirken hata oluştu:", error);
-                }
-            }
-
+            const person = document.getElementById('cardDebtPerson').value;
+            const val = parseFloat(document.getElementById('cardDebtInput').value) || 0;
             if (person === 'bekir') {
-                bekirDebt.paid = !bekirDebt.paid;
-                await setDoc(doc(db, "settings", "bekirDebt"), bekirDebt);
+                appData.bekirCardDebt = val;
             } else {
-                duyguDebt.paid = !duyguDebt.paid;
-                await setDoc(doc(db, "settings", "duyguDebt"), duyguDebt);
+                appData.duyguCardDebt = val;
             }
+            saveToLocalStorage();
+            updateDashboard();
+            closeCardDebtModal();
         }
-
-        function renderCardDebtUI(person) {
+        function toggleCardDebt(person) {
             if (person === 'bekir') {
-                document.getElementById('bekirDebtDisplay').innerText = bekirDebt.amount.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
-                let badge = document.getElementById('bekirDebtStatusBadge');
-                let btn = document.getElementById('bekirDebtToggleBtn');
-                if (bekirDebt.paid) {
-                    badge.className = "text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium";
-                    badge.innerText = "Ödendi";
-                    btn.className = "text-xs px-3 py-1.5 rounded-lg font-medium transition bg-gray-200 hover:bg-gray-300 text-gray-700";
-                    btn.innerText = "Ödenmedi Yap";
-                } else {
-                    badge.className = "text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-medium";
-                    badge.innerText = "Ödenmedi";
-                    btn.className = "text-xs px-3 py-1.5 rounded-lg font-medium transition bg-red-600 hover:bg-red-700 text-white";
-                    btn.innerText = "Ödendi Yap";
-                }
+                appData.bekirCardPaid = !appData.bekirCardPaid;
             } else {
-                document.getElementById('duyguDebtDisplay').innerText = duyguDebt.amount.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
-                let badge = document.getElementById('duyguDebtStatusBadge');
-                let btn = document.getElementById('duyguDebtToggleBtn');
-                if (duyguDebt.paid) {
-                    badge.className = "text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium";
-                    badge.innerText = "Ödendi";
-                    btn.className = "text-xs px-3 py-1.5 rounded-lg font-medium transition bg-gray-200 hover:bg-gray-300 text-gray-700";
-                    btn.innerText = "Ödenmedi Yap";
-                } else {
-                    badge.className = "text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-medium";
-                    badge.innerText = "Ödenmedi";
-                    btn.className = "text-xs px-3 py-1.5 rounded-lg font-medium transition bg-red-600 hover:bg-red-700 text-white";
-                    btn.innerText = "Ödendi Yap";
-                }
+                appData.duyguCardPaid = !appData.duyguCardPaid;
             }
+            saveToLocalStorage();
+            updateDashboard();
         }
 
-        function updateCategorySelects() {
-            const formCategory = document.getElementById('category');
-            const filterCategory = document.getElementById('filterCategory');
-            
-            const currentFormVal = formCategory.value;
-            const currentFilterVal = filterCategory.value;
-
-            formCategory.innerHTML = '';
-            categories.forEach(cat => {
-                const opt = document.createElement('option');
-                opt.value = cat;
-                opt.textContent = cat;
-                formCategory.appendChild(opt);
-            });
-            if (categories.includes(currentFormVal)) formCategory.value = currentFormVal;
-
-            filterCategory.innerHTML = '<option value="Tümü">Tümü</option>';
-            categories.forEach(cat => {
-                const opt = document.createElement('option');
-                opt.value = cat;
-                opt.textContent = cat;
-                filterCategory.appendChild(opt);
-            });
-            if (currentFilterVal === 'Tümü' || categories.includes(currentFilterVal)) {
-                filterCategory.value = currentFilterVal;
-            }
-        }
-
-        function updatePaymentSelects() {
-            const formPayment = document.getElementById('paymentType');
-            const filterPayment = document.getElementById('filterPayment');
-            
-            const currentFormVal = formPayment.value;
-            const currentFilterVal = filterPayment.value;
-
-            formPayment.innerHTML = '';
-            paymentTypes.forEach(pay => {
-                const opt = document.createElement('option');
-                opt.value = pay;
-                opt.textContent = pay;
-                formPayment.appendChild(opt);
-            });
-            if (paymentTypes.includes(currentFormVal)) formPayment.value = currentFormVal;
-
-            filterPayment.innerHTML = '<option value="Tümü">Tümü</option>';
-            paymentTypes.forEach(pay => {
-                const opt = document.createElement('option');
-                opt.value = pay;
-                opt.textContent = pay;
-                filterPayment.appendChild(opt);
-            });
-            if (currentFilterVal === 'Tümü' || paymentTypes.includes(currentFilterVal)) {
-                filterPayment.value = currentFilterVal;
-            }
-        }
-
-        window.addNewCategory = async function() {
-            let newCat = prompt("Yeni kategori adını girin:");
-            if (newCat) {
-                newCat = newCat.trim();
-                if (newCat && !categories.includes(newCat)) {
-                    categories.push(newCat);
-                    await setDoc(doc(db, "settings", "categories"), { list: categories });
-                    document.getElementById('category').value = newCat;
-                } else {
-                    alert("Bu kategori zaten var veya geçersiz!");
-                }
-            }
-        }
-
-        window.addNewPaymentType = async function() {
-            let newPay = prompt("Yeni ödeme tipi adını girin (Örn: Havale, Kart-2 vb.):");
-            if (newPay) {
-                newPay = newPay.trim();
-                if (newPay && !paymentTypes.includes(newPay)) {
-                    paymentTypes.push(newPay);
-                    await setDoc(doc(db, "settings", "paymentTypes"), { list: paymentTypes });
-                    document.getElementById('paymentType').value = newPay;
-                } else {
-                    alert("Bu ödeme tipi zaten var veya geçersiz!");
-                }
-            }
-        }
-
-        window.applyFilters = function() {
-            currentPersonFilter = document.getElementById('filterPerson').value;
-            currentCategoryFilter = document.getElementById('filterCategory').value;
-            currentPaymentFilter = document.getElementById('filterPayment').value;
-            currentShowInstallments = document.getElementById('filterShowInstallments').checked;
-            currentStartDate = document.getElementById('filterStartDate').value;
-            currentEndDate = document.getElementById('filterEndDate').value;
-            currentMinAmount = document.getElementById('filterMinAmount').value;
-            currentMaxAmount = document.getElementById('filterMaxAmount').value;
-            renderApp();
-        }
-
-        window.resetFilters = function() {
-            document.getElementById('filterPerson').value = 'Tümü';
-            document.getElementById('filterCategory').value = 'Tümü';
-            document.getElementById('filterPayment').value = 'Tümü';
-            document.getElementById('filterShowInstallments').checked = false;
-            document.getElementById('filterStartDate').value = '';
-            document.getElementById('filterEndDate').value = '';
-            document.getElementById('filterMinAmount').value = '';
-            document.getElementById('filterMaxAmount').value = '';
-            applyFilters();
-        }
-
-        window.sortColumn = sortColumn;
-        window.sortDirection = sortDirection;
-        window.sortTable = function(column) {
-            if (sortColumn === column) {
-                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-            } else {
-                sortColumn = column;
-                sortDirection = (column === 'date' || column === 'amount') ? 'desc' : 'asc';
-            }
-            renderApp();
-        }
-
-        window.handleFormSubmit = async function(e) {
+        // Harcama Ekleme / Güncelleme Form İşlemi
+        function handleFormSubmit(e) {
             e.preventDefault();
-            
             const editId = document.getElementById('editId').value;
-            const totalAmount = parseFloat(document.getElementById('amount').value);
+            const amount = parseFloat(document.getElementById('amount').value) || 0;
             const installmentCount = parseInt(document.getElementById('installmentCount').value) || 1;
             const person = document.getElementById('person').value;
             const category = document.getElementById('category').value;
             const paymentType = document.getElementById('paymentType').value;
+            const description = document.getElementById('description').value;
             const date = document.getElementById('date').value;
-            const description = document.getElementById('description').value || '-';
-
-            if (isNaN(totalAmount) || totalAmount <= 0) {
-                alert("Lütfen geçerli bir tutar giriniz!");
-                return;
-            }
-
-            const amountPerInstallment = totalAmount / installmentCount;
-            const expenseMonth = date.substring(0, 7);
-
-            const expenseData = {
-                amount: totalAmount,
-                installmentCount: installmentCount,
-                amountPerInstallment: amountPerInstallment,
-                expenseMonth: expenseMonth,
-                person, category, paymentType, date, description
-            };
 
             if (editId) {
-                const docRef = doc(db, "expenses", editId);
-                await updateDoc(docRef, expenseData);
+                // Düzenleme
+                const index = appData.expenses.findIndex(exp => exp.id == editId);
+                if (index !== -1) {
+                    appData.expenses[index] = {
+                        ...appData.expenses[index],
+                        amount,
+                        installmentCount,
+                        person,
+                        category,
+                        paymentType,
+                        description,
+                        date
+                    };
+                }
             } else {
-                await addDoc(collection(db, "expenses"), expenseData);
+                // Yeni Ekleme
+                const newExpense = {
+                    id: Date.now(),
+                    amount,
+                    installmentCount,
+                    person,
+                    category,
+                    paymentType,
+                    description,
+                    date
+                };
+                appData.expenses.unshift(newExpense);
             }
 
+            saveToLocalStorage();
             resetForm();
+            renderExpenses();
+            updateDashboard();
+            updateCharts();
         }
 
-        window.editExpense = function(id) {
-            const expense = expenses.find(item => item.id === id);
-            if (!expense) return;
+        function resetForm() {
+            document.getElementById('expenseForm').reset();
+            document.getElementById('editId').value = '';
+            document.getElementById('formTitle').innerText = 'Yeni Harcama Ekle';
+            document.getElementById('cancelEditBtn').classList.add('hidden');
+            document.getElementById('date').valueAsDate = new Date();
+            document.getElementById('installmentCount').value = 1;
+        }
 
-            document.getElementById('editId').value = expense.id;
-            document.getElementById('amount').value = expense.amount;
-            document.getElementById('installmentCount').value = expense.installmentCount || 1;
-            document.getElementById('person').value = expense.person || 'Bekir';
-            document.getElementById('category').value = expense.category;
-            document.getElementById('paymentType').value = expense.paymentType || 'Nakit';
-            document.getElementById('date').value = expense.date;
-            document.getElementById('description').value = expense.description === '-' ? '' : expense.description;
+        function editExpense(id) {
+            const exp = appData.expenses.find(item => item.id == id);
+            if (!exp) return;
 
-            document.getElementById('formTitle').innerText = "Harcamayı Düzenle";
-            document.getElementById('submitBtn').innerText = "Güncelle";
+            document.getElementById('editId').value = exp.id;
+            document.getElementById('amount').value = exp.amount;
+            document.getElementById('installmentCount').value = exp.installmentCount || 1;
+            document.getElementById('person').value = exp.person;
+            document.getElementById('category').value = exp.category;
+            document.getElementById('paymentType').value = exp.paymentType;
+            document.getElementById('description').value = exp.description;
+            document.getElementById('date').value = exp.date;
+
+            document.getElementById('formTitle').innerText = 'Harcamayı Düzenle';
             document.getElementById('cancelEditBtn').classList.remove('hidden');
 
+            // Sayfanın üstüne kaydır
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        window.resetForm = function() {
-            document.getElementById('expenseForm').reset();
-            document.getElementById('editId').value = '';
-            document.getElementById('installmentCount').value = 1;
-            document.getElementById('date').valueAsDate = new Date();
-            document.getElementById('formTitle').innerText = "Yeni Harcama Ekle";
-            document.getElementById('submitBtn').innerText = "Harcama Ekle";
-            document.getElementById('cancelEditBtn').classList.add('hidden');
-        }
-
-        window.deleteExpense = async function(id) {
+        function deleteExpense(id) {
             if (confirm("Bu harcamayı silmek istediğinize emin misiniz?")) {
-                await deleteDoc(doc(db, "expenses", id));
+                appData.expenses = appData.expenses.filter(item => item.id != id);
+                saveToLocalStorage();
+                renderExpenses();
+                updateDashboard();
+                updateCharts();
             }
         }
 
-        function getCurrentPeriod() {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            return `${year}-${month}`;
-        }
+        // Harcamaları Listeleme ve Filtreleme
+        function renderExpenses() {
+            const tbody = document.getElementById('expenseTableBody');
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const filterPerson = document.getElementById('filterPerson').value;
+            const filterCategory = document.getElementById('filterCategory').value;
 
-        function getProcessedExpenses() {
-            const currentPeriod = getCurrentPeriod();
-            let processed = [];
-
-            expenses.forEach(item => {
-                const count = item.installmentCount || 1;
-                const perAmount = item.amountPerInstallment || item.amount;
-                const startMonth = item.expenseMonth || (item.date ? item.date.substring(0, 7) : currentPeriod);
-
-                if (count <= 1) {
-                    processed.push({
-                        ...item,
-                        type: 'expense',
-                        displayAmount: item.amount,
-                        installmentLabel: 'Peşin',
-                        effectiveMonth: startMonth
-                    });
-                } else {
-                    const [startYear, startM] = startMonth.split('-').map(Number);
-                    const [currYear, currM] = currentPeriod.split('-').map(Number);
-                    const passedMonths = (currYear - startYear) * 12 + (currM - startM);
-
-                    if (currentShowInstallments) {
-                        for (let i = 0; i < count; i++) {
-                            let targetDateObj = new Date(startYear, startM - 1 + i, 1);
-                            let tYear = targetDateObj.getFullYear();
-                            let tMonth = String(targetDateObj.getMonth() + 1).padStart(2, '0');
-                            let targetPeriod = `${tYear}-${tMonth}`;
-
-                            processed.push({
-                                ...item,
-                                type: 'expense',
-                                id: `${item.id}_taksit_${i+1}`,
-                                displayAmount: perAmount,
-                                installmentLabel: `Taksit ${i+1}/${count}`,
-                                effectiveMonth: targetPeriod,
-                                date: `${targetPeriod}-01`
-                            });
-                        }
-                    } else {
-                        if (passedMonths >= 0 && passedMonths < count) {
-                            processed.push({
-                                ...item,
-                                type: 'expense',
-                                displayAmount: perAmount,
-                                installmentLabel: `Taksit ${passedMonths + 1}/${count}`,
-                                effectiveMonth: currentPeriod
-                            });
-                        }
-                    }
-                }
+            let filtered = appData.expenses.filter(item => {
+                const matchesSearch = item.description.toLowerCase().includes(search) ||
+                                      item.category.toLowerCase().includes(search) ||
+                                      item.person.toLowerCase().includes(search);
+                const matchesPerson = filterPerson ? item.person === filterPerson : true;
+                const matchesCat = filterCategory ? item.category === filterCategory : true;
+                return matchesSearch && matchesPerson && matchesCat;
             });
 
-            return processed;
-        }
+            document.getElementById('expenseCountBadge').innerText = `${filtered.length} harcama`;
 
-        function getProcessedIncomes() {
-            const currentPeriod = getCurrentPeriod();
-            let processed = [];
-
-            incomes.forEach(item => {
-                const startMonth = item.incomeMonth || (item.date ? item.date.substring(0, 7) : currentPeriod);
-                processed.push({
-                    ...item,
-                    type: 'income',
-                    displayAmount: item.amount,
-                    installmentLabel: 'Gelir',
-                    effectiveMonth: startMonth,
-                    person: `Gelir (${item.type})`,
-                    category: item.type,
-                    paymentType: 'Gelir'
-                });
-            });
-
-            return processed;
-        }
-
-        window.downloadPDF = function() {
-            const element = document.getElementById('pdfContent');
-            const formContainer = document.getElementById('formContainer');
-            formContainer.style.display = 'none';
-
-            const actionElements = document.querySelectorAll('.action-col, td:last-child');
-            actionElements.forEach(el => el.style.display = 'none');
-
-            const options = {
-                margin:       10,
-                filename:     'yuvam-butce-raporu.pdf',
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-
-            html2pdf().from(element).set(options).save().then(() => {
-                formContainer.style.display = 'block';
-                actionElements.forEach(el => el.style.display = '');
-            });
-        }
-
-        window.downloadExcel = function() {
-            const filtered = getFilteredTransactions();
             if (filtered.length === 0) {
-                alert("İndirilecek filtrelenmiş işlem bulunamadı!");
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-gray-400 text-sm">Kayıtlı harcama bulunamadı.</td></tr>`;
                 return;
             }
 
-            let csvContent = "\uFEFFTarih;Tür / Kişi;Kategori;Ödeme / Tip;Açıklama;Tutar (TL)\n";
-
+            tbody.innerHTML = '';
             filtered.forEach(item => {
-                let row = [
+                const formattedAmount = item.amount.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " TL";
+                const personBadgeColor = item.person === 'Bekir' ? 'bg-blue-50 text-blue-700' : 'bg-pink-50 text-pink-700';
+                const installmentText = item.installmentCount && item.installmentCount > 1 ? `<span class="text-[11px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded ml-1 font-medium">${item.installmentCount} Taksit</span>` : '';
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-50/50 transition">
+                        <td class="py-3 px-4 text-xs text-gray-600 whitespace-nowrap">${item.date}</td>
+                        <td class="py-3 px-4 whitespace-nowrap"><span class="text-xs px-2 py-0.5 rounded-full font-medium ${personBadgeColor}">${item.person}</span></td>
+                        <td class="py-3 px-4 text-xs font-medium text-gray-800 whitespace-nowrap">${item.category}</td>
+                        <td class="py-3 px-4 text-xs text-gray-600">${item.description}</td>
+                        <td class="py-3 px-4 text-xs text-gray-500 whitespace-nowrap">${item.paymentType} ${installmentText}</td>
+                        <td class="py-3 px-4 text-xs font-bold text-gray-900 text-right whitespace-nowrap">${formattedAmount}</td>
+                        <td class="py-3 px-4 text-center whitespace-nowrap">
+                            <button onclick="editExpense(${item.id})" class="text-indigo-600 hover:text-indigo-900 p-1 font-medium text-xs mr-1">Düzenle</button>
+                            <button onclick="deleteExpense(${item.id})" class="text-red-600 hover:text-red-900 p-1 font-medium text-xs">Sil</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Özet Kartlarını Güncelleme
+        function updateDashboard() {
+            let totalExp = 0;
+            let bekirExp = 0;
+            let duyguExp = 0;
+
+            appData.expenses.forEach(item => {
+                totalExp += item.amount;
+                if (item.person === 'Bekir') bekirExp += item.amount;
+                if (item.person === 'Duygu') duyguExp += item.amount;
+            });
+
+            const remaining = appData.totalBudget - totalExp;
+
+            document.getElementById('displayBudget').innerText = appData.totalBudget.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " TL";
+            document.getElementById('totalExpense').innerText = totalExp.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " TL";
+            document.getElementById('bekirExpense').innerText = bekirExp.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " TL";
+            document.getElementById('duyguExpense').innerText = duyguExp.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " TL";
+            
+            const remEl = document.getElementById('remainingBudget');
+            const statusEl = document.getElementById('budgetStatusText');
+            remEl.innerText = remaining.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " TL";
+
+            if (remaining < 0) {
+                remEl.className = "text-xl font-bold text-red-600";
+                statusEl.className = "text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-medium";
+                statusEl.innerText = "Bütçe Aşıldı";
+            } else {
+                remEl.className = "text-xl font-bold text-green-600";
+                statusEl.className = "text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium";
+                statusEl.innerText = "İyi";
+            }
+
+            // Kredi Kartı Borçları Güncelleme
+            document.getElementById('bekirDebtDisplay').innerText = appData.bekirCardDebt.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " TL";
+            const bekirBadge = document.getElementById('bekirDebtStatusBadge');
+            const bekirToggleBtn = document.getElementById('bekirDebtToggleBtn');
+            if (appData.bekirCardPaid) {
+                bekirBadge.className = "text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium";
+                bekirBadge.innerText = "Ödendi";
+                bekirToggleBtn.className = "text-xs px-3 py-1.5 rounded-lg font-medium transition bg-gray-200 hover:bg-gray-300 text-gray-700";
+                bekirToggleBtn.innerText = "Ödenmedi Yap";
+            } else {
+                bekirBadge.className = "text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-medium";
+                bekirBadge.innerText = "Ödenmedi";
+                bekirToggleBtn.className = "text-xs px-3 py-1.5 rounded-lg font-medium transition bg-red-600 hover:bg-red-700 text-white";
+                bekirToggleBtn.innerText = "Ödendi Yap";
+            }
+
+            document.getElementById('duyguDebtDisplay').innerText = appData.duyguCardDebt.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " TL";
+            const duyguBadge = document.getElementById('duyguDebtStatusBadge');
+            const duyguToggleBtn = document.getElementById('duyguDebtToggleBtn');
+            if (appData.duyguCardPaid) {
+                duyguBadge.className = "text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium";
+                duyguBadge.innerText = "Ödendi";
+                duyguToggleBtn.className = "text-xs px-3 py-1.5 rounded-lg font-medium transition bg-gray-200 hover:bg-gray-300 text-gray-700";
+                duyguToggleBtn.innerText = "Ödenmedi Yap";
+            } else {
+                duyguBadge.className = "text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-medium";
+                duyguBadge.innerText = "Ödenmedi";
+                duyguToggleBtn.className = "text-xs px-3 py-1.5 rounded-lg font-medium transition bg-red-600 hover:bg-red-700 text-white";
+                duyguToggleBtn.innerText = "Ödendi Yap";
+            }
+        }
+
+        // Grafikler
+        function initCharts() {
+            const catCtx = document.getElementById('categoryChart').getContext('2d');
+            const personCtx = document.getElementById('personChart').getContext('2d');
+
+            categoryChartInstance = new Chart(catCtx, {
+                type: 'doughnut',
+                data: { labels: [], datasets: [{ data: [], backgroundColor: ['#4f46e5', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#64748b'] }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } }
+            });
+
+            personChartInstance = new Chart(personCtx, {
+                type: 'pie',
+                data: { labels: ['Bekir', 'Duygu'], datasets: [{ data: [0, 0], backgroundColor: ['#3b82f6', '#ec4899'] }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } }
+            });
+
+            updateCharts();
+        }
+
+        function updateCharts() {
+            if (!categoryChartInstance || !personChartInstance) return;
+
+            // Kategori bazlı harcama hesapla
+            const catMap = {};
+            appData.categories.forEach(c => catMap[c] = 0);
+            appData.expenses.forEach(item => {
+                if (catMap[item.category] !== undefined) {
+                    catMap[item.category] += item.amount;
+                } else {
+                    catMap[item.category] = item.amount;
+                }
+            });
+
+            const activeCats = Object.keys(catMap).filter(c => catMap[c] > 0);
+            const activeVals = activeCats.map(c => catMap[c]);
+
+            categoryChartInstance.data.labels = activeCats.length > 0 ? activeCats : ['Veri Yok'];
+            categoryChartInstance.data.datasets[0].data = activeVals.length > 0 ? activeVals : [1];
+            categoryChartInstance.update();
+
+            // Kişi bazlı harcama hesapla
+            let bekirSum = 0;
+            let duyguSum = 0;
+            appData.expenses.forEach(item => {
+                if (item.person === 'Bekir') bekirSum += item.amount;
+                if (item.person === 'Duygu') duyguSum += item.amount;
+            });
+
+            personChartInstance.data.datasets[0].data = [bekirSum, duyguSum];
+            personChartInstance.update();
+        }
+
+        // NOTLAR MODÜLÜ
+        function openNoteModal(id = null) {
+            if (id) {
+                const note = appData.notes.find(n => n.id == id);
+                if (note) {
+                    document.getElementById('noteEditId').value = note.id;
+                    document.getElementById('noteTitleInput').value = note.title;
+                    document.getElementById('noteContentInput').value = note.content;
+                    document.getElementById('noteModalTitle').innerText = 'Notu Düzenle';
+                }
+            } else {
+                document.getElementById('noteEditId').value = '';
+                document.getElementById('noteTitleInput').value = '';
+                document.getElementById('noteContentInput').value = '';
+                document.getElementById('noteModalTitle').innerText = 'Yeni Not Ekle';
+            }
+            document.getElementById('noteModal').classList.remove('hidden');
+        }
+        function closeNoteModal() {
+            document.getElementById('noteModal').classList.add('hidden');
+        }
+        function handleNoteSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('noteEditId').value;
+            const title = document.getElementById('noteTitleInput').value;
+            const content = document.getElementById('noteContentInput').value;
+            const date = new Date().toLocaleDateString('tr-TR');
+
+            if (id) {
+                const idx = appData.notes.findIndex(n => n.id == id);
+                if (idx !== -1) {
+                    appData.notes[idx] = { ...appData.notes[idx], title, content };
+                }
+            } else {
+                appData.notes.unshift({ id: Date.now(), title, content, date });
+            }
+
+            saveToLocalStorage();
+            renderNotes();
+            closeNoteModal();
+        }
+        function deleteNote(id) {
+            if (confirm("Bu notu silmek istediğinize emin misiniz?")) {
+                appData.notes = appData.notes.filter(n => n.id != id);
+                saveToLocalStorage();
+                renderNotes();
+            }
+        }
+        function renderNotes() {
+            const grid = document.getElementById('notesGrid');
+            if (appData.notes.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-12 text-gray-400 text-sm bg-white rounded-xl border border-gray-100">Henüz eklenmiş ortak not bulunmuyor.</div>`;
+                return;
+            }
+
+            grid.innerHTML = '';
+            appData.notes.forEach(note => {
+                grid.innerHTML += `
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between space-y-3">
+                        <div>
+                            <div class="flex justify-between items-start gap-2">
+                                <h3 class="font-bold text-gray-900 text-sm">${note.title}</h3>
+                                <span class="text-[10px] text-gray-400 whitespace-nowrap">${note.date}</span>
+                            </div>
+                            <p class="text-xs text-gray-600 mt-2 whitespace-pre-wrap leading-relaxed">${note.content}</p>
+                        </div>
+                        <div class="flex justify-end gap-2 pt-2 border-t border-gray-50">
+                            <button onclick="openNoteModal(${note.id})" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">Düzenle</button>
+                            <button onclick="deleteNote(${note.id})" class="text-xs text-red-600 hover:text-red-800 font-medium">Sil</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // ALIŞVERİŞ LİSTESİ MODÜLÜ
+        function handleShoppingSubmit(e) {
+            e.preventDefault();
+            const text = document.getElementById('shoppingInput').value;
+            const category = document.getElementById('shoppingCategory').value;
+
+            appData.shopping.unshift({
+                id: Date.now(),
+                text,
+                category,
+                completed: false
+            });
+
+            saveToLocalStorage();
+            document.getElementById('shoppingInput').value = '';
+            renderShopping();
+        }
+        function toggleShoppingItem(id) {
+            const item = appData.shopping.find(s => s.id == id);
+            if (item) {
+                item.completed = !item.completed;
+                saveToLocalStorage();
+                renderShopping();
+            }
+        }
+        function deleteShoppingItem(id) {
+            appData.shopping = appData.shopping.filter(s => s.id != id);
+            saveToLocalStorage();
+            renderShopping();
+        }
+        function renderShopping() {
+            const container = document.getElementById('shoppingListContainer');
+            document.getElementById('shoppingCountBadge').innerText = `${appData.shopping.length} ürün`;
+
+            if (appData.shopping.length === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-gray-400 text-sm">Alışveriş listesi boş.</div>`;
+                return;
+            }
+
+            container.innerHTML = '';
+            appData.shopping.forEach(item => {
+                const textStyle = item.completed ? 'line-through text-gray-400' : 'text-gray-800 font-medium';
+                container.innerHTML += `
+                    <div class="p-3.5 px-4 flex items-center justify-between hover:bg-gray-50/50 transition">
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" ${item.completed ? 'checked' : ''} onchange="toggleShoppingItem(${item.id})" class="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 cursor-pointer">
+                            <div>
+                                <p class="text-sm ${textStyle}">${item.text}</p>
+                                <span class="text-[10px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">${item.category}</span>
+                            </div>
+                        </div>
+                        <button onclick="deleteShoppingItem(${item.id})" class="text-red-500 hover:text-red-700 text-xs font-medium p-1">Sil</button>
+                    </div>
+                `;
+            });
+        }
+
+        // PDF İNDİR FONKSİYONU
+        function downloadPDF() {
+            const element = document.getElementById('pdfContent');
+            const opt = {
+                margin:       10,
+                filename:     'YUVAM_Ortak_Bute_Ve_Alisveris.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+            html2pdf().from(element).set(opt).save();
+        }
+
+        // EXCEL (CSV) İNDİR FONKSİYONU
+        function downloadExcel() {
+            let csvContent = "\uFEFFTarih;Kişi;Kategori;Açıklama;Ödeme Tipi;Taksit;Tutar (TL)\n";
+            appData.expenses.forEach(item => {
+                const row = [
                     item.date,
                     item.person,
-                    item.category,
-                    item.paymentType,
-                    `"${(item.description || '-').replace(/"/g, '""')} (${item.installmentLabel})"`,
-                    item.displayAmount.toString().replace('.', ',')
+                    `"${item.category}"`,
+                    `"${item.description}"`,
+                    `"${item.paymentType}"`,
+                    item.installmentCount || 1,
+                    item.amount.toString().replace('.', ',')
                 ];
                 csvContent += row.join(";") + "\n";
             });
@@ -1352,217 +860,11 @@
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
-            
-            let fileName = "yuvam-islem-gecmisi.csv";
-            if (currentStartDate || currentEndDate) {
-                fileName = `yuvam-raporu_${currentStartDate || 'baslangic'}_ile_${currentEndDate || 'bitis'}.csv`;
-            }
-
             link.setAttribute("href", url);
-            link.setAttribute("download", fileName);
+            link.setAttribute("download", "YUVAM_Harcama_Listesi.csv");
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-        }
-
-        function renderApp() {
-            renderBudgetInfo();
-            renderTable();
-            renderChart();
-        }
-
-        function renderBudgetInfo() {
-            const currentPeriod = getCurrentPeriod();
-
-            const currentMonthIncomes = getProcessedIncomes().filter(i => i.effectiveMonth === currentPeriod);
-            const totalBudget = currentMonthIncomes.reduce((sum, item) => sum + item.displayAmount, 0);
-
-            const currentMonthExpenses = getProcessedExpenses().filter(i => i.effectiveMonth === currentPeriod);
-
-            const total = currentMonthExpenses.reduce((sum, item) => sum + item.displayAmount, 0);
-            const bekirTotal = currentMonthExpenses.filter(i => i.person === 'Bekir').reduce((sum, item) => sum + item.displayAmount, 0);
-            const duyguTotal = currentMonthExpenses.filter(i => i.person === 'Duygu').reduce((sum, item) => sum + item.displayAmount, 0);
-            const remaining = totalBudget - total;
-
-            document.getElementById('displayBudget').innerText = totalBudget.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
-            document.getElementById('totalExpense').innerText = total.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
-            document.getElementById('bekirExpense').innerText = bekirTotal.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
-            document.getElementById('duyguExpense').innerText = duyguTotal.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
-            
-            const remainingEl = document.getElementById('remainingBudget');
-            const statusTextEl = document.getElementById('budgetStatusText');
-            
-            remainingEl.innerText = remaining.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
-
-            if (remaining < 0) {
-                remainingEl.className = "text-xl font-bold text-red-600 mt-2";
-                statusTextEl.className = "text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-medium";
-                statusTextEl.innerText = "Aşım!";
-            } else {
-                remainingEl.className = "text-xl font-bold text-green-600 mt-2";
-                statusTextEl.className = "text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium";
-                statusTextEl.innerText = "İyi";
-            }
-        }
-
-        function getAllTransactions() {
-            return [...getProcessedExpenses(), ...getProcessedIncomes()];
-        }
-
-        function getFilteredTransactions() {
-            const allTransactions = getAllTransactions();
-
-            return allTransactions.filter(item => {
-                let matchPerson = false;
-                if (currentPersonFilter === 'Tümü') {
-                    matchPerson = true;
-                } else if (currentPersonFilter === 'Gelir') {
-                    matchPerson = (item.type === 'income');
-                } else {
-                    matchPerson = (item.person === currentPersonFilter);
-                }
-
-                const matchCategory = (currentCategoryFilter === 'Tümü' || item.category === currentCategoryFilter);
-                const matchPayment = (currentPaymentFilter === 'Tümü' || item.paymentType === currentPaymentFilter);
-                
-                let matchDate = true;
-                let checkDate = item.effectiveMonth || item.date;
-                if (currentStartDate && checkDate < currentStartDate) matchDate = false;
-                if (currentEndDate && checkDate > currentEndDate) matchDate = false;
-
-                let matchAmount = true;
-                if (currentMinAmount !== '' && item.displayAmount < parseFloat(currentMinAmount)) matchAmount = false;
-                if (currentMaxAmount !== '' && item.displayAmount > parseFloat(currentMaxAmount)) matchAmount = false;
-
-                return matchPerson && matchCategory && matchPayment && matchDate && matchAmount;
-            });
-        }
-
-        function renderTable() {
-            const tbody = document.getElementById('expenseTableBody');
-            tbody.innerHTML = '';
-
-            let filtered = getFilteredTransactions();
-
-            if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-4 text-gray-400 text-xs">Bu kriterlere uygun işlem bulunamadı.</td></tr>`;
-                return;
-            }
-
-            filtered.sort((a, b) => {
-                let valA = a[sortColumn];
-                let valB = b[sortColumn];
-
-                if (sortColumn === 'date') {
-                    valA = new Date(a.date);
-                    valB = new Date(b.date);
-                } else if (sortColumn === 'amount') {
-                    valA = parseFloat(a.displayAmount);
-                    valB = parseFloat(b.displayAmount);
-                } else {
-                    valA = (valA || '').toString().toLowerCase();
-                    valB = (valB || '').toString().toLowerCase();
-                }
-
-                if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
-                if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
-                return 0;
-            });
-
-            filtered.forEach(item => {
-                let personBadgeColor = 'bg-gray-100 text-gray-800';
-                if (item.type === 'income') {
-                    personBadgeColor = 'bg-green-50 text-green-700 font-bold';
-                } else if (item.person === 'Bekir') {
-                    personBadgeColor = 'bg-blue-50 text-blue-700';
-                } else if (item.person === 'Duygu') {
-                    personBadgeColor = 'bg-pink-50 text-pink-700';
-                }
-
-                const paymentBadgeColor = item.paymentType === 'Kredi Kartı' ? 'bg-purple-50 text-purple-700' : (item.type === 'income' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700');
-                const amountClass = item.type === 'income' ? 'text-green-600 font-bold' : 'text-red-600 font-medium';
-                const amountSign = item.type === 'income' ? '+' : '-';
-                
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="py-3 px-2 text-gray-600">${item.date}</td>
-                    <td class="py-3 px-2"><span class="px-2 py-1 ${personBadgeColor} rounded-md text-xs font-semibold">${item.person}</span></td>
-                    <td class="py-3 px-2"><span class="px-2 py-1 bg-gray-100 rounded-md text-xs font-medium text-gray-600">${item.category}</span></td>
-                    <td class="py-3 px-2"><span class="px-2 py-1 ${paymentBadgeColor} rounded-md text-xs font-medium">${item.paymentType}</span></td>
-                    <td class="py-3 px-2 text-gray-800">
-                        ${item.description} 
-                        <span class="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded ml-1 font-medium">${item.installmentLabel}</span>
-                    </td>
-                    <td class="py-3 px-2 text-right ${amountClass}">${amountSign}${item.displayAmount.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'})}</td>
-                    <td class="py-3 px-2 text-center space-x-2">
-                        ${item.type === 'expense' && !item.id.includes('_taksit_') ? `<button onclick="editExpense('${item.id}')" class="text-indigo-600 hover:text-indigo-800 text-xs font-medium">Düzenle</button>` : ''}
-                        ${item.type === 'expense' && !item.id.includes('_taksit_') ? `<button onclick="deleteExpense('${item.id}')" class="text-red-500 hover:text-red-700 text-xs font-medium">Sil</button>` : ''}
-                        ${item.type === 'income' ? `<button onclick="deleteIncome('${item.id}')" class="text-red-500 hover:text-red-700 text-xs font-medium">Sil</button>` : ''}
-                        ${item.id && item.id.includes('_taksit_') ? '<span class="text-gray-400 text-xs">Oto</span>' : ''}
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        function renderChart() {
-            let chartDataList = getFilteredTransactions().filter(i => i.type === 'expense');
-
-            let titleText = `Kategorilere Göre Dağılım (${currentPersonFilter})`;
-            if (currentCategoryFilter !== 'Tümü') {
-                titleText += ` - ${currentCategoryFilter}`;
-            }
-            document.getElementById('chartTitle').innerText = titleText;
-
-            const categoryTotals = {};
-            
-            let sourceForChart = chartDataList;
-            if (currentCategoryFilter !== 'Tümü') {
-                sourceForChart = chartDataList.filter(item => item.category === currentCategoryFilter);
-            }
-
-            sourceForChart.forEach(item => {
-                categoryTotals[item.category] = (categoryTotals[item.category] || 0) + item.displayAmount;
-            });
-
-            const labels = Object.keys(categoryTotals);
-            const data = Object.values(categoryTotals);
-
-            const ctx = document.getElementById('expenseChart').getContext('2d');
-            
-            if (expenseChart) {
-                expenseChart.destroy();
-            }
-
-            const colors = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#14b8a6', '#f43f5e', '#84cc16', '#06b6d4'];
-            const bgColors = labels.map((_, i) => colors[i % colors.length]);
-
-            expenseChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: labels.length > 0 ? labels : ['Veri Yok'],
-                    datasets: [{
-                        data: data.length > 0 ? data : [1],
-                        backgroundColor: bgColors,
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                boxWidth: 12,
-                                font: {
-                                    size: 11
-                                }
-                            }
-                        }
-                    }
-                }
-            });
         }
     </script>
 </body>
