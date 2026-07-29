@@ -1367,7 +1367,10 @@
             document.getElementById('date').valueAsDate = new Date();
             document.getElementById('formTitle').innerText = "Yeni Harcama Ekle";
             document.getElementById('submitBtn').innerText = "Harcama Ekle";
-            document.getElementById('cancelEditBtn').classList.add('hidden');
+            
+            // DEĞİŞEN KISIM: add('hidden') yerine remove('hidden') yapıyoruz ki İptal butonu her zaman görünsün.
+            document.getElementById('cancelEditBtn').classList.remove('hidden');
+        }
         }
 
         window.deleteExpense = async function(id) {
