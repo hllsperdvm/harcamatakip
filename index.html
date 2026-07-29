@@ -71,13 +71,13 @@
             <!-- SEKME 1: BÜTÇE TAKİP İÇERİĞİ -->
             <div id="tabContentExpense" class="space-y-8">
                 <!-- Özet Kartları -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                     <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
                         <p class="text-xs text-gray-500 font-medium">Toplam Bütçe (Gelirler)</p>
                         <div class="flex items-center justify-between mt-2">
                             <span id="displayBudget" class="text-xl font-bold text-gray-900">0,00 TL</span>
-                            <button onclick="openIncomeModal()" class="text-xs bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-lg hover:bg-indigo-100 font-medium transition flex items-center gap-1">
-                                + Gelir Ekle
+                            <button onclick="openIncomeModal()" class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg hover:bg-indigo-100 font-medium transition flex items-center gap-1">
+                                + Gelir
                             </button>
                         </div>
                     </div>
@@ -97,13 +97,32 @@
                         <p id="duyguExpense" class="text-xl font-bold text-pink-600 mt-2">0,00 TL</p>
                     </div>
 
-                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 sm:col-span-2 lg:col-span-1">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                        <p class="text-xs text-gray-500 font-medium">Toplam KK Borcu</p>
+                        <p id="totalCardDebtDisplay" class="text-xl font-bold text-purple-600 mt-2">0,00 TL</p>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
                         <p class="text-xs text-gray-500 font-medium">Kalan Bütçe Durumu</p>
                         <div class="flex items-center justify-between mt-2">
                             <span id="remainingBudget" class="text-xl font-bold text-green-600">0,00 TL</span>
                             <span id="budgetStatusText" class="text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium">İyi</span>
                         </div>
                     </div>
+                </div>
+
+                <!-- Yeni Harcama Ekle Aksiyon Barı -->
+                <div class="flex flex-col sm:flex-row justify-between items-center bg-indigo-50/70 p-4 rounded-xl border border-indigo-100 gap-3">
+                    <div>
+                        <h2 class="text-sm font-bold text-indigo-900">Harcama İşlemleri</h2>
+                        <p class="text-xs text-indigo-700">Sisteme yeni bir harcama veya taksitli ödeme ekleyin.</p>
+                    </div>
+                    <button onclick="openExpenseModal()" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition shadow-sm flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        + Yeni Harcama Ekle
+                    </button>
                 </div>
 
                 <!-- Kredi Kartı Borçları Paneli -->
@@ -173,72 +192,18 @@
 
                 <!-- Ana İçerik Grid -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <!-- Sol Kolon: Harcama Ekleme / Düzenleme Formu -->
-                    <div id="formContainer" class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit">
-                        <h2 id="formTitle" class="text-lg font-semibold text-gray-900 mb-4">Yeni Harcama Ekle</h2>
-                        <form id="expenseForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
-                            <input type="hidden" id="editId">
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Toplam Tutar (TL)</label>
-                                <input type="number" step="any" id="amount" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="0.00">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Taksit Sayısı (Peşin için 1 bırakın)</label>
-                                <input type="number" id="installmentCount" min="1" value="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Harcama Yapan Kişi</label>
-                                <select id="person" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                                    <option value="Bekir">Bekir</option>
-                                    <option value="Duygu">Duygu</option>
-                                </select>
-                            </div>
-                            <div>
-                                <div class="flex justify-between items-center mb-1">
-                                    <label class="block text-xs font-medium text-gray-700">Kategori</label>
-                                    <button type="button" onclick="addNewCategory()" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-0.5">+ Yeni Ekle</button>
-                                </div>
-                                <select id="category" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                                    <!-- Dinamik Dolacak -->
-                                </select>
-                            </div>
-                            <div>
-                                <div class="flex justify-between items-center mb-1">
-                                    <label class="block text-xs font-medium text-gray-700">Ödeme Tipi</label>
-                                    <button type="button" onclick="addNewPaymentType()" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-0.5">+ Yeni Ekle</button>
-                                </div>
-                                <select id="paymentType" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                                    <!-- Dinamik Dolacak -->
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Tarih</label>
-                                <input type="date" id="date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-700 mb-1">Açıklama</label>
-                                <input type="text" id="description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="Örn: Market alışverişi">
-                            </div>
-                            <div class="flex gap-2">
-                                <button type="submit" id="submitBtn" class="w-full bg-indigo-600 text-white py-2.5 rounded-lg hover:bg-indigo-700 font-medium text-sm transition shadow-sm">Harcama Ekle</button>
-                                <button type="button" id="cancelEditBtn" onclick="resetForm()" class="hidden w-1/3 bg-gray-200 text-gray-700 py-2.5 rounded-lg hover:bg-gray-300 font-medium text-sm transition">İptal</button>
-                            </div>
-                        </form>
+                    <!-- Grafik Kolonu -->
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center h-fit">
+                        <div class="w-full flex justify-between items-center mb-4">
+                            <h2 id="chartTitle" class="text-lg font-semibold text-gray-900">Kategorilere Göre Dağılım (Tümü)</h2>
+                        </div>
+                        <div class="w-full max-w-xs h-64">
+                            <canvas id="expenseChart"></canvas>
+                        </div>
                     </div>
 
-                    <!-- Sağ Kolon: Grafik ve İşlem Geçmişi -->
+                    <!-- İşlem Geçmişi ve Detaylı Filtreler Kolonu -->
                     <div class="lg:col-span-2 space-y-8">
-                        <!-- Grafik -->
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center">
-                            <div class="w-full flex justify-between items-center mb-4">
-                                <h2 id="chartTitle" class="text-lg font-semibold text-gray-900">Kategorilere Göre Dağılım (Tümü)</h2>
-                            </div>
-                            <div class="w-full max-w-xs h-64">
-                                <canvas id="expenseChart"></canvas>
-                            </div>
-                        </div>
-
-                        <!-- İşlem Geçmişi ve Detaylı Filtreler -->
                         <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                             <h2 class="text-lg font-semibold text-gray-900 mb-4">İşlem Geçmişi</h2>
 
@@ -409,6 +374,64 @@
         </div>
     </div>
 
+    <!-- HARCAMA EKLEME / DÜZENLEME MODALI -->
+    <div id="expenseModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4 overflow-y-auto">
+        <div class="bg-white p-6 rounded-xl shadow-lg w-full max-w-md my-8">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="formTitle" class="text-lg font-semibold text-gray-900">Yeni Harcama Ekle</h2>
+                <button type="button" onclick="closeExpenseModal()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+            </div>
+            <form id="expenseForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
+                <input type="hidden" id="editId">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Toplam Tutar (TL)</label>
+                    <input type="number" step="any" id="amount" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="0.00">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Taksit Sayısı (Peşin için 1 bırakın)</label>
+                    <input type="number" id="installmentCount" min="1" value="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Harcama Yapan Kişi</label>
+                    <select id="person" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                        <option value="Bekir">Bekir</option>
+                        <option value="Duygu">Duygu</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-xs font-medium text-gray-700">Kategori</label>
+                        <button type="button" onclick="addNewCategory()" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-0.5">+ Yeni Ekle</button>
+                    </div>
+                    <select id="category" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                        <!-- Dinamik Dolacak -->
+                    </select>
+                </div>
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-xs font-medium text-gray-700">Ödeme Tipi</label>
+                        <button type="button" onclick="addNewPaymentType()" class="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-0.5">+ Yeni Ekle</button>
+                    </div>
+                    <select id="paymentType" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                        <!-- Dinamik Dolacak -->
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Tarih</label>
+                    <input type="date" id="date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Açıklama</label>
+                    <input type="text" id="description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="Örn: Market alışverişi">
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" id="submitBtn" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg hover:bg-indigo-700 font-medium text-sm transition shadow-sm">Harcama Ekle</button>
+                    <button type="button" id="cancelEditBtn" onclick="closeExpenseModal()" class="w-1/3 bg-gray-200 text-gray-700 py-2.5 rounded-lg hover:bg-gray-300 font-medium text-sm transition">İptal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- GELİR EKLEME MODALI -->
     <div id="incomeModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
         <div class="bg-white p-6 rounded-xl shadow-lg w-full max-w-md">
@@ -547,10 +570,23 @@
 
         // Alışveriş Fiyat Modal Akışı için Değişkenler
         let activeShoppingId = null;
-        let activeShoppingAction = 'complete'; // 'complete' veya 'edit'
+        let activeShoppingAction = 'complete';
 
         document.getElementById('date').valueAsDate = new Date();
         document.getElementById('incomeDate').valueAsDate = new Date();
+
+        // Harcama Modal Aç/Kapat
+        window.openExpenseModal = function() {
+            resetForm();
+            document.getElementById('expenseModal').classList.remove('hidden');
+            document.getElementById('expenseModal').classList.add('flex');
+        }
+
+        window.closeExpenseModal = function() {
+            document.getElementById('expenseModal').classList.remove('flex');
+            document.getElementById('expenseModal').classList.add('hidden');
+            resetForm();
+        }
 
         // Sekme Değiştirme Fonksiyonu
         window.switchTab = function(tabName) {
@@ -1078,6 +1114,13 @@
                     btn.innerText = "Ödendi Yap";
                 }
             }
+
+            // Toplam Borç Güncelleme
+            const totalCardDebt = (bekirDebt.amount || 0) + (duyguDebt.amount || 0);
+            const totalDebtEl = document.getElementById('totalCardDebtDisplay');
+            if (totalDebtEl) {
+                totalDebtEl.innerText = totalCardDebt.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
+            }
         }
 
         function updateProgressBar(person, dueDateStr) {
@@ -1121,7 +1164,6 @@
             } else {
                 textEl.innerText = `Son ${diffDays} gün kaldı`;
                 
-                // 30 günden geriye doğru hesaplayalım (30 gün ve üstü yeşil, azaldıkça sarıya/kırmızıya dönsün)
                 let maxDays = 30;
                 let percentage = Math.max(5, Math.min(100, Math.round((diffDays / maxDays) * 100)));
                 percentEl.innerText = `${diffDays} gün`;
@@ -1294,7 +1336,7 @@
                 await addDoc(collection(db, "expenses"), expenseData);
             }
 
-            resetForm();
+            closeExpenseModal();
         }
 
         window.editExpense = function(id) {
@@ -1314,7 +1356,8 @@
             document.getElementById('submitBtn').innerText = "Güncelle";
             document.getElementById('cancelEditBtn').classList.remove('hidden');
 
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            document.getElementById('expenseModal').classList.remove('hidden');
+            document.getElementById('expenseModal').classList.add('flex');
         }
 
         window.resetForm = function() {
@@ -1419,9 +1462,6 @@
 
         window.downloadPDF = function() {
             const element = document.getElementById('pdfContent');
-            const formContainer = document.getElementById('formContainer');
-            formContainer.style.display = 'none';
-
             const actionElements = document.querySelectorAll('.action-col, td:last-child');
             actionElements.forEach(el => el.style.display = 'none');
 
@@ -1434,7 +1474,6 @@
             };
 
             html2pdf().from(element).set(options).save().then(() => {
-                formContainer.style.display = 'block';
                 actionElements.forEach(el => el.style.display = '');
             });
         }
