@@ -113,11 +113,7 @@
                 </div>
 
                 <!-- Yeni Harcama Ekle Aksiyon Barı -->
-                <div class="flex flex-col sm:flex-row justify-between items-center bg-indigo-50/70 p-4 rounded-xl border border-indigo-100 gap-3">
-                    <div>
-                        <h2 class="text-sm font-bold text-indigo-900">Harcama İşlemleri</h2>
-                        <p class="text-xs text-indigo-700">Sisteme yeni bir harcama veya taksitli ödeme ekleyin.</p>
-                    </div>
+                <div class="flex justify-center bg-indigo-50/70 p-4 rounded-xl border border-indigo-100">
                     <button onclick="openExpenseModal()" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition shadow-sm flex items-center justify-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -265,12 +261,12 @@
                                     <!-- Minimum Tutar -->
                                     <div>
                                         <label class="block text-[11px] font-medium text-gray-600 mb-1">Min Tutar (TL)</label>
-                                        <input type="number" step="any" id="filterMinAmount" oninput="applyFilters()" placeholder="0" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+                                        <input type="number" inputmode="decimal" step="any" id="filterMinAmount" oninput="applyFilters()" placeholder="0" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
                                     </div>
                                     <!-- Maksimum Tutar -->
                                     <div>
                                         <label class="block text-[11px] font-medium text-gray-600 mb-1">Max Tutar (TL)</label>
-                                        <input type="number" step="any" id="filterMaxAmount" oninput="applyFilters()" placeholder="Sınırsız" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
+                                        <input type="number" inputmode="decimal" step="any" id="filterMaxAmount" oninput="applyFilters()" placeholder="Sınırsız" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs">
                                     </div>
                                 </div>
                             </div>
@@ -486,11 +482,11 @@
                 <input type="hidden" id="editId">
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Toplam Tutar (TL)</label>
-                    <input type="number" step="any" id="amount" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="0.00">
+                    <input type="number" inputmode="decimal" step="any" id="amount" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="0.00">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Taksit Sayısı (Peşin için 1 bırakın)</label>
-                    <input type="number" id="installmentCount" min="1" value="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                    <input type="number" inputmode="numeric" id="installmentCount" min="1" value="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Harcama Yapan Kişi</label>
@@ -547,7 +543,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tutar (TL)</label>
-                    <input type="number" step="any" id="incomeAmount" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="0.00">
+                    <input type="number" inputmode="decimal" step="any" id="incomeAmount" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="0.00">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-700 mb-1">Tarih</label>
@@ -564,6 +560,38 @@
             </form>
         </div>
     </div>
+
+    <!-- KREDİ KARTI BORCU TUTAR MODALI -->
+    <div id="cardDebtModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+        <div class="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div class="bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-5 text-white">
+                <div class="flex items-center justify-between gap-4">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-indigo-100">Kredi kartı</p>
+                        <h2 id="cardDebtModalTitle" class="mt-1 text-xl font-bold">Borç Tutarını Güncelle</h2>
+                    </div>
+                    <button type="button" onclick="closeCardDebtModal()" class="rounded-lg p-1 text-xl leading-none text-indigo-100 transition hover:bg-white/15 hover:text-white" aria-label="Kapat">&times;</button>
+                </div>
+            </div>
+            <form id="cardDebtForm" onsubmit="handleCardDebtSubmit(event)" class="space-y-5 p-6">
+                <input type="hidden" id="cardDebtPerson">
+                <div class="rounded-xl border border-indigo-100 bg-indigo-50 p-4">
+                    <label for="cardDebtAmount" class="block text-xs font-bold uppercase tracking-wide text-indigo-800">Toplam borç tutarı</label>
+                    <div class="mt-2 flex items-center gap-2">
+                        <span class="text-2xl font-bold text-indigo-500">₺</span>
+                        <input type="number" inputmode="decimal" step="any" min="0" id="cardDebtAmount" required class="w-full border-0 border-b-2 border-indigo-200 bg-transparent px-0 py-2 text-2xl font-bold text-slate-900 outline-none transition focus:border-indigo-600" placeholder="0,00">
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <button type="button" onclick="closeCardDebtModal()" class="flex-1 rounded-xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-200">Vazgeç</button>
+                    <button type="submit" class="flex-1 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Son ödeme tarihi için yerel takvim seçici -->
+    <input id="cardDueDatePicker" type="date" aria-label="Son ödeme tarihi" class="fixed h-px w-px opacity-0" style="left:-9999px; top:-9999px;">
 
     <!-- ALIŞVERİŞ FİYAT GİRİŞ MODALI (TELEFONDA NUMERİK KLAVYE İÇİN) -->
     <div id="shoppingPriceModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
@@ -1155,40 +1183,83 @@
             cartTotalPriceEl.innerText = totalCartPrice.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
         }
 
-        window.setCardDebt = async function(person) {
-            let currentVal = person === 'bekir' ? bekirDebt.amount : duyguDebt.amount;
-            let title = person === 'bekir' ? "Bekir Kredi Kartı Borcunu Girin (TL):" : "Duygu Kredi Kartı Borcunu Girin (TL):";
-            let newAmountStr = prompt(title, currentVal || '');
-            
-            if (newAmountStr !== null) {
-                let val = parseFloat(newAmountStr.replace(',', '.'));
-                if (!isNaN(val) && val >= 0) {
-                    if (person === 'bekir') {
-                        bekirDebt.amount = val;
-                        await setDoc(doc(db, "settings", "bekirDebt"), bekirDebt);
-                    } else {
-                        duyguDebt.amount = val;
-                        await setDoc(doc(db, "settings", "duyguDebt"), duyguDebt);
-                    }
-                }
+        window.openCardDebtModal = function(person) {
+            const currentDebt = person === 'bekir' ? bekirDebt : duyguDebt;
+            const personName = person === 'bekir' ? 'Bekir' : 'Duygu';
+            document.getElementById('cardDebtPerson').value = person;
+            document.getElementById('cardDebtModalTitle').innerText = `${personName} için Borç Tutarı`;
+            document.getElementById('cardDebtAmount').value = currentDebt.amount || '';
+            document.getElementById('cardDebtModal').classList.remove('hidden');
+            document.getElementById('cardDebtModal').classList.add('flex');
+            setTimeout(() => document.getElementById('cardDebtAmount').focus(), 50);
+        }
+
+        window.closeCardDebtModal = function() {
+            document.getElementById('cardDebtModal').classList.remove('flex');
+            document.getElementById('cardDebtModal').classList.add('hidden');
+        }
+
+        window.setCardDebt = function(person) {
+            openCardDebtModal(person);
+        }
+
+        window.handleCardDebtSubmit = async function(event) {
+            event.preventDefault();
+            const person = document.getElementById('cardDebtPerson').value;
+            const amountValue = document.getElementById('cardDebtAmount').value;
+            const amount = parseFloat(amountValue.replace(',', '.'));
+
+            if (isNaN(amount) || amount < 0) {
+                alert('Lütfen geçerli bir tutar girin.');
+                return;
+            }
+
+            if (person === 'bekir') {
+                bekirDebt.amount = amount;
+                await setDoc(doc(db, 'settings', 'bekirDebt'), bekirDebt);
+            } else {
+                duyguDebt.amount = amount;
+                await setDoc(doc(db, 'settings', 'duyguDebt'), duyguDebt);
+            }
+            closeCardDebtModal();
+        }
+
+        let activeCardDueDatePerson = null;
+
+        function toDateInputValue(value) {
+            if (/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return value;
+            const parts = (value || '').split('.');
+            if (parts.length === 3 && parts[0].length === 2 && parts[1].length === 2 && parts[2].length === 4) {
+                return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+            return '';
+        }
+
+        const cardDueDatePicker = document.getElementById('cardDueDatePicker');
+
+        window.setCardDueDate = function(person) {
+            activeCardDueDatePerson = person;
+            const currentDate = person === 'bekir' ? bekirDebt.dueDate : duyguDebt.dueDate;
+            cardDueDatePicker.value = toDateInputValue(currentDate);
+            if (typeof cardDueDatePicker.showPicker === 'function') {
+                cardDueDatePicker.showPicker();
+            } else {
+                cardDueDatePicker.focus();
+                cardDueDatePicker.click();
             }
         }
 
-        window.setCardDueDate = async function(person) {
-            let currentVal = person === 'bekir' ? (bekirDebt.dueDate || '') : (duyguDebt.dueDate || '');
-            let newDateStr = prompt("Son ödeme tarihini girin (GG.AA.YYYY veya YYYY-AA-GG formatında ya da direkt tarih seçiniz, örn: 2026-08-15):", currentVal);
-            
-            if (newDateStr !== null) {
-                newDateStr = newDateStr.trim();
-                if (person === 'bekir') {
-                    bekirDebt.dueDate = newDateStr;
-                    await setDoc(doc(db, "settings", "bekirDebt"), bekirDebt);
-                } else {
-                    duyguDebt.dueDate = newDateStr;
-                    await setDoc(doc(db, "settings", "duyguDebt"), duyguDebt);
-                }
+        cardDueDatePicker.addEventListener('change', async function() {
+            if (!activeCardDueDatePerson || !cardDueDatePicker.value) return;
+            if (activeCardDueDatePerson === 'bekir') {
+                bekirDebt.dueDate = cardDueDatePicker.value;
+                await setDoc(doc(db, 'settings', 'bekirDebt'), bekirDebt);
+            } else {
+                duyguDebt.dueDate = cardDueDatePicker.value;
+                await setDoc(doc(db, 'settings', 'duyguDebt'), duyguDebt);
             }
-        }
+            activeCardDueDatePerson = null;
+        });
 
         window.toggleCardDebt = async function(person) {
             let targetDebt = person === 'bekir' ? bekirDebt : duyguDebt;
