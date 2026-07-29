@@ -133,9 +133,11 @@
                                     <span id="bekirDebtDisplay" class="text-lg font-bold text-gray-900">0,00 TL</span>
                                     <span id="bekirDebtStatusBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-medium">Ödenmedi</span>
                                 </div>
-                                <div class="text-xs text-gray-500 mt-1 flex items-center gap-1.5">
+                                <div class="text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-1.5">
                                     <span>Son Ödeme: <strong id="bekirDueDateDisplay" class="text-gray-700">-</strong></span>
-                                    <button onclick="setCardDueDate('bekir')" class="text-[11px] text-indigo-600 hover:underline font-medium">Tarihi Düzenle</button>
+                                    <label class="flex items-center gap-1 text-[11px] font-medium text-indigo-600">Tarihi Düzenle
+                                        <input type="date" id="bekirDueDateInput" onchange="updateCardDueDate('bekir', this.value)" class="rounded border border-indigo-200 bg-white px-1 py-0.5 text-[11px] text-gray-700 outline-none focus:border-indigo-500">
+                                    </label>
                                 </div>
                             </div>
                             <div class="flex items-center gap-2">
@@ -164,9 +166,11 @@
                                     <span id="duyguDebtDisplay" class="text-lg font-bold text-gray-900">0,00 TL</span>
                                     <span id="duyguDebtStatusBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-red-50 text-red-700 font-medium">Ödenmedi</span>
                                 </div>
-                                <div class="text-xs text-gray-500 mt-1 flex items-center gap-1.5">
+                                <div class="text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-1.5">
                                     <span>Son Ödeme: <strong id="duyguDueDateDisplay" class="text-gray-700">-</strong></span>
-                                    <button onclick="setCardDueDate('duygu')" class="text-[11px] text-indigo-600 hover:underline font-medium">Tarihi Düzenle</button>
+                                    <label class="flex items-center gap-1 text-[11px] font-medium text-indigo-600">Tarihi Düzenle
+                                        <input type="date" id="duyguDueDateInput" onchange="updateCardDueDate('duygu', this.value)" class="rounded border border-indigo-200 bg-white px-1 py-0.5 text-[11px] text-gray-700 outline-none focus:border-indigo-500">
+                                    </label>
                                 </div>
                             </div>
                             <div class="flex items-center gap-2">
@@ -589,9 +593,6 @@
             </form>
         </div>
     </div>
-
-    <!-- Son ödeme tarihi için yerel takvim seçici -->
-    <input id="cardDueDatePicker" type="date" aria-label="Son ödeme tarihi" class="fixed h-px w-px opacity-0" style="left:-9999px; top:-9999px;">
 
     <!-- ALIŞVERİŞ FİYAT GİRİŞ MODALI (TELEFONDA NUMERİK KLAVYE İÇİN) -->
     <div id="shoppingPriceModal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
@@ -1221,10 +1222,9 @@
                 duyguDebt.amount = amount;
                 await setDoc(doc(db, 'settings', 'duyguDebt'), duyguDebt);
             }
+            renderCardDebtUI(person);
             closeCardDebtModal();
         }
-
-        let activeCardDueDatePerson = null;
 
         function toDateInputValue(value) {
             if (/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return value;
@@ -1235,77 +1235,55 @@
             return '';
         }
 
-        const cardDueDatePicker = document.getElementById('cardDueDatePicker');
-
-        window.setCardDueDate = function(person) {
-            activeCardDueDatePerson = person;
-            const currentDate = person === 'bekir' ? bekirDebt.dueDate : duyguDebt.dueDate;
-            cardDueDatePicker.value = toDateInputValue(currentDate);
-            if (typeof cardDueDatePicker.showPicker === 'function') {
-                cardDueDatePicker.showPicker();
-            } else {
-                cardDueDatePicker.focus();
-                cardDueDatePicker.click();
-            }
-        }
-
-        cardDueDatePicker.addEventListener('change', async function() {
-            if (!activeCardDueDatePerson || !cardDueDatePicker.value) return;
-            if (activeCardDueDatePerson === 'bekir') {
-                bekirDebt.dueDate = cardDueDatePicker.value;
+        window.updateCardDueDate = async function(person, dueDate) {
+            if (person === 'bekir') {
+                bekirDebt.dueDate = dueDate;
                 await setDoc(doc(db, 'settings', 'bekirDebt'), bekirDebt);
             } else {
-                duyguDebt.dueDate = cardDueDatePicker.value;
+                duyguDebt.dueDate = dueDate;
                 await setDoc(doc(db, 'settings', 'duyguDebt'), duyguDebt);
             }
-            activeCardDueDatePerson = null;
-        });
+        }
 
         window.toggleCardDebt = async function(person) {
             let targetDebt = person === 'bekir' ? bekirDebt : duyguDebt;
             let personName = person === 'bekir' ? 'Bekir' : 'Duygu';
 
             if (!targetDebt.paid && targetDebt.amount > 0) {
-                let todayStr = new Date().toISOString().split('T')[0];
-                let confirmAdd = confirm(`${personName} için ${targetDebt.amount.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'})} tutarındaki borç ödendi olarak işaretlenecek ve işlem geçmişine eklensin mi?`);
+                const confirmPayment = confirm(`${personName} için ${targetDebt.amount.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'})} tutarındaki borç ödendi olarak işaretlenecek. Bu ödeme işlem geçmişinde görünmeden kalan bütçeden düşülecek. Devam edilsin mi?`);
                 
-                if (confirmAdd) {
-                    const docRef = await addDoc(collection(db, "expenses"), {
-                        amount: targetDebt.amount,
-                        installmentCount: 1,
-                        amountPerInstallment: targetDebt.amount,
-                        expenseMonth: todayStr.substring(0, 7),
-                        person: personName,
-                        category: "Kredi Kartı Borcu",
-                        paymentType: paymentTypes.includes("Kredi Kartı") ? "Kredi Kartı" : (paymentTypes[0] || "Nakit"),
-                        date: todayStr,
-                        description: `${personName} Kredi Kartı Ekstre Ödemesi`,
-                        isCardDebtPayment: true
-                    });
-                    targetDebt.lastExpenseId = docRef.id;
+                if (!confirmPayment) {
+                    return;
                 }
-            } else if (targetDebt.paid && targetDebt.lastExpenseId) {
+                targetDebt.paidDate = new Date().toISOString().split('T')[0];
+            }
+
+            // Önceki sürümlerde oluşturulmuş kredi kartı ödeme satırlarını temizle.
+            if (targetDebt.lastExpenseId) {
                 try {
                     await deleteDoc(doc(db, "expenses", targetDebt.lastExpenseId));
-                    targetDebt.lastExpenseId = null;
                 } catch (error) {
                     console.error("Borç harcaması silinirken hata oluştu:", error);
                 }
+                targetDebt.lastExpenseId = null;
             }
 
+            targetDebt.paid = !targetDebt.paid;
+            if (!targetDebt.paid) targetDebt.paidDate = '';
+
             if (person === 'bekir') {
-                bekirDebt.paid = !bekirDebt.paid;
                 await setDoc(doc(db, "settings", "bekirDebt"), bekirDebt);
             } else {
-                duyguDebt.paid = !duyguDebt.paid;
                 await setDoc(doc(db, "settings", "duyguDebt"), duyguDebt);
             }
+            renderCardDebtUI(person);
         }
 
         function renderCardDebtUI(person) {
             if (person === 'bekir') {
                 document.getElementById('bekirDebtDisplay').innerText = bekirDebt.amount.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
                 document.getElementById('bekirDueDateDisplay').innerText = bekirDebt.dueDate ? bekirDebt.dueDate : 'Belirlenmedi';
+                document.getElementById('bekirDueDateInput').value = toDateInputValue(bekirDebt.dueDate);
                 updateProgressBar('bekir', bekirDebt.dueDate);
 
                 let badge = document.getElementById('bekirDebtStatusBadge');
@@ -1324,6 +1302,7 @@
             } else {
                 document.getElementById('duyguDebtDisplay').innerText = duyguDebt.amount.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
                 document.getElementById('duyguDueDateDisplay').innerText = duyguDebt.dueDate ? duyguDebt.dueDate : 'Belirlenmedi';
+                document.getElementById('duyguDueDateInput').value = toDateInputValue(duyguDebt.dueDate);
                 updateProgressBar('duygu', duyguDebt.dueDate);
 
                 let badge = document.getElementById('duyguDebtStatusBadge');
@@ -1342,7 +1321,7 @@
             }
 
             // Toplam Borç Güncelleme
-            const totalCardDebt = (bekirDebt.amount || 0) + (duyguDebt.amount || 0);
+            const totalCardDebt = (bekirDebt.paid ? 0 : (bekirDebt.amount || 0)) + (duyguDebt.paid ? 0 : (duyguDebt.amount || 0));
             const totalDebtEl = document.getElementById('totalCardDebtDisplay');
             if (totalDebtEl) {
                 totalDebtEl.innerText = totalCardDebt.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
@@ -1644,6 +1623,9 @@
             let processed = [];
 
             expenses.forEach(item => {
+                // Kredi kartı borcu ödemeleri işlem geçmişi ve harcama toplamlarında yer almaz.
+                if (item.isCardDebtPayment) return;
+
                 const count = item.installmentCount || 1;
                 const perAmount = item.amountPerInstallment || item.amount;
                 const startMonth = item.expenseMonth || (item.date ? item.date.substring(0, 7) : currentPeriod);
@@ -2082,9 +2064,13 @@
             const total = currentMonthExpenses.reduce((sum, item) => sum + item.displayAmount, 0);
             const bekirTotal = currentMonthExpenses.filter(i => i.person === 'Bekir').reduce((sum, item) => sum + item.displayAmount, 0);
             const duyguTotal = currentMonthExpenses.filter(i => i.person === 'Duygu').reduce((sum, item) => sum + item.displayAmount, 0);
-            const remaining = totalBudget - total;
+            const paidCardDebtThisMonth = [bekirDebt, duyguDebt]
+                .filter(debt => debt.paid && (!debt.paidDate || debt.paidDate.substring(0, 7) === currentPeriod))
+                .reduce((sum, debt) => sum + (debt.amount || 0), 0);
+            const netBudget = totalBudget - paidCardDebtThisMonth;
+            const remaining = netBudget - total;
 
-            document.getElementById('displayBudget').innerText = totalBudget.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
+            document.getElementById('displayBudget').innerText = netBudget.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
             document.getElementById('totalExpense').innerText = total.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
             document.getElementById('bekirExpense').innerText = bekirTotal.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
             document.getElementById('duyguExpense').innerText = duyguTotal.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'});
@@ -2279,7 +2265,6 @@
         window.openIncomeModal = openIncomeModal;
         window.openExpenseModal = openExpenseModal;
         window.closeExpenseModal = closeExpenseModal;
-        window.setCardDueDate = setCardDueDate;
         window.setCardDebt = setCardDebt;
         window.toggleCardDebt = toggleCardDebt;
         window.resetFilters = resetFilters;
