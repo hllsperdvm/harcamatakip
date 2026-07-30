@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YUVAM</title>
+    <title>YUVAM - Ortak Bütçe ve Alışveriş</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js -->
@@ -71,6 +71,7 @@
                 <button id="tabBtnReports" onclick="switchTab('reports')" class="whitespace-nowrap px-6 py-2.5 text-sm font-bold rounded-xl transition text-slate-500 hover:bg-white hover:text-slate-900">Raporlar</button>
                 <button id="tabBtnNotes" onclick="switchTab('notes')" class="whitespace-nowrap px-6 py-2.5 text-sm font-bold rounded-xl transition text-slate-500 hover:bg-white hover:text-slate-900">Notlar</button>
                 <button id="tabBtnShopping" onclick="switchTab('shopping')" class="whitespace-nowrap px-6 py-2.5 text-sm font-bold rounded-xl transition text-slate-500 hover:bg-white hover:text-slate-900">Alışveriş</button>
+                <button id="tabBtnCalculator" onclick="switchTab('calculator')" class="whitespace-nowrap px-6 py-2.5 text-sm font-bold rounded-xl transition text-slate-500 hover:bg-white hover:text-slate-900">Hesaplama</button>
                 <button id="tabBtnTrash" onclick="switchTab('trash')" class="whitespace-nowrap px-6 py-2.5 text-sm font-bold rounded-xl transition text-slate-500 hover:bg-white hover:text-slate-900">Çöp Kutusu</button>
             </div>
 
@@ -274,6 +275,28 @@
                     <h3 class="text-xl font-black mb-6">Detaylı Kategori Raporu</h3>
                     <div id="detailedMonthlyReport" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
                 </div>
+                <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
+                    <div class="flex justify-between items-center mb-8">
+                        <h3 class="text-xl font-black">💳 Kredi Kartı Ekstreleri</h3>
+                        <p class="text-[11px] text-slate-400 font-semibold uppercase">Ödenen tutarlar</p>
+                    </div>
+                    <div class="space-y-8">
+                        <div class="border-b border-slate-200 pb-8">
+                            <div class="flex items-center gap-3 mb-5">
+                                <div class="w-3 h-3 rounded-full bg-blue-600"></div>
+                                <h4 class="text-sm font-black text-slate-900 uppercase tracking-wider">Bekir - Kredi Kartı Ekstreleri</h4>
+                            </div>
+                            <div id="bekirCardStatements" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-3 mb-5">
+                                <div class="w-3 h-3 rounded-full bg-pink-600"></div>
+                                <h4 class="text-sm font-black text-slate-900 uppercase tracking-wider">Duygu - Kredi Kartı Ekstreleri</h4>
+                            </div>
+                            <div id="duyguCardStatements" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div id="tabContentNotes" class="hidden animate-in fade-in duration-500">
@@ -314,6 +337,92 @@
                             <div class="pt-6 border-t border-white/10 flex justify-between items-center">
                                 <span class="text-white/50 font-bold uppercase text-xs">Toplam</span>
                                 <span id="cartTotalPrice" class="text-2xl font-black text-indigo-400">0,00 TL</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEKME: HESAPLAMA -->
+            <div id="tabContentCalculator" class="hidden animate-in fade-in duration-500">
+                <div class="max-w-4xl mx-auto space-y-8">
+                    <!-- Hesaplama Türü Seçimi -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <button onclick="showCalculatorTab('fuel')" id="fuelBtn" class="bg-white p-8 rounded-3xl card-shadow border-2 border-indigo-600 text-center cursor-pointer transition hover:shadow-lg">
+                            <div class="text-4xl mb-3">⛽</div>
+                            <h3 class="text-xl font-black text-slate-900 mb-2">Yakıt Hesapla</h3>
+                            <p class="text-sm text-slate-500">Tüketim ve maliyet hesaplama</p>
+                        </button>
+                        <button onclick="showCalculatorTab('percentage')" id="percentageBtn" class="bg-white p-8 rounded-3xl card-shadow border-2 border-slate-200 text-center cursor-pointer transition hover:shadow-lg hover:border-indigo-600">
+                            <div class="text-4xl mb-3">%</div>
+                            <h3 class="text-xl font-black text-slate-900 mb-2">Yüzde Hesapla</h3>
+                            <p class="text-sm text-slate-500">Yüzde işlemleri</p>
+                        </button>
+                    </div>
+
+                    <!-- Yakıt Hesaplama Alanı -->
+                    <div id="fuelCalculatorArea" class="bg-white p-8 rounded-3xl card-shadow border border-slate-100">
+                        <h2 class="text-2xl font-black mb-8 text-slate-900">Yakıt Hesaplama</h2>
+                        <div class="space-y-6">
+                            <div>
+                                <label class="block text-sm font-bold text-slate-600 mb-2">Ödenen Tutar (TL)</label>
+                                <input type="number" id="paidAmount" placeholder="0,00" step="any" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-slate-600 mb-2">Yakıtın Litre Fiyatı (TL)</label>
+                                <input type="number" id="fuelPrice" placeholder="0,00" step="any" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-slate-600 mb-2">Gidilen Mesafe (km)</label>
+                                <input type="number" id="distance" placeholder="0" step="any" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <button onclick="calculateFuel()" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition">Hesapla</button>
+
+                            <!-- Sonuçlar -->
+                            <div id="fuelResults" class="hidden pt-6 border-t border-slate-200 space-y-4">
+                                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-2xl border border-blue-200">
+                                    <p class="text-sm text-slate-600 font-semibold mb-1">100 km'de Yakıt Tüketimi</p>
+                                    <p id="consumptionLiter" class="text-3xl font-black text-blue-600">0,00 L</p>
+                                </div>
+                                <div class="bg-gradient-to-br from-amber-50 to-orange-50 p-6 rounded-2xl border border-amber-200">
+                                    <p class="text-sm text-slate-600 font-semibold mb-1">100 km'de Yakıt Maliyeti</p>
+                                    <p id="consumptionCost" class="text-3xl font-black text-amber-600">0,00 TL</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Yüzde Hesaplama Alanı -->
+                    <div id="percentageCalculatorArea" class="hidden bg-white p-8 rounded-3xl card-shadow border border-slate-100">
+                        <h2 class="text-2xl font-black mb-8 text-slate-900">Yüzde Hesaplama</h2>
+                        <div class="space-y-6">
+                            <div>
+                                <label class="block text-sm font-bold text-slate-600 mb-2">A Sayısı</label>
+                                <input type="number" id="numberA" placeholder="0" step="any" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-slate-600 mb-2">B Sayısı</label>
+                                <input type="number" id="numberB" placeholder="0" step="any" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-slate-600 mb-2">İşlem Seçin</label>
+                                <select id="operationType" class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <option value="">İşlem Seçiniz</option>
+                                    <option value="percentOfNumber">A sayısının %B si kaçtır?</option>
+                                    <option value="percentageOfTotal">A sayısı, B sayısının yüzde kaçıdır?</option>
+                                    <option value="changePercent">A sayısından B sayısına değişim oranı yüzde kaçıdır?</option>
+                                    <option value="increaseByPercent">A sayısı %B kadar artılırsa kaç olur?</option>
+                                    <option value="decreaseByPercent">A sayısı %B kadar azaltılırsa kaç olur?</option>
+                                </select>
+                            </div>
+                            <button onclick="calculatePercentage()" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition">Hesapla</button>
+
+                            <!-- Sonuç -->
+                            <div id="percentageResults" class="hidden pt-6 border-t border-slate-200">
+                                <div class="bg-gradient-to-br from-purple-50 to-indigo-50 p-6 rounded-2xl border border-purple-200">
+                                    <p id="operationName" class="text-sm text-slate-600 font-semibold mb-1">Sonuç</p>
+                                    <p id="percentageResult" class="text-3xl font-black text-purple-600">0,00</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -394,7 +503,7 @@
                     <input type="text" id="description" class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold focus:ring-2 focus:ring-indigo-500">
                 </div>
                 <div class="flex gap-4 pt-4">
-                    <button type="button" onclick="closeExpenseModal()" class="flex-1 py-4 rounded-2xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition">Vazgeç</button>
+                    <button type="button" onclick="resetForm(); closeExpenseModal();" class="flex-1 py-4 rounded-2xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition">Vazgeç</button>
                     <button type="submit" id="submitBtn" class="flex-[2] py-4 rounded-2xl bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition">Kaydet</button>
                 </div>
             </form>
@@ -508,7 +617,7 @@
 
         // Sekme Değiştirme
         window.switchTab = function(tabName) {
-            const contents = ["expense", "stats", "reports", "trash", "notes", "shopping"];
+            const contents = ["expense", "stats", "reports", "trash", "notes", "shopping", "calculator"];
             contents.forEach(name => {
                 document.getElementById(`tabContent${name.charAt(0).toUpperCase() + name.slice(1)}`).classList.add('hidden');
                 document.getElementById(`tabBtn${name.charAt(0).toUpperCase() + name.slice(1)}`).classList.remove('tab-active');
@@ -532,7 +641,11 @@
 
         // Modal Yönetimi
         window.openExpenseModal = () => {
-            resetForm();
+            const editId = document.getElementById('editId').value;
+            // Sadece yeni harcama eklerken resetForm çağır, düzenleme ise alanları boş yapma
+            if (!editId) {
+                resetForm();
+            }
             document.getElementById('expenseModal').classList.remove('hidden');
             document.getElementById('expenseModal').classList.add('flex');
         };
@@ -658,9 +771,38 @@
 
         window.toggleCardDebt = async (person) => {
             let debt = person === 'bekir' ? bekirDebt : duyguDebt;
-            if (!debt.paid && debt.amount > 0) {
+            if (!debt.paid && debt.amount > 0 && debt.dueDate) {
                 if (!confirm(`${person.toUpperCase()} borcu ödendi olarak işaretlensin mi? Bu tutar bütçeden düşülecektir.`)) return;
+                
+                // Ekstre tutarını kaydet
+                const dueDate = new Date(debt.dueDate);
+                const previousMonth = new Date(dueDate.getFullYear(), dueDate.getMonth() - 1);
+                const statementMonth = `${previousMonth.getFullYear()}-${String(previousMonth.getMonth() + 1).padStart(2, '0')}`;
+                
+                const statementData = {
+                    person: person,
+                    month: statementMonth,
+                    amount: debt.amount,
+                    dueDate: debt.dueDate,
+                    paidDate: new Date().toISOString().split('T')[0],
+                    status: 'paid'
+                };
+                
+                await setDoc(doc(db, "cardStatements", `${person}_${statementMonth}`), statementData);
+            } else if (debt.paid) {
+                // Ödenmedi yapılırsa ekstre tutarını sil
+                const statementMonths = [];
+                const dueDate = new Date(debt.dueDate);
+                const previousMonth = new Date(dueDate.getFullYear(), dueDate.getMonth() - 1);
+                const statementMonth = `${previousMonth.getFullYear()}-${String(previousMonth.getMonth() + 1).padStart(2, '0')}`;
+                
+                const docRef = doc(db, "cardStatements", `${person}_${statementMonth}`);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    await deleteDoc(docRef);
+                }
             }
+            
             debt.paid = !debt.paid;
             await setDoc(doc(db, "settings", person + "Debt"), debt);
         };
@@ -1004,7 +1146,50 @@
             detailedReport.innerHTML = Object.entries(categoryData).map(([cat, amt]) => `
                 <div class="bg-slate-50 p-4 rounded-2xl"><div class="font-bold text-sm">${cat}</div><div class="text-2xl font-black text-indigo-600">${amt.toLocaleString('tr-TR')} TL</div></div>
             `).join('');
+
+            // Kredi kartı ekstreleri render et
+            renderCardStatements('bekir');
+            renderCardStatements('duygu');
         }
+
+        window.cardStatements = [];
+        
+        function renderCardStatements(person) {
+            const sortedStatements = cardStatements
+                .filter(s => s.person === person)
+                .sort((a, b) => new Date(b.month) - new Date(a.month));
+            
+            const container = document.getElementById(person === 'bekir' ? 'bekirCardStatements' : 'duyguCardStatements');
+            
+            if (sortedStatements.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-8 text-slate-400"><p class="text-sm">Henüz ekstre kaydı yok</p></div>`;
+                return;
+            }
+
+            const monthNames = ['Ocak', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+            
+            container.innerHTML = sortedStatements.map(stmt => {
+                const [year, month] = stmt.month.split('-');
+                const monthName = monthNames[parseInt(month) - 1];
+                const bgColor = person === 'bekir' 
+                    ? 'from-blue-50 to-blue-100 border-blue-200 hover:shadow-lg hover:shadow-blue-100' 
+                    : 'from-pink-50 to-pink-100 border-pink-200 hover:shadow-lg hover:shadow-pink-100';
+                const textColor = person === 'bekir' ? 'text-blue-600' : 'text-pink-600';
+                
+                return `
+                    <div class="bg-gradient-to-br ${bgColor} p-5 rounded-2xl border shadow-sm transition hover:shadow-md cursor-default">
+                        <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2">${monthName} ${year}</div>
+                        <div class="text-xl font-black ${textColor} mb-2">${stmt.amount.toLocaleString('tr-TR')}</div>
+                        <div class="text-[8px] text-slate-600">TL</div>
+                        <div class="text-[8px] text-slate-400 mt-2 pt-2 border-t border-slate-200">${stmt.paidDate}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        onSnapshot(collection(db, "cardStatements"), snap => {
+            cardStatements = snap.docs.map(d => ({...d.data(), id: d.id}));
+        }, err => console.error("Cardstatements yüklemesinde hata:", err));
 
         // Çöp Kutusu
         function renderTrash() {
@@ -1182,6 +1367,98 @@
         }
 
         window.downloadExcel = () => alert("Excel indirme özelliği yakında eklenecek");
+        
+        // Hesaplama Sekmesi Fonksiyonları
+        window.showCalculatorTab = (tab) => {
+            if (tab === 'fuel') {
+                document.getElementById('fuelCalculatorArea').classList.remove('hidden');
+                document.getElementById('percentageCalculatorArea').classList.add('hidden');
+                document.getElementById('fuelBtn').classList.add('border-indigo-600');
+                document.getElementById('fuelBtn').classList.remove('border-slate-200');
+                document.getElementById('percentageBtn').classList.remove('border-indigo-600');
+                document.getElementById('percentageBtn').classList.add('border-slate-200');
+            } else {
+                document.getElementById('fuelCalculatorArea').classList.add('hidden');
+                document.getElementById('percentageCalculatorArea').classList.remove('hidden');
+                document.getElementById('percentageBtn').classList.add('border-indigo-600');
+                document.getElementById('percentageBtn').classList.remove('border-slate-200');
+                document.getElementById('fuelBtn').classList.remove('border-indigo-600');
+                document.getElementById('fuelBtn').classList.add('border-slate-200');
+            }
+        };
+
+        window.calculateFuel = () => {
+            const paidAmount = parseFloat(document.getElementById('paidAmount').value);
+            const fuelPrice = parseFloat(document.getElementById('fuelPrice').value);
+            const distance = parseFloat(document.getElementById('distance').value);
+
+            if (!paidAmount || !fuelPrice || !distance || paidAmount < 0 || fuelPrice < 0 || distance <= 0) {
+                alert('Lütfen tüm alanları doğru şekilde doldurunuz');
+                return;
+            }
+
+            const litersUsed = paidAmount / fuelPrice;
+            const consumptionPer100km = (litersUsed / distance) * 100;
+            const costPer100km = (paidAmount / distance) * 100;
+
+            document.getElementById('consumptionLiter').innerText = consumptionPer100km.toFixed(2) + ' L';
+            document.getElementById('consumptionCost').innerText = costPer100km.toFixed(2) + ' TL';
+            document.getElementById('fuelResults').classList.remove('hidden');
+        };
+
+        window.calculatePercentage = () => {
+            const numberA = parseFloat(document.getElementById('numberA').value);
+            const numberB = parseFloat(document.getElementById('numberB').value);
+            const operation = document.getElementById('operationType').value;
+
+            if (isNaN(numberA) || isNaN(numberB)) {
+                alert('Lütfen A ve B sayılarını giriniz');
+                return;
+            }
+
+            if (!operation) {
+                alert('Lütfen işlem seçiniz');
+                return;
+            }
+
+            let result, operationName;
+
+            switch (operation) {
+                case 'percentOfNumber':
+                    result = (numberA * numberB) / 100;
+                    operationName = `${numberA} sayısının %${numberB} si`;
+                    break;
+                case 'percentageOfTotal':
+                    if (numberB === 0) {
+                        alert('B sayısı sıfır olamaz');
+                        return;
+                    }
+                    result = (numberA / numberB) * 100;
+                    operationName = `${numberA} sayısı, ${numberB} sayısının yüzde kaçı`;
+                    break;
+                case 'changePercent':
+                    if (numberA === 0) {
+                        alert('A sayısı sıfır olamaz');
+                        return;
+                    }
+                    result = ((numberB - numberA) / numberA) * 100;
+                    operationName = `${numberA} sayısından ${numberB} sayısına değişim oranı`;
+                    break;
+                case 'increaseByPercent':
+                    result = numberA + (numberA * numberB / 100);
+                    operationName = `${numberA} sayısı %${numberB} kadar artılırsa`;
+                    break;
+                case 'decreaseByPercent':
+                    result = numberA - (numberA * numberB / 100);
+                    operationName = `${numberA} sayısı %${numberB} kadar azaltılırsa`;
+                    break;
+            }
+
+            document.getElementById('operationName').innerText = operationName;
+            document.getElementById('percentageResult').innerText = result.toFixed(2);
+            document.getElementById('percentageResults').classList.remove('hidden');
+        };
+
         window.onIncomeTypeChange = () => {};
     </script>
 </body>
