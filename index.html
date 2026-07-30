@@ -32,7 +32,7 @@
             </div>
             <h2 class="mb-2 text-2xl font-extrabold text-slate-900">YUVAM'a Giriş</h2>
             <p class="mb-8 text-slate-500 font-medium">Lütfen 4 haneli şifreyi giriniz</p>
-            <input type="password" id="sifreInput" inputmode="numeric" pattern="[0-9]*" placeholder="••••" maxlength="4" class="w-full rounded-2xl border-none bg-white p-4 text-center text-3xl tracking-[0.5em] shadow-sm ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none mb-4">
+            <input type="password" id="sifreInput" inputmode="numeric" pattern="[0-9]*" placeholder="••••" maxlength="4" class="w-full rounded-2xl border-none bg-white p-4 text-center text-3xl tracking-[0.5em] shadow-sm ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none mb-4" onkeypress="handlePasswordKeyPress(event)">
             <button onclick="checkPassword()" class="w-full rounded-2xl bg-indigo-600 py-4 font-bold text-white shadow-lg shadow-indigo-100 transition hover:bg-indigo-700 active:scale-[0.98]">Giriş Yap</button>
         </div>
     </div>
@@ -184,7 +184,7 @@
                         <div class="flex items-center gap-4">
                             <label class="flex items-center gap-2 text-xs font-bold text-indigo-600 cursor-pointer bg-indigo-50 px-4 py-2 rounded-xl">
                                 <input type="checkbox" id="filterShowInstallments" onchange="applyFilters()" class="rounded border-indigo-200 text-indigo-600 focus:ring-indigo-500">
-                                Taksit Takvimi
+                                Taksitleri Göster
                             </label>
                             <button onclick="resetFilters()" class="text-xs font-bold text-slate-400 hover:text-slate-900 transition">Filtreleri Temizle</button>
                         </div>
@@ -472,7 +472,14 @@
 
         const DOGRU_SIFRE = "7536";
 
-        // Global Fonksiyonlar (Açıklama: Module içindeki fonksiyonların butonlardan çağrılabilmesi için window'a bağlanması şarttır)
+        // ENTER TUŞU İÇİN GLOBAL FONKSIYON
+        window.handlePasswordKeyPress = function(event) {
+            if (event.key === 'Enter') {
+                checkPassword();
+            }
+        };
+
+        // Global Fonksiyonlar
         window.checkPassword = function() {
             const input = document.getElementById('sifreInput').value;
             if (input === DOGRU_SIFRE) {
@@ -549,6 +556,7 @@
             document.getElementById('cardDebtModal').classList.add('flex');
         };
         window.closeCardDebtModal = () => document.getElementById('cardDebtModal').classList.add('hidden');
+        window.closeShoppingPriceModal = () => document.getElementById('shoppingPriceModal').classList.add('hidden');
 
         // Realtime Sync (Firebase)
         function initRealtimeSync() {
@@ -588,7 +596,7 @@
             });
         }
 
-        // Bütçe Hesaplama (Ödendi yapıldığında gelirden düşen mantık)
+        // Bütçe Hesaplama
         function renderBudgetInfo() {
             const period = getCurrentPeriod();
             
@@ -601,13 +609,13 @@
             const processedExpenses = getProcessedExpenses().filter(e => e.effectiveMonth === period);
             const totalSpent = processedExpenses.reduce((sum, e) => sum + e.displayAmount, 0);
 
-            // Kredi Kartı Borcu Mantığı: "Ödendi" ise bütçeden düş
+            // Kredi Kartı Borcu Mantığı
             let paidDebts = 0;
             if (bekirDebt.paid) paidDebts += (bekirDebt.amount || 0);
             if (duyguDebt.paid) paidDebts += (duyguDebt.amount || 0);
 
-            const netBudget = totalIncome - paidDebts; // Gelirden KK borcu düştü
-            const remaining = netBudget - totalSpent; // Net paradan harcamalar düştü
+            const netBudget = totalIncome - paidDebts;
+            const remaining = netBudget - totalSpent;
 
             // UI Güncelleme
             document.getElementById('displayBudget').innerText = totalIncome.toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
@@ -751,7 +759,26 @@
             openExpenseModal();
         };
 
-        // Tablo ve Render
+        // Gelir Yönetimi
+        window.handleIncomeSubmit = async (e) => {
+            e.preventDefault();
+            const data = {
+                type: document.getElementById('incomeType').value,
+                amount: parseFloat(document.getElementById('incomeAmount').value),
+                date: document.getElementById('incomeDate').value,
+                description: document.getElementById('incomeDescription').value || '-',
+                incomeMonth: document.getElementById('incomeDate').value.substring(0, 7)
+            };
+            await addDoc(collection(db, "incomes"), data);
+            closeIncomeModal();
+        };
+
+        window.deleteIncome = async (id) => {
+            if (!confirm("Geliri silmek istediğinize emin misiniz?")) return;
+            await deleteDoc(doc(db, "incomes", id));
+        };
+
+        // Tablo Render
         function getProcessedExpenses() {
             const period = getCurrentPeriod();
             let processed = [];
@@ -787,7 +814,15 @@
             const tbody = document.getElementById('expenseTableBody');
             tbody.innerHTML = '';
             
-            let filtered = [...getProcessedExpenses(), ...incomes.map(i => ({...i, type: 'income', displayAmount: i.amount, person: 'Gelir', category: i.type, installmentLabel: 'Gelir', effectiveMonth: i.incomeMonth}))];
+            let filtered = [];
+            
+            if (currentShowInstallments) {
+                // Taksitleri göster seçiliyse SADECE taksitler göster
+                filtered = getProcessedExpenses().filter(item => item.installmentLabel !== 'Peşin');
+            } else {
+                // Normal görünüm: taksitler ve peşin ödemeler
+                filtered = [...getProcessedExpenses(), ...incomes.map(i => ({...i, type: 'income', displayAmount: i.amount, person: 'Gelir', category: i.type, installmentLabel: 'Gelir', effectiveMonth: i.incomeMonth}))];
+            }
             
             // Filtreleme mantığı
             filtered = filtered.filter(item => {
@@ -834,6 +869,259 @@
             });
         }
 
+        // İstatistikler Paneli
+        function updateStatsPanel() {
+            const period = getCurrentPeriod();
+            const processedExpenses = getProcessedExpenses().filter(e => e.effectiveMonth === period);
+            
+            // Kategori Dağılımı
+            const categoryData = {};
+            processedExpenses.forEach(e => {
+                categoryData[e.category] = (categoryData[e.category] || 0) + e.displayAmount;
+            });
+
+            const ctx1 = document.getElementById('expenseChart');
+            if (ctx1 && expenseChart) {
+                expenseChart.destroy();
+            }
+            if (ctx1) {
+                expenseChart = new Chart(ctx1, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(categoryData),
+                        datasets: [{
+                            data: Object.values(categoryData),
+                            backgroundColor: ['#3b82f6', '#ec4899', '#f59e0b', '#10b981', '#f87171', '#8b5cf6', '#06b6d4', '#6366f1'],
+                            borderColor: '#ffffff',
+                            borderWidth: 3
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom' } } }
+                });
+            }
+
+            // Haftalık Trend
+            const weekData = {};
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const key = d.toLocaleDateString('tr-TR', { weekday: 'short' });
+                weekData[key] = 0;
+            }
+            processedExpenses.forEach(e => {
+                const d = new Date(e.date);
+                const key = d.toLocaleDateString('tr-TR', { weekday: 'short' });
+                if (key in weekData) weekData[key] += e.displayAmount;
+            });
+
+            const ctx2 = document.getElementById('weeklyTrendChart');
+            if (ctx2 && weeklyTrendChart) {
+                weeklyTrendChart.destroy();
+            }
+            if (ctx2) {
+                weeklyTrendChart = new Chart(ctx2, {
+                    type: 'line',
+                    data: {
+                        labels: Object.keys(weekData),
+                        datasets: [{
+                            label: 'Harcama',
+                            data: Object.values(weekData),
+                            borderColor: '#4f46e5',
+                            backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: true } } }
+                });
+            }
+
+            // Aylık Trend
+            const monthData = {};
+            for (let i = 11; i >= 0; i--) {
+                const d = new Date();
+                d.setMonth(d.getMonth() - i);
+                const key = d.toLocaleDateString('tr-TR', { month: 'short', year: '2-digit' });
+                monthData[key] = 0;
+            }
+            expenses.forEach(e => {
+                const d = new Date(e.date);
+                const key = d.toLocaleDateString('tr-TR', { month: 'short', year: '2-digit' });
+                if (key in monthData) monthData[key] += e.amount;
+            });
+
+            const ctx3 = document.getElementById('monthlyTrendChart');
+            if (ctx3 && monthlyTrendChart) {
+                monthlyTrendChart.destroy();
+            }
+            if (ctx3) {
+                monthlyTrendChart = new Chart(ctx3, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(monthData),
+                        datasets: [{
+                            label: 'Aylık Harcama',
+                            data: Object.values(monthData),
+                            backgroundColor: '#4f46e5',
+                            borderRadius: 10
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: true, indexAxis: undefined }
+                });
+            }
+        }
+
+        // Raporlar
+        function renderMonthlyReports() {
+            const period = getCurrentPeriod();
+            const processedExpenses = getProcessedExpenses().filter(e => e.effectiveMonth === period);
+            
+            const monthlySummary = document.getElementById('monthlySummaryReport');
+            const total = processedExpenses.reduce((s, e) => s + e.displayAmount, 0);
+            monthlySummary.innerHTML = `
+                <h3 class="text-xl font-black mb-4">Bu Ay Özeti</h3>
+                <div class="text-4xl font-black text-rose-600 mb-2">${total.toLocaleString('tr-TR')} TL</div>
+                <p class="text-sm text-slate-500">Toplam Harcama</p>
+            `;
+
+            const personSummary = document.getElementById('personSummaryReport');
+            const bekirSum = processedExpenses.filter(e => e.person === 'Bekir').reduce((s, e) => s + e.displayAmount, 0);
+            const duyguSum = processedExpenses.filter(e => e.person === 'Duygu').reduce((s, e) => s + e.displayAmount, 0);
+            personSummary.innerHTML = `
+                <h3 class="text-xl font-black mb-4">Kişi Bazında</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between"><span>Bekir</span><span class="font-black text-blue-600">${bekirSum.toLocaleString('tr-TR')} TL</span></div>
+                    <div class="flex justify-between"><span>Duygu</span><span class="font-black text-pink-600">${duyguSum.toLocaleString('tr-TR')} TL</span></div>
+                </div>
+            `;
+
+            const categoryData = {};
+            processedExpenses.forEach(e => {
+                categoryData[e.category] = (categoryData[e.category] || 0) + e.displayAmount;
+            });
+            const detailedReport = document.getElementById('detailedMonthlyReport');
+            detailedReport.innerHTML = Object.entries(categoryData).map(([cat, amt]) => `
+                <div class="bg-slate-50 p-4 rounded-2xl"><div class="font-bold text-sm">${cat}</div><div class="text-2xl font-black text-indigo-600">${amt.toLocaleString('tr-TR')} TL</div></div>
+            `).join('');
+        }
+
+        // Çöp Kutusu
+        function renderTrash() {
+            const stored = localStorage.getItem('deletedExpenses');
+            deletedExpenses = stored ? JSON.parse(stored) : [];
+            const tbody = document.getElementById('trashTableBody');
+            tbody.innerHTML = deletedExpenses.map(item => `
+                <tr>
+                    <td class="px-6 py-4">${item.deletedAt?.substring(0, 10) || '-'}</td>
+                    <td class="px-6 py-4">${item.date}</td>
+                    <td class="px-6 py-4">${item.person}</td>
+                    <td class="px-6 py-4">${item.description}</td>
+                    <td class="px-6 py-4 text-right">${item.amount} TL</td>
+                    <td class="px-6 py-4 text-center"><button onclick="restoreExpense('${item.id}')" class="text-indigo-600 hover:scale-110">↩️</button></td>
+                </tr>
+            `).join('');
+        }
+
+        window.emptyTrash = () => {
+            if (confirm("Çöp kutusunu boşaltmak istediğinize emin misiniz?")) {
+                deletedExpenses = [];
+                localStorage.removeItem('deletedExpenses');
+                renderTrash();
+            }
+        };
+
+        // Alışveriş Yönetimi
+        window.handleShoppingSubmit = async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('shoppingItemInput');
+            if (input.value.trim()) {
+                await addDoc(collection(db, "shoppingList"), { title: input.value.trim(), completed: false, price: 0 });
+                input.value = '';
+            }
+        };
+
+        window.renderShoppingList = () => {
+            const todo = document.getElementById('todoListContainer');
+            const cart = document.getElementById('cartListContainer');
+            todo.innerHTML = ''; cart.innerHTML = '';
+            let total = 0;
+            shoppingItems.forEach(item => {
+                const li = document.createElement('li');
+                if (!item.completed) {
+                    li.className = "flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100";
+                    li.innerHTML = `<span class="font-bold text-slate-700">${item.title}</span><button onclick="toggleShoppingItem('${item.id}', false)" class="bg-indigo-600 text-white p-2 rounded-lg">🛒</button>`;
+                    todo.appendChild(li);
+                } else {
+                    total += (item.price || 0);
+                    li.className = "flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5";
+                    li.innerHTML = `<div class="flex flex-col"><span class="text-white font-bold line-through opacity-40">${item.title}</span><span class="text-indigo-400 text-[10px] font-black">${item.price} TL</span></div><div class="flex gap-2"><button onclick="updateItemPrice('${item.id}')" class="text-xs">💰</button><button onclick="deleteShoppingItem('${item.id}')" class="text-xs">❌</button></div>`;
+                    cart.appendChild(li);
+                }
+            });
+            document.getElementById('cartTotalPrice').innerText = total.toLocaleString('tr-TR') + " TL";
+        };
+
+        window.toggleShoppingItem = async (id, status) => {
+            if (!status) {
+                activeShoppingId = id;
+                document.getElementById('shoppingModalPriceInput').value = '';
+                document.getElementById('shoppingPriceModal').classList.remove('hidden');
+                document.getElementById('shoppingPriceModal').classList.add('flex');
+            }
+        };
+
+        window.updateItemPrice = async (id) => {
+            const item = shoppingItems.find(i => i.id === id);
+            activeShoppingId = id;
+            document.getElementById('shoppingModalPriceInput').value = item.price || '';
+            document.getElementById('shoppingPriceModal').classList.remove('hidden');
+            document.getElementById('shoppingPriceModal').classList.add('flex');
+        };
+
+        window.deleteShoppingItem = async (id) => {
+            if (confirm("Öğeyi silmek istediğinize emin misiniz?")) {
+                await deleteDoc(doc(db, "shoppingList", id));
+            }
+        };
+
+        window.handleShoppingPriceSubmit = async (e) => {
+            e.preventDefault();
+            const price = parseFloat(document.getElementById('shoppingModalPriceInput').value);
+            await updateDoc(doc(db, "shoppingList", activeShoppingId), { completed: true, price });
+            document.getElementById('shoppingPriceModal').classList.add('hidden');
+        };
+
+        // Notlar Yönetimi
+        window.handleNoteSubmit = async (e) => {
+            e.preventDefault();
+            const editId = document.getElementById('editNoteId').value;
+            const content = document.getElementById('noteContent').value;
+            const person = document.getElementById('notePerson').value;
+            
+            if (editId) {
+                await updateDoc(doc(db, "notes", editId), { content, person, date: new Date().toLocaleString() });
+                document.getElementById('editNoteId').value = '';
+            } else {
+                await addDoc(collection(db, "notes"), { content, person, date: new Date().toLocaleString() });
+            }
+            document.getElementById('noteContent').value = '';
+        };
+
+        window.deleteNote = async (id) => {
+            if (confirm("Notu silmek istediğinize emin misiniz?")) {
+                await deleteDoc(doc(db, "notes", id));
+            }
+        };
+
+        function renderNotesList() {
+            const container = document.getElementById('notesContainer');
+            container.innerHTML = '';
+            notes.forEach(n => {
+                container.innerHTML += `<div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100"><div class="flex justify-between items-center mb-4"><span class="px-3 py-1 rounded-lg text-[10px] font-black bg-slate-100">${n.person}</span><span class="text-[9px] text-slate-400">${n.date}</span></div><p class="text-sm font-semibold text-slate-700 mb-4">${n.content}</p><div class="flex gap-2"><button onclick="deleteNote('${n.id}')" class="text-xs px-3 py-1 rounded bg-rose-100 text-rose-600 font-bold hover:bg-rose-600 hover:text-white transition">Sil</button></div></div>`;
+            });
+        }
+
         // Yardımcı Fonksiyonlar
         function getCurrentPeriod() {
             const d = new Date();
@@ -845,6 +1133,7 @@
             document.getElementById('amount').value = '';
             document.getElementById('date').valueAsDate = new Date();
             document.getElementById('description').value = '';
+            document.getElementById('installmentCount').value = '1';
         }
         window.applyFilters = () => {
             currentPersonFilter = document.getElementById('filterPerson').value;
@@ -855,6 +1144,8 @@
         };
         window.resetFilters = () => {
             document.getElementById('filterPerson').value = 'Tümü';
+            document.getElementById('filterCategory').value = 'Tümü';
+            document.getElementById('filterPayment').value = 'Tümü';
             document.getElementById('filterShowInstallments').checked = false;
             applyFilters();
         };
@@ -890,68 +1181,8 @@
             updatePaymentSelects();
         }
 
-        // --- Alışveriş & Notlar Eksik Fonksiyon Bağlamaları ---
-        window.handleShoppingSubmit = async (e) => {
-            e.preventDefault();
-            const input = document.getElementById('shoppingItemInput');
-            if (input.value.trim()) {
-                await addDoc(collection(db, "shoppingList"), { title: input.value.trim(), completed: false, price: 0 });
-                input.value = '';
-            }
-        };
-
-        window.renderShoppingList = () => {
-            const todo = document.getElementById('todoListContainer');
-            const cart = document.getElementById('cartListContainer');
-            todo.innerHTML = ''; cart.innerHTML = '';
-            let total = 0;
-            shoppingItems.forEach(item => {
-                const li = document.createElement('li');
-                li.className = "flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5";
-                if (!item.completed) {
-                    li.className = "flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100";
-                    li.innerHTML = `<span class="font-bold text-slate-700">${item.title}</span><button onclick="toggleShoppingItem('${item.id}', false)" class="bg-indigo-600 text-white p-2 rounded-lg">🛒</button>`;
-                    todo.appendChild(li);
-                } else {
-                    total += (item.price || 0);
-                    li.innerHTML = `<div class="flex flex-col"><span class="text-white font-bold line-through opacity-40">${item.title}</span><span class="text-indigo-400 text-[10px] font-black">${item.price} TL</span></div><div class="flex gap-2"><button onclick="updateItemPrice('${item.id}')" class="text-xs">💰</button><button onclick="deleteShoppingItem('${item.id}')" class="text-xs">❌</button></div>`;
-                    cart.appendChild(li);
-                }
-            });
-            document.getElementById('cartTotalPrice').innerText = total.toLocaleString('tr-TR') + " TL";
-        };
-
-        window.toggleShoppingItem = async (id, status) => {
-            if (!status) {
-                activeShoppingId = id;
-                document.getElementById('shoppingModalPriceInput').value = '';
-                document.getElementById('shoppingPriceModal').classList.remove('hidden');
-                document.getElementById('shoppingPriceModal').classList.add('flex');
-            }
-        };
-
-        window.handleShoppingPriceSubmit = async (e) => {
-            e.preventDefault();
-            const price = parseFloat(document.getElementById('shoppingModalPriceInput').value);
-            await updateDoc(doc(db, "shoppingList", activeShoppingId), { completed: true, price });
-            document.getElementById('shoppingPriceModal').classList.add('hidden');
-        };
-
-        window.handleNoteSubmit = async (e) => {
-            e.preventDefault();
-            const content = document.getElementById('noteContent').value;
-            const person = document.getElementById('notePerson').value;
-            await addDoc(collection(db, "notes"), { content, person, date: new Date().toLocaleString() });
-            document.getElementById('noteContent').value = '';
-        };
-
-        function renderNotesList() {
-            const container = document.getElementById('notesContainer');
-            container.innerHTML = '';
-            notes.forEach(n => {
-                container.innerHTML += `<div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100"><div class="flex justify-between items-center mb-4"><span class="px-3 py-1 rounded-lg text-[10px] font-black bg-slate-100">${n.person}</span><span class="text-[9px] text-slate-400">${n.date}</span></div><p class="text-sm font-semibold text-slate-700">${n.content}</p></div>`;
-            });
-        }
+        window.downloadExcel = () => alert("Excel indirme özelliği yakında eklenecek");
+        window.onIncomeTypeChange = () => {};
     </script>
 </body>
 </html>
