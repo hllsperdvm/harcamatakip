@@ -220,6 +220,7 @@
                                 <input type="checkbox" id="filterShowInstallments" class="rounded border-indigo-200 text-indigo-600 focus:ring-indigo-500">
                                 Taksitleri Göster
                             </label>
+                            <button onclick="openInstallmentsModal()" class="w-full bg-purple-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-purple-700 transition">📊 Ay Başlıkları ile Gör</button>
                             <button onclick="applyFilters()" class="w-full bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">Filtreleri Uygula</button>
                         </div>
                     </div>
@@ -327,6 +328,31 @@
                             </div>
                             <div id="duyguCardStatements" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL: Taksitleri Göster -->
+            <div id="installmentsModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
+                <div class="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 duration-300 max-h-[80vh] overflow-y-auto">
+                    <div class="bg-indigo-600 p-6 text-white flex justify-between items-center sticky top-0">
+                        <h2 class="text-2xl font-black">💳 Taksitler</h2>
+                        <button onclick="closeInstallmentsModal()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition text-2xl font-light">&times;</button>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <!-- Özet -->
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <div class="bg-blue-50 p-4 rounded-2xl border border-blue-200">
+                                <p class="text-xs text-slate-600 font-semibold mb-1">Toplam Taksit Tutarı</p>
+                                <p id="totalInstallmentAmount" class="text-2xl font-black text-blue-600">0,00 TL</p>
+                            </div>
+                            <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-200">
+                                <p class="text-xs text-slate-600 font-semibold mb-1">Seçili Ayın Tutarı</p>
+                                <p id="selectedMonthAmount" class="text-2xl font-black text-indigo-600">0,00 TL</p>
+                            </div>
+                        </div>
+                        <!-- Aylar -->
+                        <div id="installmentsContainer" class="space-y-3"></div>
                     </div>
                 </div>
             </div>
@@ -459,9 +485,11 @@
                                     <p class="text-sm text-slate-600 font-semibold mb-1">100 km'de Yakıt Tüketimi</p>
                                     <p id="consumptionLiter" class="text-3xl font-black text-blue-600">0,00 L</p>
                                 </div>
-                                <div class="bg-gradient-to-br from-amber-50 to-orange-50 p-6 rounded-2xl border border-amber-200">
-                                    <p class="text-sm text-slate-600 font-semibold mb-1">100 km'de Yakıt Maliyeti</p>
-                                    <p id="consumptionCost" class="text-3xl font-black text-amber-600">0,00 TL</p>
+                        
+                                    <div class="bg-gradient-to-br from-rose-50 to-pink-50 p-6 rounded-2xl border border-rose-200">
+                                        <p class="text-sm text-slate-600 font-semibold mb-1">1 km'de Yakıt Maliyeti</p>
+                                        <p id="costPerKm" class="text-3xl font-black text-rose-600">0,00 TL</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2018,9 +2046,11 @@
             const litersUsed = paidAmount / fuelPrice;
             const consumptionPer100km = (litersUsed / distance) * 100;
             const costPer100km = (paidAmount / distance) * 100;
+            const costPerKm = costPer100km / 100; // 1 km maliyeti
 
             document.getElementById('consumptionLiter').innerText = consumptionPer100km.toFixed(2) + ' L';
             document.getElementById('consumptionCost').innerText = costPer100km.toFixed(2) + ' TL';
+            document.getElementById('costPerKm').innerText = costPerKm.toFixed(4) + ' TL';
             document.getElementById('fuelResults').classList.remove('hidden');
         };
 
@@ -2075,6 +2105,96 @@
             document.getElementById('operationName').innerText = operationName;
             document.getElementById('percentageResult').innerText = result.toFixed(2);
             document.getElementById('percentageResults').classList.remove('hidden');
+        };
+
+        // ==================== TAKSITLER MODAL ====================
+        
+        let selectedInstallmentMonth = null;
+
+        window.openInstallmentsModal = () => {
+            document.getElementById('installmentsModal').classList.remove('hidden');
+            document.getElementById('installmentsModal').classList.add('flex');
+            renderInstallmentsByMonth();
+        };
+
+        window.closeInstallmentsModal = () => {
+            document.getElementById('installmentsModal').classList.add('hidden');
+            document.getElementById('installmentsModal').classList.remove('flex');
+            selectedInstallmentMonth = null;
+        };
+
+        function renderInstallmentsByMonth() {
+            const allInstallments = getProcessedExpenses().filter(exp => exp.installmentLabel !== 'Peşin');
+            const monthNames = ['Ocak', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+            
+            // Taksitleri aya göre grupla
+            const grouped = {};
+            allInstallments.forEach(exp => {
+                const dateStr = exp.date || '';
+                const [year, month] = dateStr.split('-');
+                const key = `${year}-${month}`;
+                if (!grouped[key]) {
+                    grouped[key] = {
+                        month: parseInt(month),
+                        year: parseInt(year),
+                        items: [],
+                        total: 0
+                    };
+                }
+                grouped[key].items.push(exp);
+                grouped[key].total += exp.displayAmount;
+            });
+
+            // Toplam taksit tutarı
+            const totalAmount = allInstallments.reduce((sum, exp) => sum + exp.displayAmount, 0);
+            document.getElementById('totalInstallmentAmount').innerText = totalAmount.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' TL';
+            
+            // Seçili ay tutarını güncelle
+            if (selectedInstallmentMonth) {
+                const selectedMonth = grouped[selectedInstallmentMonth];
+                document.getElementById('selectedMonthAmount').innerText = (selectedMonth?.total || 0).toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' TL';
+            } else {
+                document.getElementById('selectedMonthAmount').innerText = '0,00 TL';
+            }
+
+            // Ayları sırala (en yeniden en eskiye)
+            const sortedMonths = Object.keys(grouped).sort((a, b) => {
+                const [yearA, monthA] = a.split('-').map(Number);
+                const [yearB, monthB] = b.split('-').map(Number);
+                return yearB - yearA || monthB - monthA;
+            });
+
+            const container = document.getElementById('installmentsContainer');
+            container.innerHTML = sortedMonths.map(key => {
+                const data = grouped[key];
+                const monthName = monthNames[data.month - 1];
+                const isSelected = key === selectedInstallmentMonth;
+                
+                return `
+                    <div class="border border-slate-200 rounded-2xl overflow-hidden">
+                        <button onclick="toggleInstallmentMonth('${key}')" class="w-full p-4 bg-slate-50 hover:bg-slate-100 transition flex justify-between items-center font-bold text-slate-900">
+                            <span>${monthName} ${data.year}</span>
+                            <span class="text-indigo-600">${data.total.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} TL</span>
+                        </button>
+                        <div class="${isSelected ? '' : 'hidden'} p-4 space-y-2 bg-white">
+                            ${data.items.map((item, idx) => `
+                                <div class="flex justify-between items-start text-sm p-3 bg-slate-50 rounded-lg">
+                                    <div class="flex-1">
+                                        <p class="font-bold text-slate-900">${item.category}</p>
+                                        <p class="text-xs text-slate-500">${item.date} - ${item.installmentLabel}</p>
+                                    </div>
+                                    <p class="font-bold text-indigo-600 ml-4">${item.displayAmount.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 2})} TL</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.toggleInstallmentMonth = (monthKey) => {
+            selectedInstallmentMonth = selectedInstallmentMonth === monthKey ? null : monthKey;
+            renderInstallmentsByMonth();
         };
 
         window.onIncomeTypeChange = () => {};
