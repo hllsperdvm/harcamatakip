@@ -189,10 +189,10 @@
                     </div>
 
                     <!-- Filtreler (Gizli Panel) -->
-                    <div id="filterPanel" class="hidden p-6 bg-slate-50/50 border-b border-slate-200 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    <div id="filterPanel" class="hidden p-6 bg-slate-50/50 border-b border-slate-200 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                         <div class="flex flex-col gap-1">
                             <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Kişi</label>
-                            <select id="filterPerson" onchange="applyFilters()" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500">
+                            <select id="filterPerson" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500">
                                 <option value="Tümü">Tümü</option>
                                 <option value="Bekir">Bekir</option>
                                 <option value="Duygu">Duygu</option>
@@ -201,24 +201,27 @@
                         </div>
                         <div class="flex flex-col gap-1">
                             <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Kategori</label>
-                            <select id="filterCategory" onchange="applyFilters()" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500"></select>
+                            <select id="filterCategory" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500"></select>
                         </div>
                         <div class="flex flex-col gap-1">
                             <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Ödeme</label>
-                            <select id="filterPayment" onchange="applyFilters()" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500"></select>
+                            <select id="filterPayment" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500"></select>
                         </div>
                         <div class="flex flex-col gap-1">
                             <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Başlangıç</label>
-                            <input type="date" id="filterStartDate" onchange="applyFilters()" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500">
+                            <input type="date" id="filterStartDate" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500">
                         </div>
                         <div class="flex flex-col gap-1">
                             <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Bitiş</label>
-                            <input type="date" id="filterEndDate" onchange="applyFilters()" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500">
+                            <input type="date" id="filterEndDate" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500">
                         </div>
-                        <label class="flex items-center gap-2 text-xs font-bold text-indigo-600 cursor-pointer col-span-2 md:col-span-3 lg:col-span-1 bg-white px-4 py-2 rounded-xl">
-                            <input type="checkbox" id="filterShowInstallments" onchange="applyFilters()" class="rounded border-indigo-200 text-indigo-600 focus:ring-indigo-500">
-                            Taksitleri Göster
-                        </label>
+                        <div class="flex flex-col gap-2 justify-center">
+                            <label class="flex items-center gap-2 text-xs font-bold text-indigo-600 cursor-pointer bg-white px-3 py-2 rounded-xl">
+                                <input type="checkbox" id="filterShowInstallments" class="rounded border-indigo-200 text-indigo-600 focus:ring-indigo-500">
+                                Taksitleri Göster
+                            </label>
+                            <button onclick="applyFilters()" class="w-full bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">Filtreleri Uygula</button>
+                        </div>
                     </div>
 
                     <div class="overflow-x-auto">
@@ -682,6 +685,7 @@
         
         let sortColumn = 'date', sortDirection = 'desc';
         let currentPersonFilter = 'Tümü', currentCategoryFilter = 'Tümü', currentPaymentFilter = 'Tümü';
+        let currentStartDateFilter = '', currentEndDateFilter = '';
         let currentShowInstallments = false;
         let activeShoppingId = null, activeShoppingAction = 'complete';
 
@@ -1105,6 +1109,11 @@
                 if (currentPersonFilter !== 'Tümü' && item.person !== currentPersonFilter) return false;
                 if (currentCategoryFilter !== 'Tümü' && item.category !== currentCategoryFilter) return false;
                 if (currentPaymentFilter !== 'Tümü' && item.paymentType !== currentPaymentFilter) return false;
+                
+                // Tarih aralığı filtreleme
+                if (currentStartDateFilter && item.date < currentStartDateFilter) return false;
+                if (currentEndDateFilter && item.date > currentEndDateFilter) return false;
+                
                 return true;
             });
 
@@ -1920,6 +1929,8 @@
             currentPersonFilter = document.getElementById('filterPerson').value;
             currentCategoryFilter = document.getElementById('filterCategory').value;
             currentPaymentFilter = document.getElementById('filterPayment').value;
+            currentStartDateFilter = document.getElementById('filterStartDate').value;
+            currentEndDateFilter = document.getElementById('filterEndDate').value;
             currentShowInstallments = document.getElementById('filterShowInstallments').checked;
             renderTable();
         };
@@ -1927,8 +1938,19 @@
             document.getElementById('filterPerson').value = 'Tümü';
             document.getElementById('filterCategory').value = 'Tümü';
             document.getElementById('filterPayment').value = 'Tümü';
+            document.getElementById('filterStartDate').value = '';
+            document.getElementById('filterEndDate').value = '';
             document.getElementById('filterShowInstallments').checked = false;
-            applyFilters();
+            
+            // Global filtre değişkenlerini de sıfırla
+            currentPersonFilter = 'Tümü';
+            currentCategoryFilter = 'Tümü';
+            currentPaymentFilter = 'Tümü';
+            currentStartDateFilter = '';
+            currentEndDateFilter = '';
+            currentShowInstallments = false;
+            
+            renderTable();
         };
         window.sortTable = (col) => {
             if (sortColumn === col) sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
@@ -2059,3 +2081,4 @@
     </script>
 </body>
 </html>
+```
