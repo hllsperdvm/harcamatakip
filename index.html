@@ -30,7 +30,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
             </div>
-            <h2 class="mb-2 text-2xl font-extrabold text-slate-900">Hoş Geldiniz</h2>
+            <h2 class="mb-2 text-2xl font-extrabold text-slate-900">YUVAM'a Giriş</h2>
             <p class="mb-8 text-slate-500 font-medium">Lütfen 4 haneli şifreyi giriniz</p>
             <input type="password" id="sifreInput" inputmode="numeric" pattern="[0-9]*" placeholder="••••" maxlength="4" class="w-full rounded-2xl border-none bg-white p-4 text-center text-3xl tracking-[0.5em] shadow-sm ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none mb-4" onkeypress="handlePasswordKeyPress(event)">
             <button onclick="checkPassword()" class="w-full rounded-2xl bg-indigo-600 py-4 font-bold text-white shadow-lg shadow-indigo-100 transition hover:bg-indigo-700 active:scale-[0.98]">Giriş Yap</button>
@@ -275,6 +275,42 @@
                     <h3 class="text-xl font-black mb-6">Detaylı Kategori Raporu</h3>
                     <div id="detailedMonthlyReport" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
                 </div>
+
+                <!-- Güncel Ekstreler Bölümü -->
+                <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
+                    <div class="flex justify-between items-center mb-8">
+                        <h3 class="text-xl font-black">📊 Güncel Kredi Kartı Ekstreleri</h3>
+                        <p class="text-[11px] text-slate-400 font-semibold uppercase">Ödenmemiş tutarlar</p>
+                    </div>
+                    <div id="currentStatementsContainer" class="space-y-6">
+                        <div class="text-center text-slate-400 py-8">
+                            <p class="text-sm">Henüz ekstre kaydı yok</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ekstre Detay Modal -->
+                <div id="statementDetailModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
+                    <div class="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 duration-300 max-h-[80vh] overflow-y-auto">
+                        <div class="bg-indigo-600 p-8 text-white flex justify-between items-center sticky top-0">
+                            <div>
+                                <h2 id="statementTitle" class="text-2xl font-black">Ekstre Detayları</h2>
+                                <p id="statementDateRange" class="text-sm text-indigo-100 mt-1">Dönem</p>
+                            </div>
+                            <button onclick="closeStatementDetail()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition text-2xl font-light">&times;</button>
+                        </div>
+                        <div class="p-8 space-y-4">
+                            <div class="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-2xl border border-indigo-200 mb-6">
+                                <p class="text-sm text-slate-600 font-semibold mb-1">Ekstre Tutarı</p>
+                                <p id="statementAmount" class="text-4xl font-black text-indigo-600">0,00 TL</p>
+                            </div>
+                            <div id="statementItems" class="space-y-3">
+                                <!-- Harcama öğeleri buraya gelecek -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
                     <div class="flex justify-between items-center mb-8">
                         <h3 class="text-xl font-black">💳 Kredi Kartı Ekstreleri</h3>
@@ -301,6 +337,49 @@
 
             <div id="tabContentNotes" class="hidden animate-in fade-in duration-500">
                 <div class="max-w-4xl mx-auto space-y-8">
+                    <!-- IBAN Yönetimi -->
+                    <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-black">💳 IBAN Numaraları</h2>
+                            <button onclick="openIbanModal()" class="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition">+ IBAN Ekle</button>
+                        </div>
+                        <div id="ibanListContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="text-center text-slate-400 py-8 col-span-full">
+                                <p class="text-sm">Henüz IBAN kaydı yok</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- IBAN Ekle Modal -->
+                    <div id="ibanModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[110] p-4">
+                        <div class="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 duration-300">
+                            <div class="bg-indigo-600 p-6 text-white flex justify-between items-center">
+                                <h2 class="text-2xl font-black">IBAN Ekle</h2>
+                                <button onclick="closeIbanModal()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition text-2xl font-light">&times;</button>
+                            </div>
+                            <form onsubmit="handleIbanSubmit(event)" class="p-8 space-y-4">
+                                <input type="hidden" id="editIbanId">
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-600 mb-2">Adı Soyadı</label>
+                                    <input type="text" id="ibanOwnerName" required placeholder="Ad ve Soyad" class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-600 mb-2">İBAN No</label>
+                                    <input type="text" id="ibanNumber" required placeholder="TR00 0000 0000..." class="w-full bg-slate-50 border-none rounded-2xl p-4 font-mono text-sm outline-none focus:ring-2 focus:ring-indigo-500 uppercase">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-bold text-slate-600 mb-2">Banka</label>
+                                    <input type="text" id="ibanBank" required placeholder="Banka adı" class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                                </div>
+                                <div class="flex gap-3 pt-4">
+                                    <button type="button" onclick="closeIbanModal()" class="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition">Vazgeç</button>
+                                    <button type="submit" class="flex-1 py-3 rounded-2xl bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition">Kaydet</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Notlar Bölümü -->
                     <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
                         <h2 id="noteFormTitle" class="text-xl font-black mb-6">Not Paylaş</h2>
                         <form onsubmit="handleNoteSubmit(event)" class="space-y-4">
@@ -636,6 +715,8 @@
                 renderMonthlyReports();
             } else if (tabName === 'trash') {
                 renderTrash();
+            } else if (tabName === 'notes') {
+                renderIbans();
             }
         };
 
@@ -863,28 +944,61 @@
             const id = document.getElementById('editId').value;
             const amount = parseFloat(document.getElementById('amount').value);
             const installment = parseInt(document.getElementById('installmentCount').value) || 1;
+            const person = document.getElementById('person').value;
+            const paymentType = document.getElementById('paymentType').value;
+            const date = document.getElementById('date').value;
+            const description = document.getElementById('description').value || '-';
+            const category = document.getElementById('category').value;
+            
             const data = {
                 amount, 
                 installmentCount: installment,
                 amountPerInstallment: amount / installment,
-                person: document.getElementById('person').value,
-                category: document.getElementById('category').value,
-                paymentType: document.getElementById('paymentType').value,
-                date: document.getElementById('date').value,
-                description: document.getElementById('description').value || '-',
-                expenseMonth: document.getElementById('date').value.substring(0, 7)
+                person: person,
+                category: category,
+                paymentType: paymentType,
+                date: date,
+                description: description,
+                expenseMonth: date.substring(0, 7)
             };
-            if (id) await updateDoc(doc(db, "expenses", id), data);
-            else await addDoc(collection(db, "expenses"), data);
+            
+            if (id) {
+                // Güncelleme: eski ekstresinden sil, yeni ekstrese ekle
+                const oldExpense = expenses.find(e => e.id === id);
+                if (oldExpense && oldExpense.person && oldExpense.paymentType === 'Kredi Kartı') {
+                    await removeFromStatement(id, oldExpense.person, oldExpense.date, oldExpense.amount);
+                }
+                await updateDoc(doc(db, "expenses", id), data);
+            } else {
+                await addDoc(collection(db, "expenses"), data);
+            }
+            
+            // Kredi kartı harcamasıysa ekstrese ekle
+            if (person && paymentType === 'Kredi Kartı') {
+                await addToStatement(id, person, date, description, amount, category);
+            }
+            
+            renderTable();
+            updateStatsPanel();
+            renderCurrentStatements();
             closeExpenseModal();
         };
 
         window.deleteExpense = async (id) => {
             if (!confirm("Silmek istediğinize emin misiniz?")) return;
             const item = expenses.find(e => e.id === id);
+            
+            // Kredi kartı harcamasıysa ekstresinden sil
+            if (item && item.person && item.paymentType === 'Kredi Kartı') {
+                await removeFromStatement(id, item.person, item.date, item.amount);
+            }
+            
             deletedExpenses.push({...item, deletedAt: new Date().toISOString()});
             localStorage.setItem('deletedExpenses', JSON.stringify(deletedExpenses));
             await deleteDoc(doc(db, "expenses", id));
+            renderTable();
+            updateStatsPanel();
+            renderCurrentStatements();
         };
 
         window.editExpense = (id) => {
@@ -928,6 +1042,8 @@
                 const count = item.installmentCount || 1;
                 const perAmount = item.amountPerInstallment || item.amount;
                 const startMonth = item.expenseMonth || item.date?.substring(0, 7);
+                const originalDate = item.date; // Orijinal tarih (Tem-05 gibi)
+                const originalDay = originalDate ? parseInt(originalDate.split('-')[2]) : 1; // Gün bilgisi
 
                 if (count <= 1) {
                     processed.push({...item, displayAmount: item.amount, installmentLabel: 'Peşin', effectiveMonth: startMonth});
@@ -938,10 +1054,12 @@
 
                     if (currentShowInstallments) {
                         for (let i = 0; i < count; i++) {
-                            const d = new Date(startYear, startM - 1 + i, 1);
+                            const d = new Date(startYear, startM - 1 + i, originalDay); // Orijinal günü koru
                             const mStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
                             if (mStr >= period) {
-                                processed.push({...item, id: item.id + '_ins_' + i, displayAmount: perAmount, installmentLabel: `Taksit ${i+1}/${count}`, effectiveMonth: mStr, date: mStr + '-01'});
+                                // Tarih formatını düzelt: YYYY-MM-DD
+                                const dateStr = `${mStr}-${String(originalDay).padStart(2,'0')}`;
+                                processed.push({...item, id: item.id + '_ins_' + i, displayAmount: perAmount, installmentLabel: `Taksit ${i+1}/${count}`, effectiveMonth: mStr, date: dateStr});
                             }
                         }
                     } else if (diff >= 0 && diff < count) {
@@ -1150,9 +1268,114 @@
             // Kredi kartı ekstreleri render et
             renderCardStatements('bekir');
             renderCardStatements('duygu');
+            renderCurrentStatements();
         }
 
         window.cardStatements = [];
+        window.currentStatements = [];
+
+        // Ekstre Dönemi Hesapla (28 - 28 aralığı)
+        function calculateStatementPeriod(dateStr) {
+            const date = new Date(dateStr);
+            const day = date.getDate();
+            const month = date.getMonth();
+            const year = date.getFullYear();
+            
+            if (day >= 28) {
+                // Sonraki ayın ekstesi
+                const nextMonth = new Date(year, month + 1, 1);
+                return `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`;
+            } else {
+                // Bu ayın ekstesi
+                return `${year}-${String(month + 1).padStart(2, '0')}`;
+            }
+        }
+
+        // Ekstrese harcama ekle
+        window.addToStatement = async (expenseId, person, dateStr, description, amount, category) => {
+            const statementMonth = calculateStatementPeriod(dateStr);
+            const docId = `${person.toLowerCase()}_${statementMonth}`;
+            
+            try {
+                const docRef = doc(db, "currentStatements", docId);
+                const docSnap = await getDoc(docRef);
+                
+                const itemData = {
+                    expenseId: expenseId,
+                    date: dateStr,
+                    description: description,
+                    amount: amount,
+                    category: category || 'Genel'
+                };
+                
+                if (docSnap.exists()) {
+                    // Var olan ekstrese ekle
+                    const currentData = docSnap.data();
+                    const items = currentData.items || [];
+                    const newAmount = (currentData.amount || 0) + amount;
+                    items.push(itemData);
+                    await setDoc(docRef, {
+                        ...currentData,
+                        amount: newAmount,
+                        items: items
+                    });
+                } else {
+                    // Yeni ekstre oluştur
+                    const startDay = new Date(statementMonth + "-01");
+                    const prevMonth = new Date(startDay.getFullYear(), startDay.getMonth() - 1, 28);
+                    const endDay = new Date(startDay.getFullYear(), startDay.getMonth(), 28);
+                    
+                    await setDoc(docRef, {
+                        person: person,
+                        month: statementMonth,
+                        startDate: `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}-28`,
+                        endDate: `${endDay.getFullYear()}-${String(endDay.getMonth() + 1).padStart(2, '0')}-28`,
+                        amount: amount,
+                        items: [itemData],
+                        paid: false,
+                        paidDate: null,
+                        createdAt: new Date().toISOString()
+                    });
+                }
+            } catch (err) {
+                console.error("Ekstre ekleme hatası:", err);
+            }
+        };
+
+        // Ekstresinden harcama sil
+        window.removeFromStatement = async (expenseId, person, dateStr, amount) => {
+            const statementMonth = calculateStatementPeriod(dateStr);
+            const docId = `${person.toLowerCase()}_${statementMonth}`;
+            
+            try {
+                const docRef = doc(db, "currentStatements", docId);
+                const docSnap = await getDoc(docRef);
+                
+                if (docSnap.exists()) {
+                    const currentData = docSnap.data();
+                    const items = (currentData.items || []).filter(item => item.expenseId !== expenseId);
+                    const newAmount = Math.max(0, (currentData.amount || 0) - amount);
+                    
+                    if (newAmount === 0 && items.length === 0) {
+                        // Ekstre boşsa sil
+                        await deleteDoc(docRef);
+                    } else {
+                        // Ekstre güncelle
+                        await setDoc(docRef, {
+                            ...currentData,
+                            amount: newAmount,
+                            items: items
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error("Ekstre silme hatası:", err);
+            }
+        };
+
+        // Güncel ekstreleri render et
+
+        // Ekstre detay modal'ını kapat
         
         function renderCardStatements(person) {
             const sortedStatements = cardStatements
@@ -1187,9 +1410,219 @@
             }).join('');
         }
 
+        // ==================== OTOMATIK EKSTRE HESAPLAMA SISTEMI ====================
+        
+        // Her ayın 28'sinden diğer ayın 28'sine kadar olan tarih aralığını hesapla
+        function getCardStatementPeriod(date = new Date()) {
+            const year = date.getFullYear();
+            const month = date.getMonth(); // 0-11
+            const day = date.getDate();
+            const monthNames = ['Ocak', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+            
+            if (day >= 28) {
+                // 28-31 arası = bu ayın 28'si ile sonraki ayın 28'si arasında
+                const startMonth = month;
+                const endMonth = month + 1;
+                return {
+                    startDate: new Date(year, startMonth, 28),
+                    endDate: new Date(year, endMonth, 28),
+                    label: `${monthNames[startMonth]} - ${monthNames[endMonth % 12]}`,
+                    startMonth: startMonth,
+                    endMonth: endMonth % 12,
+                    startYear: year,
+                    endYear: endMonth > 11 ? year + 1 : year
+                };
+            } else {
+                // 1-28 arası = önceki ayın 28'si ile bu ayın 28'si arasında
+                const startMonth = month - 1;
+                const endMonth = month;
+                return {
+                    startDate: new Date(year, startMonth, 28),
+                    endDate: new Date(year, endMonth, 28),
+                    label: `${monthNames[startMonth < 0 ? 11 : startMonth]} - ${monthNames[endMonth]}`,
+                    startMonth: startMonth < 0 ? 11 : startMonth,
+                    endMonth: endMonth,
+                    startYear: startMonth < 0 ? year - 1 : year,
+                    endYear: year
+                };
+            }
+        }
+        
+        let currentStatements = [];
+        
+        // Güncel ekstreleri hesapla
+        function calculateCurrentCardStatements() {
+            const period = getCardStatementPeriod();
+            const allExpenses = getProcessedExpenses();
+            
+            // Taksitleri de eklemek için, tüm harcamaları ve taksitlerini alalım
+            let allWithInstallments = [];
+            expenses.forEach(item => {
+                const count = item.installmentCount || 1;
+                const perAmount = item.amountPerInstallment || item.amount;
+                const startMonth = item.expenseMonth || item.date?.substring(0, 7);
+                const originalDate = item.date;
+                const originalDay = originalDate ? parseInt(originalDate.split('-')[2]) : 1;
+                const [startYear, startM] = startMonth.split('-').map(Number);
+
+                // Orijinal harcama
+                if (count === 1) {
+                    allWithInstallments.push({
+                        ...item, 
+                        displayAmount: item.amount, 
+                        installmentLabel: 'Peşin', 
+                        effectiveMonth: startMonth,
+                        date: originalDate
+                    });
+                } else {
+                    // Taksitler
+                    for (let i = 0; i < count; i++) {
+                        const d = new Date(startYear, startM - 1 + i, originalDay);
+                        const mStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                        const dateStr = `${mStr}-${String(originalDay).padStart(2,'0')}`;
+                        allWithInstallments.push({
+                            ...item, 
+                            id: item.id + '_ins_' + i, 
+                            displayAmount: perAmount, 
+                            installmentLabel: `Taksit ${i+1}/${count}`, 
+                            effectiveMonth: mStr, 
+                            date: dateStr
+                        });
+                    }
+                }
+            });
+
+            // Bekir'in Kredi Kartı harcamaları ve taksitleri
+            const bekirCreditExpenses = allWithInstallments.filter(exp => {
+                const expDate = new Date(exp.date);
+                return exp.person === 'Bekir' && 
+                       exp.paymentType === 'Kredi Kartı' &&
+                       expDate >= period.startDate && 
+                       expDate <= period.endDate;
+            });
+            
+            // Duygu'nun Kredi Kartı harcamaları ve taksitleri
+            const duygoCreditExpenses = allWithInstallments.filter(exp => {
+                const expDate = new Date(exp.date);
+                return exp.person === 'Duygu' && 
+                       exp.paymentType === 'Kredi Kartı' &&
+                       expDate >= period.startDate && 
+                       expDate <= period.endDate;
+            });
+            
+            currentStatements = [
+                {
+                    person: 'Bekir',
+                    amount: bekirCreditExpenses.reduce((sum, exp) => sum + exp.displayAmount, 0),
+                    expenses: bekirCreditExpenses,
+                    period: period,
+                    color: 'blue'
+                },
+                {
+                    person: 'Duygu',
+                    amount: duygoCreditExpenses.reduce((sum, exp) => sum + exp.displayAmount, 0),
+                    expenses: duygoCreditExpenses,
+                    period: period,
+                    color: 'pink'
+                }
+            ];
+            
+            return currentStatements;
+        }
+        
+        // Ekstre detaylarını aç
+        window.openStatementDetails = (person) => {
+            const statement = currentStatements.find(s => s.person === person);
+            if (!statement || statement.amount === 0) {
+                alert(`${person} için bu dönemde kredi kartı harcaması yok`);
+                return;
+            }
+            
+            const startDate = statement.period.startDate.toLocaleDateString('tr-TR');
+            const endDate = statement.period.endDate.toLocaleDateString('tr-TR');
+            
+            document.getElementById('statementTitle').innerText = `${person} - Kredi Kartı Ekstres`;
+            document.getElementById('statementDateRange').innerText = `${startDate} - ${endDate}`;
+            document.getElementById('statementAmount').innerText = statement.amount.toLocaleString('tr-TR') + ' TL';
+            
+            const itemsContainer = document.getElementById('statementItems');
+            if (statement.expenses.length === 0) {
+                itemsContainer.innerHTML = '<p class="text-center text-slate-400 py-8">Bu dönem kredi kartı ile harcama yapılmamış</p>';
+            } else {
+                itemsContainer.innerHTML = statement.expenses
+                    .sort((a, b) => new Date(b.date) - new Date(a.date))
+                    .map(exp => `
+                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 hover:border-slate-300 transition">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="flex-1">
+                                    <p class="font-bold text-slate-900">${exp.category}</p>
+                                    <p class="text-xs text-slate-500 mt-1">${exp.description}</p>
+                                </div>
+                                <p class="font-black text-lg text-slate-900 ml-4">${exp.displayAmount.toLocaleString('tr-TR')} TL</p>
+                            </div>
+                            <div class="flex justify-between text-xs text-slate-400">
+                                <span>${exp.date}</span>
+                                ${exp.installmentLabel !== 'Peşin' ? `<span class="text-indigo-600 font-semibold">${exp.installmentLabel}</span>` : ''}
+                            </div>
+                        </div>
+                    `).join('');
+            }
+            
+            document.getElementById('statementDetailModal').classList.remove('hidden');
+            document.getElementById('statementDetailModal').classList.add('flex');
+        };
+        
+        window.closeStatementDetail = () => {
+            document.getElementById('statementDetailModal').classList.add('hidden');
+            document.getElementById('statementDetailModal').classList.remove('flex');
+        };
+        
+        // Güncel ekstreleri render et
+        function renderCurrentStatements() {
+            calculateCurrentCardStatements();
+            const container = document.getElementById('currentStatementsContainer');
+            
+            const statementsWithAmount = currentStatements.filter(s => s.amount > 0);
+            
+            if (statementsWithAmount.length === 0) {
+                container.innerHTML = '<div class="text-center text-slate-400 py-8"><p class="text-sm">Bu dönem kredi kartı harcaması yapılmamış</p></div>';
+                return;
+            }
+            
+            container.innerHTML = statementsWithAmount.map(stmt => `
+                <div class="bg-gradient-to-br ${stmt.color === 'blue' ? 'from-blue-50 to-blue-100 border-blue-200' : 'from-pink-50 to-pink-100 border-pink-200'} p-6 rounded-2xl border cursor-pointer hover:shadow-lg transition"
+                     onclick="openStatementDetails('${stmt.person}')">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <p class="text-sm font-bold text-slate-600 uppercase tracking-wider">${stmt.person}</p>
+                            <p class="text-4xl font-black ${stmt.color === 'blue' ? 'text-blue-600' : 'text-pink-600'} mt-2">${stmt.amount.toLocaleString('tr-TR')}</p>
+                            <p class="text-[11px] text-slate-500 mt-3">TL</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-slate-600 mb-3 font-semibold">${stmt.period.label}</p>
+                            <p class="text-3xl">💳</p>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-opacity-30 ${stmt.color === 'blue' ? 'border-blue-300' : 'border-pink-300'}">
+                        <p class="text-xs text-slate-600 mb-2">${stmt.expenses.length} harcama</p>
+                        <button onclick="event.stopPropagation(); openStatementDetails('${stmt.person}')" 
+                                class="w-full py-2 bg-white/70 hover:bg-white text-slate-700 font-bold text-xs rounded-lg transition">
+                            Detayları Gör →
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // CardStatements (ödenen ekstreleri) dinle
         onSnapshot(collection(db, "cardStatements"), snap => {
             cardStatements = snap.docs.map(d => ({...d.data(), id: d.id}));
         }, err => console.error("Cardstatements yüklemesinde hata:", err));
+
+        onSnapshot(collection(db, "currentStatements"), snap => {
+            currentStatements = snap.docs.map(d => ({...d.data(), id: d.id}));
+            renderCurrentStatements();
+        }, err => console.error("CurrentStatements yüklemesinde hata:", err));
 
         // Çöp Kutusu
         function renderTrash() {
@@ -1276,6 +1709,108 @@
             await updateDoc(doc(db, "shoppingList", activeShoppingId), { completed: true, price });
             document.getElementById('shoppingPriceModal').classList.add('hidden');
         };
+
+        // ==================== IBAN YÖNETIMI ====================
+        
+        window.ibans = [];
+
+        window.openIbanModal = () => {
+            document.getElementById('editIbanId').value = '';
+            document.getElementById('ibanOwnerName').value = '';
+            document.getElementById('ibanNumber').value = '';
+            document.getElementById('ibanBank').value = '';
+            document.getElementById('ibanModal').classList.remove('hidden');
+            document.getElementById('ibanModal').classList.add('flex');
+        };
+
+        window.closeIbanModal = () => {
+            document.getElementById('ibanModal').classList.add('hidden');
+            document.getElementById('ibanModal').classList.remove('flex');
+        };
+
+        window.handleIbanSubmit = async (e) => {
+            e.preventDefault();
+            const editId = document.getElementById('editIbanId').value;
+            const ownerName = document.getElementById('ibanOwnerName').value;
+            const ibanNumber = document.getElementById('ibanNumber').value.toUpperCase();
+            const bank = document.getElementById('ibanBank').value;
+
+            // IBAN format kontrolü (basit)
+            if (!ibanNumber.startsWith('TR') || ibanNumber.length < 24) {
+                alert('Geçerli bir IBAN numarası girin (TR ile başlamalı, en az 24 karakter)');
+                return;
+            }
+
+            const data = {
+                ownerName,
+                ibanNumber,
+                bank,
+                createdAt: new Date().toISOString()
+            };
+
+            if (editId) {
+                await updateDoc(doc(db, "ibans", editId), data);
+            } else {
+                await addDoc(collection(db, "ibans"), data);
+            }
+
+            closeIbanModal();
+        };
+
+        window.deleteIban = async (id) => {
+            if (!confirm('Bu IBAN kaydını silmek istediğinize emin misiniz?')) return;
+            await deleteDoc(doc(db, "ibans", id));
+        };
+
+        window.copyIban = (ibanNumber) => {
+            navigator.clipboard.writeText(ibanNumber);
+            alert('IBAN kopyalandı: ' + ibanNumber);
+        };
+
+        function renderIbans() {
+            const container = document.getElementById('ibanListContainer');
+            
+            if (ibans.length === 0) {
+                container.innerHTML = '<div class="text-center text-slate-400 py-8 col-span-full"><p class="text-sm">Henüz IBAN kaydı yok</p></div>';
+                return;
+            }
+
+            container.innerHTML = ibans.map(iban => `
+                <div class="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-2xl border border-indigo-200 hover:shadow-lg transition">
+                    <div class="space-y-3">
+                        <div>
+                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Adı Soyadı</p>
+                            <p class="text-lg font-black text-slate-900">${iban.ownerName}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">İBAN No</p>
+                            <div class="flex items-center gap-2">
+                                <p class="text-sm font-mono bg-white px-4 py-2 rounded-xl border border-indigo-200 flex-1">${iban.ibanNumber.replace(/(.{4})/g, '$1 ')}</p>
+                                <button onclick="copyIban('${iban.ibanNumber}')" class="bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded-xl transition" title="Kopyala">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Banka</p>
+                            <p class="text-sm font-bold text-slate-700">${iban.bank}</p>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-indigo-200/50 flex gap-2">
+                        <button onclick="deleteIban('${iban.id}')" class="flex-1 py-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs rounded-lg transition">
+                            Sil
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        onSnapshot(collection(db, "ibans"), snap => {
+            ibans = snap.docs.map(d => ({...d.data(), id: d.id}));
+            renderIbans();
+        }, err => console.error("IBAN yüklemesinde hata:", err));
 
         // Notlar Yönetimi
         window.handleNoteSubmit = async (e) => {
