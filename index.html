@@ -986,23 +986,46 @@
 
         window.deleteExpense = async (id) => {
             if (!confirm("Silmek istediğinize emin misiniz?")) return;
-            const item = expenses.find(e => e.id === id);
+            
+            // Eğer taksit ID'si ise (_ins_ içeriyorsa), orijinal ID'yi çıkar
+            let actualId = id;
+            if (id.includes('_ins_')) {
+                actualId = id.split('_ins_')[0];
+            }
+            
+            const item = expenses.find(e => e.id === actualId);
+            
+            if (!item) {
+                alert('Harcama bulunamadı');
+                return;
+            }
             
             // Kredi kartı harcamasıysa ekstresinden sil
-            if (item && item.person && item.paymentType === 'Kredi Kartı') {
-                await removeFromStatement(id, item.person, item.date, item.amount);
+            if (item.person && item.paymentType === 'Kredi Kartı') {
+                await removeFromStatement(actualId, item.person, item.date, item.amount);
             }
             
             deletedExpenses.push({...item, deletedAt: new Date().toISOString()});
             localStorage.setItem('deletedExpenses', JSON.stringify(deletedExpenses));
-            await deleteDoc(doc(db, "expenses", id));
+            await deleteDoc(doc(db, "expenses", actualId));
             renderTable();
             updateStatsPanel();
             renderCurrentStatements();
         };
 
         window.editExpense = (id) => {
-            const e = expenses.find(i => i.id === id);
+            // Eğer taksit ID'si ise (_ins_ içeriyorsa), orijinal ID'yi çıkar
+            let actualId = id;
+            if (id.includes('_ins_')) {
+                actualId = id.split('_ins_')[0];
+            }
+            
+            const e = expenses.find(i => i.id === actualId);
+            if (!e) {
+                alert('Harcama bulunamadı');
+                return;
+            }
+            
             document.getElementById('editId').value = e.id;
             document.getElementById('amount').value = e.amount;
             document.getElementById('installmentCount').value = e.installmentCount || 1;
@@ -1274,7 +1297,7 @@
         window.cardStatements = [];
         window.currentStatements = [];
 
-        // Ekstre Dönemi Hesapla (28 - 28 aralığı)
+        // Ekstre Dönemi Hesapla (28 - 27 aralığı)
         function calculateStatementPeriod(dateStr) {
             const date = new Date(dateStr);
             const day = date.getDate();
@@ -1323,13 +1346,13 @@
                     // Yeni ekstre oluştur
                     const startDay = new Date(statementMonth + "-01");
                     const prevMonth = new Date(startDay.getFullYear(), startDay.getMonth() - 1, 28);
-                    const endDay = new Date(startDay.getFullYear(), startDay.getMonth(), 28);
+                    const endDay = new Date(startDay.getFullYear(), startDay.getMonth(), 27);
                     
                     await setDoc(docRef, {
                         person: person,
                         month: statementMonth,
                         startDate: `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}-28`,
-                        endDate: `${endDay.getFullYear()}-${String(endDay.getMonth() + 1).padStart(2, '0')}-28`,
+                        endDate: `${endDay.getFullYear()}-${String(endDay.getMonth() + 1).padStart(2, '0')}-27`,
                         amount: amount,
                         items: [itemData],
                         paid: false,
@@ -1412,7 +1435,7 @@
 
         // ==================== OTOMATIK EKSTRE HESAPLAMA SISTEMI ====================
         
-        // Her ayın 28'sinden diğer ayın 28'sine kadar olan tarih aralığını hesapla
+        // Her ayın 28'sinden diğer ayın 27'sine kadar olan tarih aralığını hesapla
         function getCardStatementPeriod(date = new Date()) {
             const year = date.getFullYear();
             const month = date.getMonth(); // 0-11
@@ -1420,26 +1443,38 @@
             const monthNames = ['Ocak', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
             
             if (day >= 28) {
-                // 28-31 arası = bu ayın 28'si ile sonraki ayın 28'si arasında
+                // 28-31 arası = bu ayın 28'si ile sonraki ayın 28'si arasında (28 dahil)
                 const startMonth = month;
                 const endMonth = month + 1;
+                const startDateObj = new Date(year, startMonth, 28);
+                const endDateObj = new Date(year, endMonth, 28, 23, 59, 59);
+                
+                const startDateStr = `28-${String(startMonth + 1).padStart(2, '0')}-${year}`;
+                const endDateStr = `28-${String(endMonth % 12 === 0 ? 1 : endMonth % 12).padStart(2, '0')}-${endDateObj.getFullYear()}`;
+                
                 return {
-                    startDate: new Date(year, startMonth, 28),
-                    endDate: new Date(year, endMonth, 28),
-                    label: `${monthNames[startMonth]} - ${monthNames[endMonth % 12]}`,
+                    startDate: startDateObj,
+                    endDate: endDateObj,
+                    label: `${startDateStr} - ${endDateStr}`,
                     startMonth: startMonth,
                     endMonth: endMonth % 12,
                     startYear: year,
                     endYear: endMonth > 11 ? year + 1 : year
                 };
             } else {
-                // 1-28 arası = önceki ayın 28'si ile bu ayın 28'si arasında
+                // 1-27 arası = önceki ayın 28'si ile bu ayın 28'si arasında (28 dahil)
                 const startMonth = month - 1;
                 const endMonth = month;
+                const startDateObj = new Date(year, startMonth, 28);
+                const endDateObj = new Date(year, endMonth, 28, 23, 59, 59);
+                
+                const startDateStr = `28-${String(startMonth < 0 ? 12 : startMonth + 1).padStart(2, '0')}-${startMonth < 0 ? year - 1 : year}`;
+                const endDateStr = `28-${String(endMonth + 1).padStart(2, '0')}-${year}`;
+                
                 return {
-                    startDate: new Date(year, startMonth, 28),
-                    endDate: new Date(year, endMonth, 28),
-                    label: `${monthNames[startMonth < 0 ? 11 : startMonth]} - ${monthNames[endMonth]}`,
+                    startDate: startDateObj,
+                    endDate: endDateObj,
+                    label: `${startDateStr} - ${endDateStr}`,
                     startMonth: startMonth < 0 ? 11 : startMonth,
                     endMonth: endMonth,
                     startYear: startMonth < 0 ? year - 1 : year,
