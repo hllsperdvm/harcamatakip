@@ -17,6 +17,10 @@
         /* Mobil uyum için scroll gizleme */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(1rem); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.4s ease-out; }
+        .slide-in { animation: slideUp 0.3s ease-out; }
     </style>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%234f46e5'/><path d='M50 22L20 45v35h60V45L50 22z' fill='none' stroke='%23ffffff' stroke-width='6' stroke-linejoin='round'/><path d='M68 35v10h8v-6h4V35h-12z' fill='%23ffffff'/><rect x='38' y='52' width='12' height='16' rx='2' fill='%23ffffff'/><rect x='56' y='52' width='12' height='16' rx='2' fill='%23ffffff'/></svg>">
 </head>
@@ -76,7 +80,7 @@
             </div>
 
             <!-- SEKME 1: BÜTÇE TAKİP -->
-            <div id="tabContentExpense" class="space-y-8 animate-in fade-in duration-500">
+            <div id="tabContentExpense" class="space-y-8 fade-in">
                 <!-- Özet Kartları -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                     <div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
@@ -106,7 +110,7 @@
                         <p class="text-[11px] text-white/70 font-bold uppercase tracking-wider mb-2">Kalan Net Bütçe</p>
                         <div class="flex items-center justify-between">
                             <span id="remainingBudget" class="text-xl font-black text-white">0,00 TL</span>
-                            <span id="budgetStatusText" class="text-[10px] px-2 py-0.5 rounded-md bg-white/20 text-white font-bold">OK</span>
+                            <span id="budgetStatusText" class="text-[10px] px-2 py-0.5 rounded-md bg-white/20 text-white font-bold">İYİ</span>
                         </div>
                     </div>
                 </div>
@@ -263,7 +267,7 @@
                 </div>
             </div>
 
-            <div id="tabContentReports" class="hidden space-y-8 animate-in fade-in duration-500">
+            <div id="tabContentReports" class="hidden space-y-8 fade-in">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100" id="monthlySummaryReport"></div>
                     <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100" id="personSummaryReport"></div>
@@ -288,7 +292,7 @@
 
                 <!-- Ekstre Detay Modal -->
                 <div id="statementDetailModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
-                    <div class="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 duration-300 max-h-[80vh] overflow-y-auto">
+                    <div class="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden slide-in max-h-[80vh] overflow-y-auto">
                         <div class="bg-indigo-600 p-8 text-white flex justify-between items-center sticky top-0">
                             <div>
                                 <h2 id="statementTitle" class="text-2xl font-black">Ekstre Detayları</h2>
@@ -334,7 +338,7 @@
 
             <!-- MODAL: Taksitleri Göster -->
             <div id="installmentsModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
-                <div class="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 duration-300 max-h-[80vh] overflow-y-auto">
+                <div class="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden slide-in max-h-[80vh] overflow-y-auto">
                     <div class="bg-indigo-600 p-6 text-white flex justify-between items-center sticky top-0">
                         <h2 class="text-2xl font-black">💳 Taksitler</h2>
                         <button onclick="closeInstallmentsModal()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition text-2xl font-light">&times;</button>
@@ -357,7 +361,7 @@
                 </div>
             </div>
 
-            <div id="tabContentNotes" class="hidden animate-in fade-in duration-500">
+            <div id="tabContentNotes" class="hidden fade-in">
                 <div class="max-w-4xl mx-auto space-y-8">
                     <!-- IBAN Yönetimi -->
                     <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
@@ -374,7 +378,7 @@
 
                     <!-- IBAN Ekle Modal -->
                     <div id="ibanModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[110] p-4">
-                        <div class="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 duration-300">
+                        <div class="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden slide-in">
                             <div class="bg-indigo-600 p-6 text-white flex justify-between items-center">
                                 <h2 class="text-2xl font-black">IBAN Ekle</h2>
                                 <button onclick="closeIbanModal()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition text-2xl font-light">&times;</button>
@@ -418,7 +422,7 @@
                 </div>
             </div>
 
-            <div id="tabContentShopping" class="hidden animate-in fade-in duration-500">
+            <div id="tabContentShopping" class="hidden fade-in">
                 <div class="max-w-4xl mx-auto space-y-8">
                     <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
                         <h2 class="text-xl font-black mb-6">Alışveriş Listesi</h2>
@@ -445,7 +449,7 @@
             </div>
 
             <!-- SEKME: HESAPLAMA -->
-            <div id="tabContentCalculator" class="hidden animate-in fade-in duration-500">
+            <div id="tabContentCalculator" class="hidden fade-in">
                 <div class="max-w-4xl mx-auto space-y-8">
                     <!-- Hesaplama Türü Seçimi -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -536,7 +540,7 @@
                 </div>
             </div>
 
-            <div id="tabContentTrash" class="hidden animate-in fade-in duration-500">
+            <div id="tabContentTrash" class="hidden fade-in">
                 <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100 overflow-hidden">
                     <div class="flex justify-between items-center mb-8">
                         <h2 class="text-xl font-black">Silinen Kayıtlar</h2>
@@ -565,7 +569,7 @@
     <!-- MODALLAR -->
     <!-- Harcama Modalı -->
     <div id="expenseModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[110] p-4">
-        <div class="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 duration-300">
+        <div class="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden slide-in">
             <div class="bg-indigo-600 p-8 text-white flex justify-between items-center">
                 <h2 id="formTitle" class="text-2xl font-black">Harcama Kaydı</h2>
                 <button onclick="closeExpenseModal()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition text-2xl font-light">&times;</button>
@@ -714,6 +718,8 @@
         let paymentTypes = ["Nakit", "Kredi Kartı"];
         let bekirDebt = { amount: 0, paid: false, dueDate: '' };
         let duyguDebt = { amount: 0, paid: false, dueDate: '' };
+        let cardStatements = [];
+        let ibans = [];
         
         let sortColumn = 'date', sortDirection = 'desc';
         let currentPersonFilter = 'Tümü', currentCategoryFilter = 'Tümü', currentPaymentFilter = 'Tümü';
@@ -722,6 +728,47 @@
         let activeShoppingId = null, activeShoppingAction = 'complete';
 
         let expenseChart = null, weeklyTrendChart = null, monthlyTrendChart = null;
+        let syncInitialized = false;
+        let displayLimit = 10;
+        let renderTimeout = null;
+        let lastCategoriesJson = '';
+        let lastPaymentTypesJson = '';
+
+        function escapeHtml(str) {
+            if (str == null) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function isStatsTabActive() {
+            const el = document.getElementById('tabContentStats');
+            return el && !el.classList.contains('hidden');
+        }
+
+        function scheduleRenderApp() {
+            clearTimeout(renderTimeout);
+            renderTimeout = setTimeout(() => {
+                renderApp();
+                if (isStatsTabActive()) updateStatsPanel();
+            }, 80);
+        }
+
+        function scheduleStatsUpdate() {
+            if (isStatsTabActive()) updateStatsPanel();
+        }
+
+        function loadDeletedExpenses() {
+            try {
+                const stored = localStorage.getItem('deletedExpenses');
+                deletedExpenses = stored ? JSON.parse(stored) : [];
+            } catch {
+                deletedExpenses = [];
+            }
+        }
 
         // Sekme Değiştirme
         window.switchTab = function(tabName) {
@@ -783,13 +830,17 @@
 
         // Realtime Sync (Firebase)
         function initRealtimeSync() {
+            if (syncInitialized) return;
+            syncInitialized = true;
+            loadDeletedExpenses();
+
             onSnapshot(collection(db, "expenses"), snap => {
                 expenses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                renderApp();
+                scheduleRenderApp();
             });
             onSnapshot(collection(db, "incomes"), snap => {
                 incomes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                renderApp();
+                scheduleRenderApp();
             });
             onSnapshot(collection(db, "shoppingList"), snap => {
                 shoppingItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -817,6 +868,21 @@
                 if (d.exists()) paymentTypes = d.data().list;
                 updatePaymentSelects();
             });
+            onSnapshot(collection(db, "cardStatements"), snap => {
+                cardStatements = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+                const reportsTab = document.getElementById('tabContentReports');
+                if (reportsTab && !reportsTab.classList.contains('hidden')) {
+                    renderCardStatements('bekir');
+                    renderCardStatements('duygu');
+                }
+            }, err => console.error("Cardstatements yüklemesinde hata:", err));
+            onSnapshot(collection(db, "ibans"), snap => {
+                ibans = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+                renderIbans();
+            }, err => console.error("IBAN yüklemesinde hata:", err));
+
+            updateCategorySelects();
+            updatePaymentSelects();
         }
 
         // Bütçe Hesaplama
@@ -992,24 +1058,11 @@
             };
             
             if (id) {
-                // Güncelleme: eski ekstresinden sil, yeni ekstrese ekle
-                const oldExpense = expenses.find(e => e.id === id);
-                if (oldExpense && oldExpense.person && oldExpense.paymentType === 'Kredi Kartı') {
-                    await removeFromStatement(id, oldExpense.person, oldExpense.date, oldExpense.amount);
-                }
                 await updateDoc(doc(db, "expenses", id), data);
             } else {
                 await addDoc(collection(db, "expenses"), data);
             }
-            
-            // Kredi kartı harcamasıysa ekstrese ekle
-            if (person && paymentType === 'Kredi Kartı') {
-                await addToStatement(id, person, date, description, amount, category);
-            }
-            
-            renderTable();
-            updateStatsPanel();
-            renderCurrentStatements();
+
             closeExpenseModal();
         };
 
@@ -1029,17 +1082,9 @@
                 return;
             }
             
-            // Kredi kartı harcamasıysa ekstresinden sil
-            if (item.person && item.paymentType === 'Kredi Kartı') {
-                await removeFromStatement(actualId, item.person, item.date, item.amount);
-            }
-            
             deletedExpenses.push({...item, deletedAt: new Date().toISOString()});
             localStorage.setItem('deletedExpenses', JSON.stringify(deletedExpenses));
             await deleteDoc(doc(db, "expenses", actualId));
-            renderTable();
-            updateStatsPanel();
-            renderCurrentStatements();
         };
 
         window.editExpense = (id) => {
@@ -1157,41 +1202,41 @@
             });
 
             // Gösterilecek kayıt sayısı
-            const recordsPerPage = 10;
             const totalRecords = filtered.length;
-            const displayedRecords = Math.min(recordsPerPage, totalRecords);
+            const displayedRecords = Math.min(displayLimit, totalRecords);
 
             filtered.slice(0, displayedRecords).forEach(item => {
                 const tr = document.createElement('tr');
                 const isIncome = item.installmentLabel === 'Gelir';
+                const safeId = escapeHtml(item.id);
                 tr.innerHTML = `
-                    <td class="px-8 py-5 opacity-60">${item.date || '-'}</td>
+                    <td class="px-8 py-5 opacity-60">${escapeHtml(item.date || '-')}</td>
                     <td class="px-6 py-5">
                         <span class="px-3 py-1 rounded-lg text-[10px] font-black ${item.person === 'Bekir' ? 'bg-blue-50 text-blue-600' : (item.person === 'Duygu' ? 'bg-pink-50 text-pink-600' : 'bg-emerald-50 text-emerald-600')}">
-                            ${item.person.toUpperCase()}
+                            ${escapeHtml((item.person || '').toUpperCase())}
                         </span>
                     </td>
-                    <td class="px-6 py-5"><span class="bg-slate-100 px-2 py-1 rounded text-[10px]">${item.category}</span></td>
-                    <td class="px-6 py-5 opacity-60">${item.paymentType || '-'}</td>
+                    <td class="px-6 py-5"><span class="bg-slate-100 px-2 py-1 rounded text-[10px]">${escapeHtml(item.category)}</span></td>
+                    <td class="px-6 py-5 opacity-60">${escapeHtml(item.paymentType || '-')}</td>
                     <td class="px-6 py-5">
                         <div class="flex flex-col">
-                            <span>${item.description}</span>
-                            <span class="text-[9px] text-indigo-500 font-black tracking-tighter uppercase">${item.installmentLabel}</span>
+                            <span>${escapeHtml(item.description)}</span>
+                            <span class="text-[9px] text-indigo-500 font-black tracking-tighter uppercase">${escapeHtml(item.installmentLabel)}</span>
                         </div>
                     </td>
                     <td class="px-6 py-5 text-right font-black ${isIncome ? 'text-emerald-600' : 'text-rose-600'}">
                         ${isIncome ? '+' : '-'}${item.displayAmount.toLocaleString('tr-TR')} TL
                     </td>
                     <td class="px-8 py-5 text-center space-x-2">
-                        ${!isIncome && !item.id.includes('_ins_') ? `<button onclick="editExpense('${item.id}')" class="text-indigo-600 hover:scale-110 transition">✏️</button>` : ''}
-                        <button onclick="${isIncome ? `deleteIncome('${item.id}')` : `deleteExpense('${item.id}')`}" class="text-rose-500 hover:scale-110 transition">🗑️</button>
+                        ${!isIncome && !item.id.includes('_ins_') ? `<button onclick="editExpense('${safeId}')" class="text-indigo-600 hover:scale-110 transition">✏️</button>` : ''}
+                        <button onclick="${isIncome ? `deleteIncome('${safeId}')` : `deleteExpense('${safeId}')`}" class="text-rose-500 hover:scale-110 transition">🗑️</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
 
             // Daha fazla göster butonu
-            if (totalRecords > recordsPerPage) {
+            if (totalRecords > displayedRecords) {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td colspan="7" class="p-4 text-center">
@@ -1204,7 +1249,6 @@
             }
         }
 
-        let displayLimit = 10;
         window.loadMoreRecords = () => {
             displayLimit += 10;
             renderTable();
@@ -1278,18 +1322,22 @@
                 });
             }
 
-            // Aylık Trend
+            // Aylık Trend (taksit mantığı ile)
             const monthData = {};
+            const monthKeys = [];
             for (let i = 11; i >= 0; i--) {
                 const d = new Date();
                 d.setMonth(d.getMonth() - i);
                 const key = d.toLocaleDateString('tr-TR', { month: 'short', year: '2-digit' });
                 monthData[key] = 0;
+                monthKeys.push({ key, year: d.getFullYear(), month: d.getMonth() + 1 });
             }
-            expenses.forEach(e => {
-                const d = new Date(e.date);
-                const key = d.toLocaleDateString('tr-TR', { month: 'short', year: '2-digit' });
-                if (key in monthData) monthData[key] += e.amount;
+            const allProcessed = getProcessedExpenses();
+            monthKeys.forEach(({ key, year, month }) => {
+                const periodKey = `${year}-${String(month).padStart(2, '0')}`;
+                monthData[key] = allProcessed
+                    .filter(e => e.effectiveMonth === periodKey && e.installmentLabel !== 'Gelir')
+                    .reduce((sum, e) => sum + e.displayAmount, 0);
             });
 
             const ctx3 = document.getElementById('monthlyTrendChart');
@@ -1352,112 +1400,6 @@
             renderCurrentStatements();
         }
 
-        window.cardStatements = [];
-        window.currentStatements = [];
-
-        // Ekstre Dönemi Hesapla (28 - 27 aralığı)
-        function calculateStatementPeriod(dateStr) {
-            const date = new Date(dateStr);
-            const day = date.getDate();
-            const month = date.getMonth();
-            const year = date.getFullYear();
-            
-            if (day >= 28) {
-                // Sonraki ayın ekstesi
-                const nextMonth = new Date(year, month + 1, 1);
-                return `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`;
-            } else {
-                // Bu ayın ekstesi
-                return `${year}-${String(month + 1).padStart(2, '0')}`;
-            }
-        }
-
-        // Ekstrese harcama ekle
-        window.addToStatement = async (expenseId, person, dateStr, description, amount, category) => {
-            const statementMonth = calculateStatementPeriod(dateStr);
-            const docId = `${person.toLowerCase()}_${statementMonth}`;
-            
-            try {
-                const docRef = doc(db, "currentStatements", docId);
-                const docSnap = await getDoc(docRef);
-                
-                const itemData = {
-                    expenseId: expenseId,
-                    date: dateStr,
-                    description: description,
-                    amount: amount,
-                    category: category || 'Genel'
-                };
-                
-                if (docSnap.exists()) {
-                    // Var olan ekstrese ekle
-                    const currentData = docSnap.data();
-                    const items = currentData.items || [];
-                    const newAmount = (currentData.amount || 0) + amount;
-                    items.push(itemData);
-                    await setDoc(docRef, {
-                        ...currentData,
-                        amount: newAmount,
-                        items: items
-                    });
-                } else {
-                    // Yeni ekstre oluştur
-                    const startDay = new Date(statementMonth + "-01");
-                    const prevMonth = new Date(startDay.getFullYear(), startDay.getMonth() - 1, 28);
-                    const endDay = new Date(startDay.getFullYear(), startDay.getMonth(), 27);
-                    
-                    await setDoc(docRef, {
-                        person: person,
-                        month: statementMonth,
-                        startDate: `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}-28`,
-                        endDate: `${endDay.getFullYear()}-${String(endDay.getMonth() + 1).padStart(2, '0')}-27`,
-                        amount: amount,
-                        items: [itemData],
-                        paid: false,
-                        paidDate: null,
-                        createdAt: new Date().toISOString()
-                    });
-                }
-            } catch (err) {
-                console.error("Ekstre ekleme hatası:", err);
-            }
-        };
-
-        // Ekstresinden harcama sil
-        window.removeFromStatement = async (expenseId, person, dateStr, amount) => {
-            const statementMonth = calculateStatementPeriod(dateStr);
-            const docId = `${person.toLowerCase()}_${statementMonth}`;
-            
-            try {
-                const docRef = doc(db, "currentStatements", docId);
-                const docSnap = await getDoc(docRef);
-                
-                if (docSnap.exists()) {
-                    const currentData = docSnap.data();
-                    const items = (currentData.items || []).filter(item => item.expenseId !== expenseId);
-                    const newAmount = Math.max(0, (currentData.amount || 0) - amount);
-                    
-                    if (newAmount === 0 && items.length === 0) {
-                        // Ekstre boşsa sil
-                        await deleteDoc(docRef);
-                    } else {
-                        // Ekstre güncelle
-                        await setDoc(docRef, {
-                            ...currentData,
-                            amount: newAmount,
-                            items: items
-                        });
-                    }
-                }
-            } catch (err) {
-                console.error("Ekstre silme hatası:", err);
-            }
-        };
-
-        // Güncel ekstreleri render et
-
-        // Ekstre detay modal'ını kapat
-        
         function renderCardStatements(person) {
             const sortedStatements = cardStatements
                 .filter(s => s.person === person)
@@ -1648,8 +1590,8 @@
                         <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 hover:border-slate-300 transition">
                             <div class="flex justify-between items-start mb-2">
                                 <div class="flex-1">
-                                    <p class="font-bold text-slate-900">${exp.category}</p>
-                                    <p class="text-xs text-slate-500 mt-1">${exp.description}</p>
+                                    <p class="font-bold text-slate-900">${escapeHtml(exp.category)}</p>
+                                    <p class="text-xs text-slate-500 mt-1">${escapeHtml(exp.description)}</p>
                                 </div>
                                 <p class="font-black text-lg text-slate-900 ml-4">${exp.displayAmount.toLocaleString('tr-TR')} TL</p>
                             </div>
@@ -1707,32 +1649,35 @@
             `).join('');
         }
 
-        // CardStatements (ödenen ekstreleri) dinle
-        onSnapshot(collection(db, "cardStatements"), snap => {
-            cardStatements = snap.docs.map(d => ({...d.data(), id: d.id}));
-        }, err => console.error("Cardstatements yüklemesinde hata:", err));
-
-        onSnapshot(collection(db, "currentStatements"), snap => {
-            currentStatements = snap.docs.map(d => ({...d.data(), id: d.id}));
-            renderCurrentStatements();
-        }, err => console.error("CurrentStatements yüklemesinde hata:", err));
-
         // Çöp Kutusu
         function renderTrash() {
-            const stored = localStorage.getItem('deletedExpenses');
-            deletedExpenses = stored ? JSON.parse(stored) : [];
+            loadDeletedExpenses();
             const tbody = document.getElementById('trashTableBody');
             tbody.innerHTML = deletedExpenses.map(item => `
                 <tr>
-                    <td class="px-6 py-4">${item.deletedAt?.substring(0, 10) || '-'}</td>
-                    <td class="px-6 py-4">${item.date}</td>
-                    <td class="px-6 py-4">${item.person}</td>
-                    <td class="px-6 py-4">${item.description}</td>
+                    <td class="px-6 py-4">${escapeHtml(item.deletedAt?.substring(0, 10) || '-')}</td>
+                    <td class="px-6 py-4">${escapeHtml(item.date)}</td>
+                    <td class="px-6 py-4">${escapeHtml(item.person)}</td>
+                    <td class="px-6 py-4">${escapeHtml(item.description)}</td>
                     <td class="px-6 py-4 text-right">${item.amount} TL</td>
-                    <td class="px-6 py-4 text-center"><button onclick="restoreExpense('${item.id}')" class="text-indigo-600 hover:scale-110">↩️</button></td>
+                    <td class="px-6 py-4 text-center"><button onclick="restoreExpense('${escapeHtml(item.id)}')" class="text-indigo-600 hover:scale-110">↩️</button></td>
                 </tr>
             `).join('');
         }
+
+        window.restoreExpense = async (id) => {
+            loadDeletedExpenses();
+            const item = deletedExpenses.find(e => e.id === id);
+            if (!item) {
+                alert('Kayıt bulunamadı');
+                return;
+            }
+            const { deletedAt, ...data } = item;
+            await setDoc(doc(db, "expenses", id), data);
+            deletedExpenses = deletedExpenses.filter(e => e.id !== id);
+            localStorage.setItem('deletedExpenses', JSON.stringify(deletedExpenses));
+            renderTrash();
+        };
 
         window.emptyTrash = () => {
             if (confirm("Çöp kutusunu boşaltmak istediğinize emin misiniz?")) {
@@ -1761,12 +1706,12 @@
                 const li = document.createElement('li');
                 if (!item.completed) {
                     li.className = "flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100";
-                    li.innerHTML = `<span class="font-bold text-slate-700">${item.title}</span><button onclick="toggleShoppingItem('${item.id}', false)" class="bg-indigo-600 text-white p-2 rounded-lg">🛒</button>`;
+                    li.innerHTML = `<span class="font-bold text-slate-700">${escapeHtml(item.title)}</span><button onclick="toggleShoppingItem('${escapeHtml(item.id)}', false)" class="bg-indigo-600 text-white p-2 rounded-lg">🛒</button>`;
                     todo.appendChild(li);
                 } else {
                     total += (item.price || 0);
                     li.className = "flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5";
-                    li.innerHTML = `<div class="flex flex-col"><span class="text-white font-bold line-through opacity-40">${item.title}</span><span class="text-indigo-400 text-[10px] font-black">${item.price} TL</span></div><div class="flex gap-2"><button onclick="updateItemPrice('${item.id}')" class="text-xs">💰</button><button onclick="deleteShoppingItem('${item.id}')" class="text-xs">❌</button></div>`;
+                    li.innerHTML = `<div class="flex flex-col"><span class="text-white font-bold line-through opacity-40">${escapeHtml(item.title)}</span><span class="text-indigo-400 text-[10px] font-black">${item.price} TL</span></div><div class="flex gap-2"><button onclick="updateItemPrice('${escapeHtml(item.id)}')" class="text-xs">💰</button><button onclick="deleteShoppingItem('${escapeHtml(item.id)}')" class="text-xs">❌</button></div>`;
                     cart.appendChild(li);
                 }
             });
@@ -1804,8 +1749,6 @@
         };
 
         // ==================== IBAN YÖNETIMI ====================
-        
-        window.ibans = [];
 
         window.openIbanModal = () => {
             document.getElementById('editIbanId').value = '';
@@ -1855,11 +1798,13 @@
             await deleteDoc(doc(db, "ibans", id));
         };
 
-        window.editIban = (id, ownerName, ibanNumber, bank) => {
-            document.getElementById('editIbanId').value = id;
-            document.getElementById('ibanOwnerName').value = ownerName;
-            document.getElementById('ibanNumber').value = ibanNumber;
-            document.getElementById('ibanBank').value = bank;
+        window.editIbanById = (id) => {
+            const iban = ibans.find(i => i.id === id);
+            if (!iban) return;
+            document.getElementById('editIbanId').value = iban.id;
+            document.getElementById('ibanOwnerName').value = iban.ownerName;
+            document.getElementById('ibanNumber').value = iban.ibanNumber;
+            document.getElementById('ibanBank').value = iban.bank;
             document.getElementById('ibanModal').classList.remove('hidden');
             document.getElementById('ibanModal').classList.add('flex');
         };
@@ -1880,22 +1825,22 @@
             container.innerHTML = ibans.map(iban => `
                 <div class="bg-white p-4 rounded-xl border border-slate-200 hover:border-indigo-300 transition flex justify-between items-center group">
                     <div class="flex-1 min-w-0">
-                        <p class="font-bold text-slate-900 text-sm truncate">${iban.ownerName}</p>
-                        <p class="text-xs text-slate-500 font-mono truncate">${iban.ibanNumber}</p>
-                        <p class="text-xs text-slate-400 mt-1">${iban.bank}</p>
+                        <p class="font-bold text-slate-900 text-sm truncate">${escapeHtml(iban.ownerName)}</p>
+                        <p class="text-xs text-slate-500 font-mono truncate">${escapeHtml(iban.ibanNumber)}</p>
+                        <p class="text-xs text-slate-400 mt-1">${escapeHtml(iban.bank)}</p>
                     </div>
                     <div class="flex gap-2 ml-2 opacity-0 group-hover:opacity-100 transition">
-                        <button onclick="copyIban('${iban.ibanNumber}')" class="bg-indigo-600 hover:bg-indigo-700 text-white p-1.5 rounded-lg transition" title="Kopyala">
+                        <button onclick="copyIban('${escapeHtml(iban.ibanNumber)}')" class="bg-indigo-600 hover:bg-indigo-700 text-white p-1.5 rounded-lg transition" title="Kopyala">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                             </svg>
                         </button>
-                        <button onclick="editIban('${iban.id}', '${iban.ownerName}', '${iban.ibanNumber}', '${iban.bank}')" class="bg-slate-600 hover:bg-slate-700 text-white p-1.5 rounded-lg transition" title="Düzenle">
+                        <button onclick="editIbanById('${escapeHtml(iban.id)}')" class="bg-slate-600 hover:bg-slate-700 text-white p-1.5 rounded-lg transition" title="Düzenle">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                             </svg>
                         </button>
-                        <button onclick="deleteIban('${iban.id}')" class="bg-red-600 hover:bg-red-700 text-white p-1.5 rounded-lg transition" title="Sil">
+                        <button onclick="deleteIban('${escapeHtml(iban.id)}')" class="bg-red-600 hover:bg-red-700 text-white p-1.5 rounded-lg transition" title="Sil">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                             </svg>
@@ -1904,11 +1849,6 @@
                 </div>
             `).join('');
         }
-
-        onSnapshot(collection(db, "ibans"), snap => {
-            ibans = snap.docs.map(d => ({...d.data(), id: d.id}));
-            renderIbans();
-        }, err => console.error("IBAN yüklemesinde hata:", err));
 
         // Notlar Yönetimi
         window.handleNoteSubmit = async (e) => {
@@ -1934,10 +1874,18 @@
 
         function renderNotesList() {
             const container = document.getElementById('notesContainer');
-            container.innerHTML = '';
-            notes.forEach(n => {
-                container.innerHTML += `<div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100"><div class="flex justify-between items-center mb-4"><span class="px-3 py-1 rounded-lg text-[10px] font-black bg-slate-100">${n.person}</span><span class="text-[9px] text-slate-400">${n.date}</span></div><p class="text-sm font-semibold text-slate-700 mb-4">${n.content}</p><div class="flex gap-2"><button onclick="deleteNote('${n.id}')" class="text-xs px-3 py-1 rounded bg-rose-100 text-rose-600 font-bold hover:bg-rose-600 hover:text-white transition">Sil</button></div></div>`;
-            });
+            container.innerHTML = notes.map(n => `
+                <div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="px-3 py-1 rounded-lg text-[10px] font-black bg-slate-100">${escapeHtml(n.person)}</span>
+                        <span class="text-[9px] text-slate-400">${escapeHtml(n.date)}</span>
+                    </div>
+                    <p class="text-sm font-semibold text-slate-700 mb-4">${escapeHtml(n.content)}</p>
+                    <div class="flex gap-2">
+                        <button onclick="deleteNote('${escapeHtml(n.id)}')" class="text-xs px-3 py-1 rounded bg-rose-100 text-rose-600 font-bold hover:bg-rose-600 hover:text-white transition">Sil</button>
+                    </div>
+                </div>
+            `).join('');
         }
 
         // Yardımcı Fonksiyonlar
@@ -1964,6 +1912,7 @@
             currentStartDateFilter = document.getElementById('filterStartDate').value;
             currentEndDateFilter = document.getElementById('filterEndDate').value;
             currentShowInstallments = document.getElementById('filterShowInstallments').checked;
+            displayLimit = 10;
             renderTable();
         };
         window.resetFilters = () => {
@@ -1981,42 +1930,78 @@
             currentStartDateFilter = '';
             currentEndDateFilter = '';
             currentShowInstallments = false;
+            displayLimit = 10;
             
             renderTable();
         };
         window.sortTable = (col) => {
             if (sortColumn === col) sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
             else { sortColumn = col; sortDirection = 'desc'; }
+            displayLimit = 10;
             renderTable();
         };
 
         function updateCategorySelects() {
+            const json = JSON.stringify(categories);
+            if (json === lastCategoriesJson) return;
+            lastCategoriesJson = json;
             const selects = ['category', 'filterCategory'];
             selects.forEach(id => {
                 const s = document.getElementById(id);
                 if (!s) return;
+                const current = s.value;
                 s.innerHTML = id === 'filterCategory' ? '<option value="Tümü">Tümü</option>' : '';
-                categories.forEach(c => s.innerHTML += `<option value="${c}">${c}</option>`);
+                categories.forEach(c => s.innerHTML += `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`);
+                if (current && [...s.options].some(o => o.value === current)) s.value = current;
             });
         }
         function updatePaymentSelects() {
+            const json = JSON.stringify(paymentTypes);
+            if (json === lastPaymentTypesJson) return;
+            lastPaymentTypesJson = json;
             const selects = ['paymentType', 'filterPayment'];
             selects.forEach(id => {
                 const s = document.getElementById(id);
                 if (!s) return;
+                const current = s.value;
                 s.innerHTML = id === 'filterPayment' ? '<option value="Tümü">Tümü</option>' : '';
-                paymentTypes.forEach(p => s.innerHTML += `<option value="${p}">${p}</option>`);
+                paymentTypes.forEach(p => s.innerHTML += `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`);
+                if (current && [...s.options].some(o => o.value === current)) s.value = current;
             });
         }
 
         function renderApp() {
             renderBudgetInfo();
             renderTable();
-            updateCategorySelects();
-            updatePaymentSelects();
+            const reportsTab = document.getElementById('tabContentReports');
+            if (reportsTab && !reportsTab.classList.contains('hidden')) {
+                renderCurrentStatements();
+            }
         }
 
-        window.downloadExcel = () => alert("Excel indirme özelliği yakında eklenecek");
+        window.downloadExcel = () => {
+            const rows = [];
+            rows.push(['Tür', 'Tarih', 'Kişi', 'Kategori', 'Ödeme', 'Açıklama', 'Tutar', 'Taksit']);
+
+            getProcessedExpenses().forEach(e => {
+                rows.push(['Harcama', e.date || '', e.person || '', e.category || '', e.paymentType || '', e.description || '', e.displayAmount, e.installmentLabel || '']);
+            });
+            incomes.forEach(i => {
+                rows.push(['Gelir', i.date || '', 'Gelir', i.type || '', '', i.description || '', i.amount, '']);
+            });
+
+            const csv = rows.map(row => row.map(cell => {
+                const str = String(cell ?? '');
+                return str.includes(',') || str.includes('"') || str.includes('\n') ? `"${str.replace(/"/g, '""')}"` : str;
+            }).join(';')).join('\n');
+
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `yuvam-export-${getCurrentPeriod()}.csv`;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        };
         
         // Hesaplama Sekmesi Fonksiyonları
         window.showCalculatorTab = (tab) => {
@@ -2205,4 +2190,3 @@
     </script>
 </body>
 </html>
-```
