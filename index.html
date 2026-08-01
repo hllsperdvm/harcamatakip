@@ -899,6 +899,8 @@
                 renderTrash();
             } else if (tabName === 'notes') {
                 renderIbans();
+            } else if (tabName === 'settings') {
+                renderCategoriesList();
             }
         };
 
@@ -997,8 +999,9 @@
                 renderBudgetInfo();
             });
             onSnapshot(doc(db, "settings", "categories"), d => {
-                if (d.exists()) categories = d.data().list;
+                if (d.exists() && Array.isArray(d.data().list)) categories = d.data().list;
                 updateCategorySelects();
+                renderCategoriesList();
             });
             onSnapshot(doc(db, "settings", "paymentTypes"), d => {
                 if (d.exists()) paymentTypes = d.data().list;
@@ -1019,6 +1022,7 @@
 
             updateCategorySelects();
             updatePaymentSelects();
+            renderCategoriesList();
         }
 
         // Bütçe Hesaplama
@@ -1990,19 +1994,43 @@
         window.renderCategoriesList = () => {
             const container = document.getElementById('categoriesList');
             if (!container) return;
+            if (!categories || categories.length === 0) {
+                container.innerHTML = `<div class="text-center text-slate-400 py-8"><p class="text-sm">Henüz kategori yok. Yukarıdan ekleyebilirsiniz.</p></div>`;
+                return;
+            }
             container.innerHTML = categories.map((cat, idx) => `
                 <div class="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center hover:border-slate-300 transition group">
-                    <div class="flex items-center gap-3 flex-1">
-                        <span class="text-lg">📌</span>
-                        <span class="font-bold text-slate-900">${escapeHtml(cat)}</span>
+                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                        <span class="text-lg shrink-0">📌</span>
+                        <span class="font-bold text-slate-900 truncate">${escapeHtml(cat)}</span>
                     </div>
-                    <div class="flex gap-2">
+                    <div class="flex gap-1 shrink-0">
+                        <button onclick="renameCategory(${idx})" class="text-slate-400 hover:text-indigo-600 transition px-2" title="Yeniden Adlandır">✏️</button>
                         <button onclick="moveCategoryUp(${idx})" class="text-slate-400 hover:text-indigo-600 transition px-2" title="Yukarı Taşı" ${idx === 0 ? 'disabled style="opacity:0.3"' : ''}>⬆️</button>
                         <button onclick="moveCategoryDown(${idx})" class="text-slate-400 hover:text-indigo-600 transition px-2" title="Aşağı Taşı" ${idx === categories.length - 1 ? 'disabled style="opacity:0.3"' : ''}>⬇️</button>
                         <button onclick="removeCategory(${idx})" class="text-slate-400 hover:text-rose-600 transition px-2" title="Sil">🗑️</button>
                     </div>
                 </div>
             `).join('');
+        };
+
+        window.renameCategory = async (index) => {
+            const oldName = categories[index];
+            const newName = prompt('Yeni kategori adı:', oldName);
+            if (newName === null) return;
+            const trimmed = newName.trim();
+            if (!trimmed) {
+                alert('Kategori adı boş olamaz');
+                return;
+            }
+            if (trimmed !== oldName && categories.includes(trimmed)) {
+                alert('Bu kategori zaten var');
+                return;
+            }
+            categories[index] = trimmed;
+            await saveCategoryOrder();
+            updateCategorySelects();
+            renderCategoriesList();
         };
 
         // IBAN İŞLEMLERİ
