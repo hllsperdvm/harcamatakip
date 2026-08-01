@@ -76,23 +76,27 @@
                 <button id="tabBtnNotes" onclick="switchTab('notes')" class="whitespace-nowrap px-6 py-2.5 text-sm font-bold rounded-xl transition text-slate-500 hover:bg-white hover:text-slate-900 flex items-center gap-2"><span>📝</span>Notlar</button>
                 <button id="tabBtnShopping" onclick="switchTab('shopping')" class="whitespace-nowrap px-6 py-2.5 text-sm font-bold rounded-xl transition text-slate-500 hover:bg-white hover:text-slate-900 flex items-center gap-2"><span>🛒</span>Alışveriş</button>
                 <button id="tabBtnCalculator" onclick="switchTab('calculator')" class="whitespace-nowrap px-6 py-2.5 text-sm font-bold rounded-xl transition text-slate-500 hover:bg-white hover:text-slate-900 flex items-center gap-2"><span>🧮</span>Hesaplama</button>
+                <button id="tabBtnSettings" onclick="switchTab('settings')" class="whitespace-nowrap px-6 py-2.5 text-sm font-bold rounded-xl transition text-slate-500 hover:bg-white hover:text-slate-900 flex items-center gap-2"><span>⚙️</span>Ayarlar</button>
                 <button id="tabBtnTrash" onclick="switchTab('trash')" class="whitespace-nowrap px-6 py-2.5 text-sm font-bold rounded-xl transition text-slate-500 hover:bg-white hover:text-slate-900 flex items-center gap-2"><span>🗑️</span>Çöp Kutusu</button>
             </div>
 
             <!-- SEKME 1: BÜTÇE TAKİP -->
             <div id="tabContentExpense" class="space-y-8 fade-in">
+                <div class="flex justify-center">
+                    <span id="activePeriodBadge" class="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 text-xs font-bold px-4 py-2 rounded-full border border-indigo-100">Aktif dönem: —</span>
+                </div>
                 <!-- Özet Kartları -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
-                        <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2">Toplam Harcama</p>
+                        <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2">Dönem Harcaması</p>
                         <p id="totalExpense" class="text-xl font-black text-rose-600">0,00 TL</p>
                     </div>
                     <div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
-                        <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2">Bekir Harcama</p>
+                        <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2">Bekir (Dönem)</p>
                         <p id="bekirExpense" class="text-xl font-black text-blue-600">0,00 TL</p>
                     </div>
                     <div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
-                        <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2">Duygu Harcama</p>
+                        <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2">Duygu (Dönem)</p>
                         <p id="duyguExpense" class="text-xl font-black text-pink-600">0,00 TL</p>
                     </div>
                     <div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
@@ -248,7 +252,7 @@
                     </div>
                 </div>
                 <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
-                    <h2 class="text-xl font-black mb-6">Aylık Trend</h2>
+                    <h2 class="text-xl font-black mb-6">Ekstre Dönemi Trendi (29–28)</h2>
                     <div class="h-80"><canvas id="monthlyTrendChart"></canvas></div>
                 </div>
             </div>
@@ -526,6 +530,30 @@
                 </div>
             </div>
 
+            
+            <div id="tabContentSettings" class="hidden fade-in">
+                <div class="max-w-4xl mx-auto space-y-8">
+                    <!-- Kategori Yönetimi -->
+                    <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
+                        <h2 class="text-2xl font-black mb-6">📂 Kategori Yönetimi</h2>
+                        
+                        <!-- Yeni Kategori Ekle -->
+                        <div class="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                            <p class="text-sm font-bold text-slate-600 mb-3">Yeni Kategori Ekle</p>
+                            <div class="flex gap-2">
+                                <input type="text" id="newCategoryInput" placeholder="Kategori adı..." class="flex-1 bg-white border-none rounded-xl p-3 font-bold focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <button onclick="addCategory()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition">Ekle</button>
+                            </div>
+                        </div>
+
+                        <!-- Kategori Listesi (Sürüklenebilir) -->
+                        <div id="categoriesList" class="space-y-2">
+                            <!-- Kategoriler buraya render edilecek -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div id="tabContentTrash" class="hidden fade-in">
                 <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100 overflow-hidden">
                     <div class="flex justify-between items-center mb-8">
@@ -733,9 +761,96 @@
             return el && !el.classList.contains('hidden');
         }
 
+        // ========== 29–28 EKSTRE DÖNEMİ YARDIMCILARI ==========
+        // Dönem: her ayın 29'undan bir sonraki ayın 28'ine kadar.
+        // periodKey: dönemin kapandığı ay (YYYY-MM) — örn. 29 Tem – 28 Ağu → "2026-08"
+
+        function parseYMD(dateStr) {
+            if (!dateStr) return null;
+            const parts = String(dateStr).split('-').map(Number);
+            if (parts.length < 3 || parts.some(isNaN)) return null;
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+        }
+
+        function formatYMD(d) {
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+
+        function getStatementPeriodForDate(dateInput) {
+            const date = dateInput instanceof Date ? new Date(dateInput.getFullYear(), dateInput.getMonth(), dateInput.getDate()) : parseYMD(dateInput);
+            if (!date || isNaN(date.getTime())) return null;
+
+            const year = date.getFullYear();
+            const month = date.getMonth(); // 0-based
+            const day = date.getDate();
+
+            let startDate, endDate;
+            if (day >= 29) {
+                // 29+ → bu ayın 29'u ile sonraki ayın 28'i
+                startDate = new Date(year, month, 29);
+                endDate = new Date(year, month + 1, 28, 23, 59, 59);
+            } else {
+                // 1–28 → önceki ayın 29'u ile bu ayın 28'i
+                startDate = new Date(year, month - 1, 29);
+                endDate = new Date(year, month, 28, 23, 59, 59);
+            }
+
+            const periodKey = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}`;
+            const label = `${String(startDate.getDate()).padStart(2, '0')}.${String(startDate.getMonth() + 1).padStart(2, '0')}.${startDate.getFullYear()} – ${String(endDate.getDate()).padStart(2, '0')}.${String(endDate.getMonth() + 1).padStart(2, '0')}.${endDate.getFullYear()}`;
+
+            return { startDate, endDate, periodKey, label };
+        }
+
         function getCurrentPeriod() {
-            const now = new Date();
-            return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            // Aktif 29–28 ekstre döneminin anahtarı (kapanış ayı YYYY-MM)
+            return getStatementPeriodForDate(new Date()).periodKey;
+        }
+
+        function getCurrentStatementPeriod() {
+            return getStatementPeriodForDate(new Date());
+        }
+
+        function getPeriodKeyForDateStr(dateStr) {
+            const p = getStatementPeriodForDate(dateStr);
+            return p ? p.periodKey : (dateStr ? String(dateStr).substring(0, 7) : '');
+        }
+
+        function shiftDateByMonths(dateStr, monthsToAdd) {
+            const d = parseYMD(dateStr);
+            if (!d) return dateStr;
+            const day = d.getDate();
+            const target = new Date(d.getFullYear(), d.getMonth() + monthsToAdd, 1);
+            const lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+            target.setDate(Math.min(day, lastDay));
+            return formatYMD(target);
+        }
+
+        function periodKeyDiff(periodA, periodB) {
+            // İki periodKey (YYYY-MM) arasındaki ay farkı
+            const [yA, mA] = periodA.split('-').map(Number);
+            const [yB, mB] = periodB.split('-').map(Number);
+            return (yB - yA) * 12 + (mB - mA);
+        }
+
+        function formatPeriodLabel(periodKey) {
+            if (!periodKey) return '-';
+            const [y, m] = periodKey.split('-').map(Number);
+            // periodKey kapanış ayı → başlangıç bir önceki ayın 29'u
+            const end = new Date(y, m - 1, 28);
+            const start = new Date(y, m - 2, 29);
+            const months = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+            return `${String(start.getDate()).padStart(2, '0')} ${months[start.getMonth()]} – ${String(end.getDate()).padStart(2, '0')} ${months[end.getMonth()]} ${end.getFullYear()}`;
+        }
+
+        function getPreviousPeriodKeys(count) {
+            const current = getCurrentPeriod();
+            const [y, m] = current.split('-').map(Number);
+            const keys = [];
+            for (let i = count - 1; i >= 0; i--) {
+                const d = new Date(y, m - 1 - i, 1);
+                keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+            }
+            return keys;
         }
 
         function scheduleRenderApp() {
@@ -763,7 +878,7 @@
 
         // Sekme Değiştirme
         window.switchTab = function(tabName) {
-            const contents = ["expense", "stats", "reports", "trash", "notes", "shopping", "calculator"];
+            const contents = ["expense", "stats", "reports", "notes", "shopping", "calculator", "settings", "trash"];
             contents.forEach(name => {
                 document.getElementById(`tabContent${name.charAt(0).toUpperCase() + name.slice(1)}`).classList.add('hidden');
                 document.getElementById(`tabBtn${name.charAt(0).toUpperCase() + name.slice(1)}`).classList.remove('tab-active');
@@ -909,12 +1024,13 @@
         // Bütçe Hesaplama
         function renderBudgetInfo() {
             const period = getCurrentPeriod();
-            
+            const periodInfo = getCurrentStatementPeriod();
+
             const processedExpenses = getProcessedExpenses().filter(e => e.effectiveMonth === period);
             const totalSpent = processedExpenses.reduce((sum, e) => sum + e.displayAmount, 0);
 
             document.getElementById('totalExpense').innerText = totalSpent.toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
-            
+
             const bekirSum = processedExpenses.filter(e => e.person === 'Bekir').reduce((s, e) => s + e.displayAmount, 0);
             const duyguSum = processedExpenses.filter(e => e.person === 'Duygu').reduce((s, e) => s + e.displayAmount, 0);
             document.getElementById('bekirExpense').innerText = bekirSum.toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
@@ -922,6 +1038,12 @@
 
             const totalActiveDebt = (!bekirDebt.paid ? bekirDebt.amount : 0) + (!duyguDebt.paid ? duyguDebt.amount : 0);
             document.getElementById('totalCardDebtDisplay').innerText = totalActiveDebt.toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
+
+            // Aktif 29–28 dönem etiketini güncelle
+            const badge = document.getElementById('activePeriodBadge');
+            if (badge) {
+                badge.textContent = `Aktif dönem: ${periodInfo.label}`;
+            }
         }
 
         // Kart Borcu İşlemleri
@@ -1055,7 +1177,8 @@
                 paymentType: paymentType,
                 date: date,
                 description: description,
-                expenseMonth: date.substring(0, 7)
+                expenseMonth: date.substring(0, 7),
+                statementPeriod: getPeriodKeyForDateStr(date)
             };
             
             try {
@@ -1141,33 +1264,58 @@
 
         // Tablo Render
         function getProcessedExpenses() {
-            const period = getCurrentPeriod();
+            // Tüm harcamaları 29–28 ekstre dönemine göre işler.
+            // effectiveMonth = periodKey (kapanış ayı YYYY-MM)
+            const currentPeriod = getCurrentPeriod();
             let processed = [];
+
             expenses.forEach(item => {
                 const count = item.installmentCount || 1;
-                const perAmount = item.amountPerInstallment || item.amount;
-                const startMonth = item.expenseMonth || item.date?.substring(0, 7);
+                const perAmount = item.amountPerInstallment || (item.amount / count);
                 const originalDate = item.date;
-                const originalDay = originalDate ? parseInt(originalDate.split('-')[2]) : 1;
 
                 if (count <= 1) {
-                    processed.push({...item, displayAmount: item.amount, installmentLabel: 'Peşin', effectiveMonth: startMonth});
+                    const periodKey = getPeriodKeyForDateStr(originalDate);
+                    processed.push({
+                        ...item,
+                        displayAmount: item.amount,
+                        installmentLabel: 'Peşin',
+                        effectiveMonth: periodKey,
+                        date: originalDate
+                    });
                 } else {
-                    const [startYear, startM] = startMonth.split('-').map(Number);
-                    const [currYear, currM] = period.split('-').map(Number);
-                    const diff = (currYear - startYear) * 12 + (currM - startM);
+                    // Her taksit, orijinal tarihten i ay kaydırılmış tarihin 29–28 dönemine düşer
+                    const installmentEntries = [];
+                    for (let i = 0; i < count; i++) {
+                        const dateStr = shiftDateByMonths(originalDate, i);
+                        const periodKey = getPeriodKeyForDateStr(dateStr);
+                        installmentEntries.push({
+                            ...item,
+                            id: item.id + '_ins_' + i,
+                            displayAmount: perAmount,
+                            installmentLabel: `Taksit ${i + 1}/${count}`,
+                            effectiveMonth: periodKey,
+                            date: dateStr,
+                            installmentIndex: i
+                        });
+                    }
 
                     if (currentShowInstallments) {
-                        for (let i = 0; i < count; i++) {
-                            const d = new Date(startYear, startM - 1 + i, originalDay);
-                            const mStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-                            if (mStr >= period) {
-                                const dateStr = `${mStr}-${String(originalDay).padStart(2,'0')}`;
-                                processed.push({...item, id: item.id + '_ins_' + i, displayAmount: perAmount, installmentLabel: `Taksit ${i+1}/${count}`, effectiveMonth: mStr, date: dateStr});
+                        // Gelecek ve mevcut dönem taksitlerini göster
+                        installmentEntries.forEach(entry => {
+                            if (entry.effectiveMonth >= currentPeriod) {
+                                processed.push(entry);
                             }
+                        });
+                    } else {
+                        // Sadece aktif ekstre dönemine düşen taksiti göster
+                        const inCurrent = installmentEntries.find(e => e.effectiveMonth === currentPeriod);
+                        if (inCurrent) {
+                            processed.push({
+                                ...inCurrent,
+                                id: item.id // tek satırda ana id (düzenleme için)
+                            });
                         }
-                    } else if (diff >= 0 && diff < count) {
-                        processed.push({...item, displayAmount: perAmount, installmentLabel: `Taksit ${diff+1}/${count}`, effectiveMonth: period});
                     }
                 }
             });
@@ -1183,7 +1331,7 @@
             if (currentShowInstallments) {
                 filtered = getProcessedExpenses().filter(item => item.installmentLabel !== 'Peşin');
             } else {
-                filtered = [...getProcessedExpenses(), ...incomes.map(i => ({...i, type: 'income', displayAmount: i.amount, person: 'Gelir', category: i.type, installmentLabel: 'Gelir', effectiveMonth: i.incomeMonth}))];
+                filtered = [...getProcessedExpenses(), ...incomes.map(i => ({...i, type: 'income', displayAmount: i.amount, person: 'Gelir', category: i.type, installmentLabel: 'Gelir', effectiveMonth: getPeriodKeyForDateStr(i.date) || i.incomeMonth}))];
             }
             
             filtered = filtered.filter(item => {
@@ -1320,20 +1468,35 @@
                 });
             }
 
+            // Son 12 ekstre dönemi (29–28)
+            const periodKeys = getPreviousPeriodKeys(12);
             const monthData = {};
-            const monthKeys = [];
-            for (let i = 11; i >= 0; i--) {
-                const d = new Date();
-                d.setMonth(d.getMonth() - i);
-                const key = d.toLocaleDateString('tr-TR', { month: 'short', year: '2-digit' });
-                monthData[key] = 0;
-                monthKeys.push({ key, year: d.getFullYear(), month: d.getMonth() + 1 });
-            }
-            const allProcessed = getProcessedExpenses();
-            monthKeys.forEach(({ key, year, month }) => {
-                const periodKey = `${year}-${String(month).padStart(2, '0')}`;
-                monthData[key] = allProcessed
-                    .filter(e => e.effectiveMonth === periodKey && e.installmentLabel !== 'Gelir')
+            // Tüm taksitleri görmek için geçici olarak showInstallments benzeri genişletilmiş liste
+            const prevShow = currentShowInstallments;
+            currentShowInstallments = true;
+            const allInstallments = getProcessedExpenses().filter(e => e.installmentLabel !== 'Gelir');
+            currentShowInstallments = prevShow;
+
+            // getProcessedExpenses show=true sadece >= current döner; trend için tüm dönemlere ihtiyacımız var
+            // Bu yüzden doğrudan expenses'ten üretelim
+            const allForTrend = [];
+            expenses.forEach(item => {
+                const count = item.installmentCount || 1;
+                const perAmount = item.amountPerInstallment || (item.amount / count);
+                if (count <= 1) {
+                    allForTrend.push({ displayAmount: item.amount, effectiveMonth: getPeriodKeyForDateStr(item.date) });
+                } else {
+                    for (let i = 0; i < count; i++) {
+                        const dateStr = shiftDateByMonths(item.date, i);
+                        allForTrend.push({ displayAmount: perAmount, effectiveMonth: getPeriodKeyForDateStr(dateStr) });
+                    }
+                }
+            });
+
+            periodKeys.forEach(pk => {
+                const label = formatPeriodLabel(pk);
+                monthData[label] = allForTrend
+                    .filter(e => e.effectiveMonth === pk)
                     .reduce((sum, e) => sum + e.displayAmount, 0);
             });
 
@@ -1347,7 +1510,7 @@
                     data: {
                         labels: Object.keys(monthData),
                         datasets: [{
-                            label: 'Aylık Harcama',
+                            label: 'Dönem Harcaması',
                             data: Object.values(monthData),
                             backgroundColor: '#4f46e5',
                             borderRadius: 10
@@ -1365,10 +1528,12 @@
             
             const monthlySummary = document.getElementById('monthlySummaryReport');
             const total = processedExpenses.reduce((s, e) => s + e.displayAmount, 0);
+            const periodInfo = getCurrentStatementPeriod();
             monthlySummary.innerHTML = `
-                <h3 class="text-xl font-black mb-4">Bu Ay Özeti</h3>
+                <h3 class="text-xl font-black mb-4">Aktif Ekstre Dönemi</h3>
+                <p class="text-xs font-bold text-indigo-500 mb-3">${periodInfo.label}</p>
                 <div class="text-4xl font-black text-rose-600 mb-2">${total.toLocaleString('tr-TR')} TL</div>
-                <p class="text-sm text-slate-500">Toplam Harcama</p>
+                <p class="text-sm text-slate-500">Toplam Harcama (29–28)</p>
             `;
 
             const personSummary = document.getElementById('personSummaryReport');
@@ -1431,96 +1596,57 @@
 
         // OTOMATIK EKSTRE HESAPLAMA SISTEMI
         function getCardStatementPeriod(date = new Date()) {
-            const year = date.getFullYear();
-            const month = date.getMonth();
-            const day = date.getDate();
-            
-            if (day >= 29) {
-                const startMonth = month;
-                const endMonth = month + 1;
-                const startDateObj = new Date(year, startMonth, 29);
-                const endDateObj = new Date(year, endMonth, 28, 23, 59, 59);
-                
-                const startDateStr = `29-${String(startMonth + 1).padStart(2, '0')}-${year}`;
-                const endDateStr = `28-${String(endMonth % 12 === 0 ? 1 : endMonth % 12).padStart(2, '0')}-${endDateObj.getFullYear()}`;
-                
-                return {
-                    startDate: startDateObj,
-                    endDate: endDateObj,
-                    label: `${startDateStr} - ${endDateStr}`
-                };
-            } else {
-                const startMonth = month - 1;
-                const endMonth = month;
-                const startDateObj = new Date(year, startMonth, 29);
-                const endDateObj = new Date(year, endMonth, 28, 23, 59, 59);
-                
-                const startDateStr = `29-${String(startMonth < 0 ? 12 : startMonth + 1).padStart(2, '0')}-${startMonth < 0 ? year - 1 : year}`;
-                const endDateStr = `28-${String(endMonth + 1).padStart(2, '0')}-${year}`;
-                
-                return {
-                    startDate: startDateObj,
-                    endDate: endDateObj,
-                    label: `${startDateStr} - ${endDateStr}`
-                };
-            }
+            const p = getStatementPeriodForDate(date);
+            return {
+                startDate: p.startDate,
+                endDate: p.endDate,
+                periodKey: p.periodKey,
+                label: p.label
+            };
         }
         
         let currentStatements = [];
         
         function calculateCurrentCardStatements() {
+            // Aktif 29–28 dönemindeki tüm kredi kartı taksit/peşin harcamaları
             const period = getCardStatementPeriod();
-            
+            const periodKey = period.periodKey;
+
+            // Tüm taksitleri (geçmiş + gelecek) üret
             let allWithInstallments = [];
             expenses.forEach(item => {
                 const count = item.installmentCount || 1;
-                const perAmount = item.amountPerInstallment || item.amount;
-                const startMonth = item.expenseMonth || item.date?.substring(0, 7);
+                const perAmount = item.amountPerInstallment || (item.amount / count);
                 const originalDate = item.date;
-                const originalDay = originalDate ? parseInt(originalDate.split('-')[2]) : 1;
-                const [startYear, startM] = startMonth.split('-').map(Number);
 
-                if (count === 1) {
+                if (count <= 1) {
                     allWithInstallments.push({
-                        ...item, 
-                        displayAmount: item.amount, 
-                        installmentLabel: 'Peşin', 
-                        effectiveMonth: startMonth,
+                        ...item,
+                        displayAmount: item.amount,
+                        installmentLabel: 'Peşin',
+                        effectiveMonth: getPeriodKeyForDateStr(originalDate),
                         date: originalDate
                     });
                 } else {
                     for (let i = 0; i < count; i++) {
-                        const d = new Date(startYear, startM - 1 + i, originalDay);
-                        const mStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-                        const dateStr = `${mStr}-${String(originalDay).padStart(2,'0')}`;
+                        const dateStr = shiftDateByMonths(originalDate, i);
                         allWithInstallments.push({
-                            ...item, 
-                            id: item.id + '_ins_' + i, 
-                            displayAmount: perAmount, 
-                            installmentLabel: `Taksit ${i+1}/${count}`, 
-                            effectiveMonth: mStr, 
+                            ...item,
+                            id: item.id + '_ins_' + i,
+                            displayAmount: perAmount,
+                            installmentLabel: `Taksit ${i + 1}/${count}`,
+                            effectiveMonth: getPeriodKeyForDateStr(dateStr),
                             date: dateStr
                         });
                     }
                 }
             });
 
-            let bekirCreditExpenses = allWithInstallments.filter(exp => {
-                const expDate = new Date(exp.date);
-                return exp.person === 'Bekir' && 
-                       exp.paymentType === 'Kredi Kartı' &&
-                       expDate >= period.startDate && 
-                       expDate <= period.endDate;
-            });
-            
-            let duygoCreditExpenses = allWithInstallments.filter(exp => {
-                const expDate = new Date(exp.date);
-                return exp.person === 'Duygu' && 
-                       exp.paymentType === 'Kredi Kartı' &&
-                       expDate >= period.startDate && 
-                       expDate <= period.endDate;
-            });
-            
+            const inPeriod = (exp) => exp.effectiveMonth === periodKey && exp.paymentType === 'Kredi Kartı';
+
+            const bekirCreditExpenses = allWithInstallments.filter(exp => exp.person === 'Bekir' && inPeriod(exp));
+            const duyguCreditExpenses = allWithInstallments.filter(exp => exp.person === 'Duygu' && inPeriod(exp));
+
             currentStatements = [
                 {
                     person: 'Bekir',
@@ -1531,13 +1657,13 @@
                 },
                 {
                     person: 'Duygu',
-                    amount: duygoCreditExpenses.reduce((sum, exp) => sum + exp.displayAmount, 0),
-                    expenses: duygoCreditExpenses,
+                    amount: duyguCreditExpenses.reduce((sum, exp) => sum + exp.displayAmount, 0),
+                    expenses: duyguCreditExpenses,
                     period: period,
                     color: 'pink'
                 }
             ];
-            
+
             return currentStatements;
         }
         
@@ -1808,6 +1934,97 @@
             await deleteDoc(doc(db, "ibans", id));
         };
 
+
+        // KATEGORİ YÖNETIMI FONKSIYONLARI
+        window.saveCategoryOrder = async () => {
+            try {
+                await setDoc(doc(db, "settings", "categories"), { list: categories }, { merge: true });
+            } catch (err) {
+                console.error("Kategori kayıt hatası:", err);
+            }
+        };
+
+        window.addCategory = async () => {
+            const input = document.getElementById('newCategoryInput');
+            const newCat = input.value.trim();
+            if (!newCat) {
+                alert('Kategori adı boş olamaz');
+                return;
+            }
+            if (categories.includes(newCat)) {
+                alert('Bu kategori zaten var');
+                return;
+            }
+            categories.push(newCat);
+            input.value = '';
+            await saveCategoryOrder();
+            updateCategorySelects();
+            renderCategoriesList();
+        };
+
+        window.removeCategory = async (index) => {
+            const catName = categories[index];
+            if (!confirm(`"${catName}" kategorisini silmek istediğinize emin misiniz?`)) return;
+            categories.splice(index, 1);
+            await saveCategoryOrder();
+            updateCategorySelects();
+            renderCategoriesList();
+        };
+
+        window.moveCategoryUp = async (index) => {
+            if (index === 0) return;
+            [categories[index], categories[index - 1]] = [categories[index - 1], categories[index]];
+            await saveCategoryOrder();
+            updateCategorySelects();
+            renderCategoriesList();
+        };
+
+        window.moveCategoryDown = async (index) => {
+            if (index === categories.length - 1) return;
+            [categories[index], categories[index + 1]] = [categories[index + 1], categories[index]];
+            await saveCategoryOrder();
+            updateCategorySelects();
+            renderCategoriesList();
+        };
+
+        window.renderCategoriesList = () => {
+            const container = document.getElementById('categoriesList');
+            if (!container) return;
+            container.innerHTML = categories.map((cat, idx) => `
+                <div class="bg-white p-4 rounded-xl border border-slate-200 flex justify-between items-center hover:border-slate-300 transition group">
+                    <div class="flex items-center gap-3 flex-1">
+                        <span class="text-lg">📌</span>
+                        <span class="font-bold text-slate-900">${escapeHtml(cat)}</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="moveCategoryUp(${idx})" class="text-slate-400 hover:text-indigo-600 transition px-2" title="Yukarı Taşı" ${idx === 0 ? 'disabled style="opacity:0.3"' : ''}>⬆️</button>
+                        <button onclick="moveCategoryDown(${idx})" class="text-slate-400 hover:text-indigo-600 transition px-2" title="Aşağı Taşı" ${idx === categories.length - 1 ? 'disabled style="opacity:0.3"' : ''}>⬇️</button>
+                        <button onclick="removeCategory(${idx})" class="text-slate-400 hover:text-rose-600 transition px-2" title="Sil">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        };
+
+        // IBAN İŞLEMLERİ
+        window.copyIban = (ibanNumber) => {
+            navigator.clipboard.writeText(ibanNumber).then(() => {
+                alert('IBAN kopyalandı!');
+            }).catch(() => {
+                alert('Kopyalama başarısız oldu');
+            });
+        };
+
+        window.editIban = (id) => {
+            const iban = ibans.find(i => i.id === id);
+            if (!iban) return;
+            document.getElementById('editIbanId').value = id;
+            document.getElementById('ibanOwnerName').value = iban.ownerName;
+            document.getElementById('ibanNumber').value = iban.ibanNumber;
+            document.getElementById('ibanBank').value = iban.bank;
+            document.getElementById('ibanModal').classList.remove('hidden');
+            document.getElementById('ibanModal').classList.add('flex');
+        };
+
         window.renderIbans = () => {
             const container = document.getElementById('ibanListContainer');
             if (!container) return;
@@ -1816,13 +2033,17 @@
                 return;
             }
             container.innerHTML = ibans.map(i => `
-                <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex justify-between items-center">
-                    <div>
+                <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex justify-between items-center group">
+                    <div class="flex-1">
                         <p class="font-black text-slate-900">${escapeHtml(i.ownerName)}</p>
                         <p class="text-xs text-indigo-600 font-bold mt-1">${escapeHtml(i.bank)}</p>
-                        <p class="text-xs font-mono text-slate-500 mt-2">${escapeHtml(i.ibanNumber)}</p>
+                        <p class="text-xs font-mono text-slate-500 mt-2 break-all">${escapeHtml(i.ibanNumber)}</p>
                     </div>
-                    <button onclick="deleteIban('${escapeHtml(i.id)}')" class="text-rose-500 hover:scale-110 transition">🗑️</button>
+                    <div class="flex gap-2 ml-4">
+                        <button onclick="copyIban('${escapeHtml(i.ibanNumber)}')" class="text-slate-400 hover:text-indigo-600 transition text-lg" title="Kopyala">📋</button>
+                        <button onclick="editIban('${escapeHtml(i.id)}')" class="text-slate-400 hover:text-blue-600 transition text-lg" title="Düzenle">✏️</button>
+                        <button onclick="deleteIban('${escapeHtml(i.id)}')" class="text-slate-400 hover:text-rose-600 transition text-lg" title="Sil">🗑️</button>
+                    </div>
                 </div>
             `).join('');
         };
@@ -1971,7 +2192,7 @@
             container.innerHTML = Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0])).map(([m, items]) => `
                 <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
                     <div class="flex justify-between items-center mb-2">
-                        <span class="font-black text-slate-700">${m}</span>
+                        <span class="font-black text-slate-700">${formatPeriodLabel(m)} <span class="text-[10px] text-slate-400 font-bold">(${m})</span></span>
                         <span class="font-bold text-indigo-600">${items.reduce((s, i) => s + i.displayAmount, 0).toLocaleString('tr-TR')} TL</span>
                     </div>
                     <div class="space-y-1">
