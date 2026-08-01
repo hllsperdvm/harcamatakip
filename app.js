@@ -305,10 +305,12 @@
                 renderBudgetInfo();
             });
             db.collection("settings").doc("categories").onSnapshot(d => {
-                if (d.exists() && Array.isArray(d.data().list)) categories = d.data().list;
+                if (d.exists && d.data() && Array.isArray(d.data().list)) {
+                    categories = d.data().list;
+                }
                 updateCategorySelects();
                 renderCategoriesList();
-            });
+            }, err => console.error("Kategori yükleme hatası:", err));
             db.collection("settings").doc("paymentTypes").onSnapshot(d => {
                 if (d.exists) paymentTypes = d.data().list;
                 updatePaymentSelects();
@@ -1242,9 +1244,12 @@
 
         window.saveCategoryOrder = async () => {
             try {
+                // Tam listeyi yaz (merge ile sadece list alanı güncellenir)
                 await db.collection("settings").doc("categories").set({ list: categories }, { merge: true });
             } catch (err) {
                 console.error("Kategori kayıt hatası:", err);
+                alert("Kategoriler kaydedilemedi: " + (err.message || err) + "\n\nFirebase güvenlik kurallarını kontrol edin (settings koleksiyonuna yazma izni).");
+                throw err;
             }
         };
 
