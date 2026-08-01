@@ -12,18 +12,34 @@
 </head>
 <body class="text-slate-800 antialiased">
 
-    <!-- Şifre Giriş Ekranı -->
-    <div id="errorContainer" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-50">
-        <div class="w-full max-w-md p-8 text-center">
-            <div class="mb-8 inline-flex h-20 w-20 items-center justify-center rounded-3xl bg-indigo-600 shadow-xl shadow-indigo-200">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
+    <!-- Giriş Ekranı -->
+    <div id="errorContainer" class="fixed inset-0 z-[100] flex items-center justify-center bg-gradient-to-br from-slate-50 via-indigo-50/40 to-slate-100">
+        <div class="w-full max-w-md p-8">
+            <div class="bg-white rounded-[2rem] shadow-xl shadow-indigo-100/50 border border-slate-100 p-8 text-center">
+                <div class="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                </div>
+                <h2 class="mb-1 text-2xl font-extrabold text-slate-900">YUVAM</h2>
+                <p class="mb-8 text-sm text-slate-400 font-medium">Digital Home Hub — Giriş yapın</p>
+
+                <div class="space-y-4 text-left">
+                    <div>
+                        <label class="block text-[11px] font-black text-slate-400 uppercase tracking-wider mb-2 ml-1">Kullanıcı</label>
+                        <select id="loginUser" class="w-full rounded-2xl border-none bg-slate-50 p-4 font-bold text-slate-800 ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <option value="">Kullanıcı seçin</option>
+                            <option value="Bekir">Bekir</option>
+                            <option value="Duygu">Duygu</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-black text-slate-400 uppercase tracking-wider mb-2 ml-1">Şifre</label>
+                        <input type="password" id="sifreInput" inputmode="numeric" pattern="[0-9]*" placeholder="••••" maxlength="8" class="w-full rounded-2xl border-none bg-slate-50 p-4 text-center text-2xl tracking-[0.4em] font-bold ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" onkeypress="handlePasswordKeyPress(event)">
+                    </div>
+                    <button onclick="checkPassword()" class="w-full rounded-2xl bg-indigo-600 py-4 font-bold text-white shadow-lg shadow-indigo-100 transition hover:bg-indigo-700 active:scale-[0.98] mt-2">Giriş Yap</button>
+                </div>
             </div>
-            <h2 class="mb-2 text-2xl font-extrabold text-slate-900">YUVAM'a Giriş</h2>
-            <p class="mb-8 text-slate-500 font-medium">Lütfen 4 haneli şifreyi giriniz</p>
-            <input type="password" id="sifreInput" inputmode="numeric" pattern="[0-9]*" placeholder="••••" maxlength="4" class="w-full rounded-2xl border-none bg-white p-4 text-center text-3xl tracking-[0.5em] shadow-sm ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none mb-4" onkeypress="handlePasswordKeyPress(event)">
-            <button onclick="checkPassword()" class="w-full rounded-2xl bg-indigo-600 py-4 font-bold text-white shadow-lg shadow-indigo-100 transition hover:bg-indigo-700 active:scale-[0.98]">Giriş Yap</button>
         </div>
     </div>
 
@@ -44,27 +60,20 @@
                     </div>
                 </div>
                 
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2 flex-wrap justify-end">
+                    <span id="loggedInUserLabel" class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-2 rounded-xl"></span>
                     <button onclick="downloadExcel()" class="bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl text-sm font-bold transition hover:bg-slate-50 flex items-center gap-2 shadow-sm">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
                         Excel İndir
                     </button>
+                    <button onclick="logout()" class="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl text-sm font-bold transition hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 shadow-sm">Çıkış</button>
                 </div>
             </header>
 
-            <!-- Sekme Menüsü -->
-            <div class="flex overflow-x-auto no-scrollbar bg-slate-100/50 p-1.5 rounded-2xl mb-8 gap-1">
-                <button id="tabBtnExpense" onclick="switchTab('expense')" class="whitespace-nowrap px-6 py-2.5 text-sm font-bold rounded-xl transition tab-active flex items-center gap-2"><span>💰</span>Bütçe Takip</button>
-                <button id="tabBtnStats" onclick="switchTab('stats')" class="whitespace-nowrap px-6 py-2.5 text-sm font-bold rounded-xl transition text-slate-500 hover:bg-white hover:text-slate-900 flex items-center gap-2"><span>📊</span>İstatistikler</button>
-                <button id="tabBtnReports" onclick="switchTab('reports')" class="whitespace-nowrap px-6 py-2.5 text-sm font-bold rounded-xl transition text-slate-500 hover:bg-white hover:text-slate-900 flex items-center gap-2"><span>📈</span>Raporlar</button>
-                <button id="tabBtnNotes" onclick="switchTab('notes')" class="whitespace-nowrap px-6 py-2.5 text-sm font-bold rounded-xl transition text-slate-500 hover:bg-white hover:text-slate-900 flex items-center gap-2"><span>📝</span>Notlar</button>
-                <button id="tabBtnShopping" onclick="switchTab('shopping')" class="whitespace-nowrap px-6 py-2.5 text-sm font-bold rounded-xl transition text-slate-500 hover:bg-white hover:text-slate-900 flex items-center gap-2"><span>🛒</span>Alışveriş</button>
-                <button id="tabBtnCalculator" onclick="switchTab('calculator')" class="whitespace-nowrap px-6 py-2.5 text-sm font-bold rounded-xl transition text-slate-500 hover:bg-white hover:text-slate-900 flex items-center gap-2"><span>🧮</span>Hesaplama</button>
-                <button id="tabBtnSettings" onclick="switchTab('settings')" class="whitespace-nowrap px-6 py-2.5 text-sm font-bold rounded-xl transition text-slate-500 hover:bg-white hover:text-slate-900 flex items-center gap-2"><span>⚙️</span>Ayarlar</button>
-                <button id="tabBtnTrash" onclick="switchTab('trash')" class="whitespace-nowrap px-6 py-2.5 text-sm font-bold rounded-xl transition text-slate-500 hover:bg-white hover:text-slate-900 flex items-center gap-2"><span>🗑️</span>Çöp Kutusu</button>
-            </div>
+            <!-- Sekme Menüsü (JS ile doldurulur) -->
+            <div id="tabBar" class="flex overflow-x-auto no-scrollbar bg-slate-100/50 p-1.5 rounded-2xl mb-8 gap-1"></div>
 
             <!-- SEKME 1: BÜTÇE TAKİP -->
             <div id="tabContentExpense" class="space-y-8 fade-in">
@@ -562,6 +571,132 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Sekmeleri Düzenle -->
+                    <div class="bg-white rounded-[2rem] card-shadow border border-slate-100 overflow-hidden">
+                        <button type="button" id="tabsToggleBtn" onclick="toggleTabsPanel()"
+                            class="w-full flex items-center justify-between gap-4 p-6 text-left hover:bg-slate-50 transition">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center text-xl shrink-0">🗂️</div>
+                                <div>
+                                    <p class="font-black text-slate-900">Sekmeleri Düzenle</p>
+                                    <p class="text-xs text-slate-400 font-semibold mt-0.5">Ekle, sil, yeniden adlandır veya gizle</p>
+                                </div>
+                            </div>
+                            <span id="tabsToggleIcon" class="text-slate-400 text-xl font-light transition-transform duration-200">▾</span>
+                        </button>
+
+                        <div id="tabsPanel" class="hidden border-t border-slate-100">
+                            <div class="p-6 space-y-5">
+                                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                                    <p class="text-xs font-black text-slate-400 uppercase tracking-wider">Yeni Özel Sekme</p>
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                        <input type="text" id="newTabEmoji" placeholder="Emoji (📌)" maxlength="4" class="bg-white border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <input type="text" id="newTabLabel" placeholder="Sekme adı" class="sm:col-span-2 bg-white border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    <textarea id="newTabContent" rows="3" placeholder="Sayfa ne olsun? Örn: modern bir hesap makinesi, yapılacaklar listesi, haftalık plan..." class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                                    <div>
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Kimler görsün?</label>
+                                        <select id="newTabVisibleTo" class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                                            <option value="both">Herkes (Bekir + Duygu)</option>
+                                            <option value="Bekir">Sadece Bekir</option>
+                                            <option value="Duygu">Sadece Duygu</option>
+                                            <option value="admin">Sadece Admin</option>
+                                        </select>
+                                    </div>
+                                    <p id="newTabStatus" class="text-xs text-violet-600 font-semibold hidden"></p>
+                                    <button type="button" id="addTabBtn" onclick="addCustomTab()" class="w-full bg-violet-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-violet-700 transition">Sekme Ekle (AI ile oluştur)</button>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Mevcut Sekmeler</p>
+                                    <div id="tabsList" class="space-y-2"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kullanıcı Hareketleri -->
+                    <div class="bg-white rounded-[2rem] card-shadow border border-slate-100 overflow-hidden">
+                        <button type="button" id="activityToggleBtn" onclick="toggleActivityPanel()"
+                            class="w-full flex items-center justify-between gap-4 p-6 text-left hover:bg-slate-50 transition">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shrink-0">📋</div>
+                                <div>
+                                    <p class="font-black text-slate-900">Kullanıcı Hareketleri</p>
+                                    <p class="text-xs text-slate-400 font-semibold mt-0.5">Giriş, işlem ve değişiklik geçmişi</p>
+                                </div>
+                            </div>
+                            <span id="activityToggleIcon" class="text-slate-400 text-xl font-light transition-transform duration-200">▾</span>
+                        </button>
+
+                        <div id="activityPanel" class="hidden border-t border-slate-100">
+                            <div class="p-6 space-y-4">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                    <div>
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Kullanıcı</label>
+                                        <select id="activityFilterUser" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500">
+                                            <option value="Tümü">Tümü</option>
+                                            <option value="Bekir">Bekir</option>
+                                            <option value="Duygu">Duygu</option>
+                                            <option value="Sistem">Sistem</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">İşlem türü</label>
+                                        <select id="activityFilterAction" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500">
+                                            <option value="Tümü">Tümü</option>
+                                            <option value="Giriş">Giriş</option>
+                                            <option value="Çıkış">Çıkış</option>
+                                            <option value="Harcama">Harcama</option>
+                                            <option value="Gelir">Gelir</option>
+                                            <option value="Kategori">Kategori</option>
+                                            <option value="Sekme">Sekme</option>
+                                            <option value="Not">Not</option>
+                                            <option value="Alışveriş">Alışveriş</option>
+                                            <option value="Diğer">Diğer</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Başlangıç</label>
+                                        <input type="date" id="activityFilterStart" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Bitiş</label>
+                                        <input type="date" id="activityFilterEnd" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500">
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" onclick="applyActivityFilters()" class="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-emerald-700">Filtrele</button>
+                                    <button type="button" onclick="resetActivityFilters()" class="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-200">Temizle</button>
+                                    <button type="button" onclick="clearActivityLog()" class="bg-rose-50 text-rose-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-rose-100 ml-auto">Kaydı temizle</button>
+                                </div>
+                                <p id="activityCountLabel" class="text-[11px] text-slate-400 font-semibold"></p>
+                                <div class="overflow-x-auto rounded-2xl border border-slate-100 max-h-[28rem] overflow-y-auto">
+                                    <table class="w-full text-left text-sm">
+                                        <thead class="bg-slate-50 sticky top-0 z-10">
+                                            <tr class="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                                                <th class="px-4 py-3">Zaman</th>
+                                                <th class="px-4 py-3">Kullanıcı</th>
+                                                <th class="px-4 py-3">Tür</th>
+                                                <th class="px-4 py-3">İşlem</th>
+                                                <th class="px-4 py-3">Detay</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="activityTableBody" class="divide-y divide-slate-100 font-semibold text-slate-700"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tabContentCustom" class="hidden fade-in">
+                <div class="max-w-3xl mx-auto">
+                    <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
+                        <h2 id="customTabTitle" class="text-xl font-black mb-4">Özel Sekme</h2>
+                        <div id="customTabBody" class="text-slate-700 font-medium leading-relaxed"></div>
+                    </div>
                 </div>
             </div>
 
@@ -700,6 +835,50 @@
     </div>
 
     <!-- Firebase Compat (çift tıklayarak açmak için gerekli) -->
+
+    <!-- Sekme Düzenle Modal -->
+    <div id="tabEditModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[130] p-4">
+        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden">
+            <div class="bg-violet-600 p-5 text-white flex justify-between items-center">
+                <h2 class="text-lg font-black">Sekmeyi Düzenle</h2>
+                <button type="button" onclick="closeTabEditModal()" class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-xl leading-none">&times;</button>
+            </div>
+            <form onsubmit="saveTabEdit(event)" class="p-6 space-y-4">
+                <input type="hidden" id="editTabIndex">
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Emoji</label>
+                    <input type="text" id="editTabEmoji" maxlength="4" class="w-full bg-slate-50 rounded-xl p-3 font-bold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-violet-500">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Sekme adı</label>
+                    <input type="text" id="editTabLabel" required class="w-full bg-slate-50 rounded-xl p-3 font-bold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-violet-500">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Sayfa içeriği / istek</label>
+                    <textarea id="editTabContent" rows="3" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-medium outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-violet-500" placeholder="Örn: hesap makinesi ekle"></textarea>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Kimler görsün?</label>
+                    <select id="editTabVisibleTo" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-violet-500">
+                        <option value="both">Herkes (Bekir + Duygu)</option>
+                        <option value="Bekir">Sadece Bekir</option>
+                        <option value="Duygu">Sadece Duygu</option>
+                        <option value="admin">Sadece Admin</option>
+                    </select>
+                </div>
+                <label class="flex items-center gap-2 text-sm font-bold text-slate-600">
+                    <input type="checkbox" id="editTabRegenAI" class="rounded text-violet-600">
+                    İçeriği AI ile yeniden oluştur
+                </label>
+                <p id="editTabStatus" class="text-xs text-violet-600 font-semibold hidden"></p>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="closeTabEditModal()" class="flex-1 py-3 rounded-xl bg-slate-100 font-bold text-slate-600">Vazgeç</button>
+                    <button type="submit" class="flex-[2] py-3 rounded-xl bg-violet-600 text-white font-bold">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="app.js"></script>

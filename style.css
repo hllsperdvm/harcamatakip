@@ -9,3 +9,53 @@
         @keyframes slideUp { from { opacity: 0; transform: translateY(1rem); } to { opacity: 1; transform: translateY(0); } }
         .fade-in { animation: fadeIn 0.4s ease-out; }
         .slide-in { animation: slideUp 0.3s ease-out; }
+
+
+/* Sekme çubuğu — taşmadan okunaklı */
+#tabBar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0.25rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.35rem;
+}
+#tabBar button[data-tab-id] {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  padding: 0.55rem 0.85rem;
+  max-width: 11rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#tabBar button[data-tab-id] span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (min-width: 640px) {
+  #tabBar button[data-tab-id] {
+    font-size: 0.8125rem;
+    padding: 0.6rem 1rem;
+    max-width: none;
+  }
+}
+
+
+/* AI ile üretilen sayfalar */
+.ai-generated-page {
+  overflow-x: auto;
+  word-break: break-word;
+}
+.ai-generated-page pre, .ai-generated-page code {
+  white-space: pre-wrap;
+  font-size: 0.85em;
+  background: #f8fafc;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+}
+#customTabBody {
+  min-height: 12rem;
+}

@@ -15,32 +15,272 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        const DOGRU_SIFRE = "7536";
-
-        // ENTER TUŞU İÇİN GLOBAL FONKSIYON
-        window.handlePasswordKeyPress = function(event) {
-            if (event.key === 'Enter') {
-                checkPassword();
-            }
+        // Kullanıcı hesapları: Bekir = admin, Duygu = normal
+        const USERS = {
+            Bekir: { password: '3652', role: 'admin' },
+            Duygu: { password: '7536', role: 'user' }
         };
 
-        // Global Fonksiyonlar
+        let currentUser = null; // { name, role }
+
+
+        // Google AI Studio (Gemini) — UYARI: public GitHub'da anahtar herkese görünür
+        const GEMINI_API_KEY = 'AQ.Ab8RN6IUrpH7kSVSP77q8l6-rgSfZrNa7xm1F5vvwF8psLDbVQ';
+        const GEMINI_MODEL = 'gemini-flash-latest';
+
+        function sanitizeAiHtml(raw) {
+            if (!raw) return '';
+            let text = String(raw).trim();
+
+            // Tüm code fence bloklarını temizle (```html ... ``` / ``` ... ```)
+            const fenceMatch = text.match(/```(?:html|HTML|htm)?\s*([\s\S]*?)```/);
+            if (fenceMatch) {
+                text = fenceMatch[1].trim();
+            } else {
+                text = text.replace(/^```(?:html|HTML|htm)?\s*/i, '').replace(/```$/i, '').trim();
+            }
+
+            // Açıklama cümlelerinden sonra gelen HTML'i al
+            const firstTag = text.search(/<[a-zA-Z!]/);
+            if (firstTag > 0) {
+                text = text.slice(firstTag);
+            }
+            // Sondaki açıklama metnini kes (son > sonrası uzun düz metin)
+            const lastClose = text.lastIndexOf('>');
+            if (lastClose > 0 && lastClose < text.length - 1) {
+                const after = text.slice(lastClose + 1).trim();
+                if (after && !after.startsWith('<') && after.length > 20) {
+                    text = text.slice(0, lastClose + 1);
+                }
+            }
+
+            // script kaldır
+            text = text.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '');
+            // markdown artıkları
+            text = text.replace(/^\s*#+\s.*/gm, '');
+            text = text.replace(/\*\*([^*]+)\*\*/g, '$1');
+
+            // HTML hiç yoksa paragrafa sar
+            if (!/<[a-zA-Z]/.test(text)) {
+                const safe = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                text = `<div class="p-4 rounded-2xl bg-slate-50 text-slate-700 font-medium whitespace-pre-wrap">${safe}</div>`;
+            }
+
+            // Tek kök sarmalayıcı
+            return `<div class="ai-generated-page space-y-4">${text}</div>`;
+        }
+
+        async function generatePageWithGemini(userPrompt, tabLabel) {
+            const systemHint = `Görevin: kullanıcı isteğine uygun, tarayıcıda hemen görünen bir arayüz için HAM HTML üretmek.
+
+ZORUNLU ÇIKTI KURALLARI:
+1) Yanıtının İLK karakteri < ile başlasın (ör. <div ...>).
+2) Markdown YASAK: asla \`\`\` veya \`\`\`html kullanma.
+3) Açıklama, giriş, sonuç cümlesi YAZMA. Sadece HTML.
+4) <html>, <head>, <body>, <script> etiketleri YASAK.
+5) Tailwind class kullanabilirsin. Türkçe metin kullan.
+6) Tek bir ana <div class="..."> içinde düzenli kart/tablo/form.
+7) Güncel veri (akaryakıt, döviz vb.) isteniyorsa uydurma rakam yazma; fetch ile çeken butonlu arayüz yaz.
+8) onclick içinde basit JS olabilir.
+
+Sekme adı: ${tabLabel || 'Özel'}
+İstek: ${userPrompt}`;
+
+            const modelsToTry = [GEMINI_MODEL, 'gemini-flash-latest', 'gemini-2.0-flash', 'gemini-2.0-flash-001'];
+            let lastErr = null;
+            let data = null;
+
+            for (const model of modelsToTry) {
+                try {
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
+                    const res = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ role: 'user', parts: [{ text: systemHint }] }],
+                            generationConfig: {
+                                temperature: 0.4,
+                                maxOutputTokens: 8192
+                            }
+                        })
+                    });
+                    data = await res.json();
+                    if (!res.ok) {
+                        const msg = (data && data.error && data.error.message) ? data.error.message : ('HTTP ' + res.status);
+                        lastErr = new Error(msg);
+                        continue;
+                    }
+                    lastErr = null;
+                    break;
+                } catch (e) {
+                    lastErr = e;
+                }
+            }
+            if (lastErr) throw lastErr;
+
+            let text = '';
+            try {
+                const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
+                text = parts.filter(p => typeof p.text === 'string' && p.text.trim()).map(p => p.text).join('\n');
+            } catch {
+                throw new Error('AI yanıtı okunamadı');
+            }
+            if (!text || !text.trim()) throw new Error('AI boş yanıt döndü');
+
+            const html = sanitizeAiHtml(text);
+            if (!html || html.length < 20) throw new Error('AI geçerli HTML üretmedi');
+            return html;
+        }
+
+        function showAiStatus(el, message, isError) {
+            if (!el) return;
+            el.classList.remove('hidden');
+            el.textContent = message;
+            el.className = isError
+                ? 'text-xs text-rose-600 font-semibold whitespace-pre-wrap break-words'
+                : 'text-xs text-violet-600 font-semibold whitespace-pre-wrap break-words';
+        }
+
+        function visibilityFromSelect(val) {
+            if (val === 'Bekir') return { visibleTo: ['Bekir'], adminOnly: false };
+            if (val === 'Duygu') return { visibleTo: ['Duygu'], adminOnly: false };
+            if (val === 'admin') return { visibleTo: ['Bekir'], adminOnly: true };
+            return { visibleTo: ['Bekir', 'Duygu'], adminOnly: false };
+        }
+
+        function selectFromVisibility(tab) {
+            if (tab.adminOnly) return 'admin';
+            const v = tab.visibleTo;
+            if (Array.isArray(v) && v.length === 1 && v[0] === 'Bekir') return 'Bekir';
+            if (Array.isArray(v) && v.length === 1 && v[0] === 'Duygu') return 'Duygu';
+            return 'both';
+        }
+
+        const DEFAULT_TABS = [
+            { id: 'expense', emoji: '💰', label: 'Bütçe Takip', visible: true, core: true, adminOnly: false },
+            { id: 'stats', emoji: '📊', label: 'İstatistikler', visible: true, core: true, adminOnly: false },
+            { id: 'reports', emoji: '📈', label: 'Raporlar', visible: true, core: true, adminOnly: false },
+            { id: 'notes', emoji: '📝', label: 'Notlar', visible: true, core: true, adminOnly: false },
+            { id: 'shopping', emoji: '🛒', label: 'Alışveriş', visible: true, core: true, adminOnly: false },
+            { id: 'calculator', emoji: '🧮', label: 'Hesaplama', visible: true, core: true, adminOnly: false },
+            { id: 'settings', emoji: '⚙️', label: 'Ayarlar', visible: true, core: true, adminOnly: true },
+            { id: 'trash', emoji: '🗑️', label: 'Çöp Kutusu', visible: true, core: true, adminOnly: true }
+        ];
+
+        let tabsConfig = DEFAULT_TABS.map(t => ({ ...t }));
+
+        window.handlePasswordKeyPress = function(event) {
+            if (event.key === 'Enter') checkPassword();
+        };
+
         window.checkPassword = function() {
             try {
+                const userName = document.getElementById('loginUser').value;
                 const input = document.getElementById('sifreInput').value;
-                if (input === DOGRU_SIFRE) {
-                    document.getElementById('errorContainer').classList.add('hidden');
-                    document.getElementById('appContainer').classList.remove('hidden');
-                    initRealtimeSync();
-                } else {
-                    alert("Hatalı Şifre!");
-                    document.getElementById('sifreInput').value = "";
+                if (!userName) {
+                    alert('Lütfen kullanıcı seçin');
+                    return;
                 }
+                const account = USERS[userName];
+                if (!account || input !== account.password) {
+                    alert('Kullanıcı veya şifre hatalı!');
+                    document.getElementById('sifreInput').value = '';
+                    return;
+                }
+                currentUser = { name: userName, role: account.role };
+                document.getElementById('errorContainer').classList.add('hidden');
+                document.getElementById('appContainer').classList.remove('hidden');
+                const label = document.getElementById('loggedInUserLabel');
+                if (label) {
+                    label.textContent = currentUser.role === 'admin'
+                        ? `${currentUser.name} · Admin`
+                        : `${currentUser.name}`;
+                }
+                initRealtimeSync();
+                applyRoleAndTabs();
+                logActivity('Giriş', 'Oturum açıldı', currentUser.role === 'admin' ? 'Admin girişi' : 'Kullanıcı girişi');
             } catch (err) {
                 console.error(err);
-                alert("Giriş sırasında hata: " + (err && err.message ? err.message : err));
+                alert('Giriş sırasında hata: ' + (err && err.message ? err.message : err));
             }
         };
+
+        window.logout = function() {
+            const name = currentUser ? currentUser.name : 'Sistem';
+            logActivity('Çıkış', 'Oturum kapatıldı', name + ' çıkış yaptı', name);
+            currentUser = null;
+            document.getElementById('appContainer').classList.add('hidden');
+            document.getElementById('errorContainer').classList.remove('hidden');
+            document.getElementById('sifreInput').value = '';
+            const lu = document.getElementById('loginUser');
+            if (lu) lu.value = '';
+        };
+
+        function isAdmin() {
+            return currentUser && currentUser.role === 'admin';
+        }
+
+        async function logActivity(actionType, action, detail, userOverride) {
+            try {
+                const entry = {
+                    user: userOverride || ((currentUser && currentUser.name) ? currentUser.name : 'Sistem'),
+                    role: (currentUser && currentUser.role) ? currentUser.role : '-',
+                    actionType: actionType || 'Diğer',
+                    action: action || '-',
+                    detail: detail || '',
+                    at: new Date().toISOString()
+                };
+                await db.collection('activityLog').add(entry);
+            } catch (err) {
+                console.warn('Aktivite kaydı yazılamadı:', err);
+            }
+        }
+
+
+        function getVisibleTabs() {
+            return tabsConfig.filter(t => {
+                if (!t.visible) return false;
+                if (t.adminOnly && !isAdmin()) return false;
+                if (Array.isArray(t.visibleTo) && t.visibleTo.length) {
+                    if (!currentUser || !t.visibleTo.includes(currentUser.name)) return false;
+                }
+                return true;
+            });
+        }
+
+        function applyRoleAndTabs() {
+            const visible = getVisibleTabs();
+            if (lastActiveTabId && visible.some(t => t.id === lastActiveTabId)) {
+                renderTabBar();
+                return;
+            }
+            renderTabBar();
+            if (visible.length) switchTab(visible[0].id);
+        }
+
+        let lastActiveTabId = null;
+
+        window.renderTabBar = function() {
+            const bar = document.getElementById('tabBar');
+            if (!bar) return;
+            const visible = getVisibleTabs();
+            const activeId = lastActiveTabId && visible.some(t => t.id === lastActiveTabId)
+                ? lastActiveTabId
+                : (visible[0] && visible[0].id);
+            bar.innerHTML = visible.map((t) => {
+                const active = t.id === activeId;
+                const cls = active
+                    ? 'tab-active'
+                    : 'text-slate-500 hover:bg-white hover:text-slate-900';
+                return `<button type="button" data-tab-id="${escapeHtml(t.id)}" title="${escapeHtml(t.label)}" onclick="switchTab('${escapeHtml(t.id)}')" class="${cls} flex items-center gap-1.5 font-bold rounded-xl transition"><span class="shrink-0">${escapeHtml(t.emoji || '📌')}</span><span class="truncate">${escapeHtml(t.label)}</span></button>`;
+            }).join('');
+        };
+
+        function capitalizeTab(name) {
+            if (!name) return '';
+            return name.charAt(0).toUpperCase() + name.slice(1);
+        }
+
 
         // State ve Değişkenler
         let expenses = [], incomes = [], shoppingItems = [], notes = [], deletedExpenses = [];
@@ -49,6 +289,8 @@
         let bekirDebt = { amount: 0, paid: false, dueDate: '' };
         let duyguDebt = { amount: 0, paid: false, dueDate: '' };
         let cardStatements = [];
+        let activityLog = [];
+        let activityFilter = { user: "Tümü", action: "Tümü", start: "", end: "" };
         let ibans = [];
         
         let sortColumn = 'date', sortDirection = 'desc';
@@ -184,17 +426,50 @@
 
         // Sekme Değiştirme
         window.switchTab = function(tabName) {
-            const contents = ["expense", "stats", "reports", "notes", "shopping", "calculator", "settings", "trash"];
-            contents.forEach(name => {
-                document.getElementById(`tabContent${name.charAt(0).toUpperCase() + name.slice(1)}`).classList.add('hidden');
-                document.getElementById(`tabBtn${name.charAt(0).toUpperCase() + name.slice(1)}`).classList.remove('tab-active');
-                document.getElementById(`tabBtn${name.charAt(0).toUpperCase() + name.slice(1)}`).classList.add('text-slate-500');
-            });
+            lastActiveTabId = tabName;
+            const coreIds = ["expense", "stats", "reports", "notes", "shopping", "calculator", "settings", "trash"];
+            const isCustom = String(tabName).startsWith('custom_');
 
-            document.getElementById(`tabContent${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`).classList.remove('hidden');
-            const activeBtn = document.getElementById(`tabBtn${tabName.charAt(0).toUpperCase() + tabName.slice(1)}`);
-            activeBtn.classList.add('tab-active');
-            activeBtn.classList.remove('text-slate-500');
+            // Hide all core contents + custom
+            coreIds.forEach(name => {
+                const el = document.getElementById(`tabContent${capitalizeTab(name)}`);
+                if (el) el.classList.add('hidden');
+            });
+            const customEl = document.getElementById('tabContentCustom');
+            if (customEl) customEl.classList.add('hidden');
+
+            // Update tab button styles
+            const bar = document.getElementById('tabBar');
+            if (bar) {
+                bar.querySelectorAll('button[data-tab-id]').forEach(btn => {
+                    const active = btn.getAttribute('data-tab-id') === tabName;
+                    btn.classList.toggle('tab-active', active);
+                    btn.classList.toggle('text-slate-500', !active);
+                    btn.classList.toggle('hover:bg-white', !active);
+                    btn.classList.toggle('hover:text-slate-900', !active);
+                });
+            }
+
+            if (isCustom) {
+                const tab = tabsConfig.find(t => t.id === tabName);
+                if (customEl) {
+                    customEl.classList.remove('hidden');
+                    if (tab) renderCustomTabPage(tab);
+                }
+                return;
+            }
+
+            if (tabName === 'settings' && !isAdmin()) {
+                switchTab('expense');
+                return;
+            }
+            if (tabName === 'trash' && !isAdmin()) {
+                switchTab('expense');
+                return;
+            }
+
+            const content = document.getElementById(`tabContent${capitalizeTab(tabName)}`);
+            if (content) content.classList.remove('hidden');
 
             if (tabName === 'stats') {
                 updateStatsPanel();
@@ -207,6 +482,7 @@
                 renderIbans();
             } else if (tabName === 'settings') {
                 renderCategoriesList();
+                renderTabsList();
             }
         };
 
@@ -311,6 +587,22 @@
                 updateCategorySelects();
                 renderCategoriesList();
             }, err => console.error("Kategori yükleme hatası:", err));
+            db.collection("settings").doc("tabs").onSnapshot(d => {
+                if (d.exists && d.data()) {
+                    const data = d.data();
+                    removedTabIds = Array.isArray(data.removed) ? data.removed : [];
+                    if (Array.isArray(data.list) && data.list.length) {
+                        tabsConfig = mergeTabsConfig(data.list, removedTabIds);
+                    } else {
+                        tabsConfig = mergeTabsConfig([], removedTabIds);
+                    }
+                } else {
+                    removedTabIds = [];
+                    tabsConfig = DEFAULT_TABS.map(t => ({ ...t }));
+                }
+                if (currentUser) applyRoleAndTabs();
+                renderTabsList();
+            }, err => console.error("Sekme yükleme hatası:", err));
             db.collection("settings").doc("paymentTypes").onSnapshot(d => {
                 if (d.exists) paymentTypes = d.data().list;
                 updatePaymentSelects();
@@ -327,6 +619,25 @@
                 ibans = snap.docs.map(d => ({ ...d.data(), id: d.id }));
                 renderIbans();
             }, err => console.error("IBAN yüklemesinde hata:", err));
+
+            // Aktivite logu (index yoksa orderBy hata verir → yedek yol)
+            const loadActivity = (snap) => {
+                activityLog = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                activityLog.sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
+                const panel = document.getElementById('activityPanel');
+                if (panel && !panel.classList.contains('hidden')) renderActivityTable();
+            };
+            try {
+                db.collection("activityLog").orderBy("at", "desc").limit(500).onSnapshot(
+                    loadActivity,
+                    err => {
+                        console.warn("activityLog orderBy:", err.message);
+                        db.collection("activityLog").limit(500).onSnapshot(loadActivity, e2 => console.error(e2));
+                    }
+                );
+            } catch (e) {
+                db.collection("activityLog").limit(500).onSnapshot(loadActivity, e2 => console.error(e2));
+            }
 
             updateCategorySelects();
             updatePaymentSelects();
@@ -502,6 +813,8 @@
                 await new Promise(resolve => setTimeout(resolve, 300));
                 renderApp();
                 updateStatsPanel();
+                logActivity('Harcama', id ? 'Harcama güncellendi' : 'Harcama eklendi',
+                    (person || '') + ' · ' + (category || '') + ' · ' + amount + ' TL' + (description && description !== '-' ? ' · ' + description : ''));
             } catch (err) {
                 console.error("Harcama kayıt hatası:", err);
                 alert("Hata: " + err.message);
@@ -526,6 +839,7 @@
             deletedExpenses.push({...item, deletedAt: new Date().toISOString()});
             localStorage.setItem('deletedExpenses', JSON.stringify(deletedExpenses));
             await db.collection("expenses").doc(actualId).delete();
+            logActivity('Harcama', 'Harcama silindi', (item.person || '') + ' · ' + (item.amount || '') + ' TL · ' + (item.description || ''));
         };
 
         window.editExpense = (id) => {
@@ -564,6 +878,7 @@
             };
             await db.collection("incomes").add(data);
             closeIncomeModal();
+            logActivity('Gelir', 'Gelir eklendi', (data.type || '') + ' · ' + data.amount + ' TL');
         };
 
         window.deleteIncome = async (id) => {
@@ -1228,6 +1543,721 @@
 
 
         // KATEGORİ YÖNETIMI FONKSIYONLARI
+
+        let removedTabIds = [];
+
+        function mergeTabsConfig(saved, removed) {
+            removedTabIds = Array.isArray(removed) ? removed.slice() : (removedTabIds || []);
+            const byId = {};
+            DEFAULT_TABS.forEach(t => { byId[t.id] = { ...t }; });
+            const result = [];
+            const seen = new Set();
+
+            (saved || []).forEach(s => {
+                if (!s || !s.id) return;
+                if (removedTabIds.includes(s.id)) return;
+                if (byId[s.id]) {
+                    result.push({
+                        ...byId[s.id],
+                        label: s.label || byId[s.id].label,
+                        emoji: s.emoji || byId[s.id].emoji,
+                        visible: s.visible !== false,
+                        adminOnly: s.adminOnly != null ? s.adminOnly : byId[s.id].adminOnly,
+                        visibleTo: Array.isArray(s.visibleTo) ? s.visibleTo : (byId[s.id].adminOnly ? ['Bekir'] : ['Bekir', 'Duygu']),
+                        content: s.content || '',
+                        widgetType: s.widgetType || null,
+                        aiHtml: s.aiHtml || null
+                    });
+                    seen.add(s.id);
+                } else if (String(s.id).startsWith('custom_')) {
+                    result.push({
+                        id: s.id,
+                        emoji: s.emoji || '📌',
+                        label: s.label || 'Özel',
+                        visible: s.visible !== false,
+                        core: false,
+                        adminOnly: !!s.adminOnly,
+                        visibleTo: Array.isArray(s.visibleTo) ? s.visibleTo : ['Bekir', 'Duygu'],
+                        content: s.content || '',
+                        widgetType: s.widgetType || null,
+                        aiHtml: s.aiHtml || null
+                    });
+                    seen.add(s.id);
+                }
+            });
+
+            // Silinmemiş sistem sekmelerini ekle (kayıtta yoksa)
+            DEFAULT_TABS.forEach(t => {
+                if (seen.has(t.id)) return;
+                if (removedTabIds.includes(t.id)) return;
+                result.push({ ...t, content: '', widgetType: null });
+            });
+            return result;
+        }
+
+        window.saveTabsConfig = async () => {
+            try {
+                await db.collection("settings").doc("tabs").set({
+                    list: tabsConfig,
+                    removed: removedTabIds
+                }, { merge: true });
+            } catch (err) {
+                console.error(err);
+                alert('Sekmeler kaydedilemedi: ' + (err.message || err));
+                throw err;
+            }
+        };
+
+        // ----- Sekme içeriği üretici (istem metninden sayfa oluşturur) -----
+        function detectWidgetType(prompt) {
+            const p = (prompt || '').toLowerCase();
+            if (/akaryak|yakıt fiyat|yakit fiyat|benzin fiyat|motorin|mazot|otogaz|fuel price/.test(p)) return 'fuel';
+            if (/hesap\s*makine|calculator|calc\b/.test(p)) return 'calculator';
+            if (/yüzde|yuzde|percent/.test(p)) return 'percentage';
+            if (/yapılacak|yapilacak|todo|görev|gorev|checklist|liste/.test(p)) return 'todo';
+            if (/not\b|defter|notlar/.test(p)) return 'notes';
+            if (/sayaç|sayac|counter|tıkla|tikla/.test(p)) return 'counter';
+            if (/kronometre|stopwatch|zamanlayıcı|zamanlayici|timer/.test(p)) return 'timer';
+            if (/yazı\s*tahta|yazi\s*tahta|whiteboard|karalama/.test(p)) return 'scratch';
+            return 'text';
+        }
+
+        function buildWidgetHtml(type, prompt) {
+            if (type === 'calculator') {
+                return `
+                <div class="max-w-xs mx-auto">
+                    <p class="text-xs text-slate-400 font-semibold mb-3 text-center">Hesap Makinesi</p>
+                    <input id="dynCalcDisplay" readonly class="w-full bg-slate-900 text-white text-right text-2xl font-black rounded-2xl p-4 mb-3 outline-none" value="0">
+                    <div class="grid grid-cols-4 gap-2" id="dynCalcKeys">
+                        ${['C','÷','×','⌫','7','8','9','-','4','5','6','+','1','2','3','=','.','0','00','%'].map(k =>
+                            `<button type="button" data-k="${k}" class="py-3 rounded-xl font-bold text-sm ${k==='='?'bg-indigo-600 text-white':'bg-slate-100 text-slate-800 hover:bg-slate-200'} transition">${k}</button>`
+                        ).join('')}
+                    </div>
+                </div>`;
+            }
+            if (type === 'fuel') {
+                return `
+                <div class="max-w-2xl mx-auto space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Güncel Akaryakıt</p>
+                            <p class="text-lg font-black text-slate-900">Opet pompa fiyatları</p>
+                        </div>
+                        <div class="flex gap-2 items-center">
+                            <select id="dynFuelCity" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold outline-none">
+                                <option value="34">İstanbul (34)</option>
+                                <option value="06">Ankara (06)</option>
+                                <option value="35">İzmir (35)</option>
+                                <option value="16">Bursa (16)</option>
+                                <option value="07">Antalya (07)</option>
+                                <option value="01">Adana (01)</option>
+                                <option value="41">Kocaeli (41)</option>
+                                <option value="27">Gaziantep (27)</option>
+                            </select>
+                            <button type="button" id="dynFuelRefresh" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700">Yenile</button>
+                        </div>
+                    </div>
+                    <p id="dynFuelStatus" class="text-xs text-slate-500 font-semibold">Yükleniyor…</p>
+                    <p id="dynFuelUpdated" class="text-[11px] text-slate-400"></p>
+                    <div class="overflow-x-auto rounded-2xl border border-slate-100">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-slate-50 text-[11px] uppercase text-slate-400 font-black">
+                                <tr><th class="px-4 py-3">Ürün</th><th class="px-4 py-3 text-right">Fiyat (TL/lt)</th></tr>
+                            </thead>
+                            <tbody id="dynFuelBody" class="divide-y divide-slate-100 font-bold text-slate-800"></tbody>
+                        </table>
+                    </div>
+                    <p class="text-[10px] text-slate-400">Kaynak: Opet API. Fiyatlar istasyona göre değişebilir. CORS engeli olursa tarayıcı engellemiş demektir.</p>
+                </div>`;
+            }
+                        if (type === 'percentage') {
+                return `
+                <div class="max-w-md mx-auto space-y-4">
+                    <p class="text-xs text-slate-400 font-semibold">Yüzde Hesaplama</p>
+                    <input type="number" id="dynPercA" placeholder="A sayısı" class="w-full bg-slate-50 rounded-xl p-3 font-bold outline-none ring-1 ring-slate-200">
+                    <input type="number" id="dynPercB" placeholder="B (yüzde veya sayı)" class="w-full bg-slate-50 rounded-xl p-3 font-bold outline-none ring-1 ring-slate-200">
+                    <button type="button" id="dynPercBtn" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">A'nın %B'si</button>
+                    <p id="dynPercOut" class="text-2xl font-black text-indigo-600 text-center">—</p>
+                </div>`;
+            }
+            if (type === 'todo') {
+                return `
+                <div class="max-w-md mx-auto space-y-4">
+                    <p class="text-xs text-slate-400 font-semibold">Yapılacaklar</p>
+                    <div class="flex gap-2">
+                        <input type="text" id="dynTodoInput" placeholder="Görev ekle..." class="flex-1 bg-slate-50 rounded-xl p-3 font-bold outline-none ring-1 ring-slate-200">
+                        <button type="button" id="dynTodoAdd" class="bg-indigo-600 text-white px-4 rounded-xl font-bold">Ekle</button>
+                    </div>
+                    <ul id="dynTodoList" class="space-y-2"></ul>
+                </div>`;
+            }
+            if (type === 'notes') {
+                return `
+                <div class="max-w-lg mx-auto space-y-3">
+                    <p class="text-xs text-slate-400 font-semibold">Hızlı Not</p>
+                    <textarea id="dynNoteArea" rows="8" placeholder="Notlarınızı yazın..." class="w-full bg-slate-50 rounded-2xl p-4 font-medium outline-none ring-1 ring-slate-200"></textarea>
+                    <button type="button" id="dynNoteSave" class="bg-indigo-600 text-white px-5 py-2 rounded-xl font-bold text-sm">Tarayıcıya Kaydet</button>
+                    <p id="dynNoteMsg" class="text-xs text-emerald-600 font-semibold hidden">Kaydedildi</p>
+                </div>`;
+            }
+            if (type === 'counter') {
+                return `
+                <div class="max-w-xs mx-auto text-center space-y-4">
+                    <p class="text-xs text-slate-400 font-semibold">Sayaç</p>
+                    <p id="dynCounterVal" class="text-5xl font-black text-indigo-600">0</p>
+                    <div class="flex gap-2 justify-center">
+                        <button type="button" id="dynCounterMinus" class="w-14 h-14 rounded-2xl bg-slate-100 font-black text-xl">−</button>
+                        <button type="button" id="dynCounterReset" class="px-4 h-14 rounded-2xl bg-slate-50 font-bold text-sm">Sıfırla</button>
+                        <button type="button" id="dynCounterPlus" class="w-14 h-14 rounded-2xl bg-indigo-600 text-white font-black text-xl">+</button>
+                    </div>
+                </div>`;
+            }
+            if (type === 'timer') {
+                return `
+                <div class="max-w-xs mx-auto text-center space-y-4">
+                    <p class="text-xs text-slate-400 font-semibold">Kronometre</p>
+                    <p id="dynTimerVal" class="text-4xl font-black text-slate-900 tabular-nums">00:00</p>
+                    <div class="flex gap-2 justify-center">
+                        <button type="button" id="dynTimerStart" class="px-5 py-2 rounded-xl bg-indigo-600 text-white font-bold text-sm">Başlat</button>
+                        <button type="button" id="dynTimerStop" class="px-5 py-2 rounded-xl bg-slate-100 font-bold text-sm">Durdur</button>
+                        <button type="button" id="dynTimerReset" class="px-5 py-2 rounded-xl bg-slate-50 font-bold text-sm">Sıfırla</button>
+                    </div>
+                </div>`;
+            }
+            if (type === 'scratch') {
+                return `
+                <div class="max-w-lg mx-auto space-y-2">
+                    <p class="text-xs text-slate-400 font-semibold">Yazı alanı</p>
+                    <textarea id="dynScratch" rows="10" class="w-full bg-amber-50 rounded-2xl p-4 font-medium outline-none ring-1 ring-amber-100" placeholder="Serbest yazın..."></textarea>
+                </div>`;
+            }
+            // text fallback
+            const safe = String(prompt || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return `<div class="prose max-w-none"><p class="text-slate-700 font-medium whitespace-pre-wrap leading-relaxed">${safe || 'İçerik yok.'}</p>
+                <p class="text-[11px] text-slate-400 mt-6">İpucu: İçeriğe “hesap makinesi”, “yapılacaklar”, “yüzde”, “sayaç”, “kronometre” veya “not” yazarak etkileşimli sayfa oluşturabilirsiniz.</p></div>`;
+        }
+
+        function bindWidgetBehaviors(type, tabId) {
+            if (type === 'calculator') {
+                const display = document.getElementById('dynCalcDisplay');
+                const keys = document.getElementById('dynCalcKeys');
+                if (!display || !keys) return;
+                let expr = '';
+                keys.onclick = (e) => {
+                    const btn = e.target.closest('button[data-k]');
+                    if (!btn) return;
+                    const k = btn.getAttribute('data-k');
+                    if (k === 'C') { expr = ''; display.value = '0'; return; }
+                    if (k === '⌫') { expr = expr.slice(0, -1); display.value = expr || '0'; return; }
+                    if (k === '=') {
+                        try {
+                            const normalized = expr.replace(/÷/g, '/').replace(/×/g, '*').replace(/%/g, '/100');
+                            // güvenli basit ifade
+                            if (!/^[0-9+\-*/().\s]+$/.test(normalized)) throw new Error('invalid');
+                            const val = Function('"use strict"; return (' + normalized + ')')();
+                            display.value = String(val);
+                            expr = String(val);
+                        } catch {
+                            display.value = 'Hata';
+                            expr = '';
+                        }
+                        return;
+                    }
+                    expr += k;
+                    display.value = expr;
+                };
+            }
+            if (type === 'fuel') {
+                const status = document.getElementById('dynFuelStatus');
+                const body = document.getElementById('dynFuelBody');
+                const updated = document.getElementById('dynFuelUpdated');
+                const citySel = document.getElementById('dynFuelCity');
+                const btn = document.getElementById('dynFuelRefresh');
+                const load = async () => {
+                    const code = (citySel && citySel.value) || '34';
+                    if (status) status.textContent = 'Güncel fiyatlar çekiliyor…';
+                    if (body) body.innerHTML = '';
+                    try {
+                        const url = 'https://api.opet.com.tr/api/fuelprices/prices?ProvinceCode=' + encodeURIComponent(code) + '&IncludeAllProducts=true';
+                        const res = await fetch(url);
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        const data = await res.json();
+                        const prices = (data[0] && data[0].prices) ? data[0].prices : (Array.isArray(data) ? data : []);
+                        if (!prices.length) throw new Error('Veri boş');
+                        if (body) {
+                            body.innerHTML = prices.map(p => {
+                                const name = p.productName || p.name || p.ProductName || 'Ürün';
+                                const amount = p.amount != null ? p.amount : (p.price != null ? p.price : p.Price);
+                                const num = typeof amount === 'number' ? amount : parseFloat(String(amount).replace(',', '.'));
+                                return '<tr><td class="px-4 py-3">' + String(name).replace(/</g,'') + '</td><td class="px-4 py-3 text-right text-indigo-600">' + (isNaN(num) ? amount : num.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})) + '</td></tr>';
+                            }).join('');
+                        }
+                        if (status) status.textContent = 'Güncel';
+                        if (updated) updated.textContent = 'Son çekim: ' + new Date().toLocaleString('tr-TR');
+                    } catch (err) {
+                        console.error(err);
+                        if (status) status.textContent = 'Canlı veri alınamadı: ' + (err.message || err) + '. Tarayıcı veya kaynak engeli olabilir.';
+                        if (body) body.innerHTML = '<tr><td colspan="2" class="px-4 py-6 text-center text-slate-400 font-medium">Opet API bu ortamdan açılamadı. VPN/ağ veya CORS nedeniyle engellenmiş olabilir.<br>Yine de şehir değiştirip Yenile deneyin.</td></tr>';
+                    }
+                };
+                if (btn) btn.onclick = load;
+                if (citySel) citySel.onchange = load;
+                load();
+            }
+                        if (type === 'percentage') {
+                const btn = document.getElementById('dynPercBtn');
+                if (!btn) return;
+                btn.onclick = () => {
+                    const a = parseFloat(document.getElementById('dynPercA').value);
+                    const b = parseFloat(document.getElementById('dynPercB').value);
+                    const out = document.getElementById('dynPercOut');
+                    if (isNaN(a) || isNaN(b)) { out.textContent = '—'; return; }
+                    out.textContent = ((a * b) / 100).toLocaleString('tr-TR');
+                };
+            }
+            if (type === 'todo') {
+                const key = 'yuvam_todo_' + tabId;
+                const list = document.getElementById('dynTodoList');
+                const input = document.getElementById('dynTodoInput');
+                const add = document.getElementById('dynTodoAdd');
+                let items = [];
+                try { items = JSON.parse(localStorage.getItem(key) || '[]'); } catch { items = []; }
+                const render = () => {
+                    list.innerHTML = items.map((it, i) => `
+                        <li class="flex items-center gap-2 bg-slate-50 p-3 rounded-xl">
+                            <input type="checkbox" ${it.done ? 'checked' : ''} data-i="${i}" class="dyn-todo-check rounded">
+                            <span class="flex-1 text-sm font-bold ${it.done ? 'line-through text-slate-400' : 'text-slate-800'}">${escapeHtml(it.text)}</span>
+                            <button type="button" data-del="${i}" class="text-rose-500 text-xs font-bold">Sil</button>
+                        </li>`).join('');
+                };
+                render();
+                add.onclick = () => {
+                    const t = input.value.trim();
+                    if (!t) return;
+                    items.push({ text: t, done: false });
+                    localStorage.setItem(key, JSON.stringify(items));
+                    input.value = '';
+                    render();
+                };
+                list.onclick = (e) => {
+                    if (e.target.matches('.dyn-todo-check')) {
+                        items[+e.target.dataset.i].done = e.target.checked;
+                        localStorage.setItem(key, JSON.stringify(items));
+                        render();
+                    }
+                    if (e.target.dataset.del != null) {
+                        items.splice(+e.target.dataset.del, 1);
+                        localStorage.setItem(key, JSON.stringify(items));
+                        render();
+                    }
+                };
+            }
+            if (type === 'notes') {
+                const key = 'yuvam_note_' + tabId;
+                const area = document.getElementById('dynNoteArea');
+                const save = document.getElementById('dynNoteSave');
+                if (!area) return;
+                area.value = localStorage.getItem(key) || '';
+                save.onclick = () => {
+                    localStorage.setItem(key, area.value);
+                    const msg = document.getElementById('dynNoteMsg');
+                    msg.classList.remove('hidden');
+                    setTimeout(() => msg.classList.add('hidden'), 1500);
+                };
+            }
+            if (type === 'counter') {
+                const key = 'yuvam_cnt_' + tabId;
+                let val = parseInt(localStorage.getItem(key) || '0', 10) || 0;
+                const el = document.getElementById('dynCounterVal');
+                const sync = () => { el.textContent = val; localStorage.setItem(key, String(val)); };
+                document.getElementById('dynCounterPlus').onclick = () => { val++; sync(); };
+                document.getElementById('dynCounterMinus').onclick = () => { val--; sync(); };
+                document.getElementById('dynCounterReset').onclick = () => { val = 0; sync(); };
+                sync();
+            }
+            if (type === 'timer') {
+                let sec = 0, timer = null;
+                const el = document.getElementById('dynTimerVal');
+                const fmt = () => {
+                    const m = String(Math.floor(sec / 60)).padStart(2, '0');
+                    const s = String(sec % 60).padStart(2, '0');
+                    el.textContent = m + ':' + s;
+                };
+                document.getElementById('dynTimerStart').onclick = () => {
+                    if (timer) return;
+                    timer = setInterval(() => { sec++; fmt(); }, 1000);
+                };
+                document.getElementById('dynTimerStop').onclick = () => { clearInterval(timer); timer = null; };
+                document.getElementById('dynTimerReset').onclick = () => { clearInterval(timer); timer = null; sec = 0; fmt(); };
+                fmt();
+            }
+        }
+
+        window.renderCustomTabPage = function(tab) {
+            const body = document.getElementById('customTabBody');
+            const title = document.getElementById('customTabTitle');
+            if (!body || !tab) return;
+            title.textContent = `${tab.emoji || ''} ${tab.label}`;
+
+            // AI HTML varsa temizleyip bas
+            if (tab.aiHtml) {
+                const cleaned = sanitizeAiHtml(tab.aiHtml);
+                body.innerHTML = cleaned;
+                // Ham kod sızması: eğer hâlâ ``` görünüyorsa tekrar temizle
+                if (body.textContent.includes('```') || body.innerHTML.includes('```')) {
+                    body.innerHTML = sanitizeAiHtml(body.textContent);
+                }
+                return;
+            }
+
+            const type = tab.widgetType || detectWidgetType(tab.content);
+            // İçerik AI isteği gibi ama aiHtml yoksa yerel widget dene
+            body.innerHTML = buildWidgetHtml(type, tab.content);
+            if (tab.content && type !== 'text' && type !== 'ai') {
+                const hint = document.createElement('p');
+                hint.className = 'text-[11px] text-slate-400 text-center mt-6 font-medium';
+                hint.textContent = 'İstek: “' + tab.content + '”';
+                body.appendChild(hint);
+            }
+            setTimeout(() => bindWidgetBehaviors(type, tab.id), 0);
+        };
+
+        window.toggleTabsPanel = () => {
+            const panel = document.getElementById('tabsPanel');
+            const icon = document.getElementById('tabsToggleIcon');
+            if (!panel) return;
+            const opening = panel.classList.contains('hidden');
+            panel.classList.toggle('hidden');
+            if (icon) icon.style.transform = opening ? 'rotate(180deg)' : 'rotate(0deg)';
+            if (opening) renderTabsList();
+        };
+
+        window.renderTabsList = () => {
+            const container = document.getElementById('tabsList');
+            if (!container) return;
+            if (!isAdmin()) {
+                container.innerHTML = '<p class="text-sm text-slate-400">Sadece admin düzenleyebilir.</p>';
+                return;
+            }
+            container.innerHTML = tabsConfig.map((t, idx) => `
+                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100 flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                        <span class="text-lg">${escapeHtml(t.emoji || '📌')}</span>
+                        <div class="min-w-0">
+                            <p class="font-bold text-slate-800 text-sm truncate">${escapeHtml(t.label)}</p>
+                            <p class="text-[10px] text-slate-400 font-semibold">${t.core ? 'Sistem sekmesi' : 'Özel sekme'}${t.adminOnly ? ' · Sadece admin' : ''}${t.widgetType ? ' · ' + t.widgetType : ''}</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-1">
+                        <button type="button" onclick="toggleTabVisible(${idx})" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg ${t.visible ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-200 text-slate-500'}">${t.visible ? 'Görünür' : 'Gizli'}</button>
+                        <button type="button" onclick="editTabMeta(${idx})" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 hover:border-indigo-300">Düzenle</button>
+                        <button type="button" onclick="moveTabUp(${idx})" class="text-[11px] px-2 py-1.5 rounded-lg bg-white border border-slate-200" ${idx===0?'disabled style="opacity:0.3"':''}>⬆️</button>
+                        <button type="button" onclick="moveTabDown(${idx})" class="text-[11px] px-2 py-1.5 rounded-lg bg-white border border-slate-200" ${idx===tabsConfig.length-1?'disabled style="opacity:0.3"':''}>⬇️</button>
+                        <button type="button" onclick="removeTab(${idx})" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-600">Sil</button>
+                    </div>
+                </div>
+            `).join('') + `
+                <button type="button" onclick="restoreDefaultTabs()" class="w-full mt-2 text-xs font-bold text-indigo-600 py-2 hover:underline">Silinen sistem sekmelerini geri yükle</button>
+            `;
+        };
+
+        window.toggleTabVisible = async (index) => {
+            if (!isAdmin()) return;
+            tabsConfig[index].visible = !tabsConfig[index].visible;
+            await saveTabsConfig();
+            applyRoleAndTabs();
+            renderTabsList();
+        };
+
+        window.editTabMeta = (index) => {
+            if (!isAdmin()) return;
+            const t = tabsConfig[index];
+            document.getElementById('editTabIndex').value = String(index);
+            document.getElementById('editTabEmoji').value = t.emoji || '📌';
+            document.getElementById('editTabLabel').value = t.label || '';
+            document.getElementById('editTabContent').value = t.content || '';
+            document.getElementById('editTabVisibleTo').value = selectFromVisibility(t);
+            document.getElementById('editTabRegenAI').checked = false;
+            document.getElementById('editTabStatus').classList.add('hidden');
+            const modal = document.getElementById('tabEditModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
+        window.closeTabEditModal = () => {
+            const modal = document.getElementById('tabEditModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+
+        window.saveTabEdit = async (e) => {
+            e.preventDefault();
+            if (!isAdmin()) return;
+            const index = parseInt(document.getElementById('editTabIndex').value, 10);
+            if (isNaN(index) || !tabsConfig[index]) return;
+            const emoji = document.getElementById('editTabEmoji').value.trim() || '📌';
+            const label = document.getElementById('editTabLabel').value.trim();
+            if (!label) {
+                alert('Sekme adı gerekli');
+                return;
+            }
+            const content = document.getElementById('editTabContent').value.trim();
+            const vis = visibilityFromSelect(document.getElementById('editTabVisibleTo').value);
+            const regen = document.getElementById('editTabRegenAI').checked;
+            const status = document.getElementById('editTabStatus');
+
+            tabsConfig[index].emoji = emoji;
+            tabsConfig[index].label = label;
+            tabsConfig[index].content = content;
+            tabsConfig[index].visibleTo = vis.visibleTo;
+            // Sistem admin sekmeleri (settings/trash) adminOnly kalsın; diğerlerinde seçime uy
+            if (!tabsConfig[index].core || (tabsConfig[index].id !== 'settings' && tabsConfig[index].id !== 'trash')) {
+                tabsConfig[index].adminOnly = vis.adminOnly;
+            }
+            if (content) tabsConfig[index].widgetType = detectWidgetType(content);
+
+            if (regen && content && String(tabsConfig[index].id).startsWith('custom_')) {
+                status.classList.remove('hidden');
+                status.textContent = 'AI sayfa oluşturuyor...';
+                try {
+                    tabsConfig[index].aiHtml = await generatePageWithGemini(content, label);
+                    tabsConfig[index].widgetType = 'ai';
+                    status.textContent = 'AI içerik hazır.';
+                } catch (err) {
+                    console.error(err);
+                    const msg = 'AI hata: ' + (err.message || err) + '\n\nYerel şablon kullanılacak.';
+                    showAiStatus(status, msg, true);
+                    alert(msg);
+                    tabsConfig[index].aiHtml = null;
+                    tabsConfig[index].widgetType = detectWidgetType(content);
+                }
+            }
+
+            await saveTabsConfig();
+            applyRoleAndTabs();
+            renderTabsList();
+            closeTabEditModal();
+        };
+
+        window.moveTabUp = async (index) => {
+            if (!isAdmin() || index === 0) return;
+            [tabsConfig[index], tabsConfig[index - 1]] = [tabsConfig[index - 1], tabsConfig[index]];
+            await saveTabsConfig();
+            applyRoleAndTabs();
+            renderTabsList();
+        };
+
+        window.moveTabDown = async (index) => {
+            if (!isAdmin() || index === tabsConfig.length - 1) return;
+            [tabsConfig[index], tabsConfig[index + 1]] = [tabsConfig[index + 1], tabsConfig[index]];
+            await saveTabsConfig();
+            applyRoleAndTabs();
+            renderTabsList();
+        };
+
+        window.removeTab = async (index) => {
+            if (!isAdmin()) return;
+            const t = tabsConfig[index];
+            const msg = t.core
+                ? `"${t.label}" sistem sekmesi menüden kaldırılacak. Devam?`
+                : `"${t.label}" sekmesi silinsin mi?`;
+            if (!confirm(msg)) return;
+            if (t.core && !removedTabIds.includes(t.id)) {
+                removedTabIds.push(t.id);
+            }
+            // İlgili içerik alanını gizle (sistem)
+            if (t.core) {
+                const el = document.getElementById('tabContent' + capitalizeTab(t.id));
+                if (el) el.classList.add('hidden');
+            }
+            const removedLabel = t.label;
+            tabsConfig.splice(index, 1);
+            await saveTabsConfig();
+            applyRoleAndTabs();
+            renderTabsList();
+            logActivity('Sekme', 'Sekme silindi', removedLabel);
+        };
+
+        window.restoreDefaultTabs = async () => {
+            if (!isAdmin()) return;
+            if (!confirm('Silinen tüm sistem sekmeleri geri yüklensin mi?')) return;
+            removedTabIds = [];
+            // Mevcut özel sekmeleri koru
+            const customs = tabsConfig.filter(t => !t.core);
+            tabsConfig = DEFAULT_TABS.map(t => ({ ...t, content: '', widgetType: null })).concat(customs);
+            await saveTabsConfig();
+            applyRoleAndTabs();
+            renderTabsList();
+        };
+
+        window.addCustomTab = async () => {
+            if (!isAdmin()) {
+                alert('Sadece admin yeni sekme ekleyebilir');
+                return;
+            }
+            const emoji = (document.getElementById('newTabEmoji').value || '📌').trim();
+            const label = (document.getElementById('newTabLabel').value || '').trim();
+            const content = (document.getElementById('newTabContent').value || '').trim();
+            const vis = visibilityFromSelect(document.getElementById('newTabVisibleTo').value);
+            const status = document.getElementById('newTabStatus');
+            const btn = document.getElementById('addTabBtn');
+            if (!label) {
+                alert('Sekme adı gerekli');
+                return;
+            }
+            const id = 'custom_' + Date.now();
+            let widgetType = detectWidgetType(content);
+            let aiHtml = null;
+
+            if (status) {
+                status.classList.remove('hidden');
+                status.textContent = content ? 'AI ile sayfa oluşturuluyor...' : 'Kaydediliyor...';
+            }
+            if (btn) { btn.disabled = true; btn.textContent = 'Oluşturuluyor...'; }
+
+            if (content) {
+                try {
+                    aiHtml = await generatePageWithGemini(content, label);
+                    widgetType = 'ai';
+                    showAiStatus(status, 'AI içerik hazır, kaydediliyor...', false);
+                } catch (err) {
+                    console.error(err);
+                    const msg = 'AI kullanılamadı: ' + (err.message || err) + '\n\nYerel şablon kullanılacak.';
+                    showAiStatus(status, msg, true);
+                    alert(msg);
+                    aiHtml = null;
+                    widgetType = detectWidgetType(content);
+                }
+            }
+
+            tabsConfig.push({
+                id, emoji: emoji || '📌', label, visible: true, core: false,
+                adminOnly: vis.adminOnly,
+                visibleTo: vis.visibleTo,
+                content, widgetType, aiHtml
+            });
+            document.getElementById('newTabEmoji').value = '';
+            document.getElementById('newTabLabel').value = '';
+            document.getElementById('newTabContent').value = '';
+            try {
+                await saveTabsConfig();
+                applyRoleAndTabs();
+                renderTabsList();
+                showAiStatus(status, 'Sekme eklendi.', false);
+            } catch (err) {
+                showAiStatus(status, 'Kayıt hatası: ' + (err.message || err), true); alert('Kayıt hatası: ' + (err.message || err));
+            }
+            if (btn) { btn.disabled = false; btn.textContent = 'Sekme Ekle (AI ile oluştur)'; }
+        };
+
+
+        window.toggleActivityPanel = () => {
+            const panel = document.getElementById('activityPanel');
+            const icon = document.getElementById('activityToggleIcon');
+            if (!panel) return;
+            const opening = panel.classList.contains('hidden');
+            panel.classList.toggle('hidden');
+            if (icon) icon.style.transform = opening ? 'rotate(180deg)' : 'rotate(0deg)';
+            if (opening) renderActivityTable();
+        };
+
+        window.applyActivityFilters = () => {
+            activityFilter.user = document.getElementById('activityFilterUser').value;
+            activityFilter.action = document.getElementById('activityFilterAction').value;
+            activityFilter.start = document.getElementById('activityFilterStart').value;
+            activityFilter.end = document.getElementById('activityFilterEnd').value;
+            renderActivityTable();
+        };
+
+        window.resetActivityFilters = () => {
+            activityFilter = { user: 'Tümü', action: 'Tümü', start: '', end: '' };
+            document.getElementById('activityFilterUser').value = 'Tümü';
+            document.getElementById('activityFilterAction').value = 'Tümü';
+            document.getElementById('activityFilterStart').value = '';
+            document.getElementById('activityFilterEnd').value = '';
+            renderActivityTable();
+        };
+
+        window.clearActivityLog = async () => {
+            if (!isAdmin()) return;
+            if (!confirm('Tüm kullanıcı hareket kayıtları silinsin mi? Bu işlem geri alınamaz.')) return;
+            try {
+                const snap = await db.collection('activityLog').limit(400).get();
+                const batchSize = snap.docs.length;
+                for (const d of snap.docs) {
+                    await d.ref.delete();
+                }
+                logActivity('Diğer', 'Aktivite kaydı temizlendi', batchSize + ' kayıt silindi');
+                alert('Kayıtlar temizlendi' + (batchSize >= 400 ? ' (ilk 400; gerekirse tekrar çalıştırın)' : ''));
+            } catch (err) {
+                alert('Temizlenemedi: ' + (err.message || err));
+            }
+        };
+
+        function formatActivityTime(iso) {
+            if (!iso) return '-';
+            try {
+                return new Date(iso).toLocaleString('tr-TR', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit'
+                });
+            } catch { return iso; }
+        }
+
+        window.renderActivityTable = () => {
+            const tbody = document.getElementById('activityTableBody');
+            const countLabel = document.getElementById('activityCountLabel');
+            if (!tbody) return;
+
+            let rows = [...activityLog];
+            if (activityFilter.user && activityFilter.user !== 'Tümü') {
+                rows = rows.filter(r => r.user === activityFilter.user);
+            }
+            if (activityFilter.action && activityFilter.action !== 'Tümü') {
+                rows = rows.filter(r => r.actionType === activityFilter.action);
+            }
+            if (activityFilter.start) {
+                rows = rows.filter(r => (r.at || '').slice(0, 10) >= activityFilter.start);
+            }
+            if (activityFilter.end) {
+                rows = rows.filter(r => (r.at || '').slice(0, 10) <= activityFilter.end);
+            }
+            rows.sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
+
+            if (countLabel) countLabel.textContent = rows.length + ' kayıt gösteriliyor';
+
+            if (!rows.length) {
+                tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400 text-sm">Kayıt yok</td></tr>';
+                return;
+            }
+
+            const typeColor = {
+                'Giriş': 'bg-emerald-50 text-emerald-700',
+                'Çıkış': 'bg-slate-100 text-slate-600',
+                'Harcama': 'bg-rose-50 text-rose-700',
+                'Gelir': 'bg-green-50 text-green-700',
+                'Kategori': 'bg-amber-50 text-amber-700',
+                'Sekme': 'bg-violet-50 text-violet-700',
+                'Not': 'bg-blue-50 text-blue-700',
+                'Alışveriş': 'bg-cyan-50 text-cyan-700',
+                'Diğer': 'bg-slate-50 text-slate-600'
+            };
+
+            tbody.innerHTML = rows.map(r => `
+                <tr class="hover:bg-slate-50/80">
+                    <td class="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">${escapeHtml(formatActivityTime(r.at))}</td>
+                    <td class="px-4 py-3">
+                        <span class="text-[10px] font-black uppercase px-2 py-1 rounded-lg ${r.user === 'Bekir' ? 'bg-blue-50 text-blue-600' : (r.user === 'Duygu' ? 'bg-pink-50 text-pink-600' : 'bg-slate-100 text-slate-500')}">${escapeHtml(r.user || '-')}</span>
+                    </td>
+                    <td class="px-4 py-3">
+                        <span class="text-[10px] font-black uppercase px-2 py-1 rounded-lg ${typeColor[r.actionType] || typeColor['Diğer']}">${escapeHtml(r.actionType || 'Diğer')}</span>
+                    </td>
+                    <td class="px-4 py-3 text-xs font-bold text-slate-800">${escapeHtml(r.action || '-')}</td>
+                    <td class="px-4 py-3 text-xs text-slate-500 max-w-xs truncate" title="${escapeHtml(r.detail || '')}">${escapeHtml(r.detail || '-')}</td>
+                </tr>
+            `).join('');
+        };
+
         window.toggleCategoryPanel = () => {
             const panel = document.getElementById('categoryPanel');
             const icon = document.getElementById('categoryToggleIcon');
@@ -1269,6 +2299,7 @@
             await saveCategoryOrder();
             updateCategorySelects();
             renderCategoriesList();
+            logActivity('Kategori', 'Kategori eklendi', newCat);
         };
 
         window.removeCategory = async (index) => {
@@ -1278,6 +2309,7 @@
             await saveCategoryOrder();
             updateCategorySelects();
             renderCategoriesList();
+            logActivity('Kategori', 'Kategori silindi', catName);
         };
 
         window.moveCategoryUp = async (index) => {
@@ -1396,6 +2428,7 @@
             document.getElementById('editNoteId').value = '';
             document.getElementById('noteContent').value = '';
             document.getElementById('noteSubmitBtn').innerText = 'Kaydet';
+            logActivity('Not', id ? 'Not güncellendi' : 'Not eklendi', person);
         };
 
         window.deleteNote = async (id) => {
@@ -1404,15 +2437,29 @@
             }
         };
 
+        function formatNoteDateTime(iso) {
+            if (!iso) return '';
+            try {
+                const d = new Date(iso);
+                if (isNaN(d.getTime())) return '';
+                return d.toLocaleString('tr-TR', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+            } catch { return ''; }
+        }
+
         window.renderNotesList = () => {
             const container = document.getElementById('notesContainer');
             if (!container) return;
-            container.innerHTML = notes.map(n => `
+            const sorted = [...notes].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+            container.innerHTML = sorted.map(n => `
                 <div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative">
-                    <div class="flex justify-between items-center mb-4">
+                    <div class="flex justify-between items-center mb-2">
                         <span class="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full ${n.person === 'Bekir' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'}">${escapeHtml(n.person)}</span>
-                        <button onclick="deleteNote('${escapeHtml(n.id)}')" class="text-xs text-rose-500">Sil</button>
+                        <button onclick="deleteNote('${escapeHtml(n.id)}')" class="text-xs text-rose-500 font-bold">Sil</button>
                     </div>
+                    <p class="text-[11px] text-slate-400 font-semibold mb-3">${escapeHtml(formatNoteDateTime(n.date))}</p>
                     <p class="text-sm font-medium text-slate-700 whitespace-pre-wrap">${escapeHtml(n.content)}</p>
                 </div>
             `).join('');
@@ -1540,4 +2587,8 @@
         window.closeInstallmentsModal = () => {
             document.getElementById('installmentsModal').classList.add('hidden');
             document.getElementById('installmentsModal').classList.remove('flex');
+        };
+
+        window.downloadExcel = function() {
+            alert('Excel indirme bu sürümde henüz bağlanmadı.');
         };
