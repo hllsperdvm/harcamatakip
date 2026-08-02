@@ -59,3 +59,12 @@
 #customTabBody {
   min-height: 12rem;
 }
+
+
+/* İleri tarihli harcama / taksit satırları */
+#expenseTableBody tr.row-future-expense {
+  background: linear-gradient(90deg, #fffbeb 0%, #fef3c7 100%);
+}
+#expenseTableBody tr.row-future-expense:hover {
+  background: linear-gradient(90deg, #fef3c7 0%, #fde68a 100%);
+}

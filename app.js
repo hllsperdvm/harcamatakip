@@ -887,6 +887,20 @@ Sekme adı: ${tabLabel || 'Özel'}
         };
 
         // Tablo Render
+        function todayDateStr() {
+            const d = new Date();
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
+
+        function isFutureDateStr(dateStr) {
+            if (!dateStr) return false;
+            const s = String(dateStr).slice(0, 10);
+            return s > todayDateStr();
+        }
+
         function getProcessedExpenses() {
             // Harcamaları 29–28 ekstre dönemine göre işler. effectiveMonth = periodKey
             const currentPeriod = getCurrentPeriod();
@@ -961,7 +975,7 @@ Sekme adı: ${tabLabel || 'Özel'}
                 
                 if (currentStartDateFilter && item.date < currentStartDateFilter) return false;
                 if (currentEndDateFilter && item.date > currentEndDateFilter) return false;
-                
+
                 return true;
             });
 
@@ -977,9 +991,17 @@ Sekme adı: ${tabLabel || 'Özel'}
             filtered.slice(0, displayedRecords).forEach(item => {
                 const tr = document.createElement('tr');
                 const isIncome = item.installmentLabel === 'Gelir';
+                const isFuture = !isIncome && isFutureDateStr(item.date);
+                if (isFuture) {
+                    tr.className = 'row-future-expense';
+                    tr.title = 'İleri tarihli kayıt';
+                }
                 const safeId = escapeHtml(item.id);
+                const dateCell = isFuture
+                    ? `<td class="px-8 py-5"><span class="inline-flex items-center gap-1.5"><span class="opacity-80">${escapeHtml(item.date || '-')}</span><span class="text-[9px] font-black uppercase tracking-wide text-amber-700 bg-amber-100/80 px-1.5 py-0.5 rounded">İleri</span></span></td>`
+                    : `<td class="px-8 py-5 opacity-60">${escapeHtml(item.date || '-')}</td>`;
                 tr.innerHTML = `
-                    <td class="px-8 py-5 opacity-60">${escapeHtml(item.date || '-')}</td>
+                    ${dateCell}
                     <td class="px-6 py-5">
                         <span class="px-3 py-1 rounded-lg text-[10px] font-black ${item.person === 'Bekir' ? 'bg-blue-50 text-blue-600' : (item.person === 'Duygu' ? 'bg-pink-50 text-pink-600' : 'bg-emerald-50 text-emerald-600')}">
                             ${escapeHtml((item.person || '').toUpperCase())}
@@ -1683,7 +1705,10 @@ Sekme adı: ${tabLabel || 'Özel'}
             if (type === 'todo') {
                 return `
                 <div class="max-w-md mx-auto space-y-4">
-                    <p class="text-xs text-slate-400 font-semibold">Yapılacaklar</p>
+                    <div>
+                        <p class="text-xs text-slate-400 font-semibold">Yapılacaklar</p>
+                        <p class="text-[10px] text-emerald-600 font-bold mt-0.5">Kayıtlar otomatik saklanır (yenilemede silinmez)</p>
+                    </div>
                     <div class="flex gap-2">
                         <input type="text" id="dynTodoInput" placeholder="Görev ekle..." class="flex-1 bg-slate-50 rounded-xl p-3 font-bold outline-none ring-1 ring-slate-200">
                         <button type="button" id="dynTodoAdd" class="bg-indigo-600 text-white px-4 rounded-xl font-bold">Ekle</button>
@@ -1822,7 +1847,26 @@ Sekme adı: ${tabLabel || 'Özel'}
                 const add = document.getElementById('dynTodoAdd');
                 let items = [];
                 try { items = JSON.parse(localStorage.getItem(key) || '[]'); } catch { items = []; }
+
+                const persist = async () => {
+                    localStorage.setItem(key, JSON.stringify(items));
+                    try {
+                        await db.collection('tabTodos').doc(String(tabId)).set({
+                            items: items,
+                            updatedAt: new Date().toISOString(),
+                            updatedBy: (currentUser && currentUser.name) || ''
+                        }, { merge: true });
+                    } catch (err) {
+                        console.warn('Todo Firebase kayıt hatası:', err);
+                    }
+                };
+
                 const render = () => {
+                    if (!list) return;
+                    if (!items.length) {
+                        list.innerHTML = '<li class="text-sm text-slate-400 font-medium px-1">Henüz görev yok</li>';
+                        return;
+                    }
                     list.innerHTML = items.map((it, i) => `
                         <li class="flex items-center gap-2 bg-slate-50 p-3 rounded-xl">
                             <input type="checkbox" ${it.done ? 'checked' : ''} data-i="${i}" class="dyn-todo-check rounded">
@@ -1830,25 +1874,36 @@ Sekme adı: ${tabLabel || 'Özel'}
                             <button type="button" data-del="${i}" class="text-rose-500 text-xs font-bold">Sil</button>
                         </li>`).join('');
                 };
+
+                // Firebase'den yükle (varsa)
+                db.collection('tabTodos').doc(String(tabId)).get().then(doc => {
+                    if (doc.exists && doc.data() && Array.isArray(doc.data().items)) {
+                        items = doc.data().items;
+                        localStorage.setItem(key, JSON.stringify(items));
+                    }
+                    render();
+                }).catch(() => render());
+
                 render();
-                add.onclick = () => {
+                if (add) add.onclick = () => {
                     const t = input.value.trim();
                     if (!t) return;
-                    items.push({ text: t, done: false });
-                    localStorage.setItem(key, JSON.stringify(items));
+                    items.push({ text: t, done: false, at: new Date().toISOString() });
                     input.value = '';
                     render();
+                    persist();
                 };
-                list.onclick = (e) => {
+                if (list) list.onclick = (e) => {
                     if (e.target.matches('.dyn-todo-check')) {
-                        items[+e.target.dataset.i].done = e.target.checked;
-                        localStorage.setItem(key, JSON.stringify(items));
+                        const i = +e.target.dataset.i;
+                        if (items[i]) items[i].done = e.target.checked;
                         render();
+                        persist();
                     }
                     if (e.target.dataset.del != null) {
                         items.splice(+e.target.dataset.del, 1);
-                        localStorage.setItem(key, JSON.stringify(items));
                         render();
+                        persist();
                     }
                 };
             }
@@ -1893,25 +1948,37 @@ Sekme adı: ${tabLabel || 'Özel'}
             }
         }
 
+        // Kalıcı widget türleri (yenilemede veri kaybolmaz)
+        const PERSISTENT_WIDGETS = new Set(['todo', 'notes', 'counter', 'calculator', 'percentage', 'timer', 'scratch', 'fuel']);
+
         window.renderCustomTabPage = function(tab) {
             const body = document.getElementById('customTabBody');
             const title = document.getElementById('customTabTitle');
             if (!body || !tab) return;
             title.textContent = `${tab.emoji || ''} ${tab.label}`;
 
-            // AI HTML varsa temizleyip bas
+            const detected = detectWidgetType(tab.content || tab.label || '');
+            const type = (tab.widgetType && tab.widgetType !== 'ai' && tab.widgetType !== 'text')
+                ? tab.widgetType
+                : detected;
+
+            // Yapılacaklar / not / sayaç vb. → her zaman kalıcı yerel widget
+            if (PERSISTENT_WIDGETS.has(type)) {
+                body.innerHTML = buildWidgetHtml(type, tab.content);
+                setTimeout(() => bindWidgetBehaviors(type, tab.id), 0);
+                return;
+            }
+
+            // Diğer AI HTML
             if (tab.aiHtml) {
                 const cleaned = sanitizeAiHtml(tab.aiHtml);
                 body.innerHTML = cleaned;
-                // Ham kod sızması: eğer hâlâ ``` görünüyorsa tekrar temizle
                 if (body.textContent.includes('```') || body.innerHTML.includes('```')) {
                     body.innerHTML = sanitizeAiHtml(body.textContent);
                 }
                 return;
             }
 
-            const type = tab.widgetType || detectWidgetType(tab.content);
-            // İçerik AI isteği gibi ama aiHtml yoksa yerel widget dene
             body.innerHTML = buildWidgetHtml(type, tab.content);
             if (tab.content && type !== 'text' && type !== 'ai') {
                 const hint = document.createElement('p');
@@ -2116,17 +2183,25 @@ Sekme adı: ${tabLabel || 'Özel'}
             if (btn) { btn.disabled = true; btn.textContent = 'Oluşturuluyor...'; }
 
             if (content) {
-                try {
-                    aiHtml = await generatePageWithGemini(content, label);
-                    widgetType = 'ai';
-                    showAiStatus(status, 'AI içerik hazır, kaydediliyor...', false);
-                } catch (err) {
-                    console.error(err);
-                    const msg = 'AI kullanılamadı: ' + (err.message || err) + '\n\nYerel şablon kullanılacak.';
-                    showAiStatus(status, msg, true);
-                    alert(msg);
+                const durable = detectWidgetType(content);
+                if (PERSISTENT_WIDGETS.has(durable)) {
+                    // Kalıcı widget: AI HTML gerekmez, yerel şablon + kayıt kullanılır
+                    widgetType = durable;
                     aiHtml = null;
-                    widgetType = detectWidgetType(content);
+                    showAiStatus(status, 'Kalıcı ' + durable + ' sayfası hazırlanıyor...', false);
+                } else {
+                    try {
+                        aiHtml = await generatePageWithGemini(content, label);
+                        widgetType = 'ai';
+                        showAiStatus(status, 'AI içerik hazır, kaydediliyor...', false);
+                    } catch (err) {
+                        console.error(err);
+                        const msg = 'AI kullanılamadı: ' + (err.message || err) + '\n\nYerel şablon kullanılacak.';
+                        showAiStatus(status, msg, true);
+                        alert(msg);
+                        aiHtml = null;
+                        widgetType = detectWidgetType(content);
+                    }
                 }
             }
 
