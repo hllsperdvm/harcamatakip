@@ -751,7 +751,7 @@
             wrap.classList.toggle('hidden', !isFuel);
         };
 
-        let vehicleFuelChart = null, vehicleMaintChart = null;
+        let vehicleFuelChart = null, vehicleMaintChart = null, vehicleFuelConsChart = null, vehicleFuelCostChart = null, vehicleFuelLitersChart = null;
         let vehicleSubTab = 'fuel'; // fuel | maint
 
         window.showVehicleSubTab = function(which) {
@@ -822,46 +822,187 @@
             fillList('vehicleFuelList', fuelItems);
             fillList('vehicleMaintList', maintItems);
 
-            // Aylık grafikler (son 6 takvim ayı)
-            const buildMonthly = (items) => {
-                const keys = [];
-                const now = new Date();
-                for (let i = 5; i >= 0; i--) {
-                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-                    keys.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+            // --- Yakıt özet kartları ---
+            const withCons = fuelItems.filter(e => e.fuelKm > 0 && e.fuelLiters > 0);
+            const consValues = withCons.map(e => (e.fuelLiters / e.fuelKm) * 100);
+            const costValues = withCons.map(e => {
+                if (e.fuelPricePerLt > 0) return (e.fuelLiters * e.fuelPricePerLt) / e.fuelKm;
+                if (e.displayAmount > 0) return e.displayAmount / e.fuelKm;
+                return null;
+            }).filter(v => v != null && !isNaN(v));
+            const totalFuelTl = fuelItems.reduce((s, e) => s + (e.displayAmount || 0), 0);
+            const totalLiters = fuelItems.reduce((s, e) => s + (parseFloat(e.fuelLiters) || 0), 0);
+            const totalKm = fuelItems.reduce((s, e) => s + (parseFloat(e.fuelKm) || 0), 0);
+            const avgCons = consValues.length ? consValues.reduce((a, b) => a + b, 0) / consValues.length : null;
+            const avgCost = costValues.length ? costValues.reduce((a, b) => a + b, 0) / costValues.length : null;
+
+            const setTxt = (id, text) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            };
+            setTxt('fuelStatTotal', totalFuelTl.toLocaleString('tr-TR') + ' TL');
+            setTxt('fuelStatLiters', totalLiters > 0 ? totalLiters.toLocaleString('tr-TR', { maximumFractionDigits: 1 }) + ' L' : '—');
+            setTxt('fuelStatKm', totalKm > 0 ? totalKm.toLocaleString('tr-TR', { maximumFractionDigits: 0 }) + ' km' : '—');
+            setTxt('fuelStatCons', avgCons != null ? avgCons.toFixed(2) + ' L/100km' : '—');
+            setTxt('fuelStatCost', avgCost != null ? avgCost.toFixed(2) + ' TL/km' : '—');
+
+            // Aylık yardımcılar
+            const monthKeys = [];
+            const now = new Date();
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                monthKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+            }
+            const monthLabels = monthKeys.map(k => {
+                const [y, m] = k.split('-').map(Number);
+                const months = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+                return months[m - 1] + ' ' + y;
+            });
+            const monthlySum = (items, field) => monthKeys.map(k =>
+                items.filter(e => String(e.date || '').startsWith(k))
+                    .reduce((s, e) => s + (field === 'amount' ? (e.displayAmount || 0) : (parseFloat(e[field]) || 0)), 0)
+            );
+
+            const fuelSpend = monthlySum(fuelItems, 'amount');
+            const fuelLitersM = monthlySum(fuelItems, 'fuelLiters');
+            const maintSpend = monthlySum(maintItems.filter(e => vehicleKind(e) === 'maint'), 'amount');
+
+            // Dolum bazlı (tarihe göre) tüketim / maliyet
+            const sortedFuel = withCons.slice().sort((a, b) => String(a.date).localeCompare(String(b.date))).slice(-12);
+            const fillLabels = sortedFuel.map(e => {
+                const s = String(e.date || '').slice(0, 10);
+                const parts = s.split('-');
+                return parts.length === 3 ? (parts[2] + '.' + parts[1]) : s;
+            });
+            const fillCons = sortedFuel.map(e => +((e.fuelLiters / e.fuelKm) * 100).toFixed(2));
+            const fillCost = sortedFuel.map(e => {
+                if (e.fuelPricePerLt > 0) return +(((e.fuelLiters * e.fuelPricePerLt) / e.fuelKm).toFixed(2));
+                return +((e.displayAmount / e.fuelKm).toFixed(2));
+            });
+
+            const mkBar = (canvasId, chartRefName, labels, data, color, label) => {
+                const ctx = document.getElementById(canvasId);
+                if (!ctx || typeof Chart === 'undefined') return null;
+                if (window[chartRefName]) {
+                    try { window[chartRefName].destroy(); } catch (_) {}
                 }
-                const labels = keys.map(k => {
-                    const [y,m] = k.split('-').map(Number);
-                    const months = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
-                    return months[m-1] + ' ' + y;
+                // use outer vars
+                return new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels,
+                        datasets: [{ label, data, backgroundColor: color, borderRadius: 8, maxBarThickness: 36 }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } }
+                    }
                 });
-                const data = keys.map(k => items.filter(e => String(e.date||'').startsWith(k)).reduce((s,e)=>s+(e.displayAmount||0),0));
-                return { labels, data };
+            };
+            const mkLine = (canvasId, labels, data, color, label) => {
+                const ctx = document.getElementById(canvasId);
+                if (!ctx || typeof Chart === 'undefined') return null;
+                return new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label,
+                            data,
+                            borderColor: color,
+                            backgroundColor: color + '22',
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 4,
+                            pointBackgroundColor: color
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: { legend: { display: true, position: 'bottom' } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
             };
 
-            const fuelM = buildMonthly(fuelItems);
-            const maintM = buildMonthly(maintItems.filter(e => vehicleKind(e) === 'maint'));
+            if (vehicleFuelChart) { try { vehicleFuelChart.destroy(); } catch (_) {} }
+            if (vehicleFuelLitersChart) { try { vehicleFuelLitersChart.destroy(); } catch (_) {} }
+            if (vehicleFuelConsChart) { try { vehicleFuelConsChart.destroy(); } catch (_) {} }
+            if (vehicleFuelCostChart) { try { vehicleFuelCostChart.destroy(); } catch (_) {} }
+            if (vehicleMaintChart) { try { vehicleMaintChart.destroy(); } catch (_) {} }
 
             const ctxF = document.getElementById('vehicleFuelChart');
             if (ctxF) {
-                if (vehicleFuelChart) vehicleFuelChart.destroy();
                 vehicleFuelChart = new Chart(ctxF, {
                     type: 'bar',
                     data: {
-                        labels: fuelM.labels,
-                        datasets: [{ label: 'Yakıt (TL)', data: fuelM.data, backgroundColor: '#4f46e5', borderRadius: 8 }]
+                        labels: monthLabels,
+                        datasets: [{ label: 'Harcama (TL)', data: fuelSpend, backgroundColor: '#4f46e5', borderRadius: 8, maxBarThickness: 36 }]
                     },
                     options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
                 });
             }
+            const ctxL = document.getElementById('vehicleFuelLitersChart');
+            if (ctxL) {
+                vehicleFuelLitersChart = new Chart(ctxL, {
+                    type: 'bar',
+                    data: {
+                        labels: monthLabels,
+                        datasets: [{ label: 'Litre', data: fuelLitersM, backgroundColor: '#06b6d4', borderRadius: 8, maxBarThickness: 36 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+                });
+            }
+            const ctxC = document.getElementById('vehicleFuelConsChart');
+            if (ctxC) {
+                vehicleFuelConsChart = new Chart(ctxC, {
+                    type: 'line',
+                    data: {
+                        labels: fillLabels.length ? fillLabels : ['Veri yok'],
+                        datasets: [{
+                            label: 'L / 100 km',
+                            data: fillCons.length ? fillCons : [0],
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16,185,129,0.12)',
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#10b981'
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: true, position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
+                });
+            }
+            const ctxK = document.getElementById('vehicleFuelCostChart');
+            if (ctxK) {
+                vehicleFuelCostChart = new Chart(ctxK, {
+                    type: 'line',
+                    data: {
+                        labels: fillLabels.length ? fillLabels : ['Veri yok'],
+                        datasets: [{
+                            label: 'TL / km',
+                            data: fillCost.length ? fillCost : [0],
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245,158,11,0.12)',
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#f59e0b'
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: true, position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
+                });
+            }
             const ctxM = document.getElementById('vehicleMaintChart');
             if (ctxM) {
-                if (vehicleMaintChart) vehicleMaintChart.destroy();
                 vehicleMaintChart = new Chart(ctxM, {
                     type: 'bar',
                     data: {
-                        labels: maintM.labels,
-                        datasets: [{ label: 'Vergi & Bakım (TL)', data: maintM.data, backgroundColor: '#f59e0b', borderRadius: 8 }]
+                        labels: monthLabels,
+                        datasets: [{ label: 'Vergi & Bakım (TL)', data: maintSpend, backgroundColor: '#f59e0b', borderRadius: 8, maxBarThickness: 36 }]
                     },
                     options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
                 });
