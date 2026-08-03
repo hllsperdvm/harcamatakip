@@ -96,15 +96,12 @@
                 </div>
 
                 <!-- Yeni Harcama Ekle Butonu -->
-                <div class="flex flex-col sm:flex-row justify-center gap-3">
-                    <button onclick="openExpenseModal()" class="w-full sm:w-auto bg-slate-900 hover:bg-indigo-600 text-white px-10 py-4 rounded-2xl text-base font-bold transition shadow-xl shadow-slate-200 flex items-center justify-center gap-3 active:scale-95">
+                <div class="flex justify-center">
+                    <button onclick="openExpenseModal()" class="w-full sm:w-auto bg-slate-900 hover:bg-indigo-600 text-white px-12 py-4 rounded-2xl text-base font-bold transition shadow-xl shadow-slate-200 flex items-center justify-center gap-3 active:scale-95">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                         </svg>
                         Yeni Harcama Ekle
-                    </button>
-                    <button type="button" onclick="openIncomeModal()" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white px-10 py-4 rounded-2xl text-base font-bold transition shadow-xl shadow-emerald-100 flex items-center justify-center gap-3 active:scale-95">
-                        + Gelir Ekle
                     </button>
                 </div>
 
@@ -184,8 +181,7 @@
                                 <option value="Tümü">Tümü</option>
                                 <option value="Bekir">Bekir</option>
                                 <option value="Duygu">Duygu</option>
-                                <option value="Gelir">Gelir</option>
-                            </select>
+                                                            </select>
                         </div>
                         <div class="flex flex-col gap-1">
                             <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Kategori</label>
@@ -233,7 +229,46 @@
             </div>
 
             <!-- Diğer Sekmeler (Gizli) -->
-                        <div id="tabContentStats" class="hidden space-y-6 fade-in">
+                        
+            <!-- SEKME: ARAÇ -->
+            <div id="tabContentVehicle" class="hidden space-y-6 fade-in">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <button type="button" id="vehicleTabFuelBtn" onclick="showVehicleSubTab('fuel')" class="bg-white p-6 rounded-3xl card-shadow border-2 border-indigo-600 text-left transition">
+                        <p class="text-2xl mb-1">⛽</p>
+                        <p class="font-black text-slate-900">Yakıt</p>
+                        <p class="text-xs text-slate-400 font-semibold mt-1">Yakıt harcamaları ve aylık grafik</p>
+                    </button>
+                    <button type="button" id="vehicleTabMaintBtn" onclick="showVehicleSubTab('maint')" class="bg-white p-6 rounded-3xl card-shadow border-2 border-slate-200 text-left transition">
+                        <p class="text-2xl mb-1">🔧</p>
+                        <p class="font-black text-slate-900">Vergi &amp; Bakım</p>
+                        <p class="text-xs text-slate-400 font-semibold mt-1">Vergi ve bakım harcamaları</p>
+                    </button>
+                </div>
+
+                <div id="vehicleFuelPanel" class="space-y-6">
+                    <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
+                        <h2 class="text-xl font-black mb-4">Yakıt — Aylık Grafik</h2>
+                        <div class="h-72"><canvas id="vehicleFuelChart"></canvas></div>
+                    </div>
+                    <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
+                        <h2 class="text-xl font-black mb-4">Yakıt Harcamaları</h2>
+                        <div id="vehicleFuelList"></div>
+                    </div>
+                </div>
+
+                <div id="vehicleMaintPanel" class="hidden space-y-6">
+                    <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
+                        <h2 class="text-xl font-black mb-4">Vergi &amp; Bakım — Aylık Grafik</h2>
+                        <div class="h-72"><canvas id="vehicleMaintChart"></canvas></div>
+                    </div>
+                    <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
+                        <h2 class="text-xl font-black mb-4">Vergi &amp; Bakım Harcamaları</h2>
+                        <div id="vehicleMaintList"></div>
+                    </div>
+                </div>
+            </div>
+
+<div id="tabContentStats" class="hidden space-y-6 fade-in">
                 <p class="text-center text-xs text-slate-400 font-semibold">Dönem özeti · grafiklere tıklayarak kategori detayı açılır</p>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
@@ -551,8 +586,7 @@
                                             <option value="Giriş">Giriş</option>
                                             <option value="Çıkış">Çıkış</option>
                                             <option value="Harcama">Harcama</option>
-                                            <option value="Gelir">Gelir</option>
-                                            <option value="Kategori">Kategori</option>
+                                                                                        <option value="Kategori">Kategori</option>
                                             <option value="Sekme">Sekme</option>
                                             <option value="Not">Not</option>
                                                                                         <option value="Diğer">Diğer</option>
@@ -658,8 +692,31 @@
                     </div>
                     <div>
                         <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Kategori</label>
-                        <select id="category" required class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold focus:ring-2 focus:ring-indigo-500"></select>
+                        <select id="category" required onchange="onCategoryChange()" class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold focus:ring-2 focus:ring-indigo-500"></select>
                     </div>
+                </div>
+                <div id="vehicleSubtypeWrap" class="hidden">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Araç harcama türü</label>
+                    <select id="vehicleSubtype" onchange="onVehicleSubtypeChange()" class="w-full bg-amber-50 border-none rounded-2xl p-4 font-bold focus:ring-2 focus:ring-amber-500">
+                        <option value="Yakıt">Yakıt</option>
+                        <option value="Vergi">Vergi</option>
+                        <option value="Bakım">Bakım</option>
+                    </select>
+                </div>
+                <div id="fuelDetailWrap" class="hidden grid grid-cols-1 sm:grid-cols-3 gap-3 bg-amber-50/80 p-4 rounded-2xl border border-amber-100">
+                    <div>
+                        <label class="text-[10px] font-black text-amber-700/80 uppercase ml-1">Yapılan KM</label>
+                        <input type="number" step="any" min="0" id="fuelKm" placeholder="örn. 450" class="w-full bg-white border-none rounded-xl p-3 font-bold focus:ring-2 focus:ring-amber-500">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-amber-700/80 uppercase ml-1">Alınan LT</label>
+                        <input type="number" step="any" min="0" id="fuelLiters" placeholder="örn. 30" class="w-full bg-white border-none rounded-xl p-3 font-bold focus:ring-2 focus:ring-amber-500">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-amber-700/80 uppercase ml-1">LT Fiyatı (TL)</label>
+                        <input type="number" step="any" min="0" id="fuelPricePerLt" placeholder="örn. 45" class="w-full bg-white border-none rounded-xl p-3 font-bold focus:ring-2 focus:ring-amber-500">
+                    </div>
+                    <p class="sm:col-span-3 text-[10px] text-amber-800/70 font-semibold">KM + litre girilirse 100 km tüketim ve km maliyeti otomatik hesaplanır.</p>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
@@ -683,126 +740,6 @@
         </div>
     </div>
 
-    <!-- Gelir Modalı -->
-    <div id="incomeModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[110] p-4">
-        <div class="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden">
-            <div class="bg-emerald-600 p-8 text-white flex justify-between items-center">
-                <h2 class="text-2xl font-black">Gelir Ekle</h2>
-                <button onclick="closeIncomeModal()" class="text-2xl font-light opacity-70 hover:opacity-100 transition">&times;</button>
-            </div>
-            <form onsubmit="handleIncomeSubmit(event)" class="p-8 space-y-4">
-                <select id="incomeType" onchange="onIncomeTypeChange()" class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold">
-                    <option value="MAAŞ">MAAŞ</option>
-                    <option value="DİĞER">DİĞER</option>
-                </select>
-                <input type="number" step="any" id="incomeAmount" placeholder="Tutar (TL)" required class="w-full bg-slate-50 border-none rounded-2xl p-4 text-xl font-black">
-                <input type="date" id="incomeDate" required class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold">
-                <input type="text" id="incomeDescription" placeholder="Açıklama" class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold">
-                <div class="flex gap-4 pt-4">
-                    <button type="button" onclick="closeIncomeModal()" class="flex-1 py-4 font-bold text-slate-400">İptal</button>
-                    <button type="submit" class="flex-[2] py-4 rounded-2xl bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-100">Kaydet</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Kart Borç Modalı -->
-    <div id="cardDebtModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[110] p-4">
-        <div class="bg-white w-full max-w-sm rounded-[2.5rem] shadow-2xl p-8">
-            <h2 id="cardDebtModalTitle" class="text-2xl font-black mb-6">Borç Güncelle</h2>
-            <form onsubmit="handleCardDebtSubmit(event)" class="space-y-4">
-                <input type="hidden" id="cardDebtPerson">
-                <input type="number" step="any" id="cardDebtAmount" required placeholder="0,00" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-2xl font-black text-center focus:ring-indigo-500">
-                <div class="flex gap-3">
-                    <button type="button" onclick="closeCardDebtModal()" class="flex-1 py-4 font-bold text-slate-400">Vazgeç</button>
-                    <button type="submit" class="flex-[2] py-4 rounded-2xl bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-100">Güncelle</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Firebase Compat (çift tıklayarak açmak için gerekli) -->
-
-    <!-- Sekme Düzenle Modal -->
-    <div id="tabEditModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[130] p-4">
-        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden">
-            <div class="bg-violet-600 p-5 text-white flex justify-between items-center">
-                <h2 class="text-lg font-black">Sekmeyi Düzenle</h2>
-                <button type="button" onclick="closeTabEditModal()" class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-xl leading-none">&times;</button>
-            </div>
-            <form onsubmit="saveTabEdit(event)" class="p-6 space-y-4">
-                <input type="hidden" id="editTabIndex">
-                <div>
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Emoji</label>
-                    <input type="text" id="editTabEmoji" maxlength="4" class="w-full bg-slate-50 rounded-xl p-3 font-bold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-violet-500">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Sekme adı</label>
-                    <input type="text" id="editTabLabel" required class="w-full bg-slate-50 rounded-xl p-3 font-bold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-violet-500">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Sayfa içeriği / istek</label>
-                    <textarea id="editTabContent" rows="3" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-medium outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-violet-500" placeholder="Örn: hesap makinesi ekle"></textarea>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Kimler görsün?</label>
-                    <select id="editTabVisibleTo" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-violet-500">
-                        <option value="both">Herkes (Bekir + Duygu)</option>
-                        <option value="Bekir">Sadece Bekir</option>
-                        <option value="Duygu">Sadece Duygu</option>
-                        <option value="admin">Sadece Admin</option>
-                    </select>
-                </div>
-                <p id="editTabStatus" class="text-xs text-violet-600 font-semibold hidden"></p>
-                <div class="flex gap-2 pt-2">
-                    <button type="button" onclick="closeTabEditModal()" class="flex-1 py-3 rounded-xl bg-slate-100 font-bold text-slate-600">Vazgeç</button>
-                    <button type="submit" class="flex-[2] py-3 rounded-xl bg-violet-600 text-white font-bold">Kaydet</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    
-    <!-- İlk giriş / yardım -->
-    <div id="onboardingModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-[140] p-4">
-        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
-            <div class="bg-indigo-600 p-6 text-white">
-                <h2 class="text-xl font-black">YUVAM’a hoş geldiniz</h2>
-                <p class="text-sm text-indigo-100 mt-1 font-medium">Kısa kullanım rehberi</p>
-            </div>
-            <div class="p-6 space-y-4 text-sm text-slate-700 font-medium leading-relaxed">
-                <div class="flex gap-3">
-                    <span class="text-xl shrink-0">💰</span>
-                    <p><b>Bütçe Takip:</b> Harcama ve gelir ekleyin. Tarih, kategori, taksit girebilirsiniz. 29–28 ekstre dönemine göre hesaplanır.</p>
-                </div>
-                <div class="flex gap-3">
-                    <span class="text-xl shrink-0">📊</span>
-                    <p><b>İstatistikler / Raporlar:</b> Dönem özeti, grafikler ve kart ekstreleri burada.</p>
-                </div>
-                <div class="flex gap-3">
-                    <span class="text-xl shrink-0">📝</span>
-                    <p><b>Notlar:</b> Ortak not ve IBAN kayıtları.</p>
-                </div>
-                <div class="flex gap-3">
-                    <span class="text-xl shrink-0">⚙️</span>
-                    <p><b>Ayarlar (yalnızca admin):</b> Kategori, sekmeler, kullanıcı hareketleri.</p>
-                </div>
-                <div class="flex gap-3">
-                    <span class="text-xl shrink-0">📥</span>
-                    <p><b>Yedek (CSV):</b> Sağ üstten indirdiğiniz dosyayı Excel veya Google Sheets ile açabilirsiniz.</p>
-                </div>
-                <div class="flex gap-3">
-                    <span class="text-xl shrink-0">🟡</span>
-                    <p><b>İleri tarihli kayıtlar:</b> Bugünden sonraki harcama/taksitler sarı arka planla işaretlenir.</p>
-                </div>
-                <p class="text-xs text-slate-400 pt-2">Bu pencereyi tekrar görmek için üstteki ❓ simgesine basın.</p>
-            </div>
-            <div class="p-4 border-t border-slate-100 flex gap-2">
-                <button type="button" onclick="closeOnboarding(false)" class="flex-1 py-3 rounded-xl bg-slate-100 font-bold text-slate-600">Sonra</button>
-                <button type="button" onclick="closeOnboarding(true)" class="flex-[2] py-3 rounded-xl bg-indigo-600 text-white font-bold">Anladım, başla</button>
-            </div>
-        </div>
-    </div>
 
     
     <div id="categoryDetailModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
@@ -854,6 +791,46 @@
                 </div>
                 <div id="installmentsContainer" class="space-y-3"></div>
             </div>
+        </div>
+    </div>
+
+    
+    <!-- Sekme Düzenle Modal -->
+    <div id="tabEditModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[130] p-4">
+        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden">
+            <div class="bg-violet-600 p-5 text-white flex justify-between items-center">
+                <h2 class="text-lg font-black">Sekmeyi Düzenle</h2>
+                <button type="button" onclick="closeTabEditModal()" class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-xl leading-none">&times;</button>
+            </div>
+            <form onsubmit="saveTabEdit(event)" class="p-6 space-y-4">
+                <input type="hidden" id="editTabIndex">
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Emoji</label>
+                    <input type="text" id="editTabEmoji" maxlength="4" class="w-full bg-slate-50 rounded-xl p-3 font-bold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-violet-500">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Sekme adı</label>
+                    <input type="text" id="editTabLabel" required class="w-full bg-slate-50 rounded-xl p-3 font-bold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-violet-500">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Sayfa içeriği / istek</label>
+                    <textarea id="editTabContent" rows="3" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-medium outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-violet-500" placeholder="Örn: hesap makinesi"></textarea>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Kimler görsün?</label>
+                    <select id="editTabVisibleTo" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-violet-500">
+                        <option value="both">Herkes (Bekir + Duygu)</option>
+                        <option value="Bekir">Sadece Bekir</option>
+                        <option value="Duygu">Sadece Duygu</option>
+                        <option value="admin">Sadece Admin</option>
+                    </select>
+                </div>
+                <p id="editTabStatus" class="text-xs text-violet-600 font-semibold hidden"></p>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="closeTabEditModal()" class="flex-1 py-3 rounded-xl bg-slate-100 font-bold text-slate-600">Vazgeç</button>
+                    <button type="submit" class="flex-[2] py-3 rounded-xl bg-violet-600 text-white font-bold">Kaydet</button>
+                </div>
+            </form>
         </div>
     </div>
 

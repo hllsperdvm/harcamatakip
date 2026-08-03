@@ -90,6 +90,7 @@
 
         const DEFAULT_TABS = [
             { id: 'expense', emoji: '💰', label: 'Bütçe Takip', visible: true, core: true, adminOnly: false },
+            { id: 'vehicle', emoji: '🚗', label: 'Araç', visible: true, core: true, adminOnly: false },
             { id: 'stats', emoji: '📊', label: 'İstatistik & Rapor', visible: true, core: true, adminOnly: false },
             { id: 'notes', emoji: '📝', label: 'Notlar', visible: true, core: true, adminOnly: false },
             { id: 'calculator', emoji: '🧮', label: 'Hesaplama', visible: true, core: true, adminOnly: false },
@@ -218,7 +219,7 @@
 
         // State ve Değişkenler
         let expenses = [], incomes = [], notes = [], deletedExpenses = [];
-        let categories = ["Gıda", "Ulaşım", "Faturalar", "Eğlence", "Sağlık", "Eğitim", "Diğer", "Kredi Kartı Borcu"];
+        let categories = ["Gıda", "Araç", "Faturalar", "Eğlence", "Sağlık", "Eğitim", "Diğer", "Kredi Kartı Borcu"];
         let paymentTypes = ["Nakit", "Kredi Kartı"];
         let bekirDebt = { amount: 0, paid: false, dueDate: '' };
         let duyguDebt = { amount: 0, paid: false, dueDate: '' };
@@ -346,6 +347,10 @@
             renderBudgetInfo();
             renderTable();
             renderCurrentStatements();
+            const vt = document.getElementById('tabContentVehicle');
+            if (vt && !vt.classList.contains('hidden') && typeof renderVehicleTab === 'function') {
+                renderVehicleTab();
+            }
         }
 
         function loadDeletedExpenses() {
@@ -360,7 +365,7 @@
         // Sekme Değiştirme
         window.switchTab = function(tabName) {
             lastActiveTabId = tabName;
-            const coreIds = ["expense", "stats", "notes", "calculator", "settings", "trash"];
+            const coreIds = ["expense", "vehicle", "stats", "notes", "calculator", "settings", "trash"];
             const isCustom = String(tabName).startsWith('custom_');
 
             // Hide all core contents + custom
@@ -412,6 +417,8 @@
                 updateStatsPanel();
                 renderMonthlyReports();
                 if (expenseChart) expenseChart.resize();
+            } else if (tabName === 'vehicle') {
+                renderVehicleTab();
             } else if (tabName === 'trash') {
                 renderTrash();
             } else if (tabName === 'notes') {
@@ -459,6 +466,13 @@
             document.getElementById('description').value = '';
             document.getElementById('date').valueAsDate = new Date();
             document.getElementById('formTitle').innerText = "Harcama Kaydı";
+            const vs = document.getElementById('vehicleSubtype');
+            if (vs) vs.value = 'Yakıt';
+            ['fuelKm','fuelLiters','fuelPricePerLt'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            if (typeof onCategoryChange === 'function') onCategoryChange();
         }
 
         function updateCategorySelects() {
@@ -513,7 +527,10 @@
             });
             db.collection("settings").doc("categories").onSnapshot(d => {
                 if (d.exists && d.data() && Array.isArray(d.data().list)) {
-                    categories = d.data().list;
+                    categories = d.data().list.map(c => c === 'Ulaşım' ? 'Araç' : c);
+                    // Tekilleştir
+                    categories = [...new Set(categories)];
+                    if (!categories.includes('Araç')) categories.splice(1, 0, 'Araç');
                 }
                 updateCategorySelects();
                 renderCategoriesList();
@@ -713,6 +730,144 @@
         }
 
         // Harcama İşlemleri
+
+        window.onCategoryChange = function() {
+            const cat = document.getElementById('category');
+            const wrap = document.getElementById('vehicleSubtypeWrap');
+            if (!cat || !wrap) return;
+            const isVehicle = cat.value === 'Araç' || cat.value === 'Ulaşım';
+            wrap.classList.toggle('hidden', !isVehicle);
+            const sel = document.getElementById('vehicleSubtype');
+            if (sel && isVehicle && !sel.value) sel.value = 'Yakıt';
+            if (typeof onVehicleSubtypeChange === 'function') onVehicleSubtypeChange();
+        };
+
+        window.onVehicleSubtypeChange = function() {
+            const wrap = document.getElementById('fuelDetailWrap');
+            const sel = document.getElementById('vehicleSubtype');
+            const cat = document.getElementById('category');
+            if (!wrap) return;
+            const isFuel = cat && (cat.value === 'Araç' || cat.value === 'Ulaşım') && sel && sel.value === 'Yakıt';
+            wrap.classList.toggle('hidden', !isFuel);
+        };
+
+        let vehicleFuelChart = null, vehicleMaintChart = null;
+        let vehicleSubTab = 'fuel'; // fuel | maint
+
+        window.showVehicleSubTab = function(which) {
+            vehicleSubTab = which === 'maint' ? 'maint' : 'fuel';
+            const fuelPanel = document.getElementById('vehicleFuelPanel');
+            const maintPanel = document.getElementById('vehicleMaintPanel');
+            const fuelBtn = document.getElementById('vehicleTabFuelBtn');
+            const maintBtn = document.getElementById('vehicleTabMaintBtn');
+            if (fuelPanel) fuelPanel.classList.toggle('hidden', vehicleSubTab !== 'fuel');
+            if (maintPanel) maintPanel.classList.toggle('hidden', vehicleSubTab !== 'maint');
+            if (fuelBtn) {
+                fuelBtn.classList.toggle('border-indigo-600', vehicleSubTab === 'fuel');
+                fuelBtn.classList.toggle('border-slate-200', vehicleSubTab !== 'fuel');
+            }
+            if (maintBtn) {
+                maintBtn.classList.toggle('border-indigo-600', vehicleSubTab === 'maint');
+                maintBtn.classList.toggle('border-slate-200', vehicleSubTab !== 'maint');
+            }
+            renderVehicleTab();
+        };
+
+        function isVehicleExpense(e) {
+            const cat = e.category || '';
+            return cat === 'Araç' || cat === 'Ulaşım';
+        }
+
+        function vehicleKind(e) {
+            const t = (e.vehicleSubtype || '').trim();
+            if (t === 'Yakıt' || t === 'Yakit') return 'fuel';
+            if (t === 'Vergi' || t === 'Bakım' || t === 'Bakim' || t === 'Vergi&Bakım') return 'maint';
+            // Eski kayıtlarda subtype yoksa açıklamadan tahmin etme — genel araç
+            return 'other';
+        }
+
+        window.renderVehicleTab = function() {
+            const processed = getProcessedExpenses().filter(isVehicleExpense);
+            const fuelItems = processed.filter(e => vehicleKind(e) === 'fuel');
+            const maintItems = processed.filter(e => vehicleKind(e) === 'maint' || vehicleKind(e) === 'other');
+
+            const fillList = (elId, items) => {
+                const el = document.getElementById(elId);
+                if (!el) return;
+                if (!items.length) {
+                    el.innerHTML = '<p class="text-sm text-slate-400 font-medium py-4 text-center">Kayıt yok</p>';
+                    return;
+                }
+                const total = items.reduce((s, e) => s + (e.displayAmount || 0), 0);
+                el.innerHTML = `
+                    <p class="text-xs font-bold text-slate-500 mb-3">Toplam: <span class="text-rose-600 font-black">${total.toLocaleString('tr-TR')} TL</span> · ${items.length} kayıt</p>
+                    <div class="space-y-2 max-h-64 overflow-y-auto">
+                        ${items.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,40).map(e => `
+                            <div class="flex justify-between gap-2 bg-slate-50 rounded-xl p-3 border border-slate-100">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold text-slate-800 truncate">${escapeHtml(e.description || '-')}</p>
+                                    <p class="text-[11px] text-slate-400 font-semibold">${escapeHtml(e.date||'')} · ${escapeHtml(e.person||'')} · ${escapeHtml(e.vehicleSubtype||'Araç')}</p>
+                                    ${e.fuelNote ? '<p class="text-[11px] text-indigo-600 font-bold mt-1">' + escapeHtml(e.fuelNote) + '</p>' : ''}
+                                    ${e.fuelKm || e.fuelLiters ? '<p class="text-[10px] text-slate-400 mt-0.5">' +
+                                        (e.fuelKm ? escapeHtml(String(e.fuelKm)) + ' km' : '') +
+                                        (e.fuelLiters ? ' · ' + escapeHtml(String(e.fuelLiters)) + ' L' : '') +
+                                        (e.fuelPricePerLt ? ' · ' + escapeHtml(String(e.fuelPricePerLt)) + ' TL/L' : '') +
+                                    '</p>' : ''}
+                                </div>
+                                <p class="text-sm font-black text-rose-600 shrink-0">${(e.displayAmount||0).toLocaleString('tr-TR')} TL</p>
+                            </div>
+                        `).join('')}
+                    </div>`;
+            };
+            fillList('vehicleFuelList', fuelItems);
+            fillList('vehicleMaintList', maintItems);
+
+            // Aylık grafikler (son 6 takvim ayı)
+            const buildMonthly = (items) => {
+                const keys = [];
+                const now = new Date();
+                for (let i = 5; i >= 0; i--) {
+                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                    keys.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+                }
+                const labels = keys.map(k => {
+                    const [y,m] = k.split('-').map(Number);
+                    const months = ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+                    return months[m-1] + ' ' + y;
+                });
+                const data = keys.map(k => items.filter(e => String(e.date||'').startsWith(k)).reduce((s,e)=>s+(e.displayAmount||0),0));
+                return { labels, data };
+            };
+
+            const fuelM = buildMonthly(fuelItems);
+            const maintM = buildMonthly(maintItems.filter(e => vehicleKind(e) === 'maint'));
+
+            const ctxF = document.getElementById('vehicleFuelChart');
+            if (ctxF) {
+                if (vehicleFuelChart) vehicleFuelChart.destroy();
+                vehicleFuelChart = new Chart(ctxF, {
+                    type: 'bar',
+                    data: {
+                        labels: fuelM.labels,
+                        datasets: [{ label: 'Yakıt (TL)', data: fuelM.data, backgroundColor: '#4f46e5', borderRadius: 8 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+                });
+            }
+            const ctxM = document.getElementById('vehicleMaintChart');
+            if (ctxM) {
+                if (vehicleMaintChart) vehicleMaintChart.destroy();
+                vehicleMaintChart = new Chart(ctxM, {
+                    type: 'bar',
+                    data: {
+                        labels: maintM.labels,
+                        datasets: [{ label: 'Vergi & Bakım (TL)', data: maintM.data, backgroundColor: '#f59e0b', borderRadius: 8 }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+                });
+            }
+        };
+
         window.handleFormSubmit = async (e) => {
             e.preventDefault();
             const id = document.getElementById('editId').value;
@@ -723,6 +878,38 @@
             const date = document.getElementById('date').value;
             const description = document.getElementById('description').value || '-';
             const category = document.getElementById('category').value;
+            let vehicleSubtype = '';
+            let fuelKm = null, fuelLiters = null, fuelPricePerLt = null;
+            let fuelNote = '';
+            if (category === 'Araç' || category === 'Ulaşım') {
+                const vs = document.getElementById('vehicleSubtype');
+                vehicleSubtype = vs ? vs.value : '';
+                if (!vehicleSubtype) {
+                    alert('Araç kategorisi için Yakıt, Vergi veya Bakım seçin');
+                    return;
+                }
+                if (vehicleSubtype === 'Yakıt') {
+                    const kmEl = document.getElementById('fuelKm');
+                    const ltEl = document.getElementById('fuelLiters');
+                    const prEl = document.getElementById('fuelPricePerLt');
+                    fuelKm = kmEl && kmEl.value !== '' ? parseFloat(kmEl.value) : null;
+                    fuelLiters = ltEl && ltEl.value !== '' ? parseFloat(ltEl.value) : null;
+                    fuelPricePerLt = prEl && prEl.value !== '' ? parseFloat(prEl.value) : null;
+                    if (fuelKm && fuelKm > 0 && fuelLiters && fuelLiters > 0) {
+                        const per100 = (fuelLiters / fuelKm) * 100;
+                        let costPerKm = null;
+                        if (fuelPricePerLt && fuelPricePerLt > 0) {
+                            costPerKm = (fuelLiters * fuelPricePerLt) / fuelKm;
+                        } else if (amount && amount > 0) {
+                            costPerKm = amount / fuelKm;
+                        }
+                        fuelNote = '100 km\'de ' + per100.toFixed(2) + ' L';
+                        if (costPerKm != null && !isNaN(costPerKm)) {
+                            fuelNote += ' · 1 km ' + costPerKm.toFixed(2) + ' TL';
+                        }
+                    }
+                }
+            }
             
             if (!amount || amount <= 0) {
                 alert('Lütfen geçerli bir tutar giriniz');
@@ -738,12 +925,17 @@
                 installmentCount: installment,
                 amountPerInstallment: amount / installment,
                 person: person,
-                category: category,
+                category: category === 'Ulaşım' ? 'Araç' : category,
                 paymentType: paymentType,
                 date: date,
                 description: description,
                 expenseMonth: date.substring(0, 7),
-                statementPeriod: getPeriodKeyForDateStr(date)
+                statementPeriod: getPeriodKeyForDateStr(date),
+                vehicleSubtype: (category === 'Araç' || category === 'Ulaşım') ? vehicleSubtype : '',
+                fuelKm: fuelKm,
+                fuelLiters: fuelLiters,
+                fuelPricePerLt: fuelPricePerLt,
+                fuelNote: fuelNote || ''
             };
             
             try {
@@ -803,11 +995,22 @@
             document.getElementById('amount').value = e.amount;
             document.getElementById('installmentCount').value = e.installmentCount || 1;
             document.getElementById('person').value = e.person;
-            document.getElementById('category').value = e.category;
+            const catVal = e.category === 'Ulaşım' ? 'Araç' : e.category;
+            document.getElementById('category').value = catVal;
             document.getElementById('paymentType').value = e.paymentType;
             document.getElementById('date').value = e.date;
             document.getElementById('description').value = e.description === '-' ? '' : e.description;
             document.getElementById('formTitle').innerText = "Harcamayı Düzenle";
+            if (typeof onCategoryChange === 'function') onCategoryChange();
+            const vs = document.getElementById('vehicleSubtype');
+            if (vs && e.vehicleSubtype) vs.value = e.vehicleSubtype;
+            if (typeof onVehicleSubtypeChange === 'function') onVehicleSubtypeChange();
+            const fk = document.getElementById('fuelKm');
+            const fl = document.getElementById('fuelLiters');
+            const fp = document.getElementById('fuelPricePerLt');
+            if (fk) fk.value = e.fuelKm != null ? e.fuelKm : '';
+            if (fl) fl.value = e.fuelLiters != null ? e.fuelLiters : '';
+            if (fp) fp.value = e.fuelPricePerLt != null ? e.fuelPricePerLt : '';
             openExpenseModal();
         };
 
@@ -910,7 +1113,7 @@
             if (currentShowInstallments) {
                 filtered = getProcessedExpenses().filter(item => item.installmentLabel !== 'Peşin');
             } else {
-                filtered = [...getProcessedExpenses(), ...incomes.map(i => ({...i, type: 'income', displayAmount: i.amount, person: 'Gelir', category: i.type, installmentLabel: 'Gelir', effectiveMonth: getPeriodKeyForDateStr(i.date) || i.incomeMonth}))];
+                filtered = getProcessedExpenses().map(e => ({ ...e }));
             }
             
             filtered = filtered.filter(item => {
@@ -1083,17 +1286,26 @@
                 });
             }
 
+            // Son 7 takvim günü (sadece bu günlere düşen harcamalar)
             const weekData = {};
+            const last7Keys = [];
             for (let i = 6; i >= 0; i--) {
                 const d = new Date();
+                d.setHours(0, 0, 0, 0);
                 d.setDate(d.getDate() - i);
-                const key = d.toLocaleDateString('tr-TR', { weekday: 'short' });
-                weekData[key] = 0;
+                const ymd = formatYMD(d);
+                const label = d.toLocaleDateString('tr-TR', { weekday: 'short', day: 'numeric', month: 'short' });
+                last7Keys.push({ ymd, label });
+                weekData[label] = 0;
             }
-            processedExpenses.forEach(e => {
-                const d = new Date(e.date);
-                const key = d.toLocaleDateString('tr-TR', { weekday: 'short' });
-                if (key in weekData) weekData[key] += e.displayAmount;
+            const allForWeek = getProcessedExpenses().filter(e => {
+                const s = String(e.date || '').slice(0, 10);
+                return last7Keys.some(k => k.ymd === s);
+            });
+            allForWeek.forEach(e => {
+                const s = String(e.date || '').slice(0, 10);
+                const hit = last7Keys.find(k => k.ymd === s);
+                if (hit) weekData[hit.label] += e.displayAmount;
             });
 
             const ctx2 = document.getElementById('weeklyTrendChart');
@@ -1982,18 +2194,38 @@
         };
 
         window.editTabMeta = (index) => {
-            if (!isAdmin()) return;
-            const t = tabsConfig[index];
-            document.getElementById('editTabIndex').value = String(index);
-            document.getElementById('editTabEmoji').value = t.emoji || '📌';
-            document.getElementById('editTabLabel').value = t.label || '';
-            document.getElementById('editTabContent').value = t.content || '';
-            document.getElementById('editTabVisibleTo').value = selectFromVisibility(t);
-            const st = document.getElementById('editTabStatus');
-            if (st) st.classList.add('hidden');
-            const modal = document.getElementById('tabEditModal');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
+            try {
+                if (!isAdmin()) {
+                    alert('Sadece admin sekmeleri düzenleyebilir');
+                    return;
+                }
+                const t = tabsConfig[index];
+                if (!t) {
+                    alert('Sekme bulunamadı');
+                    return;
+                }
+                const modal = document.getElementById('tabEditModal');
+                if (!modal) {
+                    alert('Düzenleme penceresi yüklenemedi. Ctrl+F5 ile yenileyin.');
+                    return;
+                }
+                const set = (id, val) => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = val;
+                };
+                set('editTabIndex', String(index));
+                set('editTabEmoji', t.emoji || '📌');
+                set('editTabLabel', t.label || '');
+                set('editTabContent', t.content || '');
+                set('editTabVisibleTo', selectFromVisibility(t));
+                const st = document.getElementById('editTabStatus');
+                if (st) st.classList.add('hidden');
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } catch (err) {
+                console.error(err);
+                alert('Düzenle açılamadı: ' + (err.message || err));
+            }
         };
 
         window.closeTabEditModal = () => {
@@ -2581,19 +2813,6 @@
                         String(e.displayAmount != null ? e.displayAmount : e.amount || 0).replace('.', ','),
                         e.installmentLabel || '',
                         e.effectiveMonth || ''
-                    ]);
-                });
-                (incomes || []).forEach(i => {
-                    rows.push([
-                        'Gelir',
-                        i.date || '',
-                        i.person || 'Gelir',
-                        i.type || i.category || '',
-                        '',
-                        i.description || '',
-                        String(i.amount || 0).replace('.', ','),
-                        'Gelir',
-                        i.incomeMonth || ''
                     ]);
                 });
                 const escapeCsv = (v) => {
