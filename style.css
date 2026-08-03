@@ -68,3 +68,87 @@
 #expenseTableBody tr.row-future-expense:hover {
   background: linear-gradient(90deg, #fef3c7 0%, #fde68a 100%);
 }
+
+
+/* Toast bildirimleri */
+.toast-host {
+  position: fixed;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(92vw, 26rem);
+  pointer-events: none;
+}
+.toast-item {
+  pointer-events: auto;
+  border-radius: 1rem;
+  padding: 0.85rem 1.1rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.15);
+  animation: toastIn 0.25s ease-out;
+  background: #1e293b;
+  color: #f8fafc;
+}
+.toast-success { background: #059669; }
+.toast-error { background: #e11d48; }
+.toast-info { background: #4f46e5; }
+.toast-out { opacity: 0; transform: translateY(8px); transition: 0.3s; }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Mobil tablo ve dokunma */
+@media (max-width: 640px) {
+  header.mb-10 {
+    margin-bottom: 1.5rem !important;
+  }
+  #tabBar button[data-tab-id] {
+    min-height: 2.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.7rem;
+  }
+  .expense-table th,
+  .expense-table td {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+    font-size: 0.75rem;
+  }
+  .expense-table th {
+    font-size: 0.65rem !important;
+  }
+  .table-scroll-hint {
+    margin: 0 -0.25rem;
+    padding-bottom: 0.25rem;
+  }
+  .table-scroll-hint::after {
+    content: "← tabloyu kaydırın →";
+    display: block;
+    text-align: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #94a3b8;
+    margin-top: 0.35rem;
+  }
+  #filterPanel label,
+  #filterPanel button,
+  #filterPanel select,
+  #filterPanel input {
+    min-height: 2.5rem;
+  }
+  button, .rounded-xl, .rounded-2xl {
+    touch-action: manipulation;
+  }
+}
+
+/* Genel dokunma rahatlığı */
+button, [onclick] {
+  -webkit-tap-highlight-color: transparent;
+}
