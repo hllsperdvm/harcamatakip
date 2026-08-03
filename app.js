@@ -63,12 +63,10 @@
 
 
         // Kullanıcı hesapları: Bekir = admin, Duygu = normal
-        // Varsayılan giriş (Firebase settings/appUsers yoksa). Mümkünse şifreleri Firestore'a taşıyın.
-        let USERS = {
-            Bekir: { password: '3652', role: 'admin' },
-            Duygu: { password: '7536', role: 'user' }
-        };
-
+        // Şifreler kodda tutulmaz. Firestore: settings/appUsers
+        // { Bekir: { password: '...', role: 'admin' }, Duygu: { password: '...', role: 'user' } }
+        let USERS = {};
+        let usersLoaded = false;
         let currentUser = null; // { name, role }
         let onboardingPending = false;
 
@@ -103,7 +101,7 @@
             if (event.key === 'Enter') checkPassword();
         };
 
-        window.checkPassword = function() {
+        window.checkPassword = async function() {
             try {
                 const userName = document.getElementById('loginUser').value;
                 const input = document.getElementById('sifreInput').value;
@@ -111,29 +109,70 @@
                     showToast('Lütfen kullanıcı seçin', 'error');
                     return;
                 }
+                if (!input) {
+                    showToast('Şifre girin', 'error');
+                    return;
+                }
+                if (typeof db === 'undefined' || !db) {
+                    showToast('Bağlantı yok. İnterneti kontrol edip yenileyin.', 'error');
+                    return;
+                }
+                // Her girişte Firestore'dan güncel kullanıcıları al (şifreler yalnızca sunucuda)
+                try {
+                    const snap = await db.collection('settings').doc('appUsers').get();
+                    if (snap.exists && snap.data()) {
+                        const u = snap.data();
+                        const next = {};
+                        Object.keys(u).forEach(name => {
+                            if (u[name] && u[name].password) {
+                                next[name] = {
+                                    password: String(u[name].password),
+                                    role: u[name].role === 'admin' ? 'admin' : 'user'
+                                };
+                            }
+                        });
+                        USERS = next;
+                        usersLoaded = true;
+                    }
+                } catch (err) {
+                    console.warn('appUsers get:', err);
+                    showToast(friendlyFirebaseError(err), 'error');
+                    return;
+                }
+                if (!Object.keys(USERS).length) {
+                    alert('Kullanıcı kaydı bulunamadı.\n\nFirebase Console → Firestore → settings koleksiyonu → appUsers dokümanı oluşturun.\n\nAlanlar (map):\nBekir → password, role: admin\nDuygu → password, role: user');
+                    return;
+                }
                 const account = USERS[userName];
                 if (!account || input !== account.password) {
                     showToast('Kullanıcı veya şifre hatalı', 'error');
-                    document.getElementById('sifreInput').value = '';
                     return;
                 }
                 currentUser = { name: userName, role: account.role };
-                try { sessionStorage.setItem('yuvam_session', JSON.stringify({ name: userName, role: account.role, t: Date.now() })); } catch (_) {}
-                document.getElementById('errorContainer').classList.add('hidden');
-                document.getElementById('appContainer').classList.remove('hidden');
-                const label = document.getElementById('loggedInUserLabel');
+                sessionStorage.setItem('yuvam_user', JSON.stringify(currentUser));
+                const loginEl = document.getElementById('errorContainer') || document.getElementById('loginScreen');
+                const appEl = document.getElementById('appContainer') || document.getElementById('app');
+                if (loginEl) {
+                    loginEl.classList.add('hidden');
+                    loginEl.style.display = 'none';
+                }
+                if (appEl) {
+                    appEl.classList.remove('hidden');
+                    appEl.style.display = '';
+                }
+                const label = document.getElementById('loggedInUserLabel') || document.getElementById('currentUserLabel');
                 if (label) {
                     label.textContent = currentUser.role === 'admin'
-                        ? `${currentUser.name} · Admin`
-                        : `${currentUser.name}`;
+                        ? (currentUser.name + ' · Admin')
+                        : currentUser.name;
                 }
-                initRealtimeSync();
                 applyRoleAndTabs();
+                try { initRealtimeSync(); } catch (e) { console.error('sync', e); showToast('Veri bağlantısı kurulamadı', 'error'); }
                 logActivity('Giriş', 'Oturum açıldı', currentUser.role === 'admin' ? 'Admin girişi' : 'Kullanıcı girişi');
-                maybeShowOnboarding();
+                if (typeof maybeShowOnboarding === 'function') maybeShowOnboarding();
             } catch (err) {
                 console.error(err);
-                showToast('Giriş sırasında hata: ' + (err && err.message ? err.message : err), 'error');
+                alert('Giriş hatası: ' + (err && err.message ? err.message : err));
             }
         };
 
@@ -141,10 +180,19 @@
             const name = currentUser ? currentUser.name : 'Sistem';
             logActivity('Çıkış', 'Oturum kapatıldı', name + ' çıkış yaptı', name);
             currentUser = null;
-            try { sessionStorage.removeItem('yuvam_session'); } catch (_) {}
-            document.getElementById('appContainer').classList.add('hidden');
-            document.getElementById('errorContainer').classList.remove('hidden');
-            document.getElementById('sifreInput').value = '';
+            try { sessionStorage.removeItem('yuvam_user'); } catch (_) {}
+            const appEl = document.getElementById('appContainer') || document.getElementById('app');
+            const loginEl = document.getElementById('errorContainer') || document.getElementById('loginScreen');
+            if (appEl) {
+                appEl.classList.add('hidden');
+                appEl.style.display = 'none';
+            }
+            if (loginEl) {
+                loginEl.classList.remove('hidden');
+                loginEl.style.display = '';
+            }
+            const sifre = document.getElementById('sifreInput');
+            if (sifre) sifre.value = '';
             const lu = document.getElementById('loginUser');
             if (lu) lu.value = '';
             showToast('Çıkış yapıldı', 'info');
@@ -217,7 +265,7 @@
 
 
         // State ve Değişkenler
-        let expenses = [], incomes = [], notes = [], deletedExpenses = [];
+        let expenses = [], notes = [], deletedExpenses = [];
         let categories = ["Gıda", "Araç", "Faturalar", "Eğlence", "Sağlık", "Eğitim", "Diğer", "Kredi Kartı Borcu"];
         let paymentTypes = ["Nakit", "Kredi Kartı"];
         let bekirDebt = { amount: 0, paid: false, dueDate: '' };
@@ -445,12 +493,6 @@
             document.getElementById('expenseModal').classList.add('hidden');
             document.getElementById('expenseModal').classList.remove('flex');
         };
-        window.openIncomeModal = () => {
-            document.getElementById('incomeDate').valueAsDate = new Date();
-            document.getElementById('incomeModal').classList.remove('hidden');
-            document.getElementById('incomeModal').classList.add('flex');
-        };
-        window.closeIncomeModal = () => document.getElementById('incomeModal').classList.add('hidden');
         window.openCardDebtModal = (person) => {
             const currentDebt = person === 'bekir' ? bekirDebt : duyguDebt;
             document.getElementById('cardDebtPerson').value = person;
@@ -510,10 +552,6 @@
                 expenses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 scheduleRenderApp();
             });
-            db.collection("incomes").onSnapshot(snap => {
-                incomes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                scheduleRenderApp();
-            });
             db.collection("notes").onSnapshot(snap => {
                 notes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 renderNotesList();
@@ -539,17 +577,19 @@
                 renderCategoriesList();
             }, err => console.error("Kategori yükleme hatası:", err));
             db.collection("settings").doc("appUsers").onSnapshot(d => {
-                if (d.exists && d.data() && d.data().users && typeof d.data().users === 'object') {
-                    const u = d.data().users;
-                    // Örnek yapı: { Bekir: { password: '...', role: 'admin' }, Duygu: { ... } }
+                if (d.exists && d.data()) {
+                    const u = d.data();
+                    const next = {};
                     Object.keys(u).forEach(name => {
                         if (u[name] && u[name].password) {
-                            USERS[name] = {
+                            next[name] = {
                                 password: String(u[name].password),
                                 role: u[name].role === 'admin' ? 'admin' : 'user'
                             };
                         }
                     });
+                    USERS = next;
+                    usersLoaded = true;
                 }
             }, err => console.warn('appUsers:', err));
             db.collection("settings").doc("tabs").onSnapshot(d => {
@@ -1156,26 +1196,6 @@
             if (fl) fl.value = e.fuelLiters != null ? e.fuelLiters : '';
             if (fp) fp.value = e.fuelPricePerLt != null ? e.fuelPricePerLt : '';
             openExpenseModal();
-        };
-
-        // Gelir Yönetimi
-        window.handleIncomeSubmit = async (e) => {
-            e.preventDefault();
-            const data = {
-                type: document.getElementById('incomeType').value,
-                amount: parseFloat(document.getElementById('incomeAmount').value),
-                date: document.getElementById('incomeDate').value,
-                description: document.getElementById('incomeDescription').value || '-',
-                incomeMonth: document.getElementById('incomeDate').value.substring(0, 7)
-            };
-            await db.collection("incomes").add(data);
-            closeIncomeModal();
-            logActivity('Gelir', 'Gelir eklendi', (data.type || '') + ' · ' + data.amount + ' TL');
-        };
-
-        window.deleteIncome = async (id) => {
-            if (!confirm("Geliri silmek istediğinize emin misiniz?")) return;
-            await db.collection("incomes").doc(id).delete();
         };
 
         // Tablo Render
@@ -1894,8 +1914,10 @@
             const result = [];
             const seen = new Set();
 
+            const LEGACY_TABS = new Set(['calculator', 'reports', 'shopping', 'alisveris', 'alışveriş']);
             (saved || []).forEach(s => {
                 if (!s || !s.id) return;
+                if (LEGACY_TABS.has(s.id)) return;
                 if (removedTabIds.includes(s.id)) return;
                 if (byId[s.id]) {
                     result.push({
@@ -2810,64 +2832,6 @@
         };
 
         // HESAPLAMA TAB
-        window.showCalculatorTab = (type) => {
-            const fuelArea = document.getElementById('fuelCalculatorArea');
-            const percArea = document.getElementById('percentageCalculatorArea');
-            const fuelBtn = document.getElementById('fuelBtn');
-            const percBtn = document.getElementById('percentageBtn');
-
-            if (type === 'fuel') {
-                fuelArea.classList.remove('hidden');
-                percArea.classList.add('hidden');
-                fuelBtn.classList.add('border-indigo-600');
-                fuelBtn.classList.remove('border-slate-200');
-                percBtn.classList.remove('border-indigo-600');
-                percBtn.classList.add('border-slate-200');
-            } else {
-                fuelArea.classList.add('hidden');
-                percArea.classList.remove('hidden');
-                percBtn.classList.add('border-indigo-600');
-                percBtn.classList.remove('border-slate-200');
-                fuelBtn.classList.remove('border-indigo-600');
-                fuelBtn.classList.add('border-slate-200');
-            }
-        };
-
-        window.calculateFuel = () => {
-            const amount = parseFloat(document.getElementById('paidAmount').value);
-            const price = parseFloat(document.getElementById('fuelPrice').value);
-            const dist = parseFloat(document.getElementById('distance').value);
-
-            if (!amount || !price || !dist) return;
-
-            const liters = amount / price;
-            const lPer100 = (liters / dist) * 100;
-            const costPer100 = lPer100 * price;
-            const costPerKm = amount / dist;
-
-            document.getElementById('consumptionLiter').innerText = lPer100.toFixed(2) + " L";
-            document.getElementById('consumptionCost').innerText = costPer100.toFixed(2) + " TL";
-            document.getElementById('costPerKm').innerText = costPerKm.toFixed(2) + " TL";
-            document.getElementById('fuelResults').classList.remove('hidden');
-        };
-
-        window.calculatePercentage = () => {
-            const a = parseFloat(document.getElementById('numberA').value);
-            const b = parseFloat(document.getElementById('numberB').value);
-            const op = document.getElementById('operationType').value;
-
-            if (isNaN(a) || isNaN(b) || !op) return;
-
-            let res = 0;
-            if (op === 'percentOfNumber') res = (a * b) / 100;
-            else if (op === 'percentageOfTotal') res = (a / b) * 100;
-            else if (op === 'changePercent') res = ((b - a) / a) * 100;
-            else if (op === 'increaseByPercent') res = a * (1 + b / 100);
-            else if (op === 'decreaseByPercent') res = a * (1 - b / 100);
-
-            document.getElementById('percentageResult').innerText = res.toFixed(2);
-            document.getElementById('percentageResults').classList.remove('hidden');
-        };
 
         // Filtreler & Sıralama
         window.toggleFilterPanel = () => document.getElementById('filterPanel').classList.toggle('hidden');
@@ -3010,3 +2974,34 @@
             maybeShowOnboarding();
         };
 
+
+        // Sayfa açılışında oturum varsa geri yükle ve veriyi çek
+        (function restoreSessionIfAny() {
+            try {
+                const raw = sessionStorage.getItem('yuvam_user');
+                if (!raw) return;
+                const u = JSON.parse(raw);
+                if (!u || !u.name) return;
+                currentUser = { name: u.name, role: u.role === 'admin' ? 'admin' : 'user' };
+                const loginEl = document.getElementById('errorContainer') || document.getElementById('loginScreen');
+                const appEl = document.getElementById('appContainer') || document.getElementById('app');
+                if (loginEl) {
+                    loginEl.classList.add('hidden');
+                    loginEl.style.display = 'none';
+                }
+                if (appEl) {
+                    appEl.classList.remove('hidden');
+                    appEl.style.display = '';
+                }
+                const label = document.getElementById('loggedInUserLabel') || document.getElementById('currentUserLabel');
+                if (label) {
+                    label.textContent = currentUser.role === 'admin'
+                        ? (currentUser.name + ' · Admin')
+                        : currentUser.name;
+                }
+                applyRoleAndTabs();
+                initRealtimeSync();
+            } catch (err) {
+                console.warn('restoreSession', err);
+            }
+        })();
