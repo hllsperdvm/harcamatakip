@@ -152,3 +152,35 @@
 button, [onclick] {
   -webkit-tap-highlight-color: transparent;
 }
+
+
+/* Harcama modal — mobil kaydırma */
+#expenseModal {
+  -webkit-overflow-scrolling: touch;
+}
+#expenseModal .expense-modal-sheet {
+  max-height: 92vh;
+}
+#expenseModal form {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+@media (max-width: 640px) {
+  #expenseModal .expense-modal-sheet {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  #expenseModal input,
+  #expenseModal select {
+    font-size: 16px !important; /* iOS zoom engeli */
+    padding-top: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+  }
+  #expenseModal label {
+    font-size: 0.65rem !important;
+  }
+  #fuelDetailWrap input {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+}

@@ -93,7 +93,6 @@
             { id: 'vehicle', emoji: '🚗', label: 'Araç', visible: true, core: true, adminOnly: false },
             { id: 'stats', emoji: '📊', label: 'İstatistik & Rapor', visible: true, core: true, adminOnly: false },
             { id: 'notes', emoji: '📝', label: 'Notlar', visible: true, core: true, adminOnly: false },
-            { id: 'calculator', emoji: '🧮', label: 'Hesaplama', visible: true, core: true, adminOnly: false },
             { id: 'settings', emoji: '⚙️', label: 'Ayarlar', visible: true, core: true, adminOnly: true },
             { id: 'trash', emoji: '🗑️', label: 'Çöp Kutusu', visible: true, core: true, adminOnly: true }
         ];
@@ -365,7 +364,7 @@
         // Sekme Değiştirme
         window.switchTab = function(tabName) {
             lastActiveTabId = tabName;
-            const coreIds = ["expense", "vehicle", "stats", "notes", "calculator", "settings", "trash"];
+            const coreIds = ["expense", "vehicle", "stats", "notes", "settings", "trash"];
             const isCustom = String(tabName).startsWith('custom_');
 
             // Hide all core contents + custom
@@ -399,6 +398,10 @@
 
             if (tabName === 'reports') {
                 switchTab('stats');
+                return;
+            }
+            if (tabName === 'calculator') {
+                switchTab('expense');
                 return;
             }
             if (tabName === 'settings' && !isAdmin()) {

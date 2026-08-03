@@ -413,96 +413,6 @@
                 </div>
             </div>
 
-            <div id="tabContentCalculator" class="hidden fade-in">
-                <div class="max-w-4xl mx-auto space-y-8">
-                    <!-- Hesaplama Türü Seçimi -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <button onclick="showCalculatorTab('fuel')" id="fuelBtn" class="bg-white p-8 rounded-3xl card-shadow border-2 border-indigo-600 text-center cursor-pointer transition hover:shadow-lg">
-                            <div class="text-4xl mb-3">⛽</div>
-                            <h3 class="text-xl font-black text-slate-900 mb-2">Yakıt Hesapla</h3>
-                            <p class="text-sm text-slate-500">Tüketim ve maliyet hesaplama</p>
-                        </button>
-                        <button onclick="showCalculatorTab('percentage')" id="percentageBtn" class="bg-white p-8 rounded-3xl card-shadow border-2 border-slate-200 text-center cursor-pointer transition hover:shadow-lg hover:border-indigo-600">
-                            <div class="text-4xl mb-3">%</div>
-                            <h3 class="text-xl font-black text-slate-900 mb-2">Yüzde Hesapla</h3>
-                            <p class="text-sm text-slate-500">Yüzde işlemleri</p>
-                        </button>
-                    </div>
-
-                    <!-- Yakıt Hesaplama Alanı -->
-                    <div id="fuelCalculatorArea" class="bg-white p-8 rounded-3xl card-shadow border border-slate-100">
-                        <h2 class="text-2xl font-black mb-8 text-slate-900">Yakıt Hesaplama</h2>
-                        <div class="space-y-6">
-                            <div>
-                                <label class="block text-sm font-bold text-slate-600 mb-2">Ödenen Tutar (TL)</label>
-                                <input type="number" id="paidAmount" placeholder="0,00" step="any" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-bold text-slate-600 mb-2">Yakıtın Litre Fiyatı (TL)</label>
-                                <input type="number" id="fuelPrice" placeholder="0,00" step="any" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-bold text-slate-600 mb-2">Gidilen Mesafe (km)</label>
-                                <input type="number" id="distance" placeholder="0" step="any" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
-                            </div>
-                            <button onclick="calculateFuel()" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition">Hesapla</button>
-
-                            <!-- Sonuçlar -->
-                            <div id="fuelResults" class="hidden pt-6 border-t border-slate-200 space-y-4">
-                                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-2xl border border-blue-200">
-                                    <p class="text-sm text-slate-600 font-semibold mb-1">100 km'de Yakıt Tüketimi</p>
-                                    <p id="consumptionLiter" class="text-3xl font-black text-blue-600">0,00 L</p>
-                                </div>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div class="bg-gradient-to-br from-amber-50 to-orange-50 p-6 rounded-2xl border border-amber-200">
-                                        <p class="text-sm text-slate-600 font-semibold mb-1">100 km'de Yakıt Maliyeti</p>
-                                        <p id="consumptionCost" class="text-3xl font-black text-amber-600">0,00 TL</p>
-                                    </div>
-                                    <div class="bg-gradient-to-br from-rose-50 to-pink-50 p-6 rounded-2xl border border-rose-200">
-                                        <p class="text-sm text-slate-600 font-semibold mb-1">1 km'de Yakıt Maliyeti</p>
-                                        <p id="costPerKm" class="text-3xl font-black text-rose-600">0,00 TL</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Yüzde Hesaplama Alanı -->
-                    <div id="percentageCalculatorArea" class="hidden bg-white p-8 rounded-3xl card-shadow border border-slate-100">
-                        <h2 class="text-2xl font-black mb-8 text-slate-900">Yüzde Hesaplama</h2>
-                        <div class="space-y-6">
-                            <div>
-                                <label class="block text-sm font-bold text-slate-600 mb-2">A Sayısı</label>
-                                <input type="number" id="numberA" placeholder="0" step="any" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-bold text-slate-600 mb-2">B Sayısı</label>
-                                <input type="number" id="numberB" placeholder="0" step="any" class="w-full bg-slate-50 border-none rounded-2xl p-4 text-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-bold text-slate-600 mb-2">İşlem Seçin</label>
-                                <select id="operationType" class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold outline-none focus:ring-2 focus:ring-indigo-500">
-                                    <option value="">İşlem Seçiniz</option>
-                                    <option value="percentOfNumber">A sayısının %B si kaçtır?</option>
-                                    <option value="percentageOfTotal">A sayısı, B sayısının yüzde kaçıdır?</option>
-                                    <option value="changePercent">A sayısından B sayısına değişim oranı yüzde kaçtır?</option>
-                                    <option value="increaseByPercent">A sayısı %B kadar artılırsa kaç olur?</option>
-                                    <option value="decreaseByPercent">A sayısı %B kadar azaltılırsa kaç olur?</option>
-                                </select>
-                            </div>
-                            <button onclick="calculatePercentage()" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition">Hesapla</button>
-
-                            <!-- Sonuç -->
-                            <div id="percentageResults" class="hidden pt-6 border-t border-slate-200">
-                                <div class="bg-gradient-to-br from-purple-50 to-indigo-50 p-6 rounded-2xl border border-purple-200">
-                                    <p id="operationName" class="text-sm text-slate-600 font-semibold mb-1">Sonuç</p>
-                                    <p id="percentageResult" class="text-3xl font-black text-purple-600">0,00</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             
             <div id="tabContentSettings" class="hidden fade-in">
@@ -704,13 +614,13 @@
 
     <!-- MODALLAR -->
     <!-- Harcama Modalı -->
-    <div id="expenseModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[110] p-4">
-        <div class="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden slide-in">
-            <div class="bg-indigo-600 p-8 text-white flex justify-between items-center">
-                <h2 id="formTitle" class="text-2xl font-black">Harcama Kaydı</h2>
-                <button onclick="closeExpenseModal()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition text-2xl font-light">&times;</button>
+    <div id="expenseModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-end sm:items-center justify-center z-[110] p-0 sm:p-4">
+        <div class="expense-modal-sheet bg-white w-full max-w-lg rounded-t-[1.75rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden slide-in flex flex-col max-h-[92vh] sm:max-h-[90vh]">
+            <div class="bg-indigo-600 px-5 py-4 sm:p-6 text-white flex justify-between items-center shrink-0">
+                <h2 id="formTitle" class="text-lg sm:text-2xl font-black">Harcama Kaydı</h2>
+                <button type="button" onclick="closeExpenseModal()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition text-2xl font-light">&times;</button>
             </div>
-            <form onsubmit="handleFormSubmit(event)" class="p-8 space-y-4">
+            <form onsubmit="handleFormSubmit(event)" class="p-4 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto flex-1 overscroll-contain">
                 <input type="hidden" id="editId">
                 <div class="grid grid-cols-2 gap-4">
                     <div>
@@ -743,7 +653,7 @@
                         <option value="Bakım">Bakım</option>
                     </select>
                 </div>
-                <div id="fuelDetailWrap" class="hidden grid grid-cols-1 sm:grid-cols-3 gap-3 bg-amber-50/80 p-4 rounded-2xl border border-amber-100">
+                <div id="fuelDetailWrap" class="hidden grid grid-cols-3 gap-2 sm:gap-3 bg-amber-50/80 p-3 sm:p-4 rounded-2xl border border-amber-100">
                     <div>
                         <label class="text-[10px] font-black text-amber-700/80 uppercase ml-1">Yapılan KM</label>
                         <input type="number" step="any" min="0" id="fuelKm" placeholder="örn. 450" class="w-full bg-white border-none rounded-xl p-3 font-bold focus:ring-2 focus:ring-amber-500">
@@ -772,9 +682,9 @@
                     <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Açıklama</label>
                     <input type="text" id="description" class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold focus:ring-2 focus:ring-indigo-500">
                 </div>
-                <div class="flex gap-4 pt-4">
-                    <button type="button" onclick="resetForm(); closeExpenseModal();" class="flex-1 py-4 rounded-2xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition">Vazgeç</button>
-                    <button type="submit" id="submitBtn" class="flex-[2] py-4 rounded-2xl bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition">Kaydet</button>
+                <div class="flex gap-3 pt-2 pb-2 sm:pt-4 sticky bottom-0 bg-white">
+                    <button type="button" onclick="resetForm(); closeExpenseModal();" class="flex-1 py-3.5 sm:py-4 rounded-2xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition">Vazgeç</button>
+                    <button type="submit" id="submitBtn" class="flex-[2] py-3.5 sm:py-4 rounded-2xl bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition">Kaydet</button>
                 </div>
             </form>
         </div>
