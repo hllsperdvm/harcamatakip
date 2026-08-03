@@ -96,12 +96,15 @@
                 </div>
 
                 <!-- Yeni Harcama Ekle Butonu -->
-                <div class="flex justify-center">
-                    <button onclick="openExpenseModal()" class="w-full sm:w-auto bg-slate-900 hover:bg-indigo-600 text-white px-12 py-4 rounded-2xl text-base font-bold transition shadow-xl shadow-slate-200 flex items-center justify-center gap-3 active:scale-95">
+                <div class="flex flex-col sm:flex-row justify-center gap-3">
+                    <button onclick="openExpenseModal()" class="w-full sm:w-auto bg-slate-900 hover:bg-indigo-600 text-white px-10 py-4 rounded-2xl text-base font-bold transition shadow-xl shadow-slate-200 flex items-center justify-center gap-3 active:scale-95">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                         </svg>
                         Yeni Harcama Ekle
+                    </button>
+                    <button type="button" onclick="openIncomeModal()" class="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white px-10 py-4 rounded-2xl text-base font-bold transition shadow-xl shadow-emerald-100 flex items-center justify-center gap-3 active:scale-95">
+                        + Gelir Ekle
                     </button>
                 </div>
 
@@ -812,6 +815,45 @@
                 <button type="button" onclick="closeCategoryDetailModal()" class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-xl leading-none">&times;</button>
             </div>
             <div id="categoryDetailBody" class="p-5 overflow-y-auto"></div>
+        </div>
+    </div>
+
+    
+    <!-- Kredi Kartı Ekstre Detay -->
+    <div id="statementDetailModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+            <div class="bg-slate-900 p-5 text-white flex justify-between items-start shrink-0">
+                <div>
+                    <h2 id="statementTitle" class="text-lg font-black">Kredi Kartı Ekstresi</h2>
+                    <p id="statementDateRange" class="text-xs text-slate-300 font-semibold mt-1"></p>
+                    <p id="statementAmount" class="text-2xl font-black text-emerald-300 mt-2">0 TL</p>
+                </div>
+                <button type="button" onclick="closeStatementDetail()" class="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 text-xl leading-none">&times;</button>
+            </div>
+            <div id="statementItems" class="p-5 overflow-y-auto space-y-2"></div>
+        </div>
+    </div>
+
+    <!-- Taksitler / Ay başlıkları -->
+    <div id="installmentsModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+            <div class="bg-purple-600 p-5 text-white flex justify-between items-center shrink-0">
+                <h2 class="text-lg font-black">💳 Taksitler</h2>
+                <button type="button" onclick="closeInstallmentsModal()" class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-xl leading-none">&times;</button>
+            </div>
+            <div class="p-5 overflow-y-auto space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-slate-50 p-4 rounded-2xl">
+                        <p class="text-[10px] font-black text-slate-400 uppercase">Toplam Taksit</p>
+                        <p id="totalInstallmentAmount" class="text-xl font-black text-slate-900 mt-1">0 TL</p>
+                    </div>
+                    <div class="bg-indigo-50 p-4 rounded-2xl">
+                        <p class="text-[10px] font-black text-indigo-400 uppercase">Bu Dönem</p>
+                        <p id="selectedMonthAmount" class="text-xl font-black text-indigo-700 mt-1">0 TL</p>
+                    </div>
+                </div>
+                <div id="installmentsContainer" class="space-y-3"></div>
+            </div>
         </div>
     </div>
 

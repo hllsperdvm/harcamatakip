@@ -1310,52 +1310,60 @@
             return currentStatements;
         }
 
-                window.openStatementDetails = (person) => {
+        window.openStatementDetails = function(person) {
+            calculateCurrentCardStatements();
             const statement = currentStatements.find(s => s.person === person);
             if (!statement || statement.amount === 0) {
-                alert(`${person} için bu dönemde kredi kartı harcaması yok`);
+                alert(person + ' için bu dönemde kredi kartı harcaması yok');
                 return;
             }
-            
+
+            const modal = document.getElementById('statementDetailModal');
+            const titleEl = document.getElementById('statementTitle');
+            const rangeEl = document.getElementById('statementDateRange');
+            const amountEl = document.getElementById('statementAmount');
+            const itemsContainer = document.getElementById('statementItems');
+            if (!modal || !itemsContainer) {
+                alert('Ekstre detay penceresi yüklenemedi. Sayfayı Ctrl+F5 ile yenileyin.');
+                return;
+            }
+
             const startDate = statement.period.startDate.toLocaleDateString('tr-TR');
             const endDate = statement.period.endDate.toLocaleDateString('tr-TR');
-            
-            document.getElementById('statementTitle').innerText = `${person} - Kredi Kartı Ekstresi`;
-            document.getElementById('statementDateRange').innerText = `${startDate} - ${endDate}`;
-            document.getElementById('statementAmount').innerText = statement.amount.toLocaleString('tr-TR') + ' TL';
-            
-            const itemsContainer = document.getElementById('statementItems');
-            if (statement.expenses.length === 0) {
+            if (titleEl) titleEl.innerText = person + ' - Kredi Kartı Ekstresi';
+            if (rangeEl) rangeEl.innerText = startDate + ' - ' + endDate;
+            if (amountEl) amountEl.innerText = statement.amount.toLocaleString('tr-TR') + ' TL';
+
+            if (!statement.expenses.length) {
                 itemsContainer.innerHTML = '<p class="text-center text-slate-400 py-8">Bu dönem kredi kartı ile harcama yapılmamış</p>';
             } else {
                 itemsContainer.innerHTML = statement.expenses
-                    .sort((a, b) => new Date(b.date) - new Date(a.date))
+                    .slice()
+                    .sort((a, b) => String(b.date).localeCompare(String(a.date)))
                     .map(exp => `
                         <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 hover:border-slate-300 transition group">
-                            <div class="flex justify-between items-start mb-2">
-                                <div class="flex-1">
+                            <div class="flex justify-between items-start mb-2 gap-3">
+                                <div class="flex-1 min-w-0">
                                     <p class="font-bold text-slate-900">${escapeHtml(exp.category)}</p>
-                                    <p class="text-xs text-slate-500 mt-1">${escapeHtml(exp.description)}</p>
+                                    <p class="text-xs text-slate-500 mt-1">${escapeHtml(exp.description || '-')}</p>
                                 </div>
-                                <div class="flex items-center gap-3 ml-4">
+                                <div class="flex items-center gap-2 shrink-0">
                                     <p class="font-black text-lg text-slate-900">${exp.displayAmount.toLocaleString('tr-TR')} TL</p>
-                                    <button onclick="deleteStatementItem('${escapeHtml(exp.id)}')" 
-                                            class="opacity-0 group-hover:opacity-100 transition bg-red-600 hover:bg-red-700 text-white p-1.5 rounded-lg"
-                                            title="Sil">
-                                        🗑️
-                                    </button>
+                                    <button type="button" onclick="deleteStatementItem('${escapeHtml(exp.id)}')"
+                                            class="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition bg-red-600 hover:bg-red-700 text-white p-1.5 rounded-lg"
+                                            title="Sil">🗑️</button>
                                 </div>
                             </div>
                             <div class="flex justify-between text-xs text-slate-400">
-                                <span>${exp.date}</span>
-                                ${exp.installmentLabel !== 'Peşin' ? `<span class="text-indigo-600 font-semibold">${exp.installmentLabel}</span>` : ''}
+                                <span>${escapeHtml(exp.date || '')}</span>
+                                ${exp.installmentLabel !== 'Peşin' ? '<span class="text-indigo-600 font-semibold">' + escapeHtml(exp.installmentLabel) + '</span>' : ''}
                             </div>
                         </div>
                     `).join('');
             }
-            
-            document.getElementById('statementDetailModal').classList.remove('hidden');
-            document.getElementById('statementDetailModal').classList.add('flex');
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
         };
 
         window.deleteStatementItem = async (expenseId) => {
@@ -1390,8 +1398,10 @@
         };
         
         window.closeStatementDetail = () => {
-            document.getElementById('statementDetailModal').classList.add('hidden');
-            document.getElementById('statementDetailModal').classList.remove('flex');
+            const modal = document.getElementById('statementDetailModal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
         };
 
         function renderCurrentStatements() {
@@ -2512,15 +2522,23 @@
         };
 
         window.openInstallmentsModal = () => {
+            const modal = document.getElementById('installmentsModal');
+            if (!modal) {
+                alert('Taksit penceresi yüklenemedi. Ctrl+F5 ile yenileyin.');
+                return;
+            }
             const processed = getProcessedExpenses().filter(e => e.installmentLabel !== 'Peşin');
             const total = processed.reduce((s, e) => s + e.displayAmount, 0);
-            document.getElementById('totalInstallmentAmount').innerText = total.toLocaleString('tr-TR') + ' TL';
+            const totalEl = document.getElementById('totalInstallmentAmount');
+            if (totalEl) totalEl.innerText = total.toLocaleString('tr-TR') + ' TL';
             
             const currentPeriod = getCurrentPeriod();
             const currentTotal = processed.filter(e => e.effectiveMonth === currentPeriod).reduce((s, e) => s + e.displayAmount, 0);
-            document.getElementById('selectedMonthAmount').innerText = currentTotal.toLocaleString('tr-TR') + ' TL';
+            const selEl = document.getElementById('selectedMonthAmount');
+            if (selEl) selEl.innerText = currentTotal.toLocaleString('tr-TR') + ' TL';
 
             const container = document.getElementById('installmentsContainer');
+            if (!container) return;
             const grouped = {};
             processed.forEach(e => {
                 grouped[e.effectiveMonth] = grouped[e.effectiveMonth] || [];
