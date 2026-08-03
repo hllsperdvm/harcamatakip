@@ -62,12 +62,6 @@
                 
                 <div class="flex items-center gap-2 flex-wrap justify-end">
                     <span id="loggedInUserLabel" class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-2 rounded-xl"></span>
-                    <button onclick="downloadExcel()" class="bg-white border border-slate-200 text-slate-700 px-5 py-2.5 rounded-xl text-sm font-bold transition hover:bg-slate-50 flex items-center gap-2 shadow-sm">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Yedek (CSV)
-                    </button>
                     <button type="button" onclick="showHelp()" class="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl text-sm font-bold transition hover:bg-indigo-50 hover:text-indigo-600 shadow-sm" title="Yardım">❓</button>
                     <button onclick="logout()" class="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl text-sm font-bold transition hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 shadow-sm">Çıkış</button>
                 </div>
@@ -174,6 +168,7 @@
                         <h2 class="text-xl font-black text-slate-900">İşlem Geçmişi</h2>
                         <div class="flex items-center gap-2">
                             <button onclick="toggleFilterPanel()" class="text-xs font-bold bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition">⚙️ Filtrele</button>
+                            <button type="button" onclick="downloadExcel()" class="text-xs font-bold bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 transition">📥 Yedek (CSV)</button>
                             <button onclick="resetFilters()" class="text-xs font-bold text-slate-400 hover:text-slate-900 transition">Temizle</button>
                         </div>
                     </div>
@@ -235,11 +230,12 @@
             </div>
 
             <!-- Diğer Sekmeler (Gizli) -->
-            <div id="tabContentStats" class="hidden space-y-6">
-                <!-- Stat içeriği JavaScript ile dolacak -->
+                        <div id="tabContentStats" class="hidden space-y-6 fade-in">
+                <p class="text-center text-xs text-slate-400 font-semibold">Dönem özeti · grafiklere tıklayarak kategori detayı açılır</p>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
-                        <h2 id="chartTitle" class="text-xl font-black mb-6">Kategori Dağılımı</h2>
+                        <h2 id="chartTitle" class="text-xl font-black mb-2">Kategori Dağılımı</h2>
+                        <p class="text-[11px] text-slate-400 font-semibold mb-4">Pasta dilimine veya efsaneye tıklayın</p>
                         <div class="h-80"><canvas id="expenseChart"></canvas></div>
                     </div>
                     <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
@@ -251,103 +247,34 @@
                     <h2 class="text-xl font-black mb-6">Ekstre Dönemi Trendi (29–28)</h2>
                     <div class="h-80"><canvas id="monthlyTrendChart"></canvas></div>
                 </div>
-            </div>
-
-            <div id="tabContentReports" class="hidden space-y-8 fade-in">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100" id="monthlySummaryReport"></div>
                     <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100" id="personSummaryReport"></div>
                 </div>
                 <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
-                    <h3 class="text-xl font-black mb-6">Detaylı Kategori Raporu</h3>
+                    <h3 class="text-xl font-black mb-6">Kategori Özeti</h3>
                     <div id="detailedMonthlyReport" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
                 </div>
-
-                <!-- Güncel Ekstreler Bölümü -->
                 <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
-                    <div class="flex justify-between items-center mb-8">
-                        <h3 class="text-xl font-black">📊 Güncel Kredi Kartı Ekstreleri</h3>
-                        <p class="text-[11px] text-slate-400 font-semibold uppercase">Ödenmemiş tutarlar</p>
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-black">📊 Kredi Kartı Ekstreleri</h3>
+                        <p class="text-[11px] text-slate-400 font-semibold uppercase">Güncel</p>
                     </div>
-                    <div id="currentStatementsContainer" class="space-y-6">
-                        <div class="text-center text-slate-400 py-8">
-                            <p class="text-sm">Henüz ekstre kaydı yok</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Ekstre Detay Modal -->
-                <div id="statementDetailModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
-                    <div class="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden slide-in max-h-[80vh] overflow-y-auto">
-                        <div class="bg-indigo-600 p-8 text-white flex justify-between items-center sticky top-0">
-                            <div>
-                                <h2 id="statementTitle" class="text-2xl font-black">Ekstre Detayları</h2>
-                                <p id="statementDateRange" class="text-sm text-indigo-100 mt-1">Dönem</p>
-                            </div>
-                            <button onclick="closeStatementDetail()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition text-2xl font-light">&times;</button>
-                        </div>
-                        <div class="p-8 space-y-4">
-                            <div class="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-2xl border border-indigo-200 mb-6">
-                                <p class="text-sm text-slate-600 font-semibold mb-1">Ekstre Tutarı</p>
-                                <p id="statementAmount" class="text-4xl font-black text-indigo-600">0,00 TL</p>
-                            </div>
-                            <div id="statementItems" class="space-y-3">
-                                <!-- Harcama öğeleri buraya gelecek -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
-                    <div class="flex justify-between items-center mb-8">
-                        <h3 class="text-xl font-black">💳 Kredi Kartı Ekstreleri</h3>
-                        <p class="text-[11px] text-slate-400 font-semibold uppercase">Ödenen tutarlar</p>
-                    </div>
-                    <div class="space-y-8">
-                        <div class="border-b border-slate-200 pb-8">
-                            <div class="flex items-center gap-3 mb-5">
-                                <div class="w-3 h-3 rounded-full bg-blue-600"></div>
-                                <h4 class="text-sm font-black text-slate-900 uppercase tracking-wider">Bekir - Kredi Kartı Ekstreleri</h4>
-                            </div>
-                            <div id="bekirCardStatements" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
+                    <div id="currentStatementsContainer" class="space-y-6"></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                        <div>
+                            <h4 class="font-black text-slate-800 mb-3">Bekir</h4>
+                            <div id="bekirCardStatements"></div>
                         </div>
                         <div>
-                            <div class="flex items-center gap-3 mb-5">
-                                <div class="w-3 h-3 rounded-full bg-pink-600"></div>
-                                <h4 class="text-sm font-black text-slate-900 uppercase tracking-wider">Duygu - Kredi Kartı Ekstreleri</h4>
-                            </div>
-                            <div id="duyguCardStatements" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
+                            <h4 class="font-black text-slate-800 mb-3">Duygu</h4>
+                            <div id="duyguCardStatements"></div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- MODAL: Taksitleri Göster -->
-            <div id="installmentsModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
-                <div class="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden slide-in max-h-[80vh] overflow-y-auto">
-                    <div class="bg-indigo-600 p-6 text-white flex justify-between items-center sticky top-0">
-                        <h2 class="text-2xl font-black">💳 Taksitler</h2>
-                        <button onclick="closeInstallmentsModal()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition text-2xl font-light">&times;</button>
-                    </div>
-                    <div class="p-6 space-y-4">
-                        <!-- Özet -->
-                        <div class="grid grid-cols-2 gap-4 mb-6">
-                            <div class="bg-blue-50 p-4 rounded-2xl border border-blue-200">
-                                <p class="text-xs text-slate-600 font-semibold mb-1">Toplam Taksit Tutarı</p>
-                                <p id="totalInstallmentAmount" class="text-2xl font-black text-blue-600">0,00 TL</p>
-                            </div>
-                            <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-200">
-                                <p class="text-xs text-slate-600 font-semibold mb-1">Seçili Ayın Tutarı</p>
-                                <p id="selectedMonthAmount" class="text-2xl font-black text-indigo-600">0,00 TL</p>
-                            </div>
-                        </div>
-                        <!-- Aylar -->
-                        <div id="installmentsContainer" class="space-y-3"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="tabContentNotes" class="hidden fade-in">
+<div id="tabContentNotes" class="hidden fade-in">
                 <div class="max-w-4xl mx-auto space-y-8">
                     <!-- IBAN Yönetimi -->
                     <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
@@ -871,6 +798,20 @@
                 <button type="button" onclick="closeOnboarding(false)" class="flex-1 py-3 rounded-xl bg-slate-100 font-bold text-slate-600">Sonra</button>
                 <button type="button" onclick="closeOnboarding(true)" class="flex-[2] py-3 rounded-xl bg-indigo-600 text-white font-bold">Anladım, başla</button>
             </div>
+        </div>
+    </div>
+
+    
+    <div id="categoryDetailModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+            <div class="bg-indigo-600 p-5 text-white flex justify-between items-center shrink-0">
+                <div>
+                    <h2 id="categoryDetailTitle" class="text-lg font-black">Kategori</h2>
+                    <p id="categoryDetailTotal" class="text-sm text-indigo-100 font-bold mt-0.5">0 TL</p>
+                </div>
+                <button type="button" onclick="closeCategoryDetailModal()" class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-xl leading-none">&times;</button>
+            </div>
+            <div id="categoryDetailBody" class="p-5 overflow-y-auto"></div>
         </div>
     </div>
 

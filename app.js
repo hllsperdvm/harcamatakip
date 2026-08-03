@@ -90,8 +90,7 @@
 
         const DEFAULT_TABS = [
             { id: 'expense', emoji: '💰', label: 'Bütçe Takip', visible: true, core: true, adminOnly: false },
-            { id: 'stats', emoji: '📊', label: 'İstatistikler', visible: true, core: true, adminOnly: false },
-            { id: 'reports', emoji: '📈', label: 'Raporlar', visible: true, core: true, adminOnly: false },
+            { id: 'stats', emoji: '📊', label: 'İstatistik & Rapor', visible: true, core: true, adminOnly: false },
             { id: 'notes', emoji: '📝', label: 'Notlar', visible: true, core: true, adminOnly: false },
             { id: 'calculator', emoji: '🧮', label: 'Hesaplama', visible: true, core: true, adminOnly: false },
             { id: 'settings', emoji: '⚙️', label: 'Ayarlar', visible: true, core: true, adminOnly: true },
@@ -361,7 +360,7 @@
         // Sekme Değiştirme
         window.switchTab = function(tabName) {
             lastActiveTabId = tabName;
-            const coreIds = ["expense", "stats", "reports", "notes", "calculator", "settings", "trash"];
+            const coreIds = ["expense", "stats", "notes", "calculator", "settings", "trash"];
             const isCustom = String(tabName).startsWith('custom_');
 
             // Hide all core contents + custom
@@ -393,6 +392,10 @@
                 return;
             }
 
+            if (tabName === 'reports') {
+                switchTab('stats');
+                return;
+            }
             if (tabName === 'settings' && !isAdmin()) {
                 switchTab('expense');
                 return;
@@ -407,9 +410,8 @@
 
             if (tabName === 'stats') {
                 updateStatsPanel();
-                if (expenseChart) expenseChart.resize();
-            } else if (tabName === 'reports') {
                 renderMonthlyReports();
+                if (expenseChart) expenseChart.resize();
             } else if (tabName === 'trash') {
                 renderTrash();
             } else if (tabName === 'notes') {
@@ -552,8 +554,8 @@
             });
             db.collection("cardStatements").onSnapshot(snap => {
                 cardStatements = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-                const reportsTab = document.getElementById('tabContentReports');
-                if (reportsTab && !reportsTab.classList.contains('hidden')) {
+                const statsTab = document.getElementById('tabContentStats');
+                if (statsTab && !statsTab.classList.contains('hidden')) {
                     renderCardStatements('bekir');
                     renderCardStatements('duygu');
                 }
@@ -988,6 +990,45 @@
         };
 
         // İstatistikler Paneli
+        window.showCategoryExpenses = function(category) {
+            const period = getCurrentPeriod();
+            const items = getProcessedExpenses().filter(e =>
+                e.effectiveMonth === period && e.category === category
+            );
+            const modal = document.getElementById('categoryDetailModal');
+            const title = document.getElementById('categoryDetailTitle');
+            const body = document.getElementById('categoryDetailBody');
+            const totalEl = document.getElementById('categoryDetailTotal');
+            if (!modal || !body) return;
+            if (title) title.textContent = category + ' — dönem harcamaları';
+            const total = items.reduce((s, e) => s + (e.displayAmount || 0), 0);
+            if (totalEl) totalEl.textContent = total.toLocaleString('tr-TR') + ' TL';
+            if (!items.length) {
+                body.innerHTML = '<p class="text-sm text-slate-400 font-medium text-center py-6">Bu kategoride dönem harcaması yok</p>';
+            } else {
+                body.innerHTML = items
+                    .slice()
+                    .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+                    .map(e => `
+                    <div class="flex justify-between gap-3 items-start py-3 border-b border-slate-100 last:border-0">
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold text-slate-800 truncate">${escapeHtml(e.description || '-')}</p>
+                            <p class="text-[11px] text-slate-400 font-semibold mt-0.5">${escapeHtml(e.date || '')} · ${escapeHtml(e.person || '')} · ${escapeHtml(e.installmentLabel || '')}</p>
+                        </div>
+                        <p class="text-sm font-black text-rose-600 whitespace-nowrap">${(e.displayAmount || 0).toLocaleString('tr-TR')} TL</p>
+                    </div>`).join('');
+            }
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
+        window.closeCategoryDetailModal = function() {
+            const modal = document.getElementById('categoryDetailModal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+
         function updateStatsPanel() {
             const period = getCurrentPeriod();
             const processedExpenses = getProcessedExpenses().filter(e => e.effectiveMonth === period);
@@ -1002,10 +1043,11 @@
                 expenseChart.destroy();
             }
             if (ctx1) {
+                const catLabels = Object.keys(categoryData);
                 expenseChart = new Chart(ctx1, {
                     type: 'doughnut',
                     data: {
-                        labels: Object.keys(categoryData),
+                        labels: catLabels,
                         datasets: [{
                             data: Object.values(categoryData),
                             backgroundColor: ['#3b82f6', '#ec4899', '#f59e0b', '#10b981', '#f87171', '#8b5cf6', '#06b6d4', '#6366f1'],
@@ -1013,7 +1055,31 @@
                             borderWidth: 3
                         }]
                     },
-                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom' } } }
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        onClick: (evt, elements) => {
+                            if (!elements || !elements.length) return;
+                            const idx = elements[0].index;
+                            const cat = catLabels[idx];
+                            if (cat) showCategoryExpenses(cat);
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                onClick: (e, legendItem, legend) => {
+                                    const cat = legendItem.text;
+                                    if (cat) showCategoryExpenses(cat);
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Kategoriye tıklayın → harcamaları görün',
+                                font: { size: 11, weight: '600' },
+                                color: '#94a3b8'
+                            }
+                        }
+                    }
                 });
             }
 
@@ -1104,6 +1170,7 @@
             const monthlySummary = document.getElementById('monthlySummaryReport');
             const total = processedExpenses.reduce((s, e) => s + e.displayAmount, 0);
             const periodInfo = getCurrentStatementPeriod();
+            if (!monthlySummary) return;
             monthlySummary.innerHTML = `
                 <h3 class="text-xl font-black mb-4">Aktif Ekstre Dönemi</h3>
                 <p class="text-xs font-bold text-indigo-500 mb-3">${periodInfo.label}</p>
@@ -1128,7 +1195,11 @@
             });
             const detailedReport = document.getElementById('detailedMonthlyReport');
             detailedReport.innerHTML = Object.entries(categoryData).map(([cat, amt]) => `
-                <div class="bg-slate-50 p-4 rounded-2xl"><div class="font-bold text-sm">${cat}</div><div class="text-2xl font-black text-indigo-600">${amt.toLocaleString('tr-TR')} TL</div></div>
+                <button type="button" onclick="showCategoryExpenses('${String(cat).replace(/'/g, "\\'")}')" class="bg-slate-50 p-4 rounded-2xl text-left w-full hover:bg-indigo-50 hover:border-indigo-200 border border-transparent transition">
+                    <div class="font-bold text-sm">${cat}</div>
+                    <div class="text-2xl font-black text-indigo-600">${amt.toLocaleString('tr-TR')} TL</div>
+                    <div class="text-[10px] text-slate-400 font-bold mt-1">Detay için tıkla</div>
+                </button>
             `).join('');
 
             renderCardStatements('bekir');
@@ -1142,7 +1213,7 @@
                 .sort((a, b) => new Date(b.month) - new Date(a.month));
             
             const container = document.getElementById(person === 'bekir' ? 'bekirCardStatements' : 'duyguCardStatements');
-            
+            if (!container) return;
             if (sortedStatements.length === 0) {
                 container.innerHTML = `<div class="col-span-full text-center py-8 text-slate-400"><p class="text-sm">Henüz ekstre kaydı yok</p></div>`;
                 return;
@@ -1908,8 +1979,8 @@
             document.getElementById('editTabLabel').value = t.label || '';
             document.getElementById('editTabContent').value = t.content || '';
             document.getElementById('editTabVisibleTo').value = selectFromVisibility(t);
-            document.getElementById('editTabRegenAI').checked = false;
-            document.getElementById('editTabStatus').classList.add('hidden');
+            const st = document.getElementById('editTabStatus');
+            if (st) st.classList.add('hidden');
             const modal = document.getElementById('tabEditModal');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
