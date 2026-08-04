@@ -67,7 +67,7 @@
         // { Bekir: { password: '...', role: 'admin' }, Duygu: { password: '...', role: 'user' } }
         let USERS = {};
         let usersLoaded = false;
-        let geminiApiKey = ''; // Firestore settings/apiKeys.gemini — koda yazılmaz
+        let openrouterApiKey = ''; // Firestore settings/apiKeys.openrouter — koda yazılmaz
 
         let currentUser = null; // { name, role }
         let onboardingPending = false;
@@ -597,8 +597,11 @@
                 }
             }, err => console.warn('appUsers:', err));
             db.collection("settings").doc("apiKeys").onSnapshot(d => {
-                if (d.exists && d.data() && d.data().gemini) {
-                    geminiApiKey = String(d.data().gemini).trim();
+                if (d.exists && d.data()) {
+                    const k = d.data();
+                    // openrouter öncelikli; eski gemini alanı yok sayılır
+                    if (k.openrouter) openrouterApiKey = String(k.openrouter).trim();
+                    else if (k.gemini) openrouterApiKey = String(k.gemini).trim(); // yanlışlıkla eski alan
                 }
             }, err => console.warn('apiKeys:', err));
             db.collection("settings").doc("tabs").onSnapshot(d => {
@@ -1535,9 +1538,43 @@
                 const head = sourceLabel
                     ? '<p class="text-[11px] font-bold text-violet-600 mb-3">' + escapeHtml(sourceLabel) + '</p>'
                     : '';
-                box.innerHTML = head + lines.map(function(line) {
-                    return '<p class="text-sm text-slate-700 font-medium leading-relaxed mb-2">• ' + escapeHtml(line) + '</p>';
+                const cards = (lines || []).filter(Boolean).map(function(line, i) {
+                    let t = String(line).replace(/\*\*/g, '').replace(/\*/g, '').trim();
+                    let title = '';
+                    let body = t;
+                    const colon = t.indexOf(':');
+                    if (colon > 0 && colon < 70) {
+                        title = t.slice(0, colon).trim();
+                        body = t.slice(colon + 1).trim();
+                    }
+                    return (
+                        '<div class="bg-white rounded-xl border border-violet-100 p-3.5 mb-2.5 shadow-sm">' +
+                          '<div class="flex gap-2.5 items-start">' +
+                            '<span class="shrink-0 w-6 h-6 rounded-full bg-violet-600 text-white text-[11px] font-black flex items-center justify-center">' + (i + 1) + '</span>' +
+                            '<div class="min-w-0">' +
+                              (title ? '<p class="text-sm font-black text-slate-900 mb-1">' + escapeHtml(title) + '</p>' : '') +
+                              '<p class="text-sm text-slate-600 font-medium leading-relaxed">' + escapeHtml(body || t) + '</p>' +
+                            '</div>' +
+                          '</div>' +
+                        '</div>'
+                    );
                 }).join('');
+                box.innerHTML = head + (cards || '<p class="text-sm text-slate-400">Öneri yok</p>');
+            }
+
+            function parseAdvisorText(raw) {
+                if (!raw) return [];
+                let t = String(raw).replace(/\r/g, '').replace(/\*\*/g, '').replace(/__/g, '').trim();
+                let parts = t.split(/\n+/).map(function(s) { return s.trim(); }).filter(Boolean);
+                if (parts.length <= 2) {
+                    parts = t.split(/(?=\d+[\.\)]\s)/).map(function(s) { return s.trim(); }).filter(Boolean);
+                }
+                if (parts.length <= 1) {
+                    parts = t.split(/(?=•\s)/).map(function(s) { return s.trim(); }).filter(Boolean);
+                }
+                return parts.map(function(p) {
+                    return p.replace(/^\d+[\.\)]\s*/, '').replace(/^[-•]\s*/, '').trim();
+                }).filter(function(p) { return p.length > 8; }).slice(0, 10);
             }
 
             try {
@@ -1545,8 +1582,8 @@
                 const localTips = buildLocalAdvisorTips(summary);
                 renderAdvisorLines(localTips, 'Yerel analiz');
 
-                if (!geminiApiKey) {
-                    box.innerHTML += '<p class="text-[11px] text-slate-400 font-semibold mt-3">Gemini anahtarı tanımlı değilse yalnızca yerel analiz kullanılır.</p>';
+                if (!openrouterApiKey) {
+                    box.innerHTML += '<p class="text-[11px] text-slate-400 font-semibold mt-3">OpenRouter anahtarı yoksa yalnızca yerel analiz kullanılır. Firebase: settings/apiKeys → openrouter</p>';
                     logActivity('Diğer', 'Bütçe danışmanı (yerel)', '');
                     return;
                 }
@@ -1555,35 +1592,62 @@
                 summary.months.forEach(function(m) {
                     const cats = summary.byMonth[m] || {};
                     const total = Object.values(cats).reduce(function(a, b) { return a + b; }, 0);
+                    const label = (summary.labels && summary.labels[m]) ? summary.labels[m] : m;
                     const top = Object.entries(cats).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 8)
                         .map(function(kv) { return kv[0] + ': ' + Math.round(kv[1]) + ' TL'; }).join(', ');
-                    lines.push(m + ' toplam ' + Math.round(total) + ' TL → ' + (top || 'kayıt yok'));
+                    lines.push(label + ' toplam ' + Math.round(total) + ' TL → ' + (top || 'kayıt yok'));
                 });
-                const prompt = 'Sen Türkçe ev bütçesi danışmanısın. Kısa madde madde öneri ver (max 8). Sayıya dayan.\n\n' + lines.join('\n');
-                const models = ['gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-2.0-flash', 'gemini-pro'];
-                let geminiText = null;
+                const prompt = [
+                    'Sen deneyimli bir ev butcesi danismanisin. Turkce yaz.',
+                    '29-28 ekstre donemi verisine gore 5-7 ozgun oneri yaz.',
+                    'Her oneri AYRI SATIRDA su formatta: Baslik: somut aciklama (1-2 tam cumle).',
+                    'Sadece azaltin deme. Cesitlendir: limit, taksit, fatura tarife, yakit rota, abonelik iptali, kart odeme tarihi, toplu alim, acil fon.',
+                    'Rakama dayan; uydurma yuzde verme. Markdown kullanma. 1. 2. 3. numarala. Cumleyi yarim birakma.',
+                    '',
+                    'Veri:',
+                    lines.join(String.fromCharCode(10))
+                ].join(String.fromCharCode(10));
+
+                // OpenRouter ücretsiz modeller (:free) — kredi gerektirmez
+                // Liste: https://openrouter.ai/models?max_price=0
+                const models = [
+                    'openrouter/free',
+                    'meta-llama/llama-3.3-70b-instruct:free',
+                    'meta-llama/llama-3.2-3b-instruct:free',
+                    'google/gemma-3-12b-it:free',
+                    'qwen/qwen-2.5-7b-instruct:free'
+                ];
+                let aiText = null;
                 let lastErr = '';
                 for (let i = 0; i < models.length; i++) {
                     try {
-                        const model = models[i];
-                        const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(geminiApiKey);
-                        const res = await fetch(url, {
+                        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: {
+                                'Authorization': 'Bearer ' + openrouterApiKey,
+                                'Content-Type': 'application/json',
+                                'HTTP-Referer': (typeof location !== 'undefined' ? location.origin : 'https://yuvam.app'),
+                                'X-Title': 'YUVAM Budget'
+                            },
                             body: JSON.stringify({
-                                contents: [{ parts: [{ text: prompt }] }],
-                                generationConfig: { temperature: 0.5, maxOutputTokens: 700 }
+                                model: models[i],
+                                messages: [
+                                    { role: 'system', content: 'Turkce ev butcesi danismani. Madde madde tamamlanmis cumleler. Markdown yok. Sadece azalt deme; pratik cesitli oneriler.' },
+                                    { role: 'user', content: prompt }
+                                ],
+                                temperature: 0.65,
+                                max_tokens: 1200
                             })
                         });
                         const data = await res.json();
                         if (!res.ok) {
-                            lastErr = (data && data.error && data.error.message) || ('HTTP ' + res.status);
+                            lastErr = (data && data.error && (data.error.message || data.error)) || ('HTTP ' + res.status);
+                            lastErr = String(lastErr);
                             continue;
                         }
-                        const text = data.candidates && data.candidates[0] && data.candidates[0].content &&
-                            data.candidates[0].content.parts && data.candidates[0].content.parts.map(function(p) { return p.text; }).join('\n');
-                        if (text && text.trim()) {
-                            geminiText = text.trim();
+                        const text = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+                        if (text && String(text).trim()) {
+                            aiText = String(text).trim();
                             break;
                         }
                     } catch (e) {
@@ -1591,19 +1655,18 @@
                     }
                 }
 
-                if (geminiText) {
-                    const gemLines = geminiText.split('\n').map(function(l) {
-                        return l.replace(/^\s*[\*\-•]\s*/, '').trim();
-                    }).filter(Boolean);
-                    renderAdvisorLines(gemLines, 'Gemini önerisi');
-                    logActivity('Diğer', 'AI bütçe danışmanı (Gemini)', '');
+                if (aiText) {
+                    const gemLines = parseAdvisorText(aiText);
+                    renderAdvisorLines(gemLines.length ? gemLines : [aiText], 'OpenRouter önerisi');
+                    logActivity('Diğer', 'AI bütçe danışmanı (OpenRouter)', '');
                 } else {
-                    renderAdvisorLines(localTips, 'Yerel analiz (Gemini kotası doldu veya API yanıt vermedi)');
+                    renderAdvisorLines(localTips, 'Yerel analiz (OpenRouter yanıt vermedi)');
                     if (lastErr) {
-                        box.innerHTML += '<p class="text-[11px] text-amber-700 font-semibold mt-3">Not: Google ücretsiz kotası bu anahtar/model için 0. Yerel öneriler gösterildi.</p>';
+                        box.innerHTML += '<p class="text-[11px] text-amber-700 font-semibold mt-3">OpenRouter: ' + escapeHtml(String(lastErr).slice(0, 180)) + ' — Ücretsiz için model adında :free olmalı; openrouter.ai/models?max_price=0' + '</p>';
                     }
                     logActivity('Diğer', 'Bütçe danışmanı (yerel yedek)', '');
                 }
+
             } catch (err) {
                 console.error(err);
                 try {
