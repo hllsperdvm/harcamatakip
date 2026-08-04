@@ -162,21 +162,44 @@
                     </div>
                 </div>
 
-                <!-- AI Bütçe Danışmanı -->
-                <div id="aiAdvisorCard" class="bg-gradient-to-br from-violet-50 to-indigo-50 rounded-[2.5rem] card-shadow border border-violet-100 p-6 sm:p-8">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                        <div>
-                            <h2 class="text-lg font-black text-slate-900">🤖 AI Bütçe Danışmanı</h2>
-                            <p class="text-xs text-slate-500 font-semibold mt-1">Son ayları karşılaştırır, kategori önerisi verir</p>
+                <!-- Bütçe analizi: Yerel + AI -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div class="bg-gradient-to-br from-indigo-50 to-slate-50 rounded-[2rem] card-shadow border border-indigo-100 p-5 sm:p-6">
+                        <div class="flex items-start justify-between gap-3 mb-3">
+                            <div>
+                                <h2 class="text-base font-black text-slate-900">📊 Yerel analiz</h2>
+                                <p class="text-[11px] text-slate-500 font-semibold mt-0.5">Anında · dönem, kategori, kişi, fatura, araç</p>
+                            </div>
+                            <button type="button" id="localAdvisorBtn" onclick="runLocalAdvisor()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl shrink-0">Analiz et</button>
                         </div>
-                        <button type="button" id="aiAdvisorBtn" onclick="runAiAdvisor()" class="bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl shadow-lg shadow-violet-200 transition shrink-0">Öneri Al</button>
+                        <div id="localAdvisorResult" class="bg-white/80 rounded-2xl p-3 min-h-[4rem] border border-indigo-50 max-h-80 overflow-y-auto">
+                            <p class="text-sm text-slate-400 font-medium">Detaylı yerel özet için «Analiz et».</p>
+                        </div>
                     </div>
-                    <div id="aiAdvisorResult" class="bg-white/70 rounded-2xl p-4 min-h-[3rem] border border-violet-100">
-                        <p class="text-sm text-slate-400 font-medium">«Öneri Al» ile harcamalarınıza göre kısa tavsiye alın.</p>
+                    <div class="bg-gradient-to-br from-violet-50 to-indigo-50 rounded-[2rem] card-shadow border border-violet-100 p-5 sm:p-6">
+                        <div class="flex items-start justify-between gap-3 mb-3">
+                            <div>
+                                <h2 class="text-base font-black text-slate-900">🤖 AI analiz</h2>
+                                <p class="text-[11px] text-slate-500 font-semibold mt-0.5">OpenRouter · tıklayınca çalışır</p>
+                            </div>
+                            <button type="button" id="aiAdvisorBtn" onclick="runAiAdvisor()" class="bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold px-4 py-2 rounded-xl shrink-0">AI Analiz</button>
+                        </div>
+                        <div id="aiAdvisorProgressWrap" class="hidden mb-3">
+                            <div class="flex justify-between text-[10px] font-bold text-violet-600 mb-1">
+                                <span>Yükleniyor…</span>
+                                <span id="aiAdvisorProgressPct">0%</span>
+                            </div>
+                            <div class="h-2 bg-violet-100 rounded-full overflow-hidden">
+                                <div id="aiAdvisorProgressBar" class="h-full bg-violet-600 rounded-full transition-all duration-200" style="width:0%"></div>
+                            </div>
+                        </div>
+                        <div id="aiAdvisorResult" class="bg-white/80 rounded-2xl p-3 min-h-[4rem] border border-violet-50 max-h-80 overflow-y-auto">
+                            <p class="text-sm text-slate-400 font-medium">AI önerisi için «AI Analiz»e basın.</p>
+                        </div>
                     </div>
                 </div>
 
-                <!-- İşlem Geçmişi -->
+<!-- İşlem Geçmişi -->
                 <div class="bg-white rounded-[2.5rem] card-shadow border border-slate-100 overflow-hidden">
                     <div class="p-8 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <h2 class="text-xl font-black text-slate-900">İşlem Geçmişi</h2>
@@ -508,7 +531,12 @@
                                         <input type="text" id="newTabEmoji" placeholder="Emoji (📌)" maxlength="4" class="bg-white border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500">
                                         <input type="text" id="newTabLabel" placeholder="Sekme adı" class="sm:col-span-2 bg-white border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500">
                                     </div>
-                                    <textarea id="newTabContent" rows="3" placeholder="İsteğe bağlı: hesap makinesi, yapılacaklar, not, sayaç, kronometre..." class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                                    <textarea id="newTabContent" rows="3" placeholder="Örn: bu sayfada haftalık alışveriş listesi olsun, veya basit bir not defteri..." class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                                    <label class="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer select-none">
+                                        <input type="checkbox" id="newTabUseAI" checked class="rounded border-slate-300 text-violet-600 focus:ring-violet-500">
+                                        Yapay zeka ile sayfa içeriği oluştur (OpenRouter)
+                                    </label>
+                                    <p id="newTabAiStatus" class="hidden text-[11px] text-violet-600 font-semibold"></p>
                                     <div>
                                         <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Kimler görsün?</label>
                                         <select id="newTabVisibleTo" class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500">
