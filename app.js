@@ -67,6 +67,8 @@
         // { Bekir: { password: '...', role: 'admin' }, Duygu: { password: '...', role: 'user' } }
         let USERS = {};
         let usersLoaded = false;
+        let geminiApiKey = ''; // Firestore settings/apiKeys.gemini — koda yazılmaz
+
         let currentUser = null; // { name, role }
         let onboardingPending = false;
 
@@ -277,6 +279,7 @@
         
         let sortColumn = 'date', sortDirection = 'desc';
         let currentPersonFilter = 'Tümü', currentCategoryFilter = 'Tümü', currentPaymentFilter = 'Tümü';
+        let currentSearchFilter = '';
         let currentStartDateFilter = '', currentEndDateFilter = '';
         let currentShowInstallments = false;
 
@@ -467,6 +470,7 @@
             if (tabName === 'stats') {
                 updateStatsPanel();
                 renderMonthlyReports();
+                if (typeof renderBillsChart === 'function') renderBillsChart();
                 if (expenseChart) expenseChart.resize();
             } else if (tabName === 'vehicle') {
                 renderVehicleTab();
@@ -592,6 +596,11 @@
                     usersLoaded = true;
                 }
             }, err => console.warn('appUsers:', err));
+            db.collection("settings").doc("apiKeys").onSnapshot(d => {
+                if (d.exists && d.data() && d.data().gemini) {
+                    geminiApiKey = String(d.data().gemini).trim();
+                }
+            }, err => console.warn('apiKeys:', err));
             db.collection("settings").doc("tabs").onSnapshot(d => {
                 if (d.exists && d.data()) {
                     const data = d.data();
@@ -777,11 +786,20 @@
         window.onCategoryChange = function() {
             const cat = document.getElementById('category');
             const wrap = document.getElementById('vehicleSubtypeWrap');
-            if (!cat || !wrap) return;
+            const billWrap = document.getElementById('billSubtypeWrap');
+            if (!cat) return;
             const isVehicle = cat.value === 'Araç' || cat.value === 'Ulaşım';
-            wrap.classList.toggle('hidden', !isVehicle);
-            const sel = document.getElementById('vehicleSubtype');
-            if (sel && isVehicle && !sel.value) sel.value = 'Yakıt';
+            const isBill = cat.value === 'Faturalar';
+            if (wrap) {
+                wrap.classList.toggle('hidden', !isVehicle);
+                const sel = document.getElementById('vehicleSubtype');
+                if (sel && isVehicle && !sel.value) sel.value = 'Yakıt';
+            }
+            if (billWrap) {
+                billWrap.classList.toggle('hidden', !isBill);
+                const bs = document.getElementById('billSubtype');
+                if (bs && isBill && !bs.value) bs.value = 'Elektrik';
+            }
             if (typeof onVehicleSubtypeChange === 'function') onVehicleSubtypeChange();
         };
 
@@ -1063,8 +1081,17 @@
             const description = document.getElementById('description').value || '-';
             const category = document.getElementById('category').value;
             let vehicleSubtype = '';
+            let billSubtype = '';
             let fuelKm = null, fuelLiters = null, fuelPricePerLt = null;
             let fuelNote = '';
+            if (category === 'Faturalar') {
+                const bs = document.getElementById('billSubtype');
+                billSubtype = bs ? bs.value : '';
+                if (!billSubtype) {
+                    alert('Fatura türü seçin: Elektrik, Su veya Doğalgaz');
+                    return;
+                }
+            }
             if (category === 'Araç' || category === 'Ulaşım') {
                 const vs = document.getElementById('vehicleSubtype');
                 vehicleSubtype = vs ? vs.value : '';
@@ -1116,6 +1143,7 @@
                 expenseMonth: date.substring(0, 7),
                 statementPeriod: getPeriodKeyForDateStr(date),
                 vehicleSubtype: (category === 'Araç' || category === 'Ulaşım') ? vehicleSubtype : '',
+                billSubtype: category === 'Faturalar' ? billSubtype : '',
                 fuelKm: fuelKm,
                 fuelLiters: fuelLiters,
                 fuelPricePerLt: fuelPricePerLt,
@@ -1188,6 +1216,8 @@
             if (typeof onCategoryChange === 'function') onCategoryChange();
             const vs = document.getElementById('vehicleSubtype');
             if (vs && e.vehicleSubtype) vs.value = e.vehicleSubtype;
+            const bs = document.getElementById('billSubtype');
+            if (bs && e.billSubtype) bs.value = e.billSubtype;
             if (typeof onVehicleSubtypeChange === 'function') onVehicleSubtypeChange();
             const fk = document.getElementById('fuelKm');
             const fl = document.getElementById('fuelLiters');
@@ -1288,6 +1318,15 @@
                 if (currentStartDateFilter && item.date < currentStartDateFilter) return false;
                 if (currentEndDateFilter && item.date > currentEndDateFilter) return false;
 
+                if (currentSearchFilter) {
+                    const q = currentSearchFilter.toLocaleLowerCase('tr-TR');
+                    const blob = [
+                        item.category, item.description, item.person, item.paymentType,
+                        item.vehicleSubtype, item.billSubtype, item.installmentLabel, item.fuelNote
+                    ].map(x => String(x || '')).join(' ').toLocaleLowerCase('tr-TR');
+                    if (!blob.includes(q)) return false;
+                }
+
                 return true;
             });
 
@@ -1319,7 +1358,7 @@
                             ${escapeHtml((item.person || '').toUpperCase())}
                         </span>
                     </td>
-                    <td class="px-6 py-5"><span class="bg-slate-100 px-2 py-1 rounded text-[10px]">${escapeHtml(item.category)}</span></td>
+                    <td class="px-6 py-5"><span class="bg-slate-100 px-2 py-1 rounded text-[10px]">${escapeHtml(item.category)}${item.billSubtype ? ' · ' + escapeHtml(item.billSubtype) : ''}${item.vehicleSubtype ? ' · ' + escapeHtml(item.vehicleSubtype) : ''}</span></td>
                     <td class="px-6 py-5 opacity-60">${escapeHtml(item.paymentType || '-')}</td>
                     <td class="px-6 py-5">
                         <div class="flex flex-col">
@@ -1395,6 +1434,226 @@
             modal.classList.add('hidden');
             modal.classList.remove('flex');
         };
+
+
+        function buildExpenseSummaryForAi() {
+            // Site ile aynı mantık: 29–28 dönem + taksit satırları (effectiveMonth / displayAmount)
+            const processed = getProcessedExpenses();
+            // En yeni dönem başta: [0]=aktif, [1]=önceki, [2]=onunkisi
+            const periodKeys = getPreviousPeriodKeys(3).slice().reverse();
+            const byPeriod = {};
+            periodKeys.forEach(pk => { byPeriod[pk] = {}; });
+
+            processed.forEach(e => {
+                const pk = e.effectiveMonth || getPeriodKeyForDateStr(e.date);
+                if (!byPeriod[pk]) return;
+                const cat = e.category || 'Diğer';
+                const sub = e.billSubtype || e.vehicleSubtype || '';
+                const label = sub ? (cat + '/' + sub) : cat;
+                const amt = Number(e.displayAmount);
+                if (!isFinite(amt)) return;
+                byPeriod[pk][label] = (byPeriod[pk][label] || 0) + amt;
+            });
+
+            // Aktif dönem toplamını bütçe kartıyla aynı formülle doğrula
+            const currentPk = getCurrentPeriod();
+            const currentTotal = processed
+                .filter(e => e.effectiveMonth === currentPk)
+                .reduce((s, e) => s + (Number(e.displayAmount) || 0), 0);
+
+            return {
+                months: periodKeys, // geriye uyum: runAiAdvisor "months" kullanıyor
+                byMonth: byPeriod,
+                period: currentPk,
+                currentTotal,
+                labels: Object.fromEntries(periodKeys.map(pk => [pk, formatPeriodLabel(pk)]))
+            };
+        }
+
+        window.runAiAdvisor = async function() {
+            const box = document.getElementById('aiAdvisorResult');
+            const btn = document.getElementById('aiAdvisorBtn');
+            if (box) box.innerHTML = '<p class="text-sm text-slate-500 font-semibold animate-pulse">Analiz ediliyor…</p>';
+            if (btn) btn.disabled = true;
+
+            function buildLocalAdvisorTips(summary) {
+                const tips = [];
+                const months = summary.months || [];
+                if (!months.length) {
+                    return ['Henüz analiz edilecek harcama verisi yok. Birkaç harcama ekledikten sonra tekrar deneyin.'];
+                }
+                const cur = months[0];
+                const prev = months[1];
+                const curCats = summary.byMonth[cur] || {};
+                const prevCats = prev ? (summary.byMonth[prev] || {}) : {};
+                const curTotal = Object.values(curCats).reduce((a, b) => a + b, 0);
+                const prevTotal = Object.values(prevCats).reduce((a, b) => a + b, 0);
+
+                const curLabel = (summary.labels && summary.labels[cur]) ? summary.labels[cur] : formatPeriodLabel(cur);
+                const prevLabel = prev && summary.labels && summary.labels[prev] ? summary.labels[prev] : (prev ? formatPeriodLabel(prev) : '');
+                // Bütçe kartıyla aynı aktif dönem toplamı tercih edilir
+                const shownCur = (summary.period === cur && summary.currentTotal != null) ? summary.currentTotal : curTotal;
+                tips.push('Aktif ekstre dönemi (' + curLabel + ') toplam: ' + Math.round(shownCur).toLocaleString('tr-TR') + ' TL.');
+                if (prev) {
+                    const baseCur = (summary.period === cur && summary.currentTotal != null) ? summary.currentTotal : curTotal;
+                    const diff = baseCur - prevTotal;
+                    const pct = prevTotal > 0 ? Math.round((diff / prevTotal) * 100) : 0;
+                    if (diff > 50) {
+                        tips.push('Önceki dönem (' + prevLabel + ') göre yaklaşık +' + Math.round(diff).toLocaleString('tr-TR') + ' TL (%' + pct + ').');
+                    } else if (diff < -50) {
+                        tips.push('Önceki döneme göre yaklaşık ' + Math.round(-diff).toLocaleString('tr-TR') + ' TL azaldı.');
+                    } else {
+                        tips.push('Önceki dönemle toplam benzer seviyede (' + prevLabel + ').');
+                    }
+                }
+
+                const ranked = Object.entries(curCats).sort((a, b) => b[1] - a[1]);
+                if (ranked.length) {
+                    tips.push('En yüksek kategori: ' + ranked[0][0] + ' → ' + Math.round(ranked[0][1]).toLocaleString('tr-TR') + ' TL.');
+                }
+                ranked.slice(0, 6).forEach(([cat, amt]) => {
+                    const before = prevCats[cat] || 0;
+                    if (before > 0 && amt > before * 1.25 && amt - before > 100) {
+                        tips.push(cat + ' geçen aya göre +' + Math.round(amt - before).toLocaleString('tr-TR') + ' TL artmış. Bu kalemde limit düşünün.');
+                    }
+                });
+                if (ranked.some(([k]) => k.indexOf('Fatura') >= 0 || k.indexOf('Elektrik') >= 0 || k.indexOf('Doğalgaz') >= 0 || k.indexOf('Su') >= 0)) {
+                    tips.push('Fatura kalemleri öne çıkıyor. Elektrik / su / doğalgaz kullanımını dönemsel karşılaştırın.');
+                }
+                if (ranked.some(([k]) => k.indexOf('Araç') >= 0 || k.indexOf('Yakıt') >= 0)) {
+                    tips.push('Araç/yakıt harcaması dikkat çekiyor. Araç sekmesindeki tüketim grafiklerine bakın.');
+                }
+                if (tips.length < 3) {
+                    tips.push('Küçük ama düzenli kayıt, ay sonu sürprizini azaltır.');
+                    tips.push('Kredi kartı ekstresini dönem kapanmadan kontrol etmek faiz riskini düşürür.');
+                }
+                return tips;
+            }
+
+            function renderAdvisorLines(lines, sourceLabel) {
+                if (!box) return;
+                const head = sourceLabel
+                    ? '<p class="text-[11px] font-bold text-violet-600 mb-3">' + escapeHtml(sourceLabel) + '</p>'
+                    : '';
+                box.innerHTML = head + lines.map(function(line) {
+                    return '<p class="text-sm text-slate-700 font-medium leading-relaxed mb-2">• ' + escapeHtml(line) + '</p>';
+                }).join('');
+            }
+
+            try {
+                const summary = buildExpenseSummaryForAi();
+                const localTips = buildLocalAdvisorTips(summary);
+                renderAdvisorLines(localTips, 'Yerel analiz');
+
+                if (!geminiApiKey) {
+                    box.innerHTML += '<p class="text-[11px] text-slate-400 font-semibold mt-3">Gemini anahtarı tanımlı değilse yalnızca yerel analiz kullanılır.</p>';
+                    logActivity('Diğer', 'Bütçe danışmanı (yerel)', '');
+                    return;
+                }
+
+                const lines = [];
+                summary.months.forEach(function(m) {
+                    const cats = summary.byMonth[m] || {};
+                    const total = Object.values(cats).reduce(function(a, b) { return a + b; }, 0);
+                    const top = Object.entries(cats).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 8)
+                        .map(function(kv) { return kv[0] + ': ' + Math.round(kv[1]) + ' TL'; }).join(', ');
+                    lines.push(m + ' toplam ' + Math.round(total) + ' TL → ' + (top || 'kayıt yok'));
+                });
+                const prompt = 'Sen Türkçe ev bütçesi danışmanısın. Kısa madde madde öneri ver (max 8). Sayıya dayan.\n\n' + lines.join('\n');
+                const models = ['gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-2.0-flash', 'gemini-pro'];
+                let geminiText = null;
+                let lastErr = '';
+                for (let i = 0; i < models.length; i++) {
+                    try {
+                        const model = models[i];
+                        const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + encodeURIComponent(geminiApiKey);
+                        const res = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: prompt }] }],
+                                generationConfig: { temperature: 0.5, maxOutputTokens: 700 }
+                            })
+                        });
+                        const data = await res.json();
+                        if (!res.ok) {
+                            lastErr = (data && data.error && data.error.message) || ('HTTP ' + res.status);
+                            continue;
+                        }
+                        const text = data.candidates && data.candidates[0] && data.candidates[0].content &&
+                            data.candidates[0].content.parts && data.candidates[0].content.parts.map(function(p) { return p.text; }).join('\n');
+                        if (text && text.trim()) {
+                            geminiText = text.trim();
+                            break;
+                        }
+                    } catch (e) {
+                        lastErr = e.message || String(e);
+                    }
+                }
+
+                if (geminiText) {
+                    const gemLines = geminiText.split('\n').map(function(l) {
+                        return l.replace(/^\s*[\*\-•]\s*/, '').trim();
+                    }).filter(Boolean);
+                    renderAdvisorLines(gemLines, 'Gemini önerisi');
+                    logActivity('Diğer', 'AI bütçe danışmanı (Gemini)', '');
+                } else {
+                    renderAdvisorLines(localTips, 'Yerel analiz (Gemini kotası doldu veya API yanıt vermedi)');
+                    if (lastErr) {
+                        box.innerHTML += '<p class="text-[11px] text-amber-700 font-semibold mt-3">Not: Google ücretsiz kotası bu anahtar/model için 0. Yerel öneriler gösterildi.</p>';
+                    }
+                    logActivity('Diğer', 'Bütçe danışmanı (yerel yedek)', '');
+                }
+            } catch (err) {
+                console.error(err);
+                try {
+                    renderAdvisorLines(buildLocalAdvisorTips(buildExpenseSummaryForAi()), 'Yerel analiz');
+                } catch (_) {
+                    if (box) box.innerHTML = '<p class="text-sm text-rose-600 font-semibold">' + escapeHtml(err.message || String(err)) + '</p>';
+                }
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        };
+
+        let billsChart = null;
+
+        function renderBillsChart() {
+            const ctx = document.getElementById('billsChart');
+            if (!ctx || typeof Chart === 'undefined') return;
+            const processed = getProcessedExpenses().filter(e => e.category === 'Faturalar');
+            const keys = [];
+            const now = new Date();
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                keys.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'));
+            }
+            const labels = keys.map(k => {
+                const [y, m] = k.split('-').map(Number);
+                return ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'][m - 1] + ' ' + y;
+            });
+            const types = ['Elektrik', 'Su', 'Doğalgaz'];
+            const colors = ['#f59e0b', '#3b82f6', '#ef4444'];
+            const datasets = types.map((t, i) => ({
+                label: t,
+                data: keys.map(k => processed.filter(e => String(e.date || '').startsWith(k) && (e.billSubtype || '') === t)
+                    .reduce((s, e) => s + (e.displayAmount || 0), 0)),
+                backgroundColor: colors[i],
+                borderRadius: 6,
+                maxBarThickness: 28
+            }));
+            if (billsChart) { try { billsChart.destroy(); } catch (_) {} }
+            billsChart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
+                }
+            });
+        }
 
         function updateStatsPanel() {
             const period = getCurrentPeriod();
@@ -2838,9 +3097,12 @@
         window.resetFilters = () => {
             currentPersonFilter = 'Tümü'; currentCategoryFilter = 'Tümü'; currentPaymentFilter = 'Tümü';
             currentStartDateFilter = ''; currentEndDateFilter = ''; currentShowInstallments = false;
+            currentSearchFilter = '';
             document.getElementById('filterPerson').value = 'Tümü';
             document.getElementById('filterCategory').value = 'Tümü';
             document.getElementById('filterPayment').value = 'Tümü';
+            const fs = document.getElementById('filterSearch');
+            if (fs) fs.value = '';
             document.getElementById('filterStartDate').value = '';
             document.getElementById('filterEndDate').value = '';
             document.getElementById('filterShowInstallments').checked = false;
@@ -2849,6 +3111,8 @@
         window.applyFilters = () => {
             currentPersonFilter = document.getElementById('filterPerson').value;
             currentCategoryFilter = document.getElementById('filterCategory').value;
+            const fse = document.getElementById('filterSearch');
+            currentSearchFilter = fse ? fse.value.trim() : '';
             currentPaymentFilter = document.getElementById('filterPayment').value;
             currentStartDateFilter = document.getElementById('filterStartDate').value;
             currentEndDateFilter = document.getElementById('filterEndDate').value;
