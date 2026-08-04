@@ -1091,7 +1091,7 @@
                 const bs = document.getElementById('billSubtype');
                 billSubtype = bs ? bs.value : '';
                 if (!billSubtype) {
-                    alert('Fatura türü seçin: Elektrik, Su veya Doğalgaz');
+                    alert('Fatura türü seçin: Elektrik, Su, Doğalgaz, Telefon, İnternet veya Platform');
                     return;
                 }
             }
@@ -1734,35 +1734,41 @@
             const ctx = document.getElementById('billsChart');
             if (!ctx || typeof Chart === 'undefined') return;
             const processed = getProcessedExpenses().filter(e => e.category === 'Faturalar');
-            const keys = [];
-            const now = new Date();
-            for (let i = 5; i >= 0; i--) {
-                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-                keys.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'));
-            }
-            const labels = keys.map(k => {
-                const [y, m] = k.split('-').map(Number);
-                return ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'][m - 1] + ' ' + y;
+            // Son 6 ekstre dönemi (29–28)
+            const keys = getPreviousPeriodKeys(6);
+            const labels = keys.map(function(k) { return formatPeriodLabel(k); });
+            const types = ['Elektrik', 'Su', 'Doğalgaz', 'Telefon', 'İnternet', 'Platform'];
+            const colors = ['#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
+            const datasets = types.map(function(t, i) {
+                return {
+                    label: t,
+                    data: keys.map(function(k) {
+                        return processed.filter(function(e) {
+                            return e.effectiveMonth === k && (e.billSubtype || '') === t;
+                        }).reduce(function(s, e) { return s + (e.displayAmount || 0); }, 0);
+                    }),
+                    backgroundColor: colors[i],
+                    borderRadius: 4,
+                    maxBarThickness: 18
+                };
             });
-            const types = ['Elektrik', 'Su', 'Doğalgaz'];
-            const colors = ['#f59e0b', '#3b82f6', '#ef4444'];
-            const datasets = types.map((t, i) => ({
-                label: t,
-                data: keys.map(k => processed.filter(e => String(e.date || '').startsWith(k) && (e.billSubtype || '') === t)
-                    .reduce((s, e) => s + (e.displayAmount || 0), 0)),
-                backgroundColor: colors[i],
-                borderRadius: 6,
-                maxBarThickness: 28
-            }));
             if (billsChart) { try { billsChart.destroy(); } catch (_) {} }
             billsChart = new Chart(ctx, {
                 type: 'bar',
-                data: { labels, datasets },
+                data: { labels: labels, datasets: datasets },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: { legend: { position: 'bottom' } },
-                    scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+                    },
+                    scales: {
+                        x: {
+                            stacked: false,
+                            ticks: { maxRotation: 45, minRotation: 0, font: { size: 10 } }
+                        },
+                        y: { stacked: false, beginAtZero: true }
+                    }
                 }
             });
         }

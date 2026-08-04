@@ -184,3 +184,22 @@ button, [onclick] {
     padding-right: 0.5rem !important;
   }
 }
+
+
+/* Grafik kutuları — mobilde daha yüksek */
+.chart-box {
+  position: relative;
+  width: 100%;
+  min-height: 18rem;
+}
+@media (max-width: 640px) {
+  .chart-box {
+    min-height: 22rem;
+  }
+  #tabContentStats .chart-box {
+    min-height: 24rem;
+  }
+  #billsChart {
+    min-height: 22rem;
+  }
+}

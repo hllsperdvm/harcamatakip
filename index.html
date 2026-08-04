@@ -313,22 +313,22 @@
                         <div class="bg-white p-6 rounded-[2rem] card-shadow border border-slate-100">
                             <h2 class="text-lg font-black mb-1">Aylık yakıt harcaması</h2>
                             <p class="text-[11px] text-slate-400 font-semibold mb-4">Son 6 ay · TL</p>
-                            <div class="h-64"><canvas id="vehicleFuelChart"></canvas></div>
+                            <div class="chart-box h-72 sm:h-80"><canvas id="vehicleFuelChart"></canvas></div>
                         </div>
                         <div class="bg-white p-6 rounded-[2rem] card-shadow border border-slate-100">
                             <h2 class="text-lg font-black mb-1">Aylık alınan litre</h2>
                             <p class="text-[11px] text-slate-400 font-semibold mb-4">Son 6 ay · L</p>
-                            <div class="h-64"><canvas id="vehicleFuelLitersChart"></canvas></div>
+                            <div class="chart-box h-72 sm:h-80"><canvas id="vehicleFuelLitersChart"></canvas></div>
                         </div>
                         <div class="bg-white p-6 rounded-[2rem] card-shadow border border-slate-100">
                             <h2 class="text-lg font-black mb-1">Tüketim (L/100 km)</h2>
                             <p class="text-[11px] text-slate-400 font-semibold mb-4">Dolum bazlı · KM+litre girilen kayıtlar</p>
-                            <div class="h-64"><canvas id="vehicleFuelConsChart"></canvas></div>
+                            <div class="chart-box h-72 sm:h-80"><canvas id="vehicleFuelConsChart"></canvas></div>
                         </div>
                         <div class="bg-white p-6 rounded-[2rem] card-shadow border border-slate-100">
                             <h2 class="text-lg font-black mb-1">Km maliyeti (TL/km)</h2>
                             <p class="text-[11px] text-slate-400 font-semibold mb-4">Dolum bazlı</p>
-                            <div class="h-64"><canvas id="vehicleFuelCostChart"></canvas></div>
+                            <div class="chart-box h-72 sm:h-80"><canvas id="vehicleFuelCostChart"></canvas></div>
                         </div>
                     </div>
                     <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
@@ -340,7 +340,7 @@
                 <div id="vehicleMaintPanel" class="hidden space-y-6">
                     <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
                         <h2 class="text-xl font-black mb-4">Vergi &amp; Bakım — Aylık Grafik</h2>
-                        <div class="h-72"><canvas id="vehicleMaintChart"></canvas></div>
+                        <div class="chart-box h-72 sm:h-80"><canvas id="vehicleMaintChart"></canvas></div>
                     </div>
                     <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
                         <h2 class="text-xl font-black mb-4">Vergi &amp; Bakım Harcamaları</h2>
@@ -357,21 +357,21 @@
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="bg-white p-6 sm:p-8 rounded-[2rem] card-shadow border border-slate-100">
                         <h2 id="chartTitle" class="text-lg font-black mb-2">Kategori dağılımı</h2>
-                        <div class="h-72"><canvas id="expenseChart"></canvas></div>
+                        <div class="chart-box h-80 sm:h-96"><canvas id="expenseChart"></canvas></div>
                     </div>
                     <div class="bg-white p-6 sm:p-8 rounded-[2rem] card-shadow border border-slate-100">
                         <h2 class="text-lg font-black mb-2">Faturalar (aylık)</h2>
                         <p class="text-[11px] text-slate-400 font-semibold mb-3">Elektrik · Su · Doğalgaz</p>
-                        <div class="h-72"><canvas id="billsChart"></canvas></div>
+                        <div class="chart-box h-80 sm:h-[28rem]"><canvas id="billsChart"></canvas></div>
                     </div>
                     <div class="bg-white p-6 sm:p-8 rounded-[2rem] card-shadow border border-slate-100">
                         <h2 class="text-lg font-black mb-4">Haftalık trend</h2>
-                        <div class="h-80"><canvas id="weeklyTrendChart"></canvas></div>
+                        <div class="chart-box h-80 sm:h-96"><canvas id="weeklyTrendChart"></canvas></div>
                     </div>
                 </div>
                 <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
                     <h2 class="text-xl font-black mb-6">Ekstre Dönemi Trendi (29–28)</h2>
-                    <div class="h-80"><canvas id="monthlyTrendChart"></canvas></div>
+                    <div class="chart-box h-80 sm:h-96"><canvas id="monthlyTrendChart"></canvas></div>
                 </div>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100" id="monthlySummaryReport"></div>
@@ -712,6 +712,9 @@
                         <option value="Elektrik">Elektrik</option>
                         <option value="Su">Su</option>
                         <option value="Doğalgaz">Doğalgaz</option>
+                        <option value="Telefon">Telefon</option>
+                        <option value="İnternet">İnternet</option>
+                        <option value="Platform">Platform</option>
                     </select>
                 </div>
                 <div id="fuelDetailWrap" class="hidden grid grid-cols-3 gap-2 sm:gap-3 bg-amber-50/80 p-3 sm:p-4 rounded-2xl border border-amber-100">
