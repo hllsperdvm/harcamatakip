@@ -62,7 +62,6 @@
                 
                 <div class="flex items-center gap-2 flex-wrap justify-end">
                     <span id="loggedInUserLabel" class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-2 rounded-xl"></span>
-                    <button type="button" onclick="showHelp()" class="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl text-sm font-bold transition hover:bg-indigo-50 hover:text-indigo-600 shadow-sm" title="Yardım">❓</button>
                     <button onclick="logout()" class="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl text-sm font-bold transition hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 shadow-sm">Çıkış</button>
                 </div>
             </header>
@@ -362,7 +361,7 @@
                     <div class="bg-white p-6 sm:p-8 rounded-[2rem] card-shadow border border-slate-100">
                         <h2 class="text-lg font-black mb-2">Faturalar (aylık)</h2>
                         <p class="text-[11px] text-slate-400 font-semibold mb-3">Elektrik · Su · Doğalgaz</p>
-                        <div class="chart-box h-80 sm:h-[28rem]"><canvas id="billsChart"></canvas></div>
+                        <div class="chart-box h-[26rem] sm:h-96"><canvas id="billsChart"></canvas></div>
                     </div>
                     <div class="bg-white p-6 sm:p-8 rounded-[2rem] card-shadow border border-slate-100">
                         <h2 class="text-lg font-black mb-4">Haftalık trend</h2>
@@ -370,8 +369,8 @@
                     </div>
                 </div>
                 <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
-                    <h2 class="text-xl font-black mb-6">Ekstre Dönemi Trendi (29–28)</h2>
-                    <div class="chart-box h-80 sm:h-96"><canvas id="monthlyTrendChart"></canvas></div>
+                    <h2 class="text-base font-black mb-3">Ekstre dönemi trendi (29–28)</h2>
+                    <div class="chart-box h-44 sm:h-52"><canvas id="monthlyTrendChart"></canvas></div>
                 </div>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100" id="monthlySummaryReport"></div>
@@ -683,6 +682,31 @@
                     <div>
                         <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Taksit</label>
                         <input type="number" id="installmentCount" min="1" value="1" required class="w-full bg-slate-50 border-none rounded-2xl p-4 text-xl font-black focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+                <div class="bg-violet-50/80 border border-violet-100 rounded-2xl p-3 sm:p-4 space-y-3">
+                    <label class="flex items-center gap-2.5 cursor-pointer select-none">
+                        <input type="checkbox" id="isRecurring" onchange="onRecurringToggle()" class="rounded border-slate-300 text-violet-600 focus:ring-violet-500 w-4 h-4">
+                        <span class="text-sm font-bold text-slate-800">Tekrarlı ödeme</span>
+                        <span class="text-[10px] text-slate-400 font-semibold">(her ay aynı tutar)</span>
+                    </label>
+                    <div id="recurringMonthsWrap" class="hidden">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Kaç ay tekrar etsin?</label>
+                        <select id="recurringMonths" class="w-full mt-1 bg-white border border-violet-100 rounded-xl p-3 text-sm font-bold outline-none focus:ring-2 focus:ring-violet-500">
+                            <option value="1">1 ay</option>
+<option value="2">2 ay</option>
+<option value="3">3 ay</option>
+<option value="4">4 ay</option>
+<option value="5">5 ay</option>
+<option value="6">6 ay</option>
+<option value="7">7 ay</option>
+<option value="8">8 ay</option>
+<option value="9">9 ay</option>
+<option value="10">10 ay</option>
+<option value="11">11 ay</option>
+<option value="12">12 ay</option>
+                        </select>
+                        <p class="text-[10px] text-slate-400 font-medium mt-1.5">Tutar her ay aynı yazılır (taksit gibi bölünmez). Maks. 12 ay.</p>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">

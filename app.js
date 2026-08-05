@@ -511,6 +511,13 @@
             document.getElementById('editId').value = '';
             document.getElementById('amount').value = '';
             document.getElementById('installmentCount').value = '1';
+            document.getElementById('installmentCount').disabled = false;
+            const rec = document.getElementById('isRecurring');
+            if (rec) rec.checked = false;
+            const rmw = document.getElementById('recurringMonthsWrap');
+            if (rmw) rmw.classList.add('hidden');
+            const rms = document.getElementById('recurringMonths');
+            if (rms) rms.value = '12';
             document.getElementById('person').value = 'Bekir';
             document.getElementById('description').value = '';
             document.getElementById('date').valueAsDate = new Date();
@@ -785,6 +792,18 @@
         }
 
         // Harcama İşlemleri
+
+        window.onRecurringToggle = function() {
+            const chk = document.getElementById('isRecurring');
+            const wrap = document.getElementById('recurringMonthsWrap');
+            const inst = document.getElementById('installmentCount');
+            const on = chk && chk.checked;
+            if (wrap) wrap.classList.toggle('hidden', !on);
+            if (inst) {
+                inst.disabled = !!on;
+                if (on) inst.value = '1';
+            }
+        };
 
         window.onCategoryChange = function() {
             const cat = document.getElementById('category');
@@ -1077,7 +1096,16 @@
             e.preventDefault();
             const id = document.getElementById('editId').value;
             const amount = parseFloat(document.getElementById('amount').value);
-            const installment = parseInt(document.getElementById('installmentCount').value) || 1;
+            const isRecurring = !!(document.getElementById('isRecurring') && document.getElementById('isRecurring').checked);
+            let installment = parseInt(document.getElementById('installmentCount').value) || 1;
+            let amountPerInstallment;
+            if (isRecurring) {
+                const rm = parseInt((document.getElementById('recurringMonths') || {}).value, 10) || 1;
+                installment = Math.min(12, Math.max(1, rm));
+                amountPerInstallment = amount; // her ay aynı tutar
+            } else {
+                amountPerInstallment = amount / installment;
+            }
             const person = document.getElementById('person').value;
             const paymentType = document.getElementById('paymentType').value;
             const date = document.getElementById('date').value;
@@ -1135,9 +1163,10 @@
             }
             
             const data = {
-                amount, 
+                amount: isRecurring ? amount : amount,
                 installmentCount: installment,
-                amountPerInstallment: amount / installment,
+                amountPerInstallment: amountPerInstallment,
+                isRecurring: !!isRecurring,
                 person: person,
                 category: category === 'Ulaşım' ? 'Araç' : category,
                 paymentType: paymentType,
@@ -1208,7 +1237,17 @@
             
             document.getElementById('editId').value = e.id;
             document.getElementById('amount').value = e.amount;
-            document.getElementById('installmentCount').value = e.installmentCount || 1;
+            const isRec = !!e.isRecurring;
+            const recChk = document.getElementById('isRecurring');
+            if (recChk) recChk.checked = isRec;
+            if (typeof onRecurringToggle === 'function') onRecurringToggle();
+            if (isRec) {
+                const rms = document.getElementById('recurringMonths');
+                if (rms) rms.value = String(Math.min(12, e.installmentCount || 1));
+                document.getElementById('installmentCount').value = '1';
+            } else {
+                document.getElementById('installmentCount').value = e.installmentCount || 1;
+            }
             document.getElementById('person').value = e.person;
             const catVal = e.category === 'Ulaşım' ? 'Araç' : e.category;
             document.getElementById('category').value = catVal;
@@ -1253,7 +1292,9 @@
 
             expenses.forEach(item => {
                 const count = item.installmentCount || 1;
-                const perAmount = item.amountPerInstallment || (item.amount / count);
+                const perAmount = item.isRecurring
+                    ? (item.amountPerInstallment != null ? item.amountPerInstallment : item.amount)
+                    : (item.amountPerInstallment != null ? item.amountPerInstallment : (item.amount / count));
                 const originalDate = item.date;
 
                 if (count <= 1) {
@@ -1270,11 +1311,14 @@
                     for (let i = 0; i < count; i++) {
                         const dateStr = shiftDateByMonths(originalDate, i);
                         const periodKey = getPeriodKeyForDateStr(dateStr);
+                        const label = item.isRecurring
+                            ? (`Tekrar ${i + 1}/${count}`)
+                            : (`Taksit ${i + 1}/${count}`);
                         installmentEntries.push({
                             ...item,
                             id: item.id + '_ins_' + i,
                             displayAmount: perAmount,
-                            installmentLabel: `Taksit ${i + 1}/${count}`,
+                            installmentLabel: label,
                             effectiveMonth: periodKey,
                             date: dateStr,
                             installmentIndex: i
@@ -1734,9 +1778,16 @@
             const ctx = document.getElementById('billsChart');
             if (!ctx || typeof Chart === 'undefined') return;
             const processed = getProcessedExpenses().filter(e => e.category === 'Faturalar');
-            // Son 6 ekstre dönemi (29–28)
-            const keys = getPreviousPeriodKeys(6);
-            const labels = keys.map(function(k) { return formatPeriodLabel(k); });
+            const isMobile = (typeof window !== 'undefined' && window.innerWidth < 640);
+            // Mobilde son 3 dönem + yatay çubuk (dokunması kolay)
+            const keys = getPreviousPeriodKeys(isMobile ? 3 : 6);
+            const labels = keys.map(function(k) {
+                if (isMobile) {
+                    const [y, m] = k.split('-').map(Number);
+                    return ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'][m - 1] + " '" + String(y).slice(2);
+                }
+                return formatPeriodLabel(k);
+            });
             const types = ['Elektrik', 'Su', 'Doğalgaz', 'Telefon', 'İnternet', 'Platform'];
             const colors = ['#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
             const datasets = types.map(function(t, i) {
@@ -1748,8 +1799,10 @@
                         }).reduce(function(s, e) { return s + (e.displayAmount || 0); }, 0);
                     }),
                     backgroundColor: colors[i],
-                    borderRadius: 4,
-                    maxBarThickness: 18
+                    borderRadius: 5,
+                    maxBarThickness: isMobile ? 16 : 22,
+                    barPercentage: isMobile ? 0.9 : 0.8,
+                    categoryPercentage: isMobile ? 0.85 : 0.75
                 };
             });
             if (billsChart) { try { billsChart.destroy(); } catch (_) {} }
@@ -1757,16 +1810,20 @@
                 type: 'bar',
                 data: { labels: labels, datasets: datasets },
                 options: {
+                    indexAxis: isMobile ? 'y' : 'x',
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 12, font: { size: isMobile ? 10 : 11 }, padding: isMobile ? 8 : 12 }
+                        }
                     },
-                    scales: {
-                        x: {
-                            stacked: false,
-                            ticks: { maxRotation: 45, minRotation: 0, font: { size: 10 } }
-                        },
+                    scales: isMobile ? {
+                        x: { stacked: false, beginAtZero: true },
+                        y: { stacked: false, ticks: { font: { size: 11 } } }
+                    } : {
+                        x: { stacked: false, ticks: { maxRotation: 40, font: { size: 10 } } },
                         y: { stacked: false, beginAtZero: true }
                     }
                 }
@@ -1872,7 +1929,7 @@
                 });
             }
 
-            const periodKeys = getPreviousPeriodKeys(12);
+            const periodKeys = getPreviousPeriodKeys(6);
             const monthData = {};
             const allForTrend = [];
             expenses.forEach(item => {
@@ -1904,13 +1961,22 @@
                     data: {
                         labels: Object.keys(monthData),
                         datasets: [{
-                            label: 'Dönem Harcaması',
+                            label: 'Dönem',
                             data: Object.values(monthData),
                             backgroundColor: '#4f46e5',
-                            borderRadius: 10
+                            borderRadius: 6,
+                            maxBarThickness: 28
                         }]
                     },
-                    options: { responsive: true, maintainAspectRatio: true }
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { ticks: { font: { size: 9 }, maxRotation: 45 } },
+                            y: { beginAtZero: true, ticks: { font: { size: 10 } } }
+                        }
+                    }
                 });
             }
         }
@@ -2013,7 +2079,9 @@
             let allWithInstallments = [];
             expenses.forEach(item => {
                 const count = item.installmentCount || 1;
-                const perAmount = item.amountPerInstallment || (item.amount / count);
+                const perAmount = item.isRecurring
+                    ? (item.amountPerInstallment != null ? item.amountPerInstallment : item.amount)
+                    : (item.amountPerInstallment != null ? item.amountPerInstallment : (item.amount / count));
                 const originalDate = item.date;
 
                 if (count <= 1) {
