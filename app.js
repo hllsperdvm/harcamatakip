@@ -269,6 +269,14 @@
         // State ve Değişkenler
         let expenses = [], notes = [], deletedExpenses = [];
         let categories = ["Gıda", "Araç", "Faturalar", "Eğlence", "Sağlık", "Eğitim", "Diğer", "Kredi Kartı Borcu"];
+        let categorySubtypes = {
+            'Faturalar': ['Elektrik', 'Su', 'Doğalgaz', 'Telefon', 'İnternet', 'Platform'],
+            'Araç': ['Yakıt', 'Vergi', 'Bakım']
+        };
+        const DEFAULT_CATEGORY_SUBTYPES = {
+            'Faturalar': ['Elektrik', 'Su', 'Doğalgaz', 'Telefon', 'İnternet', 'Platform'],
+            'Araç': ['Yakıt', 'Vergi', 'Bakım']
+        };
         let paymentTypes = ["Nakit", "Kredi Kartı"];
         let bekirDebt = { amount: 0, paid: false, dueDate: '' };
         let duyguDebt = { amount: 0, paid: false, dueDate: '' };
@@ -584,13 +592,27 @@
             db.collection("settings").doc("categories").onSnapshot(d => {
                 if (d.exists && d.data() && Array.isArray(d.data().list)) {
                     categories = d.data().list.map(c => c === 'Ulaşım' ? 'Araç' : c);
-                    // Tekilleştir
                     categories = [...new Set(categories)];
                     if (!categories.includes('Araç')) categories.splice(1, 0, 'Araç');
                 }
                 updateCategorySelects();
                 renderCategoriesList();
             }, err => console.error("Kategori yükleme hatası:", err));
+            db.collection("settings").doc("categorySubtypes").onSnapshot(d => {
+                if (d.exists && d.data() && d.data().map && typeof d.data().map === 'object') {
+                    categorySubtypes = Object.assign({}, DEFAULT_CATEGORY_SUBTYPES, d.data().map);
+                } else if (d.exists && d.data()) {
+                    // düz map dokümanı
+                    const raw = d.data();
+                    const map = raw.map || raw;
+                    if (map && typeof map === 'object' && !Array.isArray(map)) {
+                        categorySubtypes = Object.assign({}, DEFAULT_CATEGORY_SUBTYPES, map);
+                    }
+                }
+                updateCategorySelects();
+                if (typeof fillSubtypeSelects === 'function') fillSubtypeSelects();
+                renderCategoriesList();
+            }, err => console.warn('categorySubtypes:', err));
             db.collection("settings").doc("appUsers").onSnapshot(d => {
                 if (d.exists && d.data()) {
                     const u = d.data();
@@ -932,8 +954,7 @@
             }
             if (billWrap) {
                 billWrap.classList.toggle('hidden', !isBill);
-                const bs = document.getElementById('billSubtype');
-                if (bs && isBill && !bs.value) bs.value = 'Elektrik';
+                if (isBill && typeof fillSubtypeSelects === 'function') fillSubtypeSelects();
             }
             if (typeof onVehicleSubtypeChange === 'function') onVehicleSubtypeChange();
         };
@@ -1966,8 +1987,9 @@
                 }
                 return formatPeriodLabel(k);
             });
-            const types = ['Elektrik', 'Su', 'Doğalgaz', 'Telefon', 'İnternet', 'Platform'];
-            const colors = ['#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899'];
+            const types = getSubtypesForCategory('Faturalar');
+            const colorPalette = ['#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6', '#a855f7', '#f97316'];
+            const colors = types.map(function(_, i) { return colorPalette[i % colorPalette.length]; });
             const datasets = types.map(function(t, i) {
                 return {
                     label: t,
@@ -3426,6 +3448,103 @@
             }
         };
 
+
+        async function saveCategorySubtypes() {
+            // Firebase: settings/categorySubtypes { map: { Kategori: [alt...] } }
+            const map = {};
+            Object.keys(categorySubtypes || {}).forEach(function(k) {
+                if (Array.isArray(categorySubtypes[k]) && categorySubtypes[k].length) {
+                    map[k] = categorySubtypes[k].slice();
+                }
+            });
+            await db.collection('settings').doc('categorySubtypes').set({ map: map });
+        }
+
+        function getSubtypesForCategory(cat) {
+            const c = cat === 'Ulaşım' ? 'Araç' : cat;
+            const list = (categorySubtypes && categorySubtypes[c]) || (DEFAULT_CATEGORY_SUBTYPES && DEFAULT_CATEGORY_SUBTYPES[c]) || [];
+            return Array.isArray(list) ? list.slice() : [];
+        }
+
+        function fillSubtypeSelects() {
+            const bill = document.getElementById('billSubtype');
+            const veh = document.getElementById('vehicleSubtype');
+            if (bill) {
+                const opts = getSubtypesForCategory('Faturalar');
+                const cur = bill.value;
+                bill.innerHTML = opts.map(function(o) {
+                    return '<option value="' + o.replace(/"/g, '&quot;') + '">' + o + '</option>';
+                }).join('') || '<option value="">—</option>';
+                if (cur && opts.indexOf(cur) >= 0) bill.value = cur;
+            }
+            if (veh) {
+                const opts = getSubtypesForCategory('Araç');
+                const cur = veh.value;
+                veh.innerHTML = opts.map(function(o) {
+                    return '<option value="' + o.replace(/"/g, '&quot;') + '">' + o + '</option>';
+                }).join('') || '<option value="">—</option>';
+                if (cur && opts.indexOf(cur) >= 0) veh.value = cur;
+            }
+        }
+
+        window.toggleCategorySubtypes = function(index) {
+            const el = document.getElementById('catSubPanel_' + index);
+            if (el) el.classList.toggle('hidden');
+        };
+
+        window.addCategorySubtype = async function(catIndex) {
+            const cat = categories[catIndex];
+            if (!cat) return;
+            const name = prompt('Yeni alt seçenek adı (ör. Elektrik):');
+            if (!name || !name.trim()) return;
+            const n = name.trim();
+            if (!categorySubtypes[cat]) categorySubtypes[cat] = [];
+            if (categorySubtypes[cat].indexOf(n) >= 0) {
+                alert('Bu alt seçenek zaten var');
+                return;
+            }
+            categorySubtypes[cat].push(n);
+            await saveCategorySubtypes();
+            fillSubtypeSelects();
+            renderCategoriesList();
+            logActivity('Kategori', 'Alt seçenek eklendi', cat + ' → ' + n);
+        };
+
+        window.renameCategorySubtype = async function(catIndex, subIndex) {
+            const cat = categories[catIndex];
+            const list = getSubtypesForCategory(cat);
+            if (!list[subIndex]) return;
+            const old = list[subIndex];
+            const name = prompt('Yeni ad:', old);
+            if (!name || !name.trim() || name.trim() === old) return;
+            const n = name.trim();
+            if (!categorySubtypes[cat]) categorySubtypes[cat] = list;
+            if (categorySubtypes[cat].indexOf(n) >= 0) {
+                alert('Bu ad zaten kullanılıyor');
+                return;
+            }
+            categorySubtypes[cat][subIndex] = n;
+            await saveCategorySubtypes();
+            fillSubtypeSelects();
+            renderCategoriesList();
+            logActivity('Kategori', 'Alt seçenek yeniden adlandırıldı', cat + ': ' + old + ' → ' + n);
+        };
+
+        window.removeCategorySubtype = async function(catIndex, subIndex) {
+            const cat = categories[catIndex];
+            const list = getSubtypesForCategory(cat);
+            if (!list[subIndex]) return;
+            const old = list[subIndex];
+            if (!confirm('"' + old + '" alt seçeneği silinsin mi?')) return;
+            if (!categorySubtypes[cat]) categorySubtypes[cat] = list;
+            categorySubtypes[cat].splice(subIndex, 1);
+            if (!categorySubtypes[cat].length) delete categorySubtypes[cat];
+            await saveCategorySubtypes();
+            fillSubtypeSelects();
+            renderCategoriesList();
+            logActivity('Kategori', 'Alt seçenek silindi', cat + ' → ' + old);
+        };
+
         window.addCategory = async () => {
             const input = document.getElementById('newCategoryInput');
             const newCat = input.value.trim();
@@ -3449,6 +3568,10 @@
             const catName = categories[index];
             if (!confirm(`"${catName}" kategorisini silmek istediğinize emin misiniz?`)) return;
             categories.splice(index, 1);
+            if (categorySubtypes && categorySubtypes[catName]) {
+                delete categorySubtypes[catName];
+                await saveCategorySubtypes();
+            }
             await saveCategoryOrder();
             updateCategorySelects();
             renderCategoriesList();
@@ -3475,42 +3598,68 @@
             const container = document.getElementById('categoriesList');
             if (!container) return;
             if (!categories || categories.length === 0) {
-                container.innerHTML = `<div class="text-center text-slate-400 py-8"><p class="text-sm">Henüz kategori yok. Yukarıdan ekleyebilirsiniz.</p></div>`;
+                container.innerHTML = '<div class="text-center text-slate-400 py-8"><p class="text-sm">Henüz kategori yok. Yukarıdan ekleyebilirsiniz.</p></div>';
                 return;
             }
-            container.innerHTML = categories.map((cat, idx) => `
-                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100 flex justify-between items-center hover:border-indigo-200 hover:bg-white transition group">
-                    <div class="flex items-center gap-3 flex-1 min-w-0">
-                        <span class="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-sm shrink-0 shadow-sm">${idx + 1}</span>
-                        <span class="font-bold text-slate-800 truncate text-sm">${escapeHtml(cat)}</span>
-                    </div>
-                    <div class="flex gap-0.5 shrink-0 opacity-70 group-hover:opacity-100 transition">
-                        <button onclick="renameCategory(${idx})" class="text-slate-400 hover:text-indigo-600 transition p-2 rounded-lg hover:bg-indigo-50" title="Yeniden Adlandır">✏️</button>
-                        <button onclick="moveCategoryUp(${idx})" class="text-slate-400 hover:text-indigo-600 transition p-2 rounded-lg hover:bg-indigo-50" title="Yukarı Taşı" ${idx === 0 ? 'disabled style="opacity:0.3"' : ''}>⬆️</button>
-                        <button onclick="moveCategoryDown(${idx})" class="text-slate-400 hover:text-indigo-600 transition p-2 rounded-lg hover:bg-indigo-50" title="Aşağı Taşı" ${idx === categories.length - 1 ? 'disabled style="opacity:0.3"' : ''}>⬇️</button>
-                        <button onclick="removeCategory(${idx})" class="text-slate-400 hover:text-rose-600 transition p-2 rounded-lg hover:bg-rose-50" title="Sil">🗑️</button>
-                    </div>
-                </div>
-            `).join('');
+            container.innerHTML = categories.map((cat, idx) => {
+                const subs = getSubtypesForCategory(cat);
+                const subHtml = subs.map((s, si) =>
+                    '<div class="flex items-center justify-between gap-2 py-1.5 px-2 rounded-lg bg-white border border-slate-100">' +
+                      '<span class="text-xs font-bold text-slate-700 truncate">' + escapeHtml(s) + '</span>' +
+                      '<span class="flex gap-0.5 shrink-0">' +
+                        '<button type="button" onclick="renameCategorySubtype(' + idx + ',' + si + ')" class="text-[11px] text-slate-400 hover:text-indigo-600 p-1" title="Adı değiştir">✏️</button>' +
+                        '<button type="button" onclick="removeCategorySubtype(' + idx + ',' + si + ')" class="text-[11px] text-slate-400 hover:text-rose-600 p-1" title="Sil">🗑️</button>' +
+                      '</span>' +
+                    '</div>'
+                ).join('');
+                return (
+                    '<div class="bg-slate-50 rounded-xl border border-slate-100 overflow-hidden hover:border-indigo-200 transition">' +
+                      '<div class="p-3.5 flex justify-between items-center group">' +
+                        '<div class="flex items-center gap-3 flex-1 min-w-0">' +
+                          '<span class="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center text-sm shrink-0 shadow-sm">' + (idx + 1) + '</span>' +
+                          '<div class="min-w-0">' +
+                            '<span class="font-bold text-slate-800 truncate text-sm block">' + escapeHtml(cat) + '</span>' +
+                            (subs.length ? '<span class="text-[10px] text-slate-400 font-semibold">' + subs.length + ' alt seçenek</span>' : '<span class="text-[10px] text-slate-300 font-semibold">Alt seçenek yok</span>') +
+                          '</div>' +
+                        '</div>' +
+                        '<div class="flex gap-0.5 shrink-0">' +
+                          '<button type="button" onclick="toggleCategorySubtypes(' + idx + ')" class="text-slate-400 hover:text-violet-600 transition p-2 rounded-lg hover:bg-violet-50" title="Alt seçenekler">⋮</button>' +
+                          '<button type="button" onclick="renameCategory(' + idx + ')" class="text-slate-400 hover:text-indigo-600 transition p-2 rounded-lg hover:bg-indigo-50" title="Yeniden Adlandır">✏️</button>' +
+                          '<button type="button" onclick="moveCategoryUp(' + idx + ')" class="text-slate-400 hover:text-indigo-600 transition p-2 rounded-lg hover:bg-indigo-50" title="Yukarı" ' + (idx === 0 ? 'disabled style="opacity:0.3"' : '') + '>⬆️</button>' +
+                          '<button type="button" onclick="moveCategoryDown(' + idx + ')" class="text-slate-400 hover:text-indigo-600 transition p-2 rounded-lg hover:bg-indigo-50" title="Aşağı" ' + (idx === categories.length - 1 ? 'disabled style="opacity:0.3"' : '') + '>⬇️</button>' +
+                          '<button type="button" onclick="removeCategory(' + idx + ')" class="text-slate-400 hover:text-rose-600 transition p-2 rounded-lg hover:bg-rose-50" title="Sil">🗑️</button>' +
+                        '</div>' +
+                      '</div>' +
+                      '<div id="catSubPanel_' + idx + '" class="hidden border-t border-slate-100 bg-white/80 px-3.5 py-3 space-y-2">' +
+                        '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Alt seçenekler (harcama formunda çıkar)</p>' +
+                        (subHtml || '<p class="text-[11px] text-slate-400">Henüz alt seçenek yok</p>') +
+                        '<button type="button" onclick="addCategorySubtype(' + idx + ')" class="w-full mt-1 text-xs font-bold text-violet-600 bg-violet-50 hover:bg-violet-100 py-2 rounded-xl transition">+ Alt seçenek ekle</button>' +
+                      '</div>' +
+                    '</div>'
+                );
+            }).join('');
         };
 
         window.renameCategory = async (index) => {
             const oldName = categories[index];
-            const newName = prompt('Yeni kategori adı:', oldName);
-            if (newName === null) return;
-            const trimmed = newName.trim();
-            if (!trimmed) {
-                alert('Kategori adı boş olamaz');
+            const name = prompt('Yeni kategori adı:', oldName);
+            if (!name || !name.trim() || name.trim() === oldName) return;
+            const newName = name.trim();
+            if (categories.includes(newName)) {
+                alert('Bu kategori adı zaten var');
                 return;
             }
-            if (trimmed !== oldName && categories.includes(trimmed)) {
-                alert('Bu kategori zaten var');
-                return;
+            categories[index] = newName;
+            if (categorySubtypes && categorySubtypes[oldName]) {
+                categorySubtypes[newName] = categorySubtypes[oldName];
+                delete categorySubtypes[oldName];
+                await saveCategorySubtypes();
             }
-            categories[index] = trimmed;
             await saveCategoryOrder();
             updateCategorySelects();
+            fillSubtypeSelects();
             renderCategoriesList();
+            logActivity('Kategori', 'Kategori yeniden adlandırıldı', oldName + ' → ' + newName);
         };
 
         // IBAN İŞLEMLERİ
