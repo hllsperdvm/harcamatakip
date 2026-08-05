@@ -75,20 +75,20 @@
                     <span id="activePeriodBadge" class="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 text-xs font-bold px-4 py-2 rounded-full border border-indigo-100">Aktif dönem: —</span>
                 </div>
                 <!-- Özet Kartları -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
+                <div id="dashboardCardsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div data-dash-card="total" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
                         <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2">Dönem Harcaması</p>
                         <p id="totalExpense" class="text-xl font-black text-rose-600">0,00 TL</p>
                     </div>
-                    <div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
+                    <div data-dash-card="bekir" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
                         <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2">Bekir (Dönem)</p>
                         <p id="bekirExpense" class="text-xl font-black text-blue-600">0,00 TL</p>
                     </div>
-                    <div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
+                    <div data-dash-card="duygu" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
                         <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2">Duygu (Dönem)</p>
                         <p id="duyguExpense" class="text-xl font-black text-pink-600">0,00 TL</p>
                     </div>
-                    <div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
+                    <div data-dash-card="debt" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
                         <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2">Aktif KK Borcu</p>
                         <p id="totalCardDebtDisplay" class="text-xl font-black text-amber-600">0,00 TL</p>
                     </div>
@@ -471,6 +471,145 @@
                     <div class="text-center mb-2">
                         <h2 class="text-2xl font-black text-slate-900">Ayarlar</h2>
                         <p class="text-sm text-slate-400 font-medium mt-1">Uygulama tercihlerini buradan yönetin</p>
+                    </div>
+
+
+                    <!-- Admin: Şifre -->
+                    <div class="bg-white rounded-[2rem] card-shadow border border-slate-100 overflow-hidden">
+                        <button type="button" onclick="toggleAdminPanel('password')" class="w-full flex items-center justify-between gap-4 p-6 text-left hover:bg-slate-50 transition">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl shrink-0">🔐</div>
+                                <div>
+                                    <p class="font-black text-slate-900">Şifre Değiştir</p>
+                                    <p class="text-[11px] text-slate-400 font-semibold">Bekir / Duygu şifreleri</p>
+                                </div>
+                            </div>
+                            <span class="text-slate-300 text-lg">▾</span>
+                        </button>
+                        <div id="adminPanel_password" class="hidden border-t border-slate-100 p-6 space-y-4">
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase">Kullanıcı</label>
+                                <select id="pwdUser" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                                    <option value="Bekir">Bekir (Admin)</option>
+                                    <option value="Duygu">Duygu</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase">Yeni şifre</label>
+                                <input type="password" id="pwdNew" inputmode="numeric" maxlength="12" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200" placeholder="••••">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase">Tekrar</label>
+                                <input type="password" id="pwdNew2" inputmode="numeric" maxlength="12" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200" placeholder="••••">
+                            </div>
+                            <button type="button" onclick="savePasswordChange()" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl">Kaydet</button>
+                        </div>
+                    </div>
+
+                    <!-- Admin: Dönem -->
+                    <div class="bg-white rounded-[2rem] card-shadow border border-slate-100 overflow-hidden">
+                        <button type="button" onclick="toggleAdminPanel('period')" class="w-full flex items-center justify-between gap-4 p-6 text-left hover:bg-slate-50 transition">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shrink-0">📅</div>
+                                <div>
+                                    <p class="font-black text-slate-900">Ekstre dönemi</p>
+                                    <p class="text-[11px] text-slate-400 font-semibold">Başlangıç / bitiş günü (varsayılan 29–28)</p>
+                                </div>
+                            </div>
+                            <span class="text-slate-300 text-lg">▾</span>
+                        </button>
+                        <div id="adminPanel_period" class="hidden border-t border-slate-100 p-6 space-y-4">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase">Başlangıç günü</label>
+                                    <input type="number" id="periodStartDay" min="1" max="31" value="29" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                                    <p class="text-[10px] text-slate-400 mt-1">Örn. 29 (ayın 29’u)</p>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase">Bitiş günü</label>
+                                    <input type="number" id="periodEndDay" min="1" max="31" value="28" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                                    <p class="text-[10px] text-slate-400 mt-1">Örn. 28 (sonraki ay)</p>
+                                </div>
+                            </div>
+                            <p class="text-[11px] text-slate-500 font-medium">Dönem: her ayın <b>başlangıç</b> gününden, bir sonraki ayın <b>bitiş</b> gününe kadar.</p>
+                            <button type="button" onclick="savePeriodConfig()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl">Dönemi kaydet</button>
+                        </div>
+                    </div>
+
+                    <!-- Admin: Yedek geri yükle -->
+                    <div class="bg-white rounded-[2rem] card-shadow border border-slate-100 overflow-hidden">
+                        <button type="button" onclick="toggleAdminPanel('backup')" class="w-full flex items-center justify-between gap-4 p-6 text-left hover:bg-slate-50 transition">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shrink-0">📥</div>
+                                <div>
+                                    <p class="font-black text-slate-900">Yedekten geri yükle</p>
+                                    <p class="text-[11px] text-slate-400 font-semibold">CSV dosyasından harcama içe aktar</p>
+                                </div>
+                            </div>
+                            <span class="text-slate-300 text-lg">▾</span>
+                        </button>
+                        <div id="adminPanel_backup" class="hidden border-t border-slate-100 p-6 space-y-4">
+                            <p class="text-[11px] text-slate-500 font-medium">İşlem Geçmişi → <b>Yedek (CSV)</b> ile indirdiğiniz dosyayı seçin. Mevcut kayıtlara <b>eklenir</b> (silmez).</p>
+                            <input type="file" id="backupFileInput" accept=".csv,text/csv" class="w-full text-sm font-semibold file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-emerald-50 file:text-emerald-700 file:font-bold">
+                            <label class="flex items-center gap-2 text-xs font-bold text-slate-600">
+                                <input type="checkbox" id="backupReplaceAll" class="rounded text-emerald-600">
+                                Önce tüm harcamaları sil, sonra yükle (dikkat!)
+                            </label>
+                            <button type="button" onclick="restoreFromCsvBackup()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl">İçe aktar</button>
+                            <p id="backupStatus" class="text-xs text-slate-400 font-semibold"></p>
+                        </div>
+                    </div>
+
+                    <!-- Admin: Tema -->
+                    <div class="bg-white rounded-[2rem] card-shadow border border-slate-100 overflow-hidden">
+                        <button type="button" onclick="toggleAdminPanel('theme')" class="w-full flex items-center justify-between gap-4 p-6 text-left hover:bg-slate-50 transition">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center text-xl shrink-0">🎨</div>
+                                <div>
+                                    <p class="font-black text-slate-900">Tema</p>
+                                    <p class="text-[11px] text-slate-400 font-semibold">Açık / koyu görünüm</p>
+                                </div>
+                            </div>
+                            <span class="text-slate-300 text-lg">▾</span>
+                        </button>
+                        <div id="adminPanel_theme" class="hidden border-t border-slate-100 p-6">
+                            <div class="flex gap-3">
+                                <button type="button" onclick="setAppTheme('light')" id="themeBtnLight" class="flex-1 py-3 rounded-xl font-bold border-2 border-indigo-600 bg-indigo-50 text-indigo-700">☀️ Açık</button>
+                                <button type="button" onclick="setAppTheme('dark')" id="themeBtnDark" class="flex-1 py-3 rounded-xl font-bold border-2 border-transparent bg-slate-100 text-slate-600">🌙 Koyu</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Admin: Ana sayfa kartları -->
+                    <div class="bg-white rounded-[2rem] card-shadow border border-slate-100 overflow-hidden">
+                        <button type="button" onclick="toggleAdminPanel('cards')" class="w-full flex items-center justify-between gap-4 p-6 text-left hover:bg-slate-50 transition">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shrink-0">🃏</div>
+                                <div>
+                                    <p class="font-black text-slate-900">Ana sayfa kartları</p>
+                                    <p class="text-[11px] text-slate-400 font-semibold">Özet kutularını göster / gizle</p>
+                                </div>
+                            </div>
+                            <span class="text-slate-300 text-lg">▾</span>
+                        </button>
+                        <div id="adminPanel_cards" class="hidden border-t border-slate-100 p-6 space-y-3">
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Dönem harcaması</span>
+                                <input type="checkbox" id="cardVis_total" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Bekir (dönem)</span>
+                                <input type="checkbox" id="cardVis_bekir" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Duygu (dönem)</span>
+                                <input type="checkbox" id="cardVis_duygu" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Aktif KK borcu</span>
+                                <input type="checkbox" id="cardVis_debt" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+                        </div>
                     </div>
 
                     <!-- Kategori Yönetimi - kapalı kart / açılır panel -->

@@ -293,6 +293,10 @@
 
         let expenseChart = null, weeklyTrendChart = null, monthlyTrendChart = null;
         let syncInitialized = false;
+        let periodConfig = { startDay: 29, endDay: 28 };
+        let dashboardCards = { total: true, bekir: true, duygu: true, debt: true };
+        let appTheme = 'light';
+
         let displayLimit = 10;
         let renderTimeout = null;
 
@@ -332,17 +336,35 @@
                 : parseYMD(dateInput);
             if (!date || isNaN(date.getTime())) return null;
 
+            const startDay = Math.min(31, Math.max(1, Number((periodConfig && periodConfig.startDay) || 29)));
+            const endDay = Math.min(31, Math.max(1, Number((periodConfig && periodConfig.endDay) || 28)));
+            // startDay > endDay olmalı (klasik 29–28). startDay 1 ve endDay 31 benzeri için: ay başı–ayı sonu yaklaşımı
             const year = date.getFullYear();
             const month = date.getMonth();
             const day = date.getDate();
 
             let startDate, endDate;
-            if (day >= 29) {
-                startDate = new Date(year, month, 29);
-                endDate = new Date(year, month + 1, 28, 23, 59, 59);
+            if (startDay > endDay) {
+                // örn. 29 → sonraki ay 28
+                if (day >= startDay) {
+                    startDate = new Date(year, month, startDay);
+                    endDate = new Date(year, month + 1, endDay, 23, 59, 59);
+                } else {
+                    startDate = new Date(year, month - 1, startDay);
+                    endDate = new Date(year, month, endDay, 23, 59, 59);
+                }
             } else {
-                startDate = new Date(year, month - 1, 29);
-                endDate = new Date(year, month, 28, 23, 59, 59);
+                // aynı ay içinde (nadir): startDay..endDay
+                if (day >= startDay && day <= endDay) {
+                    startDate = new Date(year, month, startDay);
+                    endDate = new Date(year, month, endDay, 23, 59, 59);
+                } else if (day < startDay) {
+                    startDate = new Date(year, month - 1, startDay);
+                    endDate = new Date(year, month - 1, endDay, 23, 59, 59);
+                } else {
+                    startDate = new Date(year, month, startDay);
+                    endDate = new Date(year, month, endDay, 23, 59, 59);
+                }
             }
 
             const periodKey = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}`;
@@ -493,6 +515,9 @@
             } else if (tabName === 'settings') {
                 renderCategoriesList();
                 renderTabsList();
+                applyPeriodConfigToForm();
+                applyDashboardCards();
+                if (typeof setAppTheme === 'function') setAppTheme(appTheme);
             }
         };
 
@@ -629,6 +654,27 @@
                     usersLoaded = true;
                 }
             }, err => console.warn('appUsers:', err));
+            db.collection("settings").doc("periodConfig").onSnapshot(d => {
+                if (d.exists && d.data()) {
+                    const p = d.data();
+                    periodConfig = {
+                        startDay: Number(p.startDay) || 29,
+                        endDay: Number(p.endDay) || 28
+                    };
+                    applyPeriodConfigToForm();
+                    scheduleRenderApp();
+                }
+            }, err => console.warn('periodConfig', err));
+            db.collection("settings").doc("uiPrefs").onSnapshot(d => {
+                if (d.exists && d.data()) {
+                    const u = d.data();
+                    if (u.theme === 'dark' || u.theme === 'light') setAppTheme(u.theme);
+                    if (u.dashboardCards && typeof u.dashboardCards === 'object') {
+                        dashboardCards = Object.assign(dashboardCards, u.dashboardCards);
+                        applyDashboardCards();
+                    }
+                }
+            }, err => console.warn('uiPrefs', err));
             db.collection("settings").doc("apiKeys").onSnapshot(d => {
                 if (d.exists && d.data()) {
                     const k = d.data();
@@ -3544,6 +3590,246 @@
             renderCategoriesList();
             logActivity('Kategori', 'Alt seçenek silindi', cat + ' → ' + old);
         };
+
+
+        // ========== ADMIN PANEL ==========
+        window.toggleAdminPanel = function(id) {
+            const el = document.getElementById('adminPanel_' + id);
+            if (el) el.classList.toggle('hidden');
+        };
+
+        window.savePasswordChange = async function() {
+            if (!isAdmin()) { showToast('Sadece admin', 'error'); return; }
+            const user = (document.getElementById('pwdUser') || {}).value;
+            const p1 = (document.getElementById('pwdNew') || {}).value || '';
+            const p2 = (document.getElementById('pwdNew2') || {}).value || '';
+            if (!user || !p1) { showToast('Kullanıcı ve şifre gerekli', 'error'); return; }
+            if (p1 !== p2) { showToast('Şifreler eşleşmiyor', 'error'); return; }
+            if (p1.length < 4) { showToast('En az 4 karakter', 'error'); return; }
+            try {
+                const ref = db.collection('settings').doc('appUsers');
+                const snap = await ref.get();
+                const data = snap.exists ? (snap.data() || {}) : {};
+                if (!data[user]) data[user] = { role: user === 'Bekir' ? 'admin' : 'user' };
+                data[user].password = String(p1);
+                if (!data[user].role) data[user].role = user === 'Bekir' ? 'admin' : 'user';
+                await ref.set(data);
+                if (USERS[user]) USERS[user].password = String(p1);
+                document.getElementById('pwdNew').value = '';
+                document.getElementById('pwdNew2').value = '';
+                showToast(user + ' şifresi güncellendi', 'success');
+                logActivity('Diğer', 'Şifre değiştirildi', user);
+            } catch (err) {
+                showToast(friendlyFirebaseError(err), 'error');
+            }
+        };
+
+        window.savePeriodConfig = async function() {
+            if (!isAdmin()) return;
+            let startDay = parseInt((document.getElementById('periodStartDay') || {}).value, 10);
+            let endDay = parseInt((document.getElementById('periodEndDay') || {}).value, 10);
+            if (isNaN(startDay) || isNaN(endDay)) { showToast('Geçerli gün girin', 'error'); return; }
+            startDay = Math.min(31, Math.max(1, startDay));
+            endDay = Math.min(31, Math.max(1, endDay));
+            periodConfig = { startDay: startDay, endDay: endDay };
+            try {
+                await db.collection('settings').doc('periodConfig').set(periodConfig);
+                showToast('Dönem kaydedildi: ' + startDay + '–' + endDay, 'success');
+                scheduleRenderApp();
+                logActivity('Diğer', 'Ekstre dönemi güncellendi', startDay + '–' + endDay);
+            } catch (err) {
+                showToast(friendlyFirebaseError(err), 'error');
+            }
+        };
+
+        function applyPeriodConfigToForm() {
+            const s = document.getElementById('periodStartDay');
+            const e = document.getElementById('periodEndDay');
+            if (s) s.value = (periodConfig && periodConfig.startDay) || 29;
+            if (e) e.value = (periodConfig && periodConfig.endDay) || 28;
+        }
+
+        window.setAppTheme = function(theme) {
+            appTheme = theme === 'dark' ? 'dark' : 'light';
+            document.documentElement.classList.toggle('theme-dark', appTheme === 'dark');
+            try { localStorage.setItem('yuvam_theme', appTheme); } catch (_) {}
+            const bl = document.getElementById('themeBtnLight');
+            const bd = document.getElementById('themeBtnDark');
+            if (bl) {
+                bl.className = appTheme === 'light'
+                    ? 'flex-1 py-3 rounded-xl font-bold border-2 border-indigo-600 bg-indigo-50 text-indigo-700'
+                    : 'flex-1 py-3 rounded-xl font-bold border-2 border-transparent bg-slate-100 text-slate-600';
+            }
+            if (bd) {
+                bd.className = appTheme === 'dark'
+                    ? 'flex-1 py-3 rounded-xl font-bold border-2 border-indigo-600 bg-indigo-50 text-indigo-700'
+                    : 'flex-1 py-3 rounded-xl font-bold border-2 border-transparent bg-slate-100 text-slate-600';
+            }
+            // Firebase'e de yaz (opsiyonel, admin)
+            if (isAdmin()) {
+                db.collection('settings').doc('uiPrefs').set({ theme: appTheme }, { merge: true }).catch(function() {});
+            }
+        };
+
+        function loadThemeFromStorage() {
+            try {
+                const t = localStorage.getItem('yuvam_theme');
+                if (t === 'dark' || t === 'light') setAppTheme(t);
+            } catch (_) {}
+        }
+
+        window.saveDashboardCards = async function() {
+            dashboardCards = {
+                total: !!(document.getElementById('cardVis_total') || {}).checked,
+                bekir: !!(document.getElementById('cardVis_bekir') || {}).checked,
+                duygu: !!(document.getElementById('cardVis_duygu') || {}).checked,
+                debt: !!(document.getElementById('cardVis_debt') || {}).checked
+            };
+            applyDashboardCards();
+            try { localStorage.setItem('yuvam_dash_cards', JSON.stringify(dashboardCards)); } catch (_) {}
+            if (isAdmin()) {
+                try {
+                    await db.collection('settings').doc('uiPrefs').set({ dashboardCards: dashboardCards }, { merge: true });
+                    showToast('Kart görünürlüğü kaydedildi', 'success');
+                } catch (err) {
+                    showToast(friendlyFirebaseError(err), 'error');
+                }
+            }
+        };
+
+        function applyDashboardCards() {
+            ['total', 'bekir', 'duygu', 'debt'].forEach(function(k) {
+                const el = document.querySelector('[data-dash-card="' + k + '"]');
+                if (el) el.classList.toggle('hidden', !dashboardCards[k]);
+                const cb = document.getElementById('cardVis_' + k);
+                if (cb) cb.checked = !!dashboardCards[k];
+            });
+        }
+
+        function loadDashboardCardsLocal() {
+            try {
+                const raw = localStorage.getItem('yuvam_dash_cards');
+                if (raw) dashboardCards = Object.assign(dashboardCards, JSON.parse(raw));
+            } catch (_) {}
+            applyDashboardCards();
+        }
+
+        function parseCsvLine(line) {
+            const out = [];
+            let cur = '', inQ = false;
+            for (let i = 0; i < line.length; i++) {
+                const c = line[i];
+                if (inQ) {
+                    if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+                    else if (c === '"') inQ = false;
+                    else cur += c;
+                } else {
+                    if (c === '"') inQ = true;
+                    else if (c === ';') { out.push(cur); cur = ''; }
+                    else cur += c;
+                }
+            }
+            out.push(cur);
+            return out;
+        }
+
+        window.restoreFromCsvBackup = async function() {
+            if (!isAdmin()) { showToast('Sadece admin', 'error'); return; }
+            const input = document.getElementById('backupFileInput');
+            const status = document.getElementById('backupStatus');
+            if (!input || !input.files || !input.files[0]) {
+                showToast('CSV dosyası seçin', 'error');
+                return;
+            }
+            const replaceAll = !!(document.getElementById('backupReplaceAll') || {}).checked;
+            if (replaceAll && !confirm('TÜM mevcut harcamalar silinip CSV yüklenecek. Emin misiniz?')) return;
+            if (!replaceAll && !confirm('CSV satırları mevcut harcamalara EKLANSİN mi?')) return;
+
+            const text = await input.files[0].text();
+            const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(function(l) { return l.trim(); });
+            if (lines.length < 2) {
+                showToast('CSV boş veya geçersiz', 'error');
+                return;
+            }
+            const header = parseCsvLine(lines[0]).map(function(h) { return h.trim().toLowerCase(); });
+            const idx = function(name) {
+                const i = header.indexOf(name);
+                return i;
+            };
+            // Beklenen: Tip;Tarih;Kişi;Kategori;Ödeme;Açıklama;Tutar;Taksit;Dönem
+            const iDate = idx('tarih') >= 0 ? idx('tarih') : 1;
+            const iPerson = idx('kişi') >= 0 ? idx('kişi') : (idx('kisi') >= 0 ? idx('kisi') : 2);
+            const iCat = idx('kategori') >= 0 ? idx('kategori') : 3;
+            const iPay = idx('ödeme') >= 0 ? idx('ödeme') : (idx('odeme') >= 0 ? idx('odeme') : 4);
+            const iDesc = idx('açıklama') >= 0 ? idx('açıklama') : (idx('aciklama') >= 0 ? idx('aciklama') : 5);
+            const iAmt = idx('tutar') >= 0 ? idx('tutar') : 6;
+
+            const rows = [];
+            for (let li = 1; li < lines.length; li++) {
+                const cols = parseCsvLine(lines[li]);
+                if (cols.length < 5) continue;
+                const tip = (cols[0] || '').toLowerCase();
+                if (tip && tip.indexOf('harcama') < 0 && tip !== '') continue;
+                let amount = String(cols[iAmt] || '0').replace(/\s/g, '').replace(',', '.');
+                amount = parseFloat(amount);
+                if (!amount || isNaN(amount)) continue;
+                const date = String(cols[iDate] || '').slice(0, 10);
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+                rows.push({
+                    date: date,
+                    person: cols[iPerson] || 'Bekir',
+                    category: cols[iCat] || 'Diğer',
+                    paymentType: cols[iPay] || 'Nakit',
+                    description: cols[iDesc] || '',
+                    amount: amount,
+                    installmentCount: 1,
+                    createdAt: new Date().toISOString()
+                });
+            }
+            if (!rows.length) {
+                showToast('İçe aktarılacak satır bulunamadı', 'error');
+                if (status) status.textContent = '0 satır';
+                return;
+            }
+            if (status) status.textContent = rows.length + ' satır işleniyor…';
+            try {
+                if (replaceAll) {
+                    const snap = await db.collection('expenses').get();
+                    const batchSize = 400;
+                    let batch = db.batch();
+                    let n = 0;
+                    for (const d of snap.docs) {
+                        batch.delete(d.ref);
+                        n++;
+                        if (n % batchSize === 0) {
+                            await batch.commit();
+                            batch = db.batch();
+                        }
+                    }
+                    if (n % batchSize !== 0) await batch.commit();
+                }
+                let batch = db.batch();
+                let n = 0;
+                for (const row of rows) {
+                    const ref = db.collection('expenses').doc();
+                    batch.set(ref, row);
+                    n++;
+                    if (n % 400 === 0) {
+                        await batch.commit();
+                        batch = db.batch();
+                    }
+                }
+                if (n % 400 !== 0) await batch.commit();
+                if (status) status.textContent = n + ' harcama içe aktarıldı';
+                showToast(n + ' harcama yüklendi', 'success');
+                logActivity('Diğer', 'CSV geri yükleme', n + ' kayıt');
+            } catch (err) {
+                console.error(err);
+                showToast(friendlyFirebaseError(err), 'error');
+                if (status) status.textContent = 'Hata: ' + (err.message || err);
+            }
+        };
+
 
         window.addCategory = async () => {
             const input = document.getElementById('newCategoryInput');
