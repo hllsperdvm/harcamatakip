@@ -471,6 +471,10 @@
                 updateStatsPanel();
                 renderMonthlyReports();
                 if (typeof renderBillsChart === 'function') renderBillsChart();
+                if (typeof renderCardStatements === 'function') {
+                    renderCardStatements('bekir');
+                    renderCardStatements('duygu');
+                }
                 if (expenseChart) expenseChart.resize();
             } else if (tabName === 'vehicle') {
                 renderVehicleTab();
@@ -706,39 +710,148 @@
             closeCardDebtModal();
         };
 
-        window.toggleCardDebt = async (person) => {
-            let debt = person === 'bekir' ? bekirDebt : duyguDebt;
-            if (!debt.paid && debt.amount > 0 && debt.dueDate) {
-                if (!confirm(`${person.toUpperCase()} borcu ödendi olarak işaretlensin mi? Bu tutar bütçeden düşülecektir.`)) return;
-                
-                const dueDate = new Date(debt.dueDate);
-                const previousMonth = new Date(dueDate.getFullYear(), dueDate.getMonth() - 1);
-                const statementMonth = `${previousMonth.getFullYear()}-${String(previousMonth.getMonth() + 1).padStart(2, '0')}`;
-                
-                const statementData = {
-                    person: person,
-                    month: statementMonth,
-                    amount: debt.amount,
-                    dueDate: debt.dueDate,
-                    paidDate: new Date().toISOString().split('T')[0],
-                    status: 'paid'
-                };
-                
-                await db.collection("cardStatements").doc(`${person}_${statementMonth}`).set(statementData);
-            } else if (debt.paid) {
-                const dueDate = new Date(debt.dueDate);
-                const previousMonth = new Date(dueDate.getFullYear(), dueDate.getMonth() - 1);
-                const statementMonth = `${previousMonth.getFullYear()}-${String(previousMonth.getMonth() + 1).padStart(2, '0')}`;
-                
-                const docRef = db.collection("cardStatements").doc(`${person}_${statementMonth}`);
-                const docSnap = await docRef.get();
-                if (docSnap.exists) {
-                    await docRef.delete();
+        async function deleteCardStatementsOnUnpay(key, debt) {
+            const ids = new Set();
+            if (debt && debt.lastStatementId) ids.add(debt.lastStatementId);
+
+            const list = (cardStatements || []).filter(s => String(s.person || '').toLowerCase() === key);
+            // Aynı dönemdeki (lastStatementMonth) kayıtlar
+            if (debt && debt.lastStatementMonth) {
+                list.filter(s => s.month === debt.lastStatementMonth).forEach(s => { if (s.id) ids.add(s.id); });
+            }
+            // En son ödeme gününe ait tüm kayıtlar (eski hatadan kalanlar)
+            if (list.length) {
+                const sorted = list.slice().sort((a, b) =>
+                    String(b.createdAt || b.paidDate || b.month || '').localeCompare(String(a.createdAt || a.paidDate || a.month || ''))
+                );
+                const latest = sorted[0];
+                const day = String(latest.paidDate || (latest.createdAt || '')).slice(0, 10);
+                sorted.forEach(s => {
+                    const d = String(s.paidDate || (s.createdAt || '')).slice(0, 10);
+                    if (day && d === day && s.id) ids.add(s.id);
+                    // lastStatementId yoksa en azından en yeni tek kaydı sil
+                    if (!debt || !debt.lastStatementId) {
+                        if (s === latest && s.id) ids.add(s.id);
+                    }
+                });
+            }
+
+            let n = 0;
+            for (const id of ids) {
+                try {
+                    await db.collection('cardStatements').doc(id).delete();
+                    n++;
+                } catch (e) {
+                    console.warn('ekstre silinemedi', id, e);
                 }
             }
-            
-            debt.paid = !debt.paid;
-            await db.collection("settings").doc(person + "Debt").set(debt);
+            return n;
+        }
+
+        window.toggleCardDebt = async (person) => {
+            const key = person === 'bekir' || person === 'Bekir' ? 'bekir' : 'duygu';
+            let debt = key === 'bekir' ? bekirDebt : duyguDebt;
+            if (!debt || typeof debt !== 'object') debt = { amount: 0, paid: false, dueDate: '' };
+
+            try {
+                if (!debt.paid) {
+                    if (!(debt.amount > 0)) {
+                        showToast('Önce borç tutarı girin', 'error');
+                        return;
+                    }
+                    if (!confirm((key === 'bekir' ? 'Bekir' : 'Duygu') + ' kart borcu ödendi olarak işaretlensin mi? Ekstre kaydı oluşturulacak.')) return;
+
+                    let statementMonth;
+                    if (debt.dueDate) {
+                        statementMonth = getPeriodKeyForDateStr(debt.dueDate);
+                    } else {
+                        statementMonth = getCurrentPeriod();
+                    }
+                    if (!statementMonth) statementMonth = new Date().toISOString().slice(0, 7);
+
+                    const docId = key + '_' + statementMonth + '_' + Date.now();
+                    const statementData = {
+                        person: key,
+                        month: statementMonth,
+                        amount: Number(debt.amount) || 0,
+                        dueDate: debt.dueDate || '',
+                        paidDate: new Date().toISOString().split('T')[0],
+                        status: 'paid',
+                        createdAt: new Date().toISOString()
+                    };
+
+                    await db.collection('cardStatements').doc(docId).set(statementData);
+                    debt.paid = true;
+                    debt.lastStatementId = docId;
+                    debt.lastStatementMonth = statementMonth;
+                    await db.collection('settings').doc(key + 'Debt').set(debt);
+                    if (key === 'bekir') bekirDebt = debt; else duyguDebt = debt;
+                    showToast('Borç ödendi · ekstre kaydı eklendi', 'success');
+                    logActivity('Diğer', 'Kart borcu ödendi', (key === 'bekir' ? 'Bekir' : 'Duygu') + ' · ' + statementData.amount + ' TL · ' + statementMonth);
+                } else {
+                    if (!confirm((key === 'bekir' ? 'Bekir' : 'Duygu') + ' tekrar borçlu yapılsın mı? İlgili ekstre kaydı silinecek.')) return;
+                    const deleted = await deleteCardStatementsOnUnpay(key, debt);
+                    debt.paid = false;
+                    debt.lastStatementId = null;
+                    debt.lastStatementMonth = null;
+                    await db.collection('settings').doc(key + 'Debt').set(debt);
+                    if (key === 'bekir') bekirDebt = debt; else duyguDebt = debt;
+                    showToast(deleted ? ('Borçlu yapıldı · ' + deleted + ' ekstre silindi') : 'Borçlu olarak işaretlendi', 'info');
+                    logActivity('Diğer', 'Kart borcu geri alındı', (key === 'bekir' ? 'Bekir' : 'Duygu') + (deleted ? (' · ' + deleted + ' ekstre silindi') : ''));
+                }
+                renderCardDebtUI(key);
+                if (typeof renderCardStatements === 'function') {
+                    renderCardStatements('bekir');
+                    renderCardStatements('duygu');
+                }
+                if (typeof renderBudgetInfo === 'function') renderBudgetInfo();
+            } catch (err) {
+                console.error(err);
+                showToast('Kart borcu güncellenemedi: ' + (err.message || err), 'error');
+                alert('Kart borcu / ekstre kaydı hatası: ' + (err.message || err));
+            }
+        };
+
+        /** Borç ödenmemişken kalan hatalı ekstreleri temizle */
+        window.cleanupOrphanCardStatements = async function(person) {
+            const key = !person ? null : ((person === 'bekir' || person === 'Bekir') ? 'bekir' : 'duygu');
+            const keys = key ? [key] : ['bekir', 'duygu'];
+            const today = new Date().toISOString().slice(0, 10);
+            let total = 0;
+            for (const k of keys) {
+                const debt = k === 'bekir' ? bekirDebt : duyguDebt;
+                if (debt && debt.paid) continue;
+                const list = (cardStatements || []).filter(s => String(s.person || '').toLowerCase() === k);
+                const ids = new Set();
+                if (debt && debt.lastStatementId) ids.add(debt.lastStatementId);
+                // Bugün oluşmuş hatalı kayıtlar (önceki bug)
+                list.forEach(s => {
+                    const d = String(s.paidDate || s.createdAt || '').slice(0, 10);
+                    if (d === today && s.id) ids.add(s.id);
+                });
+                // lastStatementId yoksa en yeni tek kayıt
+                if (!ids.size && list.length) {
+                    const sorted = list.slice().sort((a, b) =>
+                        String(b.createdAt || b.paidDate || '').localeCompare(String(a.createdAt || a.paidDate || ''))
+                    );
+                    if (sorted[0] && sorted[0].id) ids.add(sorted[0].id);
+                }
+                for (const id of ids) {
+                    try {
+                        await db.collection('cardStatements').doc(id).delete();
+                        total++;
+                    } catch (e) { console.warn(e); }
+                }
+                if (debt) {
+                    debt.lastStatementId = null;
+                    debt.lastStatementMonth = null;
+                    try { await db.collection('settings').doc(k + 'Debt').set(debt); } catch (_) {}
+                }
+            }
+            renderCardStatements('bekir');
+            renderCardStatements('duygu');
+            if (total) showToast(total + ' hatalı ekstre silindi', 'success');
+            return total;
         };
 
         window.updateCardDueDate = async (person, date) => {
@@ -1186,6 +1299,7 @@
                 if (id) {
                     await db.collection("expenses").doc(id).update(data);
                 } else {
+                    data.createdAt = new Date().toISOString();
                     await db.collection("expenses").add(data);
                 }
                 
@@ -1378,6 +1492,16 @@
             });
 
             filtered.sort((a, b) => {
+                if (sortColumn === 'date') {
+                    const dA = String(a.date || '');
+                    const dB = String(b.date || '');
+                    if (dA !== dB) {
+                        return sortDirection === 'asc' ? (dA > dB ? 1 : -1) : (dA < dB ? 1 : -1);
+                    }
+                    const tA = String(a.createdAt || a.id || '');
+                    const tB = String(b.createdAt || b.id || '');
+                    return sortDirection === 'asc' ? (tA > tB ? 1 : -1) : (tA < tB ? 1 : -1);
+                }
                 let vA = a[sortColumn], vB = b[sortColumn];
                 if (sortColumn === 'amount') { vA = a.displayAmount; vB = b.displayAmount; }
                 return sortDirection === 'asc' ? (vA > vB ? 1 : -1) : (vA < vB ? 1 : -1);
@@ -1481,6 +1605,60 @@
             modal.classList.add('hidden');
             modal.classList.remove('flex');
         };
+
+        window.showDayExpenses = function(ymd, label) {
+            const day = String(ymd || '').slice(0, 10);
+            // Ham + işlenmiş kayıtlardan güne göre topla
+            let items = getProcessedExpenses().filter(function(e) {
+                return String(e.date || '').slice(0, 10) === day;
+            });
+            // İşlenmişte yoksa orijinal expenses
+            if (!items.length && Array.isArray(expenses)) {
+                items = expenses.filter(function(e) {
+                    return String(e.date || '').slice(0, 10) === day;
+                }).map(function(e) {
+                    return Object.assign({}, e, {
+                        displayAmount: e.amount,
+                        installmentLabel: (e.installmentCount > 1 ? 'Taksit/Tekrar' : 'Peşin')
+                    });
+                });
+            }
+            const modal = document.getElementById('categoryDetailModal');
+            const title = document.getElementById('categoryDetailTitle');
+            const body = document.getElementById('categoryDetailBody');
+            const totalEl = document.getElementById('categoryDetailTotal');
+            if (!modal || !body) {
+                alert('Detay penceresi bulunamadı. Sayfayı Ctrl+F5 ile yenileyin.');
+                return;
+            }
+            if (title) title.textContent = (label || day) + ' — gün harcamaları';
+            const total = items.reduce(function(s, e) { return s + (Number(e.displayAmount != null ? e.displayAmount : e.amount) || 0); }, 0);
+            if (totalEl) totalEl.textContent = total.toLocaleString('tr-TR') + ' TL';
+            if (!items.length) {
+                body.innerHTML = '<p class="text-sm text-slate-400 font-medium text-center py-6">Bu günde harcama yok</p>';
+            } else {
+                body.innerHTML = items.slice().sort(function(a, b) {
+                    return String(b.createdAt || b.id || '').localeCompare(String(a.createdAt || a.id || ''));
+                }).map(function(e) {
+                    const amt = Number(e.displayAmount != null ? e.displayAmount : e.amount) || 0;
+                    return '<div class="flex justify-between gap-3 items-start py-3 border-b border-slate-100 last:border-0">' +
+                        '<div class="min-w-0">' +
+                          '<p class="text-sm font-bold text-slate-800 truncate">' + escapeHtml(e.description || e.category || '-') + '</p>' +
+                          '<p class="text-[11px] text-slate-400 font-semibold mt-0.5">' +
+                            escapeHtml(e.category || '') +
+                            (e.billSubtype ? ' · ' + escapeHtml(e.billSubtype) : '') +
+                            ' · ' + escapeHtml(e.person || '') +
+                            (e.installmentLabel ? ' · ' + escapeHtml(e.installmentLabel) : '') +
+                          '</p>' +
+                        '</div>' +
+                        '<p class="text-sm font-black text-rose-600 whitespace-nowrap">' + amt.toLocaleString('tr-TR') + ' TL</p>' +
+                      '</div>';
+                }).join('');
+            }
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
 
 
         function buildExpenseSummaryForAi() {
@@ -1858,7 +2036,8 @@
                     },
                     options: {
                         responsive: true,
-                        maintainAspectRatio: true,
+                        maintainAspectRatio: false,
+                        layout: { padding: { top: 4, bottom: 4 } },
                         onClick: (evt, elements) => {
                             if (!elements || !elements.length) return;
                             const idx = elements[0].index;
@@ -1867,7 +2046,15 @@
                         },
                         plugins: {
                             legend: {
-                                position: 'bottom',
+                                position: (typeof window !== 'undefined' && window.innerWidth >= 768) ? 'right' : 'bottom',
+                                align: 'center',
+                                labels: {
+                                    boxWidth: 14,
+                                    padding: 14,
+                                    font: { size: 12, weight: '600' },
+                                    usePointStyle: true,
+                                    pointStyle: 'rectRounded'
+                                },
                                 onClick: (e, legendItem, legend) => {
                                     const cat = legendItem.text;
                                     if (cat) showCategoryExpenses(cat);
@@ -1911,21 +2098,54 @@
                 weeklyTrendChart.destroy();
             }
             if (ctx2) {
+                const weekLabels = last7Keys.map(k => k.label);
+                const weekValues = last7Keys.map(k => weekData[k.label] || 0);
                 weeklyTrendChart = new Chart(ctx2, {
                     type: 'line',
                     data: {
-                        labels: Object.keys(weekData),
+                        labels: weekLabels,
                         datasets: [{
                             label: 'Harcama',
-                            data: Object.values(weekData),
+                            data: weekValues,
                             borderColor: '#4f46e5',
-                            backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                            borderWidth: 3,
+                            backgroundColor: 'rgba(79, 70, 229, 0.12)',
+                            borderWidth: 2,
                             fill: true,
-                            tension: 0.4
+                            tension: 0.35,
+                            pointRadius: 5,
+                            pointHoverRadius: 8,
+                            pointBackgroundColor: '#4f46e5'
                         }]
                     },
-                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: true } } }
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        onClick: function(evt, elements, chart) {
+                            var idx = null;
+                            if (elements && elements.length) idx = elements[0].index;
+                            if (idx == null && chart && chart.getElementsAtEventForMode) {
+                                var pts = chart.getElementsAtEventForMode(evt, 'index', { intersect: false }, true);
+                                if (pts && pts.length) idx = pts[0].index;
+                            }
+                            if (idx == null) return;
+                            var key = last7Keys[idx];
+                            if (key && typeof showDayExpenses === 'function') showDayExpenses(key.ymd, key.label);
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            title: {
+                                display: true,
+                                text: 'Güne veya noktaya tıklayın → harcamalar',
+                                font: { size: 11, weight: '600' },
+                                color: '#94a3b8'
+                            }
+                        },
+                        scales: {
+                            x: { ticks: { font: { size: 10 } } },
+                            y: { beginAtZero: true, ticks: { font: { size: 10 } } }
+                        }
+                    }
                 });
             }
 
@@ -1985,51 +2205,47 @@
         function renderMonthlyReports() {
             const period = getCurrentPeriod();
             const processedExpenses = getProcessedExpenses().filter(e => e.effectiveMonth === period);
-            
-            const monthlySummary = document.getElementById('monthlySummaryReport');
-            const total = processedExpenses.reduce((s, e) => s + e.displayAmount, 0);
-            const periodInfo = getCurrentStatementPeriod();
-            if (!monthlySummary) return;
-            monthlySummary.innerHTML = `
-                <h3 class="text-xl font-black mb-4">Aktif Ekstre Dönemi</h3>
-                <p class="text-xs font-bold text-indigo-500 mb-3">${periodInfo.label}</p>
-                <div class="text-4xl font-black text-rose-600 mb-2">${total.toLocaleString('tr-TR')} TL</div>
-                <p class="text-sm text-slate-500">Toplam Harcama (29–28)</p>
-            `;
+            const total = processedExpenses.reduce((s, e) => s + (e.displayAmount || 0), 0);
 
+            const monthlySummary = document.getElementById('monthlySummaryReport');
             const personSummary = document.getElementById('personSummaryReport');
-            const bekirSum = processedExpenses.filter(e => e.person === 'Bekir').reduce((s, e) => s + e.displayAmount, 0);
-            const duyguSum = processedExpenses.filter(e => e.person === 'Duygu').reduce((s, e) => s + e.displayAmount, 0);
-            personSummary.innerHTML = `
-                <h3 class="text-xl font-black mb-4">Kişi Bazında</h3>
-                <div class="space-y-3">
-                    <div class="flex justify-between"><span>Bekir</span><span class="font-black text-blue-600">${bekirSum.toLocaleString('tr-TR')} TL</span></div>
-                    <div class="flex justify-between"><span>Duygu</span><span class="font-black text-pink-600">${duyguSum.toLocaleString('tr-TR')} TL</span></div>
-                </div>
-            `;
+            if (monthlySummary) {
+                monthlySummary.innerHTML = '';
+                monthlySummary.classList.add('hidden');
+            }
+            if (personSummary) {
+                personSummary.innerHTML = '';
+                personSummary.classList.add('hidden');
+            }
 
             const categoryData = {};
             processedExpenses.forEach(e => {
-                categoryData[e.category] = (categoryData[e.category] || 0) + e.displayAmount;
+                categoryData[e.category] = (categoryData[e.category] || 0) + (e.displayAmount || 0);
             });
             const detailedReport = document.getElementById('detailedMonthlyReport');
-            detailedReport.innerHTML = Object.entries(categoryData).map(([cat, amt]) => `
-                <button type="button" onclick="showCategoryExpenses('${String(cat).replace(/'/g, "\\'")}')" class="bg-slate-50 p-4 rounded-2xl text-left w-full hover:bg-indigo-50 hover:border-indigo-200 border border-transparent transition">
-                    <div class="font-bold text-sm">${cat}</div>
-                    <div class="text-2xl font-black text-indigo-600">${amt.toLocaleString('tr-TR')} TL</div>
-                    <div class="text-[10px] text-slate-400 font-bold mt-1">Detay için tıkla</div>
-                </button>
-            `).join('');
-
-            renderCardStatements('bekir');
-            renderCardStatements('duygu');
-            renderCurrentStatements();
+            if (!detailedReport) return;
+            const entries = Object.entries(categoryData).sort((a, b) => b[1] - a[1]);
+            if (!entries.length) {
+                detailedReport.innerHTML = '<p class="text-sm text-slate-400 col-span-full text-center py-2">Bu dönemde kategori yok</p>';
+            } else {
+                detailedReport.innerHTML = entries.map(([cat, amt]) => {
+                    const share = total > 0 ? Math.round(amt / total * 100) : 0;
+                    const safe = String(cat).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    return '<button type="button" onclick="showCategoryExpenses(\'' + safe + '\')" class="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 transition text-left w-full">' +
+                        '<span class="text-xs font-bold text-slate-700 truncate">' + cat + '</span>' +
+                        '<span class="text-xs font-black text-slate-800 whitespace-nowrap">' + amt.toLocaleString('tr-TR') + ' TL <span class="text-slate-400 font-bold">%' + share + '</span></span>' +
+                        '</button>';
+                }).join('');
+            }
         }
 
+        //
+
         function renderCardStatements(person) {
+            const key = (person || '').toLowerCase();
             const sortedStatements = cardStatements
-                .filter(s => s.person === person)
-                .sort((a, b) => new Date(b.month) - new Date(a.month));
+                .filter(s => String(s.person || '').toLowerCase() === key)
+                .sort((a, b) => String(b.month || '').localeCompare(String(a.month || '')));
             
             const container = document.getElementById(person === 'bekir' ? 'bekirCardStatements' : 'duyguCardStatements');
             if (!container) return;
