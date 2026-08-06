@@ -383,8 +383,18 @@ html.theme-dark .expense-m-card {
   border-color: #334155;
 }
 html.theme-dark .expense-m-card.is-future {
-  background: linear-gradient(135deg, #422006 0%, #78350f 40%, #1e293b 100%);
-  border-color: #a16207;
+  background: #1c1917;
+  border-color: #d97706;
+  box-shadow: inset 3px 0 0 #f59e0b;
+}
+html.theme-dark .expense-m-card.is-future .expense-m-desc {
+  color: #fef3c7 !important;
+}
+html.theme-dark .expense-m-card.is-future .expense-m-date {
+  color: #fbbf24 !important;
+}
+html.theme-dark .expense-m-card.is-future .expense-m-amount {
+  color: #fda4af !important;
 }
 html.theme-dark .expense-m-card.is-open {
   border-color: #6366f1;
@@ -403,4 +413,12 @@ html.theme-dark .expense-m-badge-future {
   color: #fde68a;
   background: rgba(180, 83, 9, 0.45);
   border-color: rgba(245, 158, 11, 0.4);
+}
+
+html.theme-dark #expenseTableBody tr.row-future-expense {
+  background: #1c1917 !important;
+  color: #fef3c7 !important;
+}
+html.theme-dark #expenseTableBody tr.row-future-expense td {
+  color: #fef3c7 !important;
 }

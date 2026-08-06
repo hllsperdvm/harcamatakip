@@ -534,15 +534,51 @@
             document.getElementById('expenseModal').classList.add('hidden');
             document.getElementById('expenseModal').classList.remove('flex');
         };
+        function getAutoCardDueDate() {
+            const p = (typeof getCurrentStatementPeriod === 'function') ? getCurrentStatementPeriod() : null;
+            if (p && p.endDate) return formatYMD(p.endDate);
+            // yedek: ayın 28'i
+            const d = new Date();
+            const end = new Date(d.getFullYear(), d.getMonth(), 28);
+            if (d.getDate() > 28) end.setMonth(end.getMonth() + 1);
+            return formatYMD(end);
+        }
+
         window.openCardDebtModal = (person) => {
-            const currentDebt = person === 'bekir' ? bekirDebt : duyguDebt;
-            document.getElementById('cardDebtPerson').value = person;
-            document.getElementById('cardDebtModalTitle').innerText = `${person.charAt(0).toUpperCase() + person.slice(1)} Borç Girişi`;
-            document.getElementById('cardDebtAmount').value = currentDebt.amount || '';
-            document.getElementById('cardDebtModal').classList.remove('hidden');
-            document.getElementById('cardDebtModal').classList.add('flex');
+            const modal = document.getElementById('cardDebtModal');
+            if (!modal) {
+                alert('Borç penceresi yüklenemedi. Ctrl+F5 ile yenileyin.');
+                return;
+            }
+            const key = (person === 'bekir' || person === 'Bekir') ? 'bekir'
+                : (person === 'duygu' || person === 'Duygu') ? 'duygu' : '';
+            const sel = document.getElementById('cardDebtPerson');
+            if (sel && key) sel.value = key;
+            else if (sel && !sel.value) sel.value = 'bekir';
+
+            const who = (sel && sel.value) ? sel.value : 'bekir';
+            const title = document.getElementById('cardDebtModalTitle');
+            if (title) title.innerText = (who === 'bekir' ? 'Bekir' : 'Duygu') + ' — Kart borcu';
+
+            const amt = document.getElementById('cardDebtAmount');
+            if (amt) amt.value = '';
+
+            const due = getAutoCardDueDate();
+            const hint = document.getElementById('cardDebtDueHint');
+            if (hint) {
+                const p = getCurrentStatementPeriod();
+                hint.textContent = 'Son ödeme: ' + formatDateTR(due) + (p && p.label ? ' · Dönem: ' + p.label : '');
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
         };
-        window.closeCardDebtModal = () => document.getElementById('cardDebtModal').classList.add('hidden');
+        window.closeCardDebtModal = () => {
+            const modal = document.getElementById('cardDebtModal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
 
         function resetForm() {
             document.getElementById('editId').value = '';
@@ -766,16 +802,38 @@
         window.setCardDebt = (person) => openCardDebtModal(person);
         window.handleCardDebtSubmit = async (e) => {
             e.preventDefault();
-            const person = document.getElementById('cardDebtPerson').value;
-            const amount = parseFloat(document.getElementById('cardDebtAmount').value);
-            if (person === 'bekir') {
-                bekirDebt.amount = amount;
-                await db.collection("settings").doc("bekirDebt").set(bekirDebt);
-            } else {
-                duyguDebt.amount = amount;
-                await db.collection("settings").doc("duyguDebt").set(duyguDebt);
+            try {
+                const person = (document.getElementById('cardDebtPerson') || {}).value || 'bekir';
+                const key = person === 'bekir' || person === 'Bekir' ? 'bekir' : 'duygu';
+                const amount = parseFloat((document.getElementById('cardDebtAmount') || {}).value);
+                if (!(amount > 0)) {
+                    showToast('Geçerli tutar girin', 'error');
+                    return;
+                }
+                const dueDate = getAutoCardDueDate();
+                const debt = {
+                    amount: amount,
+                    paid: false,
+                    dueDate: dueDate,
+                    lastStatementId: null,
+                    lastStatementMonth: null
+                };
+                if (key === 'bekir') {
+                    bekirDebt = debt;
+                    await db.collection('settings').doc('bekirDebt').set(debt);
+                } else {
+                    duyguDebt = debt;
+                    await db.collection('settings').doc('duyguDebt').set(debt);
+                }
+                closeCardDebtModal();
+                renderCardDebtUI(key);
+                if (typeof renderBudgetInfo === 'function') renderBudgetInfo();
+                showToast((key === 'bekir' ? 'Bekir' : 'Duygu') + ' kart borcu kaydedildi', 'success');
+                logActivity('Diğer', 'Kart borcu girildi', (key === 'bekir' ? 'Bekir' : 'Duygu') + ' · ' + amount + ' TL');
+            } catch (err) {
+                console.error(err);
+                showToast(friendlyFirebaseError(err), 'error');
             }
-            closeCardDebtModal();
         };
 
         async function deleteCardStatementsOnUnpay(key, debt) {
@@ -928,48 +986,71 @@
             await db.collection("settings").doc(person + "Debt").set(debt);
         };
 
+        function isActiveCardDebt(debt) {
+            return debt && !debt.paid && Number(debt.amount) > 0;
+        }
+
         function renderCardDebtUI(person) {
-            const debt = person === 'bekir' ? bekirDebt : duyguDebt;
-            document.getElementById(`${person}DebtDisplay`).innerText = (debt.amount || 0).toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
-            document.getElementById(`${person}DueDateDisplay`).innerText = debt.dueDate || '-';
-            
-            const badge = document.getElementById(`${person}DebtStatusBadge`);
-            const btn = document.getElementById(`${person}DebtToggleBtn`);
-            
-            if (debt.paid) {
-                badge.innerText = "ÖDENDİ";
-                badge.className = "inline-block mt-2 text-[10px] px-2.5 py-1 rounded-full font-bold uppercase bg-emerald-100 text-emerald-700";
-                btn.innerText = "Borçlu Yap";
-                btn.className = "text-[11px] font-bold px-3 py-2 rounded-xl shadow-sm transition bg-slate-100 text-slate-500";
-            } else {
-                badge.innerText = "ÖDENMEDİ";
-                badge.className = "inline-block mt-2 text-[10px] px-2.5 py-1 rounded-full font-bold uppercase bg-rose-100 text-rose-700";
-                btn.innerText = "Ödendi Yap";
-                btn.className = "text-[11px] font-bold px-3 py-2 rounded-xl shadow-sm transition bg-rose-600 text-white";
+            const key = person === 'bekir' || person === 'Bekir' ? 'bekir' : 'duygu';
+            const debt = key === 'bekir' ? bekirDebt : duyguDebt;
+            const card = document.getElementById(key + 'DebtCard');
+            const visible = isActiveCardDebt(debt);
+            if (card) card.classList.toggle('hidden', !visible);
+
+            const disp = document.getElementById(key + 'DebtDisplay');
+            const dueDisp = document.getElementById(key + 'DueDateDisplay');
+            if (disp) disp.innerText = (debt && debt.amount ? debt.amount : 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+            if (dueDisp) dueDisp.innerText = (debt && debt.dueDate) ? formatDateTR(debt.dueDate) : '-';
+
+            const badge = document.getElementById(key + 'DebtStatusBadge');
+            const btn = document.getElementById(key + 'DebtToggleBtn');
+            if (badge && btn) {
+                if (debt && debt.paid) {
+                    badge.innerText = 'ÖDENDİ';
+                    badge.className = 'inline-block mt-2 text-[10px] px-2.5 py-1 rounded-full font-bold uppercase bg-emerald-100 text-emerald-700';
+                    btn.innerText = 'Borçlu Yap';
+                    btn.className = 'text-[11px] font-bold px-3 py-2 rounded-xl shadow-sm transition bg-slate-100 text-slate-500';
+                } else {
+                    badge.innerText = 'ÖDENMEDİ';
+                    badge.className = 'inline-block mt-2 text-[10px] px-2.5 py-1 rounded-full font-bold uppercase bg-rose-100 text-rose-700';
+                    btn.innerText = 'Ödendi Yap';
+                    btn.className = 'text-[11px] font-bold px-3 py-2 rounded-xl shadow-sm transition bg-rose-600 text-white';
+                }
             }
-            updateProgressBar(person, debt.dueDate);
+            updateProgressBar(key, debt && debt.dueDate);
         }
 
         function updateProgressBar(person, dueDateStr) {
-            const bar = document.getElementById(`${person}ProgressBar`);
-            const percText = document.getElementById(`${person}ProgressPercentage`);
-            if (!dueDateStr) {
-                bar.style.width = "0%";
-                percText.innerText = "0%";
+            const bar = document.getElementById(person + 'ProgressBar');
+            const percText = document.getElementById(person + 'ProgressPercentage');
+            if (!bar || !percText) return;
+
+            let period = null;
+            try { period = getCurrentStatementPeriod(); } catch (_) {}
+            const start = period && period.startDate ? period.startDate : null;
+            let due = dueDateStr ? parseYMD(dueDateStr) : (period && period.endDate ? period.endDate : null);
+            if (!due) {
+                bar.style.width = '0%';
+                percText.innerText = '0%';
                 return;
             }
             const today = new Date();
-            const due = new Date(dueDateStr);
-            const diff = Math.ceil((due - today) / (1000*60*60*24));
-            
-            let percentage = 0;
-            if (diff <= 0) percentage = 100;
-            else if (diff > 30) percentage = 10;
-            else percentage = Math.max(10, 100 - (diff * 3));
+            today.setHours(12, 0, 0, 0);
+            const dueMid = new Date(due.getFullYear(), due.getMonth(), due.getDate(), 12, 0, 0);
+            const startMid = start
+                ? new Date(start.getFullYear(), start.getMonth(), start.getDate(), 12, 0, 0)
+                : new Date(dueMid.getFullYear(), dueMid.getMonth(), dueMid.getDate() - 30, 12, 0, 0);
 
-            bar.style.width = percentage + "%";
-            percText.innerText = diff <= 0 ? "Günü Geçti" : diff + " Gün";
-            bar.className = `h-full rounded-full transition-all duration-1000 ${diff <= 3 ? 'bg-rose-500' : 'bg-indigo-500'}`;
+            const totalMs = Math.max(1, dueMid - startMid);
+            const elapsedMs = today - startMid;
+            let percentage = Math.round(Math.min(100, Math.max(0, (elapsedMs / totalMs) * 100)));
+            const diffDays = Math.ceil((dueMid - today) / (1000 * 60 * 60 * 24));
+
+            bar.style.width = percentage + '%';
+            if (diffDays < 0) percText.innerText = 'Günü geçti';
+            else if (diffDays === 0) percText.innerText = 'Bugün son gün';
+            else percText.innerText = diffDays + ' gün';
+            bar.className = 'h-full rounded-full transition-all duration-1000 ' + (diffDays <= 3 ? 'bg-rose-500' : 'bg-indigo-500');
         }
 
         // Harcama İşlemleri
@@ -2394,37 +2475,106 @@
 
         //
 
+        window.markCardStatementUnpaid = async function(statementId) {
+            const stmt = (cardStatements || []).find(s => s.id === statementId);
+            if (!stmt) {
+                showToast('Ekstre kaydı bulunamadı', 'error');
+                return;
+            }
+            const key = String(stmt.person || '').toLowerCase() === 'bekir' ? 'bekir' : 'duygu';
+            const label = key === 'bekir' ? 'Bekir' : 'Duygu';
+            if (!confirm(label + ' ekstre kaydı ödenmedi yapılsın mı?\nBorç ana sayfada tekrar görünecek.')) return;
+            try {
+                const dueDate = stmt.dueDate || (typeof getAutoCardDueDate === 'function' ? getAutoCardDueDate() : '');
+                const debt = {
+                    amount: Number(stmt.amount) || 0,
+                    paid: false,
+                    dueDate: dueDate,
+                    lastStatementId: null,
+                    lastStatementMonth: null
+                };
+                if (key === 'bekir') {
+                    bekirDebt = debt;
+                    await db.collection('settings').doc('bekirDebt').set(debt);
+                } else {
+                    duyguDebt = debt;
+                    await db.collection('settings').doc('duyguDebt').set(debt);
+                }
+                await db.collection('cardStatements').doc(statementId).delete();
+                renderCardDebtUI(key);
+                if (typeof renderBudgetInfo === 'function') renderBudgetInfo();
+                renderCardStatements('bekir');
+                renderCardStatements('duygu');
+                showToast(label + ' borcu ödenmedi · ana sayfada', 'success');
+                logActivity('Diğer', 'Ekstre ödenmedi yapıldı', label + ' · ' + debt.amount + ' TL');
+            } catch (err) {
+                console.error(err);
+                showToast(friendlyFirebaseError(err), 'error');
+            }
+        };
+
+        window.deleteCardStatement = async function(statementId) {
+            const stmt = (cardStatements || []).find(s => s.id === statementId);
+            if (!stmt) {
+                showToast('Ekstre kaydı bulunamadı', 'error');
+                return;
+            }
+            const label = String(stmt.person || '').toLowerCase() === 'bekir' ? 'Bekir' : 'Duygu';
+            if (!confirm(label + ' ekstre kaydı silinsin mi?\n(Borç ana sayfaya dönmez, sadece kayıt silinir)')) return;
+            try {
+                await db.collection('cardStatements').doc(statementId).delete();
+                renderCardStatements('bekir');
+                renderCardStatements('duygu');
+                showToast('Ekstre kaydı silindi', 'info');
+                logActivity('Diğer', 'Ekstre kaydı silindi', label + ' · ' + (stmt.amount || 0) + ' TL');
+            } catch (err) {
+                console.error(err);
+                showToast(friendlyFirebaseError(err), 'error');
+            }
+        };
+
         function renderCardStatements(person) {
             const key = (person || '').toLowerCase();
             const sortedStatements = cardStatements
                 .filter(s => String(s.person || '').toLowerCase() === key)
                 .sort((a, b) => String(b.month || '').localeCompare(String(a.month || '')));
-            
+
             const container = document.getElementById(person === 'bekir' ? 'bekirCardStatements' : 'duyguCardStatements');
             if (!container) return;
             if (sortedStatements.length === 0) {
-                container.innerHTML = `<div class="col-span-full text-center py-8 text-slate-400"><p class="text-sm">Henüz ekstre kaydı yok</p></div>`;
+                container.innerHTML = '<div class="col-span-full text-center py-8 text-slate-400"><p class="text-sm">Henüz ekstre kaydı yok</p></div>';
                 return;
             }
 
             const monthNames = ['Ocak', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
-            
-            container.innerHTML = sortedStatements.map(stmt => {
-                const [year, month] = stmt.month.split('-');
-                const monthName = monthNames[parseInt(month) - 1];
-                const bgColor = person === 'bekir' 
-                    ? 'from-blue-50 to-blue-100 border-blue-200 hover:shadow-lg hover:shadow-blue-100' 
-                    : 'from-pink-50 to-pink-100 border-pink-200 hover:shadow-lg hover:shadow-pink-100';
-                const textColor = person === 'bekir' ? 'text-blue-600' : 'text-pink-600';
-                
-                return `
-                    <div class="bg-gradient-to-br ${bgColor} p-5 rounded-2xl border shadow-sm transition hover:shadow-md cursor-default">
-                        <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2">${monthName} ${year}</div>
-                        <div class="text-xl font-black ${textColor} mb-2">${stmt.amount.toLocaleString('tr-TR')}</div>
-                        <div class="text-[8px] text-slate-600">TL</div>
-                        <div class="text-[8px] text-slate-400 mt-2 pt-2 border-t border-slate-200">${stmt.paidDate}</div>
-                    </div>
-                `;
+
+            container.innerHTML = sortedStatements.map(function(stmt) {
+                const parts = String(stmt.month || '').split('-');
+                const year = parts[0] || '';
+                const month = parts[1] || '1';
+                const monthName = monthNames[parseInt(month, 10) - 1] || stmt.month || '';
+                const bgColor = key === 'bekir'
+                    ? 'from-blue-50 to-blue-100 border-blue-200'
+                    : 'from-pink-50 to-pink-100 border-pink-200';
+                const textColor = key === 'bekir' ? 'text-blue-600' : 'text-pink-600';
+                const safeId = escapeHtml(String(stmt.id || ''));
+                const amt = (Number(stmt.amount) || 0).toLocaleString('tr-TR');
+                const paid = escapeHtml(stmt.paidDate || '');
+
+                return (
+                    '<div class="bg-gradient-to-br ' + bgColor + ' p-4 rounded-2xl border shadow-sm transition">' +
+                      '<div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">' + escapeHtml(monthName + ' ' + year) + '</div>' +
+                      '<div class="text-xl font-black ' + textColor + '">' + amt + '</div>' +
+                      '<div class="text-[8px] text-slate-600 mb-1">TL</div>' +
+                      (paid ? '<div class="text-[8px] text-slate-400 border-t border-slate-200/80 pt-1.5 mt-1">Ödeme: ' + paid + '</div>' : '') +
+                      '<div class="flex gap-1.5 mt-3">' +
+                        '<button type="button" onclick="event.stopPropagation();markCardStatementUnpaid(\'' + safeId + '\')" ' +
+                          'class="flex-1 text-[10px] font-bold py-2 rounded-xl bg-white/80 text-amber-700 hover:bg-amber-50 border border-amber-200/80 transition">Ödenmedi yap</button>' +
+                        '<button type="button" onclick="event.stopPropagation();deleteCardStatement(\'' + safeId + '\')" ' +
+                          'class="flex-1 text-[10px] font-bold py-2 rounded-xl bg-white/80 text-rose-600 hover:bg-rose-50 border border-rose-200/80 transition">Sil</button>' +
+                      '</div>' +
+                    '</div>'
+                );
             }).join('');
         }
 

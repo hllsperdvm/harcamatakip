@@ -88,9 +88,12 @@
                         <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2">Duygu (Dönem)</p>
                         <p id="duyguExpense" class="text-xl font-black text-pink-600">0,00 TL</p>
                     </div>
-                    <div data-dash-card="debt" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
-                        <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2">Aktif KK Borcu</p>
+                    <div data-dash-card="debt" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative">
+                        <button type="button" onclick="openCardDebtModal()" title="Kredi kartı borcu ekle"
+                            class="absolute top-3 right-3 w-9 h-9 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xl font-black leading-none flex items-center justify-center shadow-sm transition">+</button>
+                        <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2 pr-10">Aktif KK Borcu</p>
                         <p id="totalCardDebtDisplay" class="text-xl font-black text-amber-600">0,00 TL</p>
+                        <p class="text-[10px] text-slate-400 font-semibold mt-1">+ ile yeni borç ekle</p>
                     </div>
                 </div>
 
@@ -107,7 +110,7 @@
                 <!-- Kredi Kartları -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <!-- Bekir Kredi Kartı -->
-                    <div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative overflow-hidden">
+                    <div id="bekirDebtCard" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative overflow-hidden hidden">
                         <div class="flex justify-between items-start mb-6">
                             <div>
                                 <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Bekir Kredi Kartı</p>
@@ -134,7 +137,7 @@
                     </div>
 
                     <!-- Duygu Kredi Kartı -->
-                    <div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative overflow-hidden">
+                    <div id="duyguDebtCard" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative overflow-hidden hidden">
                         <div class="flex justify-between items-start mb-6">
                             <div>
                                 <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Duygu Kredi Kartı</p>
@@ -1014,6 +1017,37 @@
                 <div class="flex gap-2 pt-2">
                     <button type="button" onclick="closeTabEditModal()" class="flex-1 py-3 rounded-xl bg-slate-100 font-bold text-slate-600">Vazgeç</button>
                     <button type="submit" class="flex-[2] py-3 rounded-xl bg-violet-600 text-white font-bold">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- Kredi Kartı Borç Giriş Modal -->
+    <div id="cardDebtModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
+        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden">
+            <div class="bg-amber-500 p-5 text-white flex justify-between items-center">
+                <h2 id="cardDebtModalTitle" class="text-lg font-black">Kredi Kartı Borcu</h2>
+                <button type="button" onclick="closeCardDebtModal()" class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-xl leading-none">&times;</button>
+            </div>
+            <form onsubmit="handleCardDebtSubmit(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase">Kişi</label>
+                    <select id="cardDebtPerson" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-amber-500">
+                        <option value="bekir">Bekir</option>
+                        <option value="duygu">Duygu</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase">Borç tutarı (TL)</label>
+                    <input type="number" step="any" min="0" id="cardDebtAmount" required placeholder="0,00"
+                        class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-lg font-black outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-amber-500">
+                </div>
+                <p class="text-[11px] text-slate-500 font-medium">Son ödeme tarihi ve ilerleme çubuğu <b>ekstre dönemine (29–28)</b> göre otomatik ayarlanır.</p>
+                <p id="cardDebtDueHint" class="text-[11px] text-amber-700 font-bold"></p>
+                <div class="flex gap-2 pt-1">
+                    <button type="button" onclick="closeCardDebtModal()" class="flex-1 py-3 rounded-xl bg-slate-100 font-bold text-slate-600">Vazgeç</button>
+                    <button type="submit" class="flex-[2] py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold">Kaydet</button>
                 </div>
             </form>
         </div>
