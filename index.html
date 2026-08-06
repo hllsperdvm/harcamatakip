@@ -79,14 +79,26 @@
                     <div data-dash-card="total" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
                         <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2">Dönem Harcaması</p>
                         <p id="totalExpense" class="text-xl font-black text-rose-600">0,00 TL</p>
+                        <div id="totalExpenseBreakdown" class="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-bold text-slate-400">
+                            <span>Nakit <b id="totalCashAmt" class="text-slate-600">0</b></span>
+                            <span>KK <b id="totalCardAmt" class="text-slate-600">0</b></span>
+                        </div>
                     </div>
                     <div data-dash-card="bekir" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
                         <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2">Bekir (Dönem)</p>
                         <p id="bekirExpense" class="text-xl font-black text-blue-600">0,00 TL</p>
+                        <div class="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-bold text-slate-400">
+                            <span>Nakit <b id="bekirCashAmt" class="text-slate-600">0</b></span>
+                            <span>KK <b id="bekirCardAmt" class="text-slate-600">0</b></span>
+                        </div>
                     </div>
                     <div data-dash-card="duygu" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
                         <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2">Duygu (Dönem)</p>
                         <p id="duyguExpense" class="text-xl font-black text-pink-600">0,00 TL</p>
+                        <div class="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-bold text-slate-400">
+                            <span>Nakit <b id="duyguCashAmt" class="text-slate-600">0</b></span>
+                            <span>KK <b id="duyguCardAmt" class="text-slate-600">0</b></span>
+                        </div>
                     </div>
                     <div data-dash-card="debt" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative">
                         <button type="button" onclick="openCardDebtModal()" title="Kredi kartı borcu ekle"

@@ -777,6 +777,24 @@
         }
 
         // Bütçe Hesaplama
+        function isCreditPayment(pt) {
+            const s = String(pt || '').toLocaleLowerCase('tr-TR');
+            return s.indexOf('kredi') >= 0 || s.indexOf('kart') >= 0;
+        }
+
+        function isCashPayment(pt) {
+            const s = String(pt || '').toLocaleLowerCase('tr-TR');
+            return s.indexOf('nakit') >= 0 || s === 'cash';
+        }
+
+        function sumByPay(list, pred) {
+            return list.filter(pred).reduce(function(s, e) { return s + (Number(e.displayAmount) || 0); }, 0);
+        }
+
+        function fmtShortTL(n) {
+            return (Number(n) || 0).toLocaleString('tr-TR', { maximumFractionDigits: 0 }) + ' TL';
+        }
+
         function renderBudgetInfo() {
             const period = getCurrentPeriod();
             const periodInfo = getCurrentStatementPeriod();
@@ -784,18 +802,38 @@
             const processedExpenses = getProcessedExpenses().filter(e => e.effectiveMonth === period);
             const totalSpent = processedExpenses.reduce((sum, e) => sum + e.displayAmount, 0);
 
-            document.getElementById('totalExpense').innerText = totalSpent.toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
+            const elTotal = document.getElementById('totalExpense');
+            if (elTotal) elTotal.innerText = totalSpent.toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
 
-            const bekirSum = processedExpenses.filter(e => e.person === 'Bekir').reduce((s, e) => s + e.displayAmount, 0);
-            const duyguSum = processedExpenses.filter(e => e.person === 'Duygu').reduce((s, e) => s + e.displayAmount, 0);
-            document.getElementById('bekirExpense').innerText = bekirSum.toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
-            document.getElementById('duyguExpense').innerText = duyguSum.toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
+            const bekirList = processedExpenses.filter(e => e.person === 'Bekir');
+            const duyguList = processedExpenses.filter(e => e.person === 'Duygu');
+            const bekirSum = bekirList.reduce((s, e) => s + e.displayAmount, 0);
+            const duyguSum = duyguList.reduce((s, e) => s + e.displayAmount, 0);
+            const elBekir = document.getElementById('bekirExpense');
+            const elDuygu = document.getElementById('duyguExpense');
+            if (elBekir) elBekir.innerText = bekirSum.toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
+            if (elDuygu) elDuygu.innerText = duyguSum.toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
+
+            // Nakit / Kredi kartı kırılımı
+            const setPair = function(cashId, cardId, list) {
+                const cash = sumByPay(list, function(e) { return isCashPayment(e.paymentType); });
+                const card = sumByPay(list, function(e) { return isCreditPayment(e.paymentType); });
+                // diğer ödeme tipleri varsa kalanı kart+nakit dışında bırak; gösterimde sadece nakit+kk
+                const cEl = document.getElementById(cashId);
+                const kEl = document.getElementById(cardId);
+                if (cEl) cEl.textContent = fmtShortTL(cash);
+                if (kEl) kEl.textContent = fmtShortTL(card);
+            };
+            setPair('totalCashAmt', 'totalCardAmt', processedExpenses);
+            setPair('bekirCashAmt', 'bekirCardAmt', bekirList);
+            setPair('duyguCashAmt', 'duyguCardAmt', duyguList);
 
             const totalActiveDebt = (!bekirDebt.paid ? bekirDebt.amount : 0) + (!duyguDebt.paid ? duyguDebt.amount : 0);
-            document.getElementById('totalCardDebtDisplay').innerText = totalActiveDebt.toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
+            const elDebt = document.getElementById('totalCardDebtDisplay');
+            if (elDebt) elDebt.innerText = totalActiveDebt.toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
 
             const badge = document.getElementById('activePeriodBadge');
-            if (badge) badge.textContent = `Aktif dönem: ${periodInfo.label}`;
+            if (badge && periodInfo) badge.textContent = 'Aktif dönem: ' + periodInfo.label;
         }
 
         // Kart Borcu İşlemleri
