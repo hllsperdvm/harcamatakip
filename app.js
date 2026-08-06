@@ -1526,23 +1526,43 @@
             return processed;
         }
 
+        function formatDateTR(ymd) {
+            const s = String(ymd || '').slice(0, 10);
+            const p = s.split('-');
+            if (p.length !== 3) return s || '-';
+            return p[2] + '.' + p[1] + '.' + p[0];
+        }
+
+        window.toggleExpenseCard = function(el, ev) {
+            if (ev && ev.target && ev.target.closest && ev.target.closest('button')) return;
+            if (!el) return;
+            const wasOpen = el.classList.contains('is-open');
+            // tek açık kart
+            document.querySelectorAll('.expense-m-card.is-open').forEach(function(c) {
+                if (c !== el) c.classList.remove('is-open');
+            });
+            el.classList.toggle('is-open', !wasOpen);
+        };
+
         function renderTable() {
             const tbody = document.getElementById('expenseTableBody');
-            tbody.innerHTML = '';
-            
+            const cardsHost = document.getElementById('expenseCardsMobile');
+            if (tbody) tbody.innerHTML = '';
+            if (cardsHost) cardsHost.innerHTML = '';
+
             let filtered = [];
-            
+
             if (currentShowInstallments) {
                 filtered = getProcessedExpenses().filter(item => item.installmentLabel !== 'Peşin');
             } else {
                 filtered = getProcessedExpenses().map(e => ({ ...e }));
             }
-            
+
             filtered = filtered.filter(item => {
                 if (currentPersonFilter !== 'Tümü' && item.person !== currentPersonFilter) return false;
                 if (currentCategoryFilter !== 'Tümü' && item.category !== currentCategoryFilter) return false;
                 if (currentPaymentFilter !== 'Tümü' && item.paymentType !== currentPaymentFilter) return false;
-                
+
                 if (currentStartDateFilter && item.date < currentStartDateFilter) return false;
                 if (currentEndDateFilter && item.date > currentEndDateFilter) return false;
 
@@ -1576,55 +1596,120 @@
 
             const totalRecords = filtered.length;
             const displayedRecords = Math.min(displayLimit, totalRecords);
+            const slice = filtered.slice(0, displayedRecords);
 
-            filtered.slice(0, displayedRecords).forEach(item => {
-                const tr = document.createElement('tr');
-                const isIncome = item.installmentLabel === 'Gelir';
-                const isFuture = !isIncome && isFutureDateStr(item.date);
-                if (isFuture) {
-                    tr.className = 'row-future-expense';
-                    tr.title = 'İleri tarihli kayıt';
+            // --- Web tablo ---
+            if (tbody) {
+                slice.forEach(item => {
+                    const tr = document.createElement('tr');
+                    const isIncome = item.installmentLabel === 'Gelir';
+                    const isFuture = !isIncome && isFutureDateStr(item.date);
+                    if (isFuture) {
+                        tr.className = 'row-future-expense';
+                        tr.title = 'İleri tarihli kayıt';
+                    }
+                    const safeId = escapeHtml(item.id);
+                    const dateCell = isFuture
+                        ? `<td class="px-8 py-5"><span class="inline-flex items-center gap-1.5"><span class="opacity-80">${escapeHtml(item.date || '-')}</span><span class="text-[9px] font-black uppercase tracking-wide text-amber-700 bg-amber-100/80 px-1.5 py-0.5 rounded">İleri</span></span></td>`
+                        : `<td class="px-8 py-5 opacity-60">${escapeHtml(item.date || '-')}</td>`;
+                    tr.innerHTML = `
+                        ${dateCell}
+                        <td class="px-6 py-5">
+                            <span class="px-3 py-1 rounded-lg text-[10px] font-black ${item.person === 'Bekir' ? 'bg-blue-50 text-blue-600' : (item.person === 'Duygu' ? 'bg-pink-50 text-pink-600' : 'bg-emerald-50 text-emerald-600')}">
+                                ${escapeHtml((item.person || '').toUpperCase())}
+                            </span>
+                        </td>
+                        <td class="px-6 py-5"><span class="bg-slate-100 px-2 py-1 rounded text-[10px]">${escapeHtml(item.category)}${item.billSubtype ? ' · ' + escapeHtml(item.billSubtype) : ''}${item.vehicleSubtype ? ' · ' + escapeHtml(item.vehicleSubtype) : ''}</span></td>
+                        <td class="px-6 py-5 opacity-60">${escapeHtml(item.paymentType || '-')}</td>
+                        <td class="px-6 py-5">
+                            <div class="flex flex-col">
+                                <span>${escapeHtml(item.description)}</span>
+                                <span class="text-[9px] text-indigo-500 font-black tracking-tighter uppercase">${escapeHtml(item.installmentLabel)}</span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-5 text-right font-black ${isIncome ? 'text-emerald-600' : 'text-rose-600'}">
+                            ${isIncome ? '+' : '-'}${item.displayAmount.toLocaleString('tr-TR')} TL
+                        </td>
+                        <td class="px-8 py-5 text-center space-x-2">
+                            ${!isIncome && !String(item.id).includes('_ins_') ? `<button onclick="editExpense('${safeId}')" class="text-indigo-600 hover:scale-110 transition">✏️</button>` : ''}
+                            <button onclick="${isIncome ? `deleteIncome('${safeId}')` : `deleteExpense('${safeId}')`}" class="text-rose-500 hover:scale-110 transition">🗑️</button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                if (totalRecords > displayedRecords) {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td colspan="7" class="p-4 text-center">
+                            <button onclick="loadMoreRecords()" class="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-indigo-700 transition">
+                                Daha Fazla Göster (${totalRecords - displayedRecords} kayıt kaldı)
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
                 }
-                const safeId = escapeHtml(item.id);
-                const dateCell = isFuture
-                    ? `<td class="px-8 py-5"><span class="inline-flex items-center gap-1.5"><span class="opacity-80">${escapeHtml(item.date || '-')}</span><span class="text-[9px] font-black uppercase tracking-wide text-amber-700 bg-amber-100/80 px-1.5 py-0.5 rounded">İleri</span></span></td>`
-                    : `<td class="px-8 py-5 opacity-60">${escapeHtml(item.date || '-')}</td>`;
-                tr.innerHTML = `
-                    ${dateCell}
-                    <td class="px-6 py-5">
-                        <span class="px-3 py-1 rounded-lg text-[10px] font-black ${item.person === 'Bekir' ? 'bg-blue-50 text-blue-600' : (item.person === 'Duygu' ? 'bg-pink-50 text-pink-600' : 'bg-emerald-50 text-emerald-600')}">
-                            ${escapeHtml((item.person || '').toUpperCase())}
-                        </span>
-                    </td>
-                    <td class="px-6 py-5"><span class="bg-slate-100 px-2 py-1 rounded text-[10px]">${escapeHtml(item.category)}${item.billSubtype ? ' · ' + escapeHtml(item.billSubtype) : ''}${item.vehicleSubtype ? ' · ' + escapeHtml(item.vehicleSubtype) : ''}</span></td>
-                    <td class="px-6 py-5 opacity-60">${escapeHtml(item.paymentType || '-')}</td>
-                    <td class="px-6 py-5">
-                        <div class="flex flex-col">
-                            <span>${escapeHtml(item.description)}</span>
-                            <span class="text-[9px] text-indigo-500 font-black tracking-tighter uppercase">${escapeHtml(item.installmentLabel)}</span>
-                        </div>
-                    </td>
-                    <td class="px-6 py-5 text-right font-black ${isIncome ? 'text-emerald-600' : 'text-rose-600'}">
-                        ${isIncome ? '+' : '-'}${item.displayAmount.toLocaleString('tr-TR')} TL
-                    </td>
-                    <td class="px-8 py-5 text-center space-x-2">
-                        ${!isIncome && !String(item.id).includes('_ins_') ? `<button onclick="editExpense('${safeId}')" class="text-indigo-600 hover:scale-110 transition">✏️</button>` : ''}
-                        <button onclick="${isIncome ? `deleteIncome('${safeId}')` : `deleteExpense('${safeId}')`}" class="text-rose-500 hover:scale-110 transition">🗑️</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
+            }
 
-            if (totalRecords > displayedRecords) {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td colspan="7" class="p-4 text-center">
-                        <button onclick="loadMoreRecords()" class="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-indigo-700 transition">
-                            Daha Fazla Göster (${totalRecords - displayedRecords} kayıt kaldı)
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
+            // --- Mobil kartlar (varsayılan max displayLimit = 10) ---
+            if (cardsHost) {
+                if (!slice.length) {
+                    cardsHost.innerHTML = '<p class="expense-m-empty">Kayıt yok</p>';
+                } else {
+                    slice.forEach(item => {
+                        const isIncome = item.installmentLabel === 'Gelir';
+                        const isFuture = !isIncome && isFutureDateStr(item.date);
+                        const safeId = escapeHtml(String(item.id || ''));
+                        const desc = escapeHtml(item.description || item.category || 'Harcama');
+                        const amt = (isIncome ? '+' : '-') + (Number(item.displayAmount) || 0).toLocaleString('tr-TR') + ' TL';
+                        const personCls = item.person === 'Bekir' ? 'person-bekir' : (item.person === 'Duygu' ? 'person-duygu' : '');
+                        const catLine = escapeHtml(item.category || '-')
+                            + (item.billSubtype ? ' · ' + escapeHtml(item.billSubtype) : '')
+                            + (item.vehicleSubtype ? ' · ' + escapeHtml(item.vehicleSubtype) : '');
+                        const canEdit = !isIncome && !String(item.id).includes('_ins_');
+                        const delFn = isIncome ? "deleteIncome('" + safeId + "')" : "deleteExpense('" + safeId + "')";
+
+                        const card = document.createElement('div');
+                        card.className = 'expense-m-card' + (isFuture ? ' is-future' : '');
+                        card.setAttribute('role', 'button');
+                        card.onclick = function(ev) { toggleExpenseCard(card, ev); };
+                        card.innerHTML =
+                            '<div class="expense-m-main">' +
+                              '<div class="expense-m-left">' +
+                                '<p class="expense-m-desc">' + desc + '</p>' +
+                                '<p class="expense-m-date">' + escapeHtml(formatDateTR(item.date)) + '</p>' +
+                              '</div>' +
+                              '<div class="expense-m-right">' +
+                                (isFuture ? '<span class="expense-m-badge-future">İleri tarihli</span>' : '') +
+                                '<span class="expense-m-amount' + (isIncome ? ' is-income' : '') + '">' + amt + '</span>' +
+                              '</div>' +
+                            '</div>' +
+                            '<div class="expense-m-detail">' +
+                              '<div class="expense-m-chips">' +
+                                '<span class="expense-m-chip ' + personCls + '">' + escapeHtml(item.person || '-') + '</span>' +
+                                '<span class="expense-m-chip">' + catLine + '</span>' +
+                                '<span class="expense-m-chip">' + escapeHtml(item.paymentType || '-') + '</span>' +
+                                (item.installmentLabel && item.installmentLabel !== 'Peşin'
+                                  ? '<span class="expense-m-chip">' + escapeHtml(item.installmentLabel) + '</span>' : '') +
+                              '</div>' +
+                              (item.fuelNote ? '<p class="expense-m-meta">' + escapeHtml(item.fuelNote) + '</p>' : '') +
+                              '<div class="expense-m-actions">' +
+                                (canEdit
+                                  ? '<button type="button" class="expense-m-btn-edit" onclick="event.stopPropagation();editExpense(\'' + safeId + '\')">Düzenle</button>'
+                                  : '') +
+                                '<button type="button" class="expense-m-btn-del" onclick="event.stopPropagation();' + delFn + '">Sil</button>' +
+                              '</div>' +
+                            '</div>';
+                        cardsHost.appendChild(card);
+                    });
+
+                    if (totalRecords > displayedRecords) {
+                        const more = document.createElement('div');
+                        more.className = 'expense-m-more';
+                        more.innerHTML = '<button type="button" onclick="loadMoreRecords()">Daha fazla (' + (totalRecords - displayedRecords) + ')</button>';
+                        cardsHost.appendChild(more);
+                    }
+                }
             }
         }
 
