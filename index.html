@@ -67,7 +67,7 @@
             </header>
 
             <!-- Sekme Menüsü (JS ile doldurulur) -->
-            <div id="tabBar" class="flex overflow-x-auto no-scrollbar bg-slate-100/50 p-1.5 rounded-2xl mb-8 gap-1"></div>
+            <div id="tabBar" class="flex overflow-x-auto no-scrollbar bg-slate-100/50 p-1.5 rounded-2xl mb-8 gap-1 justify-start sm:justify-center"></div>
 
             <!-- SEKME 1: BÜTÇE TAKİP -->
             <div id="tabContentExpense" class="space-y-8 fade-in">
@@ -178,11 +178,11 @@
 
                 <!-- Bütçe analizi: Yerel + AI -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div class="bg-gradient-to-br from-indigo-50 to-slate-50 rounded-[2rem] card-shadow border border-indigo-100 p-5 sm:p-6">
+                    <div class="advisor-card advisor-card-local bg-gradient-to-br from-indigo-50 to-slate-50 rounded-[2rem] card-shadow border border-indigo-100 p-5 sm:p-6">
                         <div class="flex items-start justify-between gap-3 mb-3">
                             <div>
-                                <h2 class="text-base font-black text-slate-900">📊 Yerel analiz</h2>
-                                <p class="text-[11px] text-slate-500 font-semibold mt-0.5">Anında · dönem, kategori, kişi, fatura, araç</p>
+                                <h2 class="advisor-title text-base font-black text-slate-900">📊 Yerel analiz</h2>
+                                <p class="advisor-sub text-[11px] text-slate-600 font-semibold mt-0.5">Anında · dönem, kategori, kişi, fatura, araç</p>
                             </div>
                             <button type="button" id="localAdvisorBtn" onclick="runLocalAdvisor()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl shrink-0">Analiz et</button>
                         </div>
@@ -190,11 +190,11 @@
                             <p class="text-sm text-slate-400 font-medium">Detaylı yerel özet için «Analiz et».</p>
                         </div>
                     </div>
-                    <div class="bg-gradient-to-br from-violet-50 to-indigo-50 rounded-[2rem] card-shadow border border-violet-100 p-5 sm:p-6">
+                    <div class="advisor-card advisor-card-ai bg-gradient-to-br from-violet-50 to-indigo-50 rounded-[2rem] card-shadow border border-violet-100 p-5 sm:p-6">
                         <div class="flex items-start justify-between gap-3 mb-3">
                             <div>
-                                <h2 class="text-base font-black text-slate-900">🤖 AI analiz</h2>
-                                <p class="text-[11px] text-slate-500 font-semibold mt-0.5">OpenRouter · tıklayınca çalışır</p>
+                                <h2 class="advisor-title text-base font-black text-slate-900">🤖 AI analiz</h2>
+                                <p class="advisor-sub text-[11px] text-slate-600 font-semibold mt-0.5">OpenRouter · tıklayınca çalışır</p>
                             </div>
                             <button type="button" id="aiAdvisorBtn" onclick="runAiAdvisor()" class="bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold px-4 py-2 rounded-xl shrink-0">AI Analiz</button>
                         </div>
@@ -591,11 +591,13 @@
                             </div>
                             <span class="text-slate-300 text-lg">▾</span>
                         </button>
-                        <div id="adminPanel_theme" class="hidden border-t border-slate-100 p-6">
+                        <div id="adminPanel_theme" class="hidden border-t border-slate-100 p-6 space-y-3">
+                            <p class="text-[11px] text-slate-500 font-semibold">Ocean Breeze · açık ve koyu tercih <b>cihazına özel</b>dir (mobil ≠ web).</p>
                             <div class="flex gap-3">
-                                <button type="button" onclick="setAppTheme('light')" id="themeBtnLight" class="flex-1 py-3 rounded-xl font-bold border-2 border-indigo-600 bg-indigo-50 text-indigo-700">☀️ Açık</button>
+                                <button type="button" onclick="setAppTheme('light')" id="themeBtnLight" class="flex-1 py-3 rounded-xl font-bold border-2 border-sky-500 bg-sky-50 text-sky-800">☀️ Açık</button>
                                 <button type="button" onclick="setAppTheme('dark')" id="themeBtnDark" class="flex-1 py-3 rounded-xl font-bold border-2 border-transparent bg-slate-100 text-slate-600">🌙 Koyu</button>
                             </div>
+                            <p id="themeDeviceHint" class="text-[10px] text-sky-700 font-bold"></p>
                         </div>
                     </div>
 

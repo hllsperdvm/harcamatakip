@@ -255,7 +255,7 @@
                 const active = t.id === activeId;
                 const cls = active
                     ? 'tab-active'
-                    : 'text-slate-500 hover:bg-white hover:text-slate-900';
+                    : 'tab-inactive hover:bg-white/80';
                 return `<button type="button" data-tab-id="${escapeHtml(t.id)}" title="${escapeHtml(t.label)}" onclick="switchTab('${escapeHtml(t.id)}')" class="${cls} flex items-center gap-1.5 font-bold rounded-xl transition"><span class="shrink-0">${escapeHtml(t.emoji || '📌')}</span><span class="truncate">${escapeHtml(t.label)}</span></button>`;
             }).join('');
         };
@@ -462,9 +462,7 @@
                 bar.querySelectorAll('button[data-tab-id]').forEach(btn => {
                     const active = btn.getAttribute('data-tab-id') === tabName;
                     btn.classList.toggle('tab-active', active);
-                    btn.classList.toggle('text-slate-500', !active);
-                    btn.classList.toggle('hover:bg-white', !active);
-                    btn.classList.toggle('hover:text-slate-900', !active);
+                    btn.classList.toggle('tab-inactive', !active);
                 });
             }
 
@@ -704,7 +702,15 @@
             db.collection("settings").doc("uiPrefs").onSnapshot(d => {
                 if (d.exists && d.data()) {
                     const u = d.data();
-                    if (u.theme === 'dark' || u.theme === 'light') setAppTheme(u.theme);
+                    // Tema: sadece bu cihaz türüne ait alan (mobil/web ayrı)
+                    const kind = getThemeDeviceKind();
+                    const remoteTheme = kind === 'mobile' ? (u.themeMobile || u.theme) : (u.themeDesktop || u.theme);
+                    // Yerel kayıt öncelikli; yoksa uzak
+                    let localT = null;
+                    try { localT = localStorage.getItem(themeStorageKey()); } catch (_) {}
+                    if (!localT && (remoteTheme === 'dark' || remoteTheme === 'light')) {
+                        setAppTheme(remoteTheme, { skipRemote: true });
+                    }
                     if (u.dashboardCards && typeof u.dashboardCards === 'object') {
                         dashboardCards = Object.assign(dashboardCards, u.dashboardCards);
                         applyDashboardCards();
@@ -3922,34 +3928,81 @@
             if (e) e.value = (periodConfig && periodConfig.endDay) || 28;
         }
 
-        window.setAppTheme = function(theme) {
+        function getThemeDeviceKind() {
+            try {
+                return window.matchMedia('(max-width: 768px)').matches ? 'mobile' : 'desktop';
+            } catch (_) {
+                return 'desktop';
+            }
+        }
+
+        function themeStorageKey() {
+            return 'yuvam_theme_' + getThemeDeviceKind();
+        }
+
+        window.setAppTheme = function(theme, opts) {
+            opts = opts || {};
             appTheme = theme === 'dark' ? 'dark' : 'light';
             document.documentElement.classList.toggle('theme-dark', appTheme === 'dark');
-            try { localStorage.setItem('yuvam_theme', appTheme); } catch (_) {}
+            document.documentElement.classList.add('theme-ocean');
+            // Sadece bu cihaz türüne kaydet (mobil ≠ web)
+            try {
+                localStorage.setItem(themeStorageKey(), appTheme);
+            } catch (_) {}
             const bl = document.getElementById('themeBtnLight');
             const bd = document.getElementById('themeBtnDark');
+            const device = getThemeDeviceKind();
             if (bl) {
                 bl.className = appTheme === 'light'
-                    ? 'flex-1 py-3 rounded-xl font-bold border-2 border-indigo-600 bg-indigo-50 text-indigo-700'
+                    ? 'flex-1 py-3 rounded-xl font-bold border-2 border-sky-500 bg-sky-50 text-sky-800'
                     : 'flex-1 py-3 rounded-xl font-bold border-2 border-transparent bg-slate-100 text-slate-600';
             }
             if (bd) {
                 bd.className = appTheme === 'dark'
-                    ? 'flex-1 py-3 rounded-xl font-bold border-2 border-indigo-600 bg-indigo-50 text-indigo-700'
+                    ? 'flex-1 py-3 rounded-xl font-bold border-2 border-sky-500 bg-sky-50 text-sky-800'
                     : 'flex-1 py-3 rounded-xl font-bold border-2 border-transparent bg-slate-100 text-slate-600';
             }
-            // Firebase'e de yaz (opsiyonel, admin)
-            if (isAdmin()) {
-                db.collection('settings').doc('uiPrefs').set({ theme: appTheme }, { merge: true }).catch(function() {});
+            const hint = document.getElementById('themeDeviceHint');
+            if (hint) {
+                hint.textContent = device === 'mobile'
+                    ? 'Bu tercih yalnızca mobilde geçerli'
+                    : 'Bu tercih yalnızca web / geniş ekranda geçerli';
+            }
+            // Firebase'e cihaz bazlı yaz (diğer cihazın temasını ezme)
+            if (!opts.skipRemote && typeof isAdmin === 'function' && isAdmin() && typeof db !== 'undefined') {
+                const patch = {};
+                patch[device === 'mobile' ? 'themeMobile' : 'themeDesktop'] = appTheme;
+                db.collection('settings').doc('uiPrefs').set(patch, { merge: true }).catch(function() {});
             }
         };
 
         function loadThemeFromStorage() {
             try {
-                const t = localStorage.getItem('yuvam_theme');
-                if (t === 'dark' || t === 'light') setAppTheme(t);
-            } catch (_) {}
+                let t = localStorage.getItem(themeStorageKey());
+                // eski tek anahtar → ilgili cihaza taşı
+                if (!t) {
+                    const legacy = localStorage.getItem('yuvam_theme');
+                    if (legacy === 'dark' || legacy === 'light') t = legacy;
+                }
+                if (t === 'dark' || t === 'light') setAppTheme(t, { skipRemote: true });
+                else {
+                    document.documentElement.classList.add('theme-ocean');
+                    appTheme = 'light';
+                }
+            } catch (_) {
+                document.documentElement.classList.add('theme-ocean');
+            }
         }
+
+        // Ekran boyutu değişince (telefon yatay / masaüstü) o cihazın kaydını yükle
+        (function bindThemeMedia() {
+            try {
+                const mq = window.matchMedia('(max-width: 768px)');
+                const onChange = function() { loadThemeFromStorage(); };
+                if (mq.addEventListener) mq.addEventListener('change', onChange);
+                else if (mq.addListener) mq.addListener(onChange);
+            } catch (_) {}
+        })();
 
         window.saveDashboardCards = async function() {
             dashboardCards = {

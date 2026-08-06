@@ -1,5 +1,87 @@
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
-        .tab-active { color: #4f46e5; border-bottom: 2px solid #4f46e5; background: #eef2ff; }
+/* ===== Ocean Breeze (açık tema markası) ===== */
+:root {
+  --yuvam-bg: #f0f9ff;
+  --yuvam-bg-soft: #e0f2fe;
+  --yuvam-primary: #0284c7;
+  --yuvam-primary-dark: #0369a1;
+  --yuvam-primary-soft: #e0f2fe;
+  --yuvam-accent: #0ea5e9;
+  --yuvam-card: #ffffff;
+  --yuvam-text: #0c4a6e;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: var(--yuvam-bg) !important;
+  background-image: linear-gradient(180deg, #e0f2fe 0%, #f0f9ff 40%, #f8fafc 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+.tab-active {
+  color: var(--yuvam-primary) !important;
+  border-bottom: 2px solid var(--yuvam-primary) !important;
+  background: var(--yuvam-primary-soft) !important;
+}
+
+.card-shadow {
+  box-shadow: 0 4px 20px -2px rgba(3, 105, 161, 0.08);
+}
+
+/* Tailwind indigo → Ocean */
+.bg-indigo-600 { background-color: var(--yuvam-primary) !important; }
+.bg-indigo-700 { background-color: var(--yuvam-primary-dark) !important; }
+.hover\:bg-indigo-600:hover { background-color: var(--yuvam-primary) !important; }
+.hover\:bg-indigo-700:hover { background-color: var(--yuvam-primary-dark) !important; }
+.bg-indigo-50 { background-color: var(--yuvam-primary-soft) !important; }
+.bg-indigo-100 { background-color: #bae6fd !important; }
+.text-indigo-600, .text-indigo-700 { color: var(--yuvam-primary) !important; }
+.text-indigo-500 { color: var(--yuvam-accent) !important; }
+.border-indigo-100, .border-indigo-200 { border-color: #bae6fd !important; }
+.border-indigo-600 { border-color: var(--yuvam-primary) !important; }
+.ring-indigo-500:focus, .focus\:ring-indigo-500:focus { --tw-ring-color: var(--yuvam-accent) !important; }
+.shadow-indigo-100 { --tw-shadow-color: rgba(14, 165, 233, 0.25) !important; }
+.shadow-indigo-200 { --tw-shadow-color: rgba(2, 132, 199, 0.3) !important; }
+.from-indigo-50 { --tw-gradient-from: #e0f2fe !important; }
+.to-indigo-50 { --tw-gradient-to: #e0f2fe !important; }
+.from-violet-50 { --tw-gradient-from: #e0f2fe !important; }
+.to-slate-50 { --tw-gradient-to: #f0f9ff !important; }
+.bg-slate-900 { background-color: #0c4a6e !important; }
+.hover\:bg-slate-800:hover { background-color: #075985 !important; }
+
+.toast-info { background: var(--yuvam-primary) !important; }
+.expense-m-btn-edit { background: var(--yuvam-primary-soft) !important; color: var(--yuvam-primary) !important; }
+.expense-m-more button { background: var(--yuvam-primary) !important; }
+
+#activePeriodBadge {
+  background: var(--yuvam-primary-soft) !important;
+  color: var(--yuvam-primary-dark) !important;
+  border-color: #7dd3fc !important;
+}
+
+/* Koyu tema — derin okyanus (cihaz bazlı ayrı saklanır) */
+html.theme-dark {
+  --yuvam-bg: #0c1929;
+  --yuvam-primary: #38bdf8;
+  --yuvam-primary-dark: #0ea5e9;
+  --yuvam-primary-soft: #0c4a6e;
+}
+html.theme-dark body {
+  background-color: #0c1929 !important;
+  background-image: linear-gradient(180deg, #0c1929 0%, #0f172a 50%, #082f49 100%) !important;
+  color: #e0f2fe !important;
+}
+html.theme-dark .bg-white { background-color: #132337 !important; }
+html.theme-dark .bg-slate-50, html.theme-dark .bg-slate-50\/50 { background-color: #0c1929 !important; }
+html.theme-dark .bg-slate-100, html.theme-dark .bg-slate-100\/50 { background-color: #132337 !important; }
+html.theme-dark .tab-active {
+  background: #0c4a6e !important;
+  color: #7dd3fc !important;
+  border-bottom-color: #38bdf8 !important;
+}
+html.theme-dark .bg-indigo-600 { background-color: #0284c7 !important; }
+html.theme-dark .bg-indigo-50 { background-color: #0c4a6e !important; }
+html.theme-dark .text-indigo-600, html.theme-dark .text-indigo-700 { color: #7dd3fc !important; }
         .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.3); }
         .card-shadow { box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05); }
         /* Mobil uyum için scroll gizleme */
@@ -430,4 +512,118 @@ html.theme-dark #bekirCardAmt,
 html.theme-dark #duyguCashAmt,
 html.theme-dark #duyguCardAmt {
   color: #cbd5e1 !important;
+}
+
+
+
+/* ===== Sekme çubuğu: web ortalı + daha okunaklı ===== */
+#tabBar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 0.35rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.4rem;
+  background: rgba(224, 242, 254, 0.85) !important;
+  border: 1px solid #bae6fd;
+}
+#tabBar button[data-tab-id] {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1.25;
+  padding: 0.55rem 0.85rem;
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#tabBar button.tab-inactive {
+  color: #0c4a6e !important;
+  opacity: 1;
+}
+#tabBar button.tab-inactive:hover {
+  background: rgba(255,255,255,0.9) !important;
+  color: #0369a1 !important;
+}
+#tabBar button.tab-active {
+  color: #fff !important;
+  background: var(--yuvam-primary, #0284c7) !important;
+  border-bottom: none !important;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+}
+
+@media (min-width: 640px) {
+  #tabBar {
+    justify-content: center;
+    width: fit-content;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  #tabBar button[data-tab-id] {
+    font-size: 0.95rem;
+    padding: 0.7rem 1.15rem;
+    max-width: none;
+  }
+}
+@media (min-width: 1024px) {
+  #tabBar button[data-tab-id] {
+    font-size: 1.02rem;
+    padding: 0.75rem 1.25rem;
+  }
+}
+
+html.theme-dark #tabBar {
+  background: #132337 !important;
+  border-color: #1e3a5f !important;
+}
+html.theme-dark #tabBar button.tab-inactive {
+  color: #bae6fd !important;
+}
+html.theme-dark #tabBar button.tab-inactive:hover {
+  background: #1e3a5f !important;
+  color: #e0f2fe !important;
+}
+html.theme-dark #tabBar button.tab-active {
+  background: #0284c7 !important;
+  color: #fff !important;
+}
+
+/* ===== Analiz başlıkları: koyu modda net ===== */
+.advisor-title {
+  color: #0c4a6e !important;
+}
+.advisor-sub {
+  color: #0369a1 !important;
+}
+html.theme-dark .advisor-card {
+  background: #132337 !important;
+  border-color: #1e3a5f !important;
+}
+html.theme-dark .advisor-card-local {
+  background: linear-gradient(145deg, #0c4a6e 0%, #132337 70%) !important;
+  border-color: #0284c7 !important;
+}
+html.theme-dark .advisor-card-ai {
+  background: linear-gradient(145deg, #1e1b4b 0%, #132337 70%) !important;
+  border-color: #7c3aed !important;
+}
+html.theme-dark .advisor-title {
+  color: #f0f9ff !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+}
+html.theme-dark .advisor-sub {
+  color: #7dd3fc !important;
+}
+html.theme-dark #localAdvisorResult,
+html.theme-dark #aiAdvisorResult {
+  background: rgba(12, 25, 41, 0.85) !important;
+  border-color: #1e3a5f !important;
+  color: #e0f2fe !important;
+}
+html.theme-dark #localAdvisorResult p,
+html.theme-dark #aiAdvisorResult p {
+  color: #bae6fd !important;
 }
