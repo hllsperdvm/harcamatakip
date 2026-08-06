@@ -1489,9 +1489,11 @@
             
             try {
                 if (id) {
+                    data.updatedAt = new Date().toISOString();
                     await db.collection("expenses").doc(id).update(data);
                 } else {
                     data.createdAt = new Date().toISOString();
+                    data.updatedAt = data.createdAt;
                     await db.collection("expenses").add(data);
                 }
                 
@@ -1669,6 +1671,33 @@
             el.classList.toggle('is-open', !wasOpen);
         };
 
+
+        function expenseTimeKey(item) {
+            if (!item) return '';
+            const c = item.createdAt;
+            if (c != null && c !== '') {
+                if (typeof c === 'string') {
+                    // ISO veya benzeri
+                    return c;
+                }
+                if (typeof c.toDate === 'function') {
+                    try { return c.toDate().toISOString(); } catch (_) {}
+                }
+                if (typeof c === 'object' && c.seconds != null) {
+                    return new Date(Number(c.seconds) * 1000 + Math.floor(Number(c.nanoseconds || 0) / 1e6)).toISOString();
+                }
+                if (c instanceof Date && !isNaN(c.getTime())) return c.toISOString();
+            }
+            // updatedAt yedek
+            const u = item.updatedAt;
+            if (typeof u === 'string' && u) return u;
+            if (u && typeof u.toDate === 'function') {
+                try { return u.toDate().toISOString(); } catch (_) {}
+            }
+            // Firestore auto-id kabaca zaman sıralı
+            return String(item.id || '');
+        }
+
         function renderTable() {
             const tbody = document.getElementById('expenseTableBody');
             const cardsHost = document.getElementById('expenseCardsMobile');
@@ -1710,12 +1739,19 @@
                     if (dA !== dB) {
                         return sortDirection === 'asc' ? (dA > dB ? 1 : -1) : (dA < dB ? 1 : -1);
                     }
-                    const tA = String(a.createdAt || a.id || '');
-                    const tB = String(b.createdAt || b.id || '');
-                    return sortDirection === 'asc' ? (tA > tB ? 1 : -1) : (tA < tB ? 1 : -1);
+                    // Aynı gün: her zaman en son eklenen üstte (saat / createdAt)
+                    const tA = expenseTimeKey(a);
+                    const tB = expenseTimeKey(b);
+                    if (tA !== tB) return tA < tB ? 1 : -1;
+                    return String(b.id || '').localeCompare(String(a.id || ''));
                 }
                 let vA = a[sortColumn], vB = b[sortColumn];
                 if (sortColumn === 'amount') { vA = a.displayAmount; vB = b.displayAmount; }
+                if (vA === vB) {
+                    const tA = expenseTimeKey(a);
+                    const tB = expenseTimeKey(b);
+                    if (tA !== tB) return tA < tB ? 1 : -1;
+                }
                 return sortDirection === 'asc' ? (vA > vB ? 1 : -1) : (vA < vB ? 1 : -1);
             });
 
@@ -4400,7 +4436,7 @@
         };
         window.sortTable = (col) => {
             if (sortColumn === col) sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-            else { sortColumn = col; sortDirection = 'asc'; }
+            else { sortColumn = col; sortDirection = (col === 'date' || col === 'amount') ? 'desc' : 'asc'; }
             renderTable();
         };
 
