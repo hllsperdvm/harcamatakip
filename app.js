@@ -216,6 +216,26 @@
             showToast('Hoş geldin, ' + currentUser.name, 'success');
         }
 
+        window.toggleMobilePreview = function() {
+            const on = document.documentElement.classList.toggle('force-mobile-preview');
+            try { localStorage.setItem('yuvam_force_mobile', on ? '1' : '0'); } catch (_) {}
+            const lab = document.getElementById('mobilePreviewBtnLabel');
+            if (lab) lab.textContent = on ? '💻 Web' : '📱 Mobil';
+            // kart/tabloyu yenile
+            try { renderTable(); } catch (_) {}
+            showToast(on ? 'Mobil önizleme açık' : 'Web görünümü', 'info');
+        };
+
+        (function restoreMobilePreviewFlag() {
+            try {
+                if (localStorage.getItem('yuvam_force_mobile') === '1') {
+                    document.documentElement.classList.add('force-mobile-preview');
+                    const lab = document.getElementById('mobilePreviewBtnLabel');
+                    if (lab) lab.textContent = '💻 Web';
+                }
+            } catch (_) {}
+        })();
+
         window.logout = function() {
             const name = currentUser ? currentUser.name : 'Sistem';
             try { logActivity('Çıkış', 'Oturum kapatıldı', name + ' çıkış yaptı', name); } catch (_) {}
@@ -1838,62 +1858,106 @@
                 }
             }
 
-            // --- Mobil kartlar (varsayılan max displayLimit = 10) ---
+            // --- Mobil kartlar: ileri tarihli (açılır) + normal (max displayLimit) ---
             if (cardsHost) {
-                if (!slice.length) {
+                const isIncomeItem = function(item) { return item.installmentLabel === 'Gelir'; };
+                const futures = filtered.filter(function(item) {
+                    return !isIncomeItem(item) && isFutureDateStr(item.date);
+                });
+                // Normal listeden ileri tarihlileri ayır; limit normal kayıtlara uygulanır
+                const normalsAll = filtered.filter(function(item) {
+                    return isIncomeItem(item) || !isFutureDateStr(item.date);
+                });
+                const normalDisplayed = Math.min(displayLimit, normalsAll.length);
+                const normals = normalsAll.slice(0, normalDisplayed);
+
+                function buildMobileCard(item) {
+                    const isIncome = isIncomeItem(item);
+                    const isFuture = !isIncome && isFutureDateStr(item.date);
+                    const safeId = escapeHtml(String(item.id || ''));
+                    const desc = escapeHtml(item.description || item.category || 'Harcama');
+                    const amt = (isIncome ? '+' : '-') + (Number(item.displayAmount) || 0).toLocaleString('tr-TR') + ' TL';
+                    const personCls = item.person === 'Bekir' ? 'person-bekir' : (item.person === 'Duygu' ? 'person-duygu' : '');
+                    const catLine = escapeHtml(item.category || '-')
+                        + (item.billSubtype ? ' · ' + escapeHtml(item.billSubtype) : '')
+                        + (item.vehicleSubtype ? ' · ' + escapeHtml(item.vehicleSubtype) : '');
+                    const canEdit = !isIncome && !String(item.id).includes('_ins_');
+                    const delFn = isIncome ? "deleteIncome('" + safeId + "')" : "deleteExpense('" + safeId + "')";
+
+                    const card = document.createElement('div');
+                    card.className = 'expense-m-card' + (isFuture ? ' is-future' : '');
+                    card.setAttribute('role', 'button');
+                    card.onclick = function(ev) { toggleExpenseCard(card, ev); };
+                    card.innerHTML =
+                        '<div class="expense-m-main">' +
+                          '<div class="expense-m-left">' +
+                            '<p class="expense-m-desc">' + desc + '</p>' +
+                            '<p class="expense-m-date">' + escapeHtml(formatDateTR(item.date)) + '</p>' +
+                          '</div>' +
+                          '<div class="expense-m-right">' +
+                            (isFuture ? '<span class="expense-m-badge-future">İleri tarihli</span>' : '') +
+                            '<span class="expense-m-amount' + (isIncome ? ' is-income' : '') + '">' + amt + '</span>' +
+                          '</div>' +
+                        '</div>' +
+                        '<div class="expense-m-detail">' +
+                          '<div class="expense-m-chips">' +
+                            '<span class="expense-m-chip ' + personCls + '">' + escapeHtml(item.person || '-') + '</span>' +
+                            '<span class="expense-m-chip">' + catLine + '</span>' +
+                            '<span class="expense-m-chip">' + escapeHtml(item.paymentType || '-') + '</span>' +
+                            (item.installmentLabel && item.installmentLabel !== 'Peşin'
+                              ? '<span class="expense-m-chip">' + escapeHtml(item.installmentLabel) + '</span>' : '') +
+                          '</div>' +
+                          (item.fuelNote ? '<p class="expense-m-meta">' + escapeHtml(item.fuelNote) + '</p>' : '') +
+                          '<div class="expense-m-actions">' +
+                            (canEdit
+                              ? '<button type="button" class="expense-m-btn-edit" onclick="event.stopPropagation();editExpense(\'' + safeId + '\')">Düzenle</button>'
+                              : '') +
+                            '<button type="button" class="expense-m-btn-del" onclick="event.stopPropagation();' + delFn + '">Sil</button>' +
+                          '</div>' +
+                        '</div>';
+                    return card;
+                }
+
+                cardsHost.innerHTML = '';
+
+                // İleri tarihli bölüm (üstte, kapalı)
+                if (futures.length) {
+                    // futures: yakın tarihe göre sırala (artan tarih)
+                    futures.sort(function(a, b) {
+                        const d = String(a.date || '').localeCompare(String(b.date || ''));
+                        if (d !== 0) return d;
+                        return expenseTimeKey(b).localeCompare(expenseTimeKey(a));
+                    });
+                    const wrap = document.createElement('div');
+                    wrap.className = 'expense-future-section';
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'expense-future-toggle';
+                    btn.innerHTML = '<span>İleri tarihli (' + futures.length + ')</span><span class="chev">▼</span>';
+                    const list = document.createElement('div');
+                    list.className = 'expense-future-list';
+                    list.id = 'expenseFutureList';
+                    futures.forEach(function(item) { list.appendChild(buildMobileCard(item)); });
+                    btn.onclick = function(ev) {
+                        ev.stopPropagation();
+                        const open = list.classList.toggle('is-open');
+                        btn.classList.toggle('is-open', open);
+                    };
+                    wrap.appendChild(btn);
+                    wrap.appendChild(list);
+                    cardsHost.appendChild(wrap);
+                }
+
+                if (!normals.length && !futures.length) {
                     cardsHost.innerHTML = '<p class="expense-m-empty">Kayıt yok</p>';
                 } else {
-                    slice.forEach(item => {
-                        const isIncome = item.installmentLabel === 'Gelir';
-                        const isFuture = !isIncome && isFutureDateStr(item.date);
-                        const safeId = escapeHtml(String(item.id || ''));
-                        const desc = escapeHtml(item.description || item.category || 'Harcama');
-                        const amt = (isIncome ? '+' : '-') + (Number(item.displayAmount) || 0).toLocaleString('tr-TR') + ' TL';
-                        const personCls = item.person === 'Bekir' ? 'person-bekir' : (item.person === 'Duygu' ? 'person-duygu' : '');
-                        const catLine = escapeHtml(item.category || '-')
-                            + (item.billSubtype ? ' · ' + escapeHtml(item.billSubtype) : '')
-                            + (item.vehicleSubtype ? ' · ' + escapeHtml(item.vehicleSubtype) : '');
-                        const canEdit = !isIncome && !String(item.id).includes('_ins_');
-                        const delFn = isIncome ? "deleteIncome('" + safeId + "')" : "deleteExpense('" + safeId + "')";
-
-                        const card = document.createElement('div');
-                        card.className = 'expense-m-card' + (isFuture ? ' is-future' : '');
-                        card.setAttribute('role', 'button');
-                        card.onclick = function(ev) { toggleExpenseCard(card, ev); };
-                        card.innerHTML =
-                            '<div class="expense-m-main">' +
-                              '<div class="expense-m-left">' +
-                                '<p class="expense-m-desc">' + desc + '</p>' +
-                                '<p class="expense-m-date">' + escapeHtml(formatDateTR(item.date)) + '</p>' +
-                              '</div>' +
-                              '<div class="expense-m-right">' +
-                                (isFuture ? '<span class="expense-m-badge-future">İleri tarihli</span>' : '') +
-                                '<span class="expense-m-amount' + (isIncome ? ' is-income' : '') + '">' + amt + '</span>' +
-                              '</div>' +
-                            '</div>' +
-                            '<div class="expense-m-detail">' +
-                              '<div class="expense-m-chips">' +
-                                '<span class="expense-m-chip ' + personCls + '">' + escapeHtml(item.person || '-') + '</span>' +
-                                '<span class="expense-m-chip">' + catLine + '</span>' +
-                                '<span class="expense-m-chip">' + escapeHtml(item.paymentType || '-') + '</span>' +
-                                (item.installmentLabel && item.installmentLabel !== 'Peşin'
-                                  ? '<span class="expense-m-chip">' + escapeHtml(item.installmentLabel) + '</span>' : '') +
-                              '</div>' +
-                              (item.fuelNote ? '<p class="expense-m-meta">' + escapeHtml(item.fuelNote) + '</p>' : '') +
-                              '<div class="expense-m-actions">' +
-                                (canEdit
-                                  ? '<button type="button" class="expense-m-btn-edit" onclick="event.stopPropagation();editExpense(\'' + safeId + '\')">Düzenle</button>'
-                                  : '') +
-                                '<button type="button" class="expense-m-btn-del" onclick="event.stopPropagation();' + delFn + '">Sil</button>' +
-                              '</div>' +
-                            '</div>';
-                        cardsHost.appendChild(card);
+                    normals.forEach(function(item) {
+                        cardsHost.appendChild(buildMobileCard(item));
                     });
-
-                    if (totalRecords > displayedRecords) {
+                    if (normalsAll.length > normalDisplayed) {
                         const more = document.createElement('div');
                         more.className = 'expense-m-more';
-                        more.innerHTML = '<button type="button" onclick="loadMoreRecords()">Daha fazla (' + (totalRecords - displayedRecords) + ')</button>';
+                        more.innerHTML = '<button type="button" onclick="loadMoreRecords()">Daha fazla göster (' + (normalsAll.length - normalDisplayed) + ')</button>';
                         cardsHost.appendChild(more);
                     }
                 }

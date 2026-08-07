@@ -63,6 +63,10 @@
                 
                 <div class="flex items-center gap-2 flex-wrap justify-end">
                     <span id="loggedInUserLabel" class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-2 rounded-xl"></span>
+                    <button type="button" id="mobilePreviewBtn" onclick="toggleMobilePreview()" title="Mobil / web görünümü"
+                        class="hidden sm:inline-flex items-center gap-1.5 bg-white border border-sky-200 text-sky-700 px-3 py-2.5 rounded-xl text-sm font-bold transition hover:bg-sky-50 shadow-sm">
+                        <span id="mobilePreviewBtnLabel">📱 Mobil</span>
+                    </button>
                     <button onclick="logout()" class="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl text-sm font-bold transition hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 shadow-sm">Çıkış</button>
                 </div>
             </header>
@@ -265,8 +269,10 @@
                         </div>
                     </div>
 
-                    <!-- Mobil: kart listesi -->
-                    <div id="expenseCardsMobile" class="expense-cards-mobile p-4 sm:p-5 space-y-2.5"></div>
+                    <!-- Mobil: kaydırılabilir kart listesi -->
+                    <div id="expenseCardsScroll" class="expense-cards-mobile expense-history-scroll">
+                        <div id="expenseCardsMobile" class="p-3 sm:p-4 space-y-2.5"></div>
+                    </div>
 
                     <!-- Web: tablo -->
                     <div class="overflow-x-auto table-scroll-hint expense-table-desktop">
