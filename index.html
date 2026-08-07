@@ -61,8 +61,24 @@
                     </div>
                 </div>
                 
-                <div class="flex items-center gap-2 flex-wrap justify-end">
+                <div class="flex items-center gap-2 flex-wrap justify-end relative">
                     <span id="loggedInUserLabel" class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-2 rounded-xl"></span>
+                    <div class="relative">
+                        <button type="button" id="notifBtn" onclick="toggleNotifPanel(event)" title="Bildirimler"
+                            class="relative bg-white border border-slate-200 text-slate-700 w-10 h-10 rounded-xl text-lg font-bold transition hover:bg-amber-50 hover:border-amber-200 shadow-sm flex items-center justify-center">
+                            🔔
+                            <span id="notifBadge" class="hidden absolute -top-1 -right-1 min-w-[1.15rem] h-5 px-1 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center">0</span>
+                        </button>
+                        <div id="notifPanel" class="hidden absolute right-0 mt-2 w-[min(92vw,22rem)] z-50 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
+                            <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-2">
+                                <p class="text-sm font-black text-slate-800">Bildirimler</p>
+                                <button type="button" onclick="closeNotifPanel()" class="text-xs font-bold text-slate-400 hover:text-slate-600">Kapat</button>
+                            </div>
+                            <div id="notifPanelBody" class="max-h-80 overflow-y-auto p-2 space-y-1.5">
+                                <p class="text-xs text-slate-400 font-semibold p-3 text-center">Kontrol ediliyor…</p>
+                            </div>
+                        </div>
+                    </div>
                     <button type="button" id="mobilePreviewBtn" onclick="toggleMobilePreview()" title="Mobil / web görünümü"
                         class="hidden sm:inline-flex items-center gap-1.5 bg-white border border-sky-200 text-sky-700 px-3 py-2.5 rounded-xl text-sm font-bold transition hover:bg-sky-50 shadow-sm">
                         <span id="mobilePreviewBtnLabel">📱 Mobil</span>
@@ -1043,6 +1059,17 @@
         </div>
     </div>
 
+
+    <!-- Tüm bildirimler modal -->
+    <div id="notifAllModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[130] p-4">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-2">
+                <h2 class="text-lg font-black text-slate-900">Tüm bildirimler</h2>
+                <button type="button" onclick="closeNotifAllModal()" class="w-9 h-9 rounded-full bg-slate-100 font-bold text-slate-500">&times;</button>
+            </div>
+            <div id="notifAllBody" class="p-3 overflow-y-auto space-y-1.5 flex-1"></div>
+        </div>
+    </div>
 
     <!-- Kredi Kartı Borç Giriş Modal -->
     <div id="cardDebtModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">

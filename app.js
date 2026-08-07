@@ -214,7 +214,246 @@
             logActivity('Giriş', 'Oturum açıldı', currentUser.role === 'admin' ? 'Admin girişi' : 'Kullanıcı girişi');
             if (typeof maybeShowOnboarding === 'function') maybeShowOnboarding();
             showToast('Hoş geldin, ' + currentUser.name, 'success');
+            if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
         }
+
+
+        // ========== BİLDİRİMLER (site içi) ==========
+        function daysUntilYMD(ymd) {
+            const d = parseYMD(ymd);
+            if (!d) return null;
+            const t = parseYMD(todayDateStr());
+            if (!t) return null;
+            const ms = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(t.getFullYear(), t.getMonth(), t.getDate());
+            return Math.round(ms / 86400000);
+        }
+
+        function getNotifSeenKeys() {
+            try {
+                return new Set(JSON.parse(localStorage.getItem('yuvam_notif_seen') || '[]'));
+            } catch (_) {
+                return new Set();
+            }
+        }
+
+        function markNotifsSeen(items) {
+            try {
+                const keys = (items || []).map(function(n) { return n.key; });
+                localStorage.setItem('yuvam_notif_seen', JSON.stringify(keys));
+            } catch (_) {}
+        }
+
+        function collectAppNotifications() {
+            const items = [];
+            const today = todayDateStr();
+            const seen = new Set();
+            const startDay = Number((periodConfig && periodConfig.startDay) || 29);
+
+            function pushNotif(key, sev, icon, title, msg) {
+                if (seen.has(key)) return;
+                seen.add(key);
+                items.push({ key: key, severity: sev, icon: icon, title: title, message: msg });
+            }
+
+            // Dönem başlangıç günü (varsayılan 29): kart borcu girilmediyse
+            try {
+                const now = new Date();
+                if (now.getDate() === startDay) {
+                    [['Bekir', bekirDebt], ['Duygu', duyguDebt]].forEach(function(pair) {
+                        const name = pair[0];
+                        const debt = pair[1];
+                        const hasActive = debt && !debt.paid && Number(debt.amount) > 0;
+                        if (!hasActive) {
+                            pushNotif('kk-enter-' + name + '-' + today, 'warning', '💳', 'Kart borcunu gir', name + ' için bu dönem kart borcu henüz girilmedi');
+                        }
+                    });
+                }
+            } catch (_) {}
+
+            [['Bekir', bekirDebt], ['Duygu', duyguDebt]].forEach(function(pair) {
+                const name = pair[0];
+                const debt = pair[1];
+                if (!debt || debt.paid || !(Number(debt.amount) > 0)) return;
+                const due = debt.dueDate ? String(debt.dueDate).slice(0, 10) : '';
+                const amt = (Number(debt.amount) || 0).toLocaleString('tr-TR') + ' TL';
+                if (!due) {
+                    pushNotif('kk-nodue-' + name, 'warning', '💳', name + ' kredi kartı borcu', amt + ' · son ödeme tarihi yok');
+                    return;
+                }
+                const days = daysUntilYMD(due);
+                if (days == null) return;
+                if (days < 0) {
+                    pushNotif('kk-over-' + name, 'critical', '💳', name + ' kart ödemesi gecikti', Math.abs(days) + ' gün gecikme · ' + amt);
+                } else if (days === 0) {
+                    pushNotif('kk-today-' + name, 'critical', '💳', name + ' kart son ödeme günü', 'Bugün · ' + amt);
+                } else if (days <= 3) {
+                    pushNotif('kk-soon-' + name, 'warning', '💳', name + ' kart son ödemesine ' + days + ' gün', amt + ' · ' + formatDateTR(due));
+                } else if (days <= 7) {
+                    pushNotif('kk-week-' + name, 'info', '💳', name + ' kart ödemesine ' + days + ' gün', amt + ' · ' + formatDateTR(due));
+                }
+            });
+
+            const list = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : (expenses || []);
+            list.forEach(function(e) {
+                if (!e || e.installmentLabel === 'Gelir') return;
+                const d = String(e.date || '').slice(0, 10);
+                if (!d) return;
+                const days = daysUntilYMD(d);
+                if (days == null || days < 0 || days > 7) return;
+                const desc = (e.description && e.description !== '-') ? e.description : (e.category || 'Harcama');
+                const sub = (e.billSubtype ? e.billSubtype + ' · ' : '') + (e.category || '');
+                const amt = (Number(e.displayAmount) || Number(e.amount) || 0).toLocaleString('tr-TR') + ' TL';
+                const key = 'exp-' + d + '-' + (e.id || desc);
+                if (days === 0) {
+                    pushNotif(key, 'critical', '📌', 'Bugün: ' + desc, sub + ' · ' + amt + (e.person ? ' · ' + e.person : ''));
+                } else if (days <= 3) {
+                    pushNotif(key, 'warning', '📅', days + ' gün sonra: ' + desc, formatDateTR(d) + ' · ' + amt);
+                } else {
+                    pushNotif(key, 'info', '🗓️', days + ' gün sonra: ' + desc, formatDateTR(d) + ' · ' + amt);
+                }
+            });
+
+            try {
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i);
+                    if (!k || k.indexOf('yuvam_todo_') !== 0) continue;
+                    let arr = [];
+                    try { arr = JSON.parse(localStorage.getItem(k) || '[]'); } catch (_) { continue; }
+                    (arr || []).forEach(function(it, idx) {
+                        if (!it || it.done || !it.due) return;
+                        const d = String(it.due).slice(0, 10);
+                        const days = daysUntilYMD(d);
+                        if (days == null || days < 0 || days > 7) return;
+                        const text = it.text || 'Görev';
+                        const key = 'todo-' + k + '-' + idx + '-' + d;
+                        if (days === 0) pushNotif(key, 'critical', '✅', 'Bugün görev: ' + text, formatDateTR(d));
+                        else if (days <= 3) pushNotif(key, 'warning', '✅', days + ' gün sonra görev: ' + text, formatDateTR(d));
+                        else pushNotif(key, 'info', '✅', days + ' gün sonra görev: ' + text, formatDateTR(d));
+                    });
+                }
+            } catch (_) {}
+
+            try {
+                (window._todoNotifCache || []).forEach(function(it) {
+                    if (!it || !it.due) return;
+                    const d = String(it.due).slice(0, 10);
+                    const days = daysUntilYMD(d);
+                    if (days == null || days < 0 || days > 7) return;
+                    const text = it.text || 'Görev';
+                    const key = 'todo-fb-' + (it.id || d + text);
+                    if (days === 0) pushNotif(key, 'critical', '✅', 'Bugün görev: ' + text, formatDateTR(d));
+                    else if (days <= 3) pushNotif(key, 'warning', '✅', days + ' gün sonra görev: ' + text, formatDateTR(d));
+                    else pushNotif(key, 'info', '✅', days + ' gün sonra görev: ' + text, formatDateTR(d));
+                });
+            } catch (_) {}
+
+            try {
+                (activityLog || []).slice(0, 12).forEach(function(row) {
+                    if (!row) return;
+                    const who = row.user || row.userName || 'Birisi';
+                    const action = row.action || row.actionType || 'işlem yaptı';
+                    const detail = row.detail ? String(row.detail) : '';
+                    const at = row.at ? String(row.at).slice(0, 16).replace('T', ' ') : '';
+                    const key = 'act-' + (row.id || (who + action + at));
+                    pushNotif(key, 'info', '👤', who + ' kişisi · ' + action, (detail || 'Kullanıcı hareketi') + (at ? ' · ' + at : ''));
+                });
+            } catch (_) {}
+
+            const rank = { critical: 0, warning: 1, info: 2 };
+            items.sort(function(a, b) { return (rank[a.severity] || 9) - (rank[b.severity] || 9); });
+            return items;
+        }
+
+        function renderNotifItemsHtml(items) {
+            return (items || []).map(function(n) {
+                return '<div class="notif-item sev-' + n.severity + '">' +
+                    '<span class="notif-icon">' + n.icon + '</span>' +
+                    '<div><p class="notif-title">' + escapeHtml(n.title) + '</p>' +
+                    '<p class="notif-msg">' + escapeHtml(n.message) + '</p></div></div>';
+            }).join('');
+        }
+
+        window.refreshAppNotifications = function() {
+            const badge = document.getElementById('notifBadge');
+            const body = document.getElementById('notifPanelBody');
+            let items = [];
+            try { items = collectAppNotifications(); } catch (e) { console.warn('notif', e); }
+            window._lastNotifItems = items;
+            const seen = getNotifSeenKeys();
+            const unread = items.filter(function(n) { return !seen.has(n.key); });
+            if (badge) {
+                if (unread.length) {
+                    badge.textContent = unread.length > 9 ? '9+' : String(unread.length);
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+            if (!body) return;
+            if (!items.length) {
+                body.innerHTML = '<p class="text-xs text-slate-400 font-semibold p-4 text-center">Yakın vadede uyarı yok 👍</p>';
+                return;
+            }
+            const top = items.slice(0, 5);
+            let html = renderNotifItemsHtml(top);
+            if (items.length > 5) {
+                html += '<button type="button" onclick="openNotifAllModal()" class="w-full mt-1 py-2.5 rounded-xl text-xs font-black text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-100">Daha fazla göster</button>';
+            }
+            body.innerHTML = html;
+        };
+
+        window.openNotifAllModal = function() {
+            const modal = document.getElementById('notifAllModal');
+            const body = document.getElementById('notifAllBody');
+            const items = (window._lastNotifItems || collectAppNotifications()).slice(0, 20);
+            if (body) {
+                body.innerHTML = items.length ? renderNotifItemsHtml(items) : '<p class="text-xs text-slate-400 font-semibold p-4 text-center">Bildirim yok</p>';
+            }
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+            closeNotifPanel(true);
+        };
+
+        window.closeNotifAllModal = function() {
+            const modal = document.getElementById('notifAllModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+            markNotifsSeen(window._lastNotifItems || []);
+            refreshAppNotifications();
+        };
+
+        window.toggleNotifPanel = function(ev) {
+            if (ev) ev.stopPropagation();
+            const panel = document.getElementById('notifPanel');
+            if (!panel) return;
+            if (panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+                refreshAppNotifications();
+            } else {
+                closeNotifPanel();
+            }
+        };
+
+        window.closeNotifPanel = function(skipSeen) {
+            const panel = document.getElementById('notifPanel');
+            if (panel) panel.classList.add('hidden');
+            if (!skipSeen) {
+                markNotifsSeen(window._lastNotifItems || []);
+                refreshAppNotifications();
+            }
+        };
+
+        document.addEventListener('click', function(e) {
+            const panel = document.getElementById('notifPanel');
+            const btn = document.getElementById('notifBtn');
+            if (!panel || panel.classList.contains('hidden')) return;
+            if (panel.contains(e.target) || (btn && btn.contains(e.target))) return;
+            closeNotifPanel();
+        });
 
         window.toggleMobilePreview = function() {
             const on = document.documentElement.classList.toggle('force-mobile-preview');
@@ -886,6 +1125,7 @@
 
             const badge = document.getElementById('activePeriodBadge');
             if (badge && periodInfo) badge.textContent = 'Aktif dönem: ' + periodInfo.label;
+            if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
         }
 
         // Kart Borcu İşlemleri
@@ -1108,6 +1348,7 @@
                 }
             }
             updateProgressBar(key, debt && debt.dueDate);
+            if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
         }
 
         function updateProgressBar(person, dueDateStr) {
@@ -1968,6 +2209,7 @@
             displayLimit += 10;
             renderTable();
         };
+
 
         // İstatistikler Paneli
         window.showCategoryExpenses = function(category) {
@@ -3184,10 +3426,12 @@
                         <p class="text-xs text-slate-400 font-semibold">Yapılacaklar</p>
                         <p class="text-[10px] text-emerald-600 font-bold mt-0.5">Kayıtlar otomatik saklanır (yenilemede silinmez)</p>
                     </div>
-                    <div class="flex gap-2">
+                    <div class="flex flex-col sm:flex-row gap-2">
                         <input type="text" id="dynTodoInput" placeholder="Görev ekle..." class="flex-1 bg-slate-50 rounded-xl p-3 font-bold outline-none ring-1 ring-slate-200">
-                        <button type="button" id="dynTodoAdd" class="bg-indigo-600 text-white px-4 rounded-xl font-bold">Ekle</button>
+                        <input type="date" id="dynTodoDue" title="Hedef tarih" class="bg-slate-50 rounded-xl p-3 font-bold outline-none ring-1 ring-slate-200 text-sm">
+                        <button type="button" id="dynTodoAdd" class="bg-indigo-600 text-white px-4 rounded-xl font-bold shrink-0">Ekle</button>
                     </div>
+                    <p class="text-[10px] text-slate-400 font-semibold">Tarih girerseniz yaklaşınca 🔔 bildiriminde görünür.</p>
                     <ul id="dynTodoList" class="space-y-2"></ul>
                 </div>`;
             }
@@ -3342,12 +3586,18 @@
                         list.innerHTML = '<li class="text-sm text-slate-400 font-medium px-1">Henüz görev yok</li>';
                         return;
                     }
-                    list.innerHTML = items.map((it, i) => `
-                        <li class="flex items-center gap-2 bg-slate-50 p-3 rounded-xl">
-                            <input type="checkbox" ${it.done ? 'checked' : ''} data-i="${i}" class="dyn-todo-check rounded">
-                            <span class="flex-1 text-sm font-bold ${it.done ? 'line-through text-slate-400' : 'text-slate-800'}">${escapeHtml(it.text)}</span>
-                            <button type="button" data-del="${i}" class="text-rose-500 text-xs font-bold">Sil</button>
-                        </li>`).join('');
+                    list.innerHTML = items.map((it, i) => {
+                        const due = it.due ? String(it.due).slice(0, 10) : '';
+                        const dueLabel = due
+                            ? ('<span class="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-lg shrink-0">' + escapeHtml(formatDateTR(due)) + '</span>')
+                            : '';
+                        return '<li class="flex items-center gap-2 bg-slate-50 p-3 rounded-xl">' +
+                            '<input type="checkbox" ' + (it.done ? 'checked' : '') + ' data-i="' + i + '" class="dyn-todo-check rounded">' +
+                            '<span class="flex-1 text-sm font-bold ' + (it.done ? 'line-through text-slate-400' : 'text-slate-800') + '">' + escapeHtml(it.text) + '</span>' +
+                            dueLabel +
+                            '<button type="button" data-del="' + i + '" class="text-rose-500 text-xs font-bold">Sil</button>' +
+                            '</li>';
+                    }).join('');
                 };
 
                 // Firebase'den yükle (varsa)
@@ -3363,10 +3613,14 @@
                 if (add) add.onclick = () => {
                     const t = input.value.trim();
                     if (!t) return;
-                    items.push({ text: t, done: false, at: new Date().toISOString() });
+                    const dueEl = document.getElementById('dynTodoDue');
+                    const due = dueEl && dueEl.value ? String(dueEl.value).slice(0, 10) : '';
+                    items.push({ text: t, done: false, at: new Date().toISOString(), due: due || null });
                     input.value = '';
+                    if (dueEl) dueEl.value = '';
                     render();
                     persist();
+                    if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
                 };
                 if (list) list.onclick = (e) => {
                     if (e.target.matches('.dyn-todo-check')) {

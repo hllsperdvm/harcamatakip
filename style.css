@@ -708,3 +708,43 @@ html.force-mobile-preview .expense-table-desktop {
 html.force-mobile-preview #mobilePreviewBtnLabel::after {
   content: none;
 }
+
+/* Bildirim paneli */
+#notifPanel {
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12);
+}
+.notif-item {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  padding: 0.7rem 0.75rem;
+  border-radius: 0.9rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+.notif-item.sev-critical {
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+.notif-item.sev-warning {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+.notif-item.sev-info {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+}
+.notif-item .notif-icon { font-size: 1.1rem; line-height: 1.2; flex-shrink: 0; }
+.notif-item .notif-title { font-size: 0.78rem; font-weight: 800; color: #0f172a; }
+.notif-item .notif-msg { font-size: 0.72rem; font-weight: 600; color: #64748b; margin-top: 0.15rem; line-height: 1.35; }
+html.theme-dark #notifPanel { background: #132337 !important; border-color: #334155 !important; }
+html.theme-dark #notifPanel .border-slate-100 { border-color: #334155 !important; }
+html.theme-dark .notif-item { background: #0c1929; border-color: #334155; }
+html.theme-dark .notif-item .notif-title { color: #e0f2fe !important; }
+html.theme-dark .notif-item .notif-msg { color: #94a3b8 !important; }
+html.theme-dark .notif-item.sev-critical { background: #4c0519; border-color: #9f1239; }
+html.theme-dark .notif-item.sev-warning { background: #1c1917; border-color: #a16207; }
+html.theme-dark .notif-item.sev-info { background: #0c4a6e; border-color: #0369a1; }
+
+html.theme-dark #notifAllModal .bg-white { background-color: #132337 !important; }
+html.theme-dark #notifAllModal h2 { color: #e0f2fe !important; }
