@@ -748,3 +748,24 @@ html.theme-dark .notif-item.sev-info { background: #0c4a6e; border-color: #0369a
 
 html.theme-dark #notifAllModal .bg-white { background-color: #132337 !important; }
 html.theme-dark #notifAllModal h2 { color: #e0f2fe !important; }
+
+/* Mobil bildirim paneli ortalı */
+@media (max-width: 640px) {
+  #notifPanel {
+    position: fixed !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%);
+    top: 4.5rem !important;
+    width: min(92vw, 22rem) !important;
+    margin-top: 0 !important;
+  }
+}
+.dyn-todo-due-input {
+  color-scheme: light;
+  min-height: 1.5rem;
+}
+html.theme-dark .dyn-todo-due-input {
+  color-scheme: dark;
+  color: #e0f2fe !important;
+}

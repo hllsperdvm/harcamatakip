@@ -15,8 +15,13 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
+        try { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch (_) {}
+
 
         // Auth e-posta eşlemesi (Console'da oluşturulan kullanıcılar)
+        // Sabit aylık gelir — UI'da gösterilmez; AI/yerel öneride kullanılır
+        const HOUSEHOLD_MONTHLY_INCOME = 110000;
+
         const AUTH_EMAIL_BY_NAME = {
             Bekir: 'bekir@yuvam.app',
             Duygu: 'duygu@yuvam.app'
@@ -132,7 +137,6 @@
                     return;
                 }
 
-                showToast('Giriş yapılıyor…', 'info');
                 let cred;
                 try {
                     cred = await auth.signInWithEmailAndPassword(email, input);
@@ -163,25 +167,13 @@
             }
         };
 
-        async function loadUserProfile(fbUser) {
-            const email = (fbUser.email || '').toLowerCase();
-            let name = NAME_BY_AUTH_EMAIL[email] || NAME_BY_AUTH_EMAIL[fbUser.email] || '';
-            let role = name === 'Bekir' ? 'admin' : 'user';
-            try {
-                const snap = await db.collection('users').doc(fbUser.uid).get();
-                if (snap.exists) {
-                    const d = snap.data() || {};
-                    if (d.name) name = d.name;
-                    if (d.role) role = d.role;
-                }
-            } catch (e) {
-                console.warn('users profil:', e);
-            }
+        function loadUserProfileFast(fbUser) {
+            const email = ((fbUser && fbUser.email) || '').toLowerCase();
+            let name = NAME_BY_AUTH_EMAIL[email] || NAME_BY_AUTH_EMAIL[(fbUser && fbUser.email) || ''] || '';
             if (!name) {
-                name = email.indexOf('bekir') >= 0 ? 'Bekir' : (email.indexOf('duygu') >= 0 ? 'Duygu' : (fbUser.email || 'Kullanıcı'));
+                name = email.indexOf('bekir') >= 0 ? 'Bekir' : (email.indexOf('duygu') >= 0 ? 'Duygu' : ((fbUser && fbUser.email) || 'Kullanıcı'));
             }
-            if (name === 'Bekir') role = 'admin';
-            if (name === 'Duygu' && role === 'admin') { /* allow override from firestore */ }
+            const role = name === 'Bekir' ? 'admin' : 'user';
             return {
                 name: name,
                 role: role,
@@ -190,9 +182,38 @@
             };
         }
 
-        async function enterAppAsUser(profile) {
+        async function loadUserProfile(fbUser) {
+            // Hızlı yol: e-posta eşlemesi (Firestore beklemeden)
+            const profile = loadUserProfileFast(fbUser);
+            // Arka planda Firestore rol/ad güncelle (UI'yı bloklamaz)
+            try {
+                db.collection('users').doc(fbUser.uid).get().then(function(snap) {
+                    if (!snap.exists) return;
+                    const d = snap.data() || {};
+                    if (currentUser && currentUser.uid === fbUser.uid) {
+                        if (d.name) currentUser.name = d.name;
+                        if (d.role) currentUser.role = d.role;
+                        const label = document.getElementById('loggedInUserLabel') || document.getElementById('currentUserLabel');
+                        if (label && currentUser) {
+                            label.textContent = currentUser.role === 'admin'
+                                ? (currentUser.name + ' · Admin')
+                                : currentUser.name;
+                        }
+                        if (typeof applyRoleAndTabs === 'function') applyRoleAndTabs();
+                    }
+                }).catch(function() {});
+            } catch (e) {
+                console.warn('users profil:', e);
+            }
+            return profile;
+        }
+
+        async function enterAppAsUser(profile, opts) {
+            opts = opts || {};
             currentUser = profile;
             try { sessionStorage.setItem('yuvam_user', JSON.stringify(currentUser)); } catch (_) {}
+            // Kullanıcıya özel tema
+            try { if (typeof loadThemeFromStorage === 'function') loadThemeFromStorage(); } catch (_) {}
             const loginEl = document.getElementById('errorContainer') || document.getElementById('loginScreen');
             const appEl = document.getElementById('appContainer') || document.getElementById('app');
             if (loginEl) {
@@ -213,7 +234,9 @@
             try { initRealtimeSync(); } catch (e) { console.error('sync', e); showToast('Veri bağlantısı kurulamadı', 'error'); }
             logActivity('Giriş', 'Oturum açıldı', currentUser.role === 'admin' ? 'Admin girişi' : 'Kullanıcı girişi');
             if (typeof maybeShowOnboarding === 'function') maybeShowOnboarding();
-            showToast('Hoş geldin, ' + currentUser.name, 'success');
+            if (!opts || !opts.silent) {
+                showToast('Hoş geldin, ' + currentUser.name, 'success');
+            }
             if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
         }
 
@@ -238,8 +261,14 @@
 
         function markNotifsSeen(items) {
             try {
-                const keys = (items || []).map(function(n) { return n.key; });
-                localStorage.setItem('yuvam_notif_seen', JSON.stringify(keys));
+                const seen = getNotifSeenKeys();
+                (items || []).forEach(function(n) {
+                    if (n && n.key) seen.add(n.key);
+                });
+                // Listeyi şişirmemek için son 300 anahtar
+                const arr = Array.from(seen);
+                const trimmed = arr.length > 300 ? arr.slice(arr.length - 300) : arr;
+                localStorage.setItem('yuvam_notif_seen', JSON.stringify(trimmed));
             } catch (_) {}
         }
 
@@ -348,14 +377,16 @@
             } catch (_) {}
 
             try {
-                (activityLog || []).slice(0, 12).forEach(function(row) {
+                (activityLog || []).slice(0, 30).forEach(function(row) {
                     if (!row) return;
+                    const action = String(row.action || '');
+                    // Sadece harcama eklendi / silindi
+                    if (action !== 'Harcama eklendi' && action !== 'Harcama silindi') return;
                     const who = row.user || row.userName || 'Birisi';
-                    const action = row.action || row.actionType || 'işlem yaptı';
                     const detail = row.detail ? String(row.detail) : '';
                     const at = row.at ? String(row.at).slice(0, 16).replace('T', ' ') : '';
                     const key = 'act-' + (row.id || (who + action + at));
-                    pushNotif(key, 'info', '👤', who + ' kişisi · ' + action, (detail || 'Kullanıcı hareketi') + (at ? ' · ' + at : ''));
+                    pushNotif(key, 'info', '👤', who + ' kişisi · ' + action, (detail || '') + (at ? (detail ? ' · ' : '') + at : ''));
                 });
             } catch (_) {}
 
@@ -987,15 +1018,7 @@
             db.collection("settings").doc("uiPrefs").onSnapshot(d => {
                 if (d.exists && d.data()) {
                     const u = d.data();
-                    // Tema: sadece bu cihaz türüne ait alan (mobil/web ayrı)
-                    const kind = getThemeDeviceKind();
-                    const remoteTheme = kind === 'mobile' ? (u.themeMobile || u.theme) : (u.themeDesktop || u.theme);
-                    // Yerel kayıt öncelikli; yoksa uzak
-                    let localT = null;
-                    try { localT = localStorage.getItem(themeStorageKey()); } catch (_) {}
-                    if (!localT && (remoteTheme === 'dark' || remoteTheme === 'light')) {
-                        setAppTheme(remoteTheme, { skipRemote: true });
-                    }
+                    // Tema kullanıcıya özel localStorage'da; paylaşılan uiPrefs temayı dayatmaz
                     if (u.dashboardCards && typeof u.dashboardCards === 'object') {
                         dashboardCards = Object.assign(dashboardCards, u.dashboardCards);
                         applyDashboardCards();
@@ -2486,6 +2509,9 @@
                 tips.push('Araç: ' + vehicle.length + ' kayıt, yakıt ' + Math.round(fuelSum).toLocaleString('tr-TR') + ' TL.' + consNote + ' Araç sekmesindeki grafiklere bakın.');
             }
 
+            // Gelir bağlamı (UI yok)
+            tips.push('Hane aylık gelir varsayımı: ' + HOUSEHOLD_MONTHLY_INCOME.toLocaleString('tr-TR') + ' TL. Öneriler buna göre; sitede gelir alanı yoktur.');
+
             // Taksit
             const taksit = curItems.filter(function(e) { return e.installmentLabel && e.installmentLabel !== 'Peşin'; });
             if (taksit.length) {
@@ -2545,6 +2571,7 @@
                 }
                 const summary = buildExpenseSummaryForAi();
                 const lines = [];
+                lines.push('Sabit aylık hane geliri: ' + HOUSEHOLD_MONTHLY_INCOME.toLocaleString('tr-TR') + ' TL (bu rakamı UI\'da gösterme; önerilerini bu gelire göre ver).');
                 summary.months.forEach(function(m) {
                     const cats = summary.byMonth[m] || {};
                     const total = Object.values(cats).reduce(function(a, b) { return a + b; }, 0);
@@ -2566,7 +2593,7 @@
 
                 const text = await callOpenRouter(
                     prompt,
-                    'Turkce ev butcesi danismani. Madde madde tamamlanmis cumleler. Markdown yok. Pratik cesitli oneriler.',
+                    'Turkce ev butcesi danismani. Madde madde tamamlanmis cumleler. Markdown yok. Pratik cesitli oneriler. Hane aylik geliri ' + HOUSEHOLD_MONTHLY_INCOME + ' TL; onerilerini bu gelire gore ver, gelir rakamini gereksiz yere tekrarlama.',
                     1200
                 );
                 pct = 100;
@@ -3426,12 +3453,17 @@
                         <p class="text-xs text-slate-400 font-semibold">Yapılacaklar</p>
                         <p class="text-[10px] text-emerald-600 font-bold mt-0.5">Kayıtlar otomatik saklanır (yenilemede silinmez)</p>
                     </div>
-                    <div class="flex flex-col sm:flex-row gap-2">
-                        <input type="text" id="dynTodoInput" placeholder="Görev ekle..." class="flex-1 bg-slate-50 rounded-xl p-3 font-bold outline-none ring-1 ring-slate-200">
-                        <input type="date" id="dynTodoDue" title="Hedef tarih" class="bg-slate-50 rounded-xl p-3 font-bold outline-none ring-1 ring-slate-200 text-sm">
-                        <button type="button" id="dynTodoAdd" class="bg-indigo-600 text-white px-4 rounded-xl font-bold shrink-0">Ekle</button>
+                    <div class="flex flex-col gap-2">
+                        <input type="text" id="dynTodoInput" placeholder="Görev ekle..." class="w-full bg-slate-50 rounded-xl p-3 font-bold outline-none ring-1 ring-slate-200">
+                        <div class="flex gap-2 items-stretch">
+                            <label for="dynTodoDue" class="flex-1 flex items-center justify-center gap-2 bg-slate-50 rounded-xl px-3 py-3 font-bold text-sm text-slate-600 ring-1 ring-slate-200 cursor-pointer">
+                                <span>📅 Tarih</span>
+                                <input type="date" id="dynTodoDue" class="dyn-todo-due-input flex-1 min-w-0 bg-transparent border-0 font-bold text-slate-800 outline-none">
+                            </label>
+                            <button type="button" id="dynTodoAdd" class="bg-indigo-600 text-white px-5 rounded-xl font-bold shrink-0">Ekle</button>
+                        </div>
                     </div>
-                    <p class="text-[10px] text-slate-400 font-semibold">Tarih girerseniz yaklaşınca 🔔 bildiriminde görünür.</p>
+                    <p class="text-[10px] text-slate-400 font-semibold">Tarih seçerseniz yaklaşınca 🔔 bildiriminde görünür.</p>
                     <ul id="dynTodoList" class="space-y-2"></ul>
                 </div>`;
             }
@@ -4332,7 +4364,8 @@
         }
 
         function themeStorageKey() {
-            return 'yuvam_theme_' + getThemeDeviceKind();
+            const user = (currentUser && currentUser.name) ? currentUser.name : 'guest';
+            return 'yuvam_theme_' + user + '_' + getThemeDeviceKind();
         }
 
         window.setAppTheme = function(theme, opts) {
@@ -4359,15 +4392,16 @@
             }
             const hint = document.getElementById('themeDeviceHint');
             if (hint) {
-                hint.textContent = device === 'mobile'
-                    ? 'Bu tercih yalnızca mobilde geçerli'
-                    : 'Bu tercih yalnızca web / geniş ekranda geçerli';
+                const uname = (currentUser && currentUser.name) || 'bu hesap';
+                hint.textContent = uname + ' · ' + (device === 'mobile' ? 'mobil' : 'web') + ' teması (diğer kullanıcıyı etkilemez)';
             }
-            // Firebase'e cihaz bazlı yaz (diğer cihazın temasını ezme)
-            if (!opts.skipRemote && typeof isAdmin === 'function' && isAdmin() && typeof db !== 'undefined') {
+            // Tema paylaşılan uiPrefs'e yazılmaz (Bekir ≠ Duygu)
+            // İsteğe bağlı: kullanıcı dokümanına yaz
+            if (!opts.skipRemote && currentUser && currentUser.uid && typeof db !== 'undefined') {
                 const patch = {};
-                patch[device === 'mobile' ? 'themeMobile' : 'themeDesktop'] = appTheme;
-                db.collection('settings').doc('uiPrefs').set(patch, { merge: true }).catch(function() {});
+                if (device === 'mobile') patch.themeMobile = appTheme;
+                else patch.themeDesktop = appTheme;
+                db.collection('users').doc(currentUser.uid).set(patch, { merge: true }).catch(function() {});
             }
         };
 
@@ -4916,13 +4950,20 @@
         // Sayfa açılışında oturum varsa geri yükle ve veriyi çek
         // Firebase Auth oturum dinleyicisi (sayfa yenilenince de giriş kalır)
         let authBootDone = false;
+        // Oturum varsa login ekranını hemen gizle (Firestore beklemeden)
+        try {
+            if (auth.currentUser) {
+                const loginEl = document.getElementById('errorContainer') || document.getElementById('loginScreen');
+                if (loginEl) { loginEl.classList.add('hidden'); loginEl.style.display = 'none'; }
+            }
+        } catch (_) {}
         auth.onAuthStateChanged(async function(fbUser) {
             if (authBootDone && !fbUser) return;
             try {
                 if (fbUser) {
                     if (currentUser && currentUser.uid === fbUser.uid) return;
                     const profile = await loadUserProfile(fbUser);
-                    await enterAppAsUser(profile);
+                    await enterAppAsUser(profile, { silent: true });
                 } else if (!authBootDone) {
                     // ilk yüklemede oturum yok → login ekranı
                     currentUser = null;
