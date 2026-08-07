@@ -77,10 +77,7 @@
 
 
         // Kullanıcı hesapları: Bekir = admin, Duygu = normal
-        // Şifreler kodda tutulmaz. Firestore: settings/appUsers
-        // { Bekir: { password: '...', role: 'admin' }, Duygu: { password: '...', role: 'user' } }
-        let USERS = {};
-        let usersLoaded = false;
+        // Kimlik: Firebase Auth. Rol: Firestore users/{uid}
         let openrouterApiKey = ''; // Firestore settings/apiKeys.openrouter — koda yazılmaz
 
         let currentUser = null; // { name, role }
@@ -717,22 +714,6 @@
                 if (typeof fillSubtypeSelects === 'function') fillSubtypeSelects();
                 renderCategoriesList();
             }, err => console.warn('categorySubtypes:', err));
-            db.collection("settings").doc("appUsers").onSnapshot(d => {
-                if (d.exists && d.data()) {
-                    const u = d.data();
-                    const next = {};
-                    Object.keys(u).forEach(name => {
-                        if (u[name] && u[name].password) {
-                            next[name] = {
-                                password: String(u[name].password),
-                                role: u[name].role === 'admin' ? 'admin' : 'user'
-                            };
-                        }
-                    });
-                    USERS = next;
-                    usersLoaded = true;
-                }
-            }, err => console.warn('appUsers:', err));
             db.collection("settings").doc("periodConfig").onSnapshot(d => {
                 if (d.exists && d.data()) {
                     const p = d.data();

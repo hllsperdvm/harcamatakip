@@ -35,9 +35,9 @@
                     </div>
                     <div>
                         <label class="block text-[11px] font-black text-slate-400 uppercase tracking-wider mb-2 ml-1">Şifre</label>
-                        <input type="password" id="sifreInput" placeholder="Şifreniz" autocomplete="current-password" class="w-full rounded-2xl border-none bg-slate-50 p-4 text-center text-xl font-bold ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" onkeypress="handlePasswordKeyPress(event)">
+                        <input type="password" id="sifreInput" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="current-password" placeholder="••••••" class="w-full rounded-2xl border-none bg-slate-50 p-4 text-center text-2xl tracking-[0.35em] font-bold ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" onkeypress="handlePasswordKeyPress(event)">
                     </div>
-                    <p class="text-[10px] text-slate-400 font-semibold text-center">Firebase Authentication şifresi (Console’da tanımladığınız)</p>
+                    <p class="text-[10px] text-slate-400 font-semibold text-center">Sayısal şifre (Firebase Authentication · en az 6 rakam önerilir)</p>
                     <button onclick="checkPassword()" class="w-full rounded-2xl bg-indigo-600 py-4 font-bold text-white shadow-lg shadow-indigo-100 transition hover:bg-indigo-700 active:scale-[0.98] mt-2">Giriş Yap</button>
                 </div>
             </div>
@@ -516,11 +516,11 @@
                             </div>
                             <div>
                                 <label class="text-[10px] font-black text-slate-400 uppercase">Yeni şifre</label>
-                                <input type="password" id="pwdNew" inputmode="numeric" maxlength="12" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200" placeholder="••••">
+                                <input type="password" id="pwdNew" inputmode="numeric" pattern="[0-9]*" maxlength="32" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200" placeholder="••••">
                             </div>
                             <div>
                                 <label class="text-[10px] font-black text-slate-400 uppercase">Tekrar</label>
-                                <input type="password" id="pwdNew2" inputmode="numeric" maxlength="12" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200" placeholder="••••">
+                                <input type="password" id="pwdNew2" inputmode="numeric" pattern="[0-9]*" maxlength="32" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200" placeholder="••••">
                             </div>
                             <button type="button" onclick="savePasswordChange()" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl">Kaydet</button>
                         </div>
