@@ -231,13 +231,22 @@
                     : currentUser.name;
             }
             applyRoleAndTabs();
-            try { initRealtimeSync(); } catch (e) { console.error('sync', e); showToast('Veri bağlantısı kurulamadı', 'error'); }
-            logActivity('Giriş', 'Oturum açıldı', currentUser.role === 'admin' ? 'Admin girişi' : 'Kullanıcı girişi');
-            if (typeof maybeShowOnboarding === 'function') maybeShowOnboarding();
+            // Once UI acilsin; senkron ve loglari ertele (mobil otomatik girisi hizlandirir)
+            var uidEnter = currentUser && currentUser.uid;
+            setTimeout(function() {
+                if (!currentUser || currentUser.uid !== uidEnter) return;
+                try { initRealtimeSync(); } catch (e) { console.error('sync', e); showToast('Veri bağlantısı kurulamadı', 'error'); }
+                try {
+                    if (!opts.silent) {
+                        logActivity('Giriş', 'Oturum açıldı', currentUser.role === 'admin' ? 'Admin girişi' : 'Kullanıcı girişi');
+                    }
+                } catch (_) {}
+                if (typeof maybeShowOnboarding === 'function') maybeShowOnboarding();
+                if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
+            }, 0);
             if (!opts || !opts.silent) {
                 showToast('Hoş geldin, ' + currentUser.name, 'success');
             }
-            if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
         }
 
 
@@ -2433,6 +2442,42 @@
             const prevTotal = Object.values(prevCats).reduce(function(a, b) { return a + b; }, 0);
 
             tips.push('Aktif dönem (' + curLabel + '): ' + Math.round(curTotal).toLocaleString('tr-TR') + ' TL · ' + curItems.length + ' kalem.');
+            // Gelire göre dönem analizi (110.000 TL sabit)
+            (function() {
+                const income = HOUSEHOLD_MONTHLY_INCOME;
+                const ratio = income > 0 ? (curTotal / income) * 100 : 0;
+                const remain = income - curTotal;
+                tips.push('Gelir çerçevesi: aylık ' + income.toLocaleString('tr-TR') + ' TL varsayımıyla bu dönem harcama gelire oranı %' + ratio.toFixed(1) + ' · kalan ~' + Math.round(remain).toLocaleString('tr-TR') + ' TL.');
+                if (ratio > 90) {
+                    tips.push('Kritik: Harcama gelire çok yakın/üstü. Zorunlu olmayan (eğlence, giyim, online) kalemleri dondurun; kart ekstre ödemesini geciktirmeyin.');
+                } else if (ratio > 75) {
+                    tips.push('Yüksek baskı: Gelirin %' + ratio.toFixed(0) + '\'i harcanmış. Bu dönemde yeni abonelik/taksit açmayın; market ve yeme-içmeyi haftalık limitleyin.');
+                } else if (ratio > 55) {
+                    tips.push('Orta seviye: Gelirin %' + ratio.toFixed(0) + '\'i kullanılmış. Hedef: bir sonraki dönemde oranı %50 altına çekmek için en yüksek 2 kategoride %10 kısıt.');
+                } else if (ratio > 0) {
+                    tips.push('Rahat bant: Gelirin %' + ratio.toFixed(0) + '\'i harcanmış; ~' + Math.round(remain).toLocaleString('tr-TR') + ' TL nefes payı var. Fazlayı acil fon veya kart borcuna yönlendirin.');
+                }
+                // Kategori / gelir
+                const cats = {};
+                curItems.forEach(function(e) {
+                    const c = e.category || 'Diğer';
+                    cats[c] = (cats[c] || 0) + (e.displayAmount || 0);
+                });
+                Object.entries(cats).sort(function(a,b){return b[1]-a[1];}).slice(0, 4).forEach(function(kv) {
+                    const pInc = income > 0 ? (kv[1] / income * 100) : 0;
+                    if (pInc >= 8) {
+                        tips.push(kv[0] + ': ' + Math.round(kv[1]).toLocaleString('tr-TR') + ' TL = gelirin %' + pInc.toFixed(1) + '\'i. ' + (pInc >= 20 ? 'Bu kategori hane bütçesini domine ediyor; kalem kalem inceleme şart.' : 'İzleyin; bir üst limite yaklaşırsa kısıtlayın.'));
+                    }
+                });
+                // Tasarruf önerisi
+                const saveTarget = Math.round(income * 0.15);
+                if (remain > saveTarget) {
+                    tips.push('Tasarruf fırsatı: Gelirin %15\'i (~' + saveTarget.toLocaleString('tr-TR') + ' TL) ayrılabilir görünüyor; otomatik transfer veya kart borcu erken ödemesi düşünün.');
+                } else if (remain > 0 && remain < saveTarget) {
+                    tips.push('Tasarruf hedefi (~' + saveTarget.toLocaleString('tr-TR') + ' TL / gelirin %15\'i) şu an tam dolmuyor; en az ' + Math.round(saveTarget - remain).toLocaleString('tr-TR') + ' TL kısma alanı bulun.');
+                }
+            })();
+
 
             if (prev) {
                 const diff = curTotal - prevTotal;
@@ -2509,9 +2554,6 @@
                 tips.push('Araç: ' + vehicle.length + ' kayıt, yakıt ' + Math.round(fuelSum).toLocaleString('tr-TR') + ' TL.' + consNote + ' Araç sekmesindeki grafiklere bakın.');
             }
 
-            // Gelir bağlamı (UI yok)
-            tips.push('Hane aylık gelir varsayımı: ' + HOUSEHOLD_MONTHLY_INCOME.toLocaleString('tr-TR') + ' TL. Öneriler buna göre; sitede gelir alanı yoktur.');
-
             // Taksit
             const taksit = curItems.filter(function(e) { return e.installmentLabel && e.installmentLabel !== 'Peşin'; });
             if (taksit.length) {
@@ -2580,21 +2622,43 @@
                         .map(function(kv) { return kv[0] + ': ' + Math.round(kv[1]) + ' TL'; }).join(', ');
                     lines.push(label + ' toplam ' + Math.round(total) + ' TL → ' + (top || 'kayıt yok'));
                 });
+                const income = HOUSEHOLD_MONTHLY_INCOME;
+                const lastMonthKey = summary.months && summary.months.length ? summary.months[0] : null;
+                let lastTotal = 0;
+                if (lastMonthKey && summary.byMonth[lastMonthKey]) {
+                    lastTotal = Object.values(summary.byMonth[lastMonthKey]).reduce(function(a, b) { return a + b; }, 0);
+                }
+                const spendRatio = income > 0 ? (lastTotal / income * 100) : 0;
+                lines.unshift('Son donem toplam harcama: ' + Math.round(lastTotal) + ' TL; gelire oran ~%' + spendRatio.toFixed(1) + '; kalan nefes ~' + Math.round(income - lastTotal) + ' TL.');
+
                 const prompt = [
-                    'Sen deneyimli bir ev butcesi danismanisin. Turkce yaz.',
-                    '29-28 ekstre donemi verisine gore 5-7 ozgun oneri yaz.',
-                    'Her oneri AYRI SATIRDA: Baslik: somut aciklama (1-2 tam cumle).',
-                    'Sadece azaltin deme. Cesitlendir: limit, taksit, fatura tarife, yakit, abonelik, kart odeme, toplu alim, acil fon.',
-                    'Rakama dayan; uydurma yuzde verme. Markdown yok. 1. 2. 3. numarala.',
+                    'Rol: Deneyimli Turk ev ekonomisi danismani (hane butcesi, kart, fatura, taksit).',
+                    'Sabit hane aylik geliri: ' + income + ' TL. Tum onerileri bu gelire gore oransal ve uygulanabilir yaz.',
+                    'Gorev: 7-9 numarali oneri uret. Her madde su formatta olsun:',
+                    'N. Baslik — Durum (rakam/oran) + Ne yapilmali (somut adim) + Beklenen etki (TL veya %).',
+                    'Kurallar:',
+                    '- Sadece "azaltin" deme; alternatif, limit, tarih, taksit, tarife, abonelik iptali, kart odeme plani, acil fon, toplu alim ver.',
+                    '- En az 3 farkli kategoriye degine (or. market, fatura, arac, egitim, kart).',
+                    '- Gelire oran %70 ustuyse once nakit akisi ve kart riski; %50 altindaysa tasarruf/yatirim firsati soyle.',
+                    '- Uydurma istatistik yok; verilen donem rakamlarina dayan.',
+                    '- Markdown, emoji, yildiz yok. Turkce, tamamlanmis cumleler.',
                     '',
-                    'Veri:',
+                    'Veri (29-28 donem):',
                     lines.join(String.fromCharCode(10))
                 ].join(String.fromCharCode(10));
 
+                const systemPrompt = [
+                    'Sen kisa ve net yazan bir ev butcesi danismanisin.',
+                    'Cikti sadece numarali maddeler olsun.',
+                    'Her madde: baslik, durum, aksiyon, beklenen etki icersin.',
+                    'Hane geliri ' + income + ' TL; onerileri bu gelire gore oransal kur.',
+                    'Yuzeysel genel soylem yasak; rakama bagli, uygulanabilir adim zorunlu.'
+                ].join(' ');
+
                 const text = await callOpenRouter(
                     prompt,
-                    'Turkce ev butcesi danismani. Madde madde tamamlanmis cumleler. Markdown yok. Pratik cesitli oneriler. Hane aylik geliri ' + HOUSEHOLD_MONTHLY_INCOME + ' TL; onerilerini bu gelire gore ver, gelir rakamini gereksiz yere tekrarlama.',
-                    1200
+                    systemPrompt,
+                    2200
                 );
                 pct = 100;
                 if (bar) bar.style.width = '100%';
@@ -4950,11 +5014,21 @@
         // Sayfa açılışında oturum varsa geri yükle ve veriyi çek
         // Firebase Auth oturum dinleyicisi (sayfa yenilenince de giriş kalır)
         let authBootDone = false;
-        // Oturum varsa login ekranını hemen gizle (Firestore beklemeden)
+        // Mobil hizli giris: oturum varsa login'i aninda gizle + iskelet uygulamayi goster
         try {
             if (auth.currentUser) {
                 const loginEl = document.getElementById('errorContainer') || document.getElementById('loginScreen');
+                const appEl = document.getElementById('appContainer') || document.getElementById('app');
                 if (loginEl) { loginEl.classList.add('hidden'); loginEl.style.display = 'none'; }
+                if (appEl) { appEl.classList.remove('hidden'); appEl.style.display = ''; }
+                // Profili senkron beklemeden hizli yaz
+                try {
+                    currentUser = loadUserProfileFast(auth.currentUser);
+                    const label = document.getElementById('loggedInUserLabel') || document.getElementById('currentUserLabel');
+                    if (label && currentUser) {
+                        label.textContent = currentUser.role === 'admin' ? (currentUser.name + ' · Admin') : currentUser.name;
+                    }
+                } catch (_) {}
             }
         } catch (_) {}
         auth.onAuthStateChanged(async function(fbUser) {
