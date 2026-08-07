@@ -35,8 +35,9 @@
                     </div>
                     <div>
                         <label class="block text-[11px] font-black text-slate-400 uppercase tracking-wider mb-2 ml-1">Şifre</label>
-                        <input type="password" id="sifreInput" inputmode="numeric" pattern="[0-9]*" placeholder="••••" maxlength="8" class="w-full rounded-2xl border-none bg-slate-50 p-4 text-center text-2xl tracking-[0.4em] font-bold ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" onkeypress="handlePasswordKeyPress(event)">
+                        <input type="password" id="sifreInput" placeholder="Şifreniz" autocomplete="current-password" class="w-full rounded-2xl border-none bg-slate-50 p-4 text-center text-xl font-bold ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" onkeypress="handlePasswordKeyPress(event)">
                     </div>
+                    <p class="text-[10px] text-slate-400 font-semibold text-center">Firebase Authentication şifresi (Console’da tanımladığınız)</p>
                     <button onclick="checkPassword()" class="w-full rounded-2xl bg-indigo-600 py-4 font-bold text-white shadow-lg shadow-indigo-100 transition hover:bg-indigo-700 active:scale-[0.98] mt-2">Giriş Yap</button>
                 </div>
             </div>
@@ -1069,6 +1070,7 @@
 
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

@@ -14,6 +14,17 @@
 
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // Auth e-posta eşlemesi (Console'da oluşturulan kullanıcılar)
+        const AUTH_EMAIL_BY_NAME = {
+            Bekir: 'bekir@yuvam.app',
+            Duygu: 'duygu@yuvam.app'
+        };
+        const NAME_BY_AUTH_EMAIL = {
+            'bekir@yuvam.app': 'Bekir',
+            'duygu@yuvam.app': 'Duygu'
+        };
 
         // --- Genel UI yardımcıları ---
         function showToast(message, type) {
@@ -46,6 +57,9 @@
             }
             if (code.includes('not-found')) {
                 return 'Kayıt bulunamadı veya silinmiş olabilir.';
+            }
+            if (code.indexOf('auth/') === 0) {
+                return 'Kimlik doğrulama: ' + msg;
             }
             return 'İşlem başarısız: ' + msg;
         }
@@ -105,84 +119,114 @@
 
         window.checkPassword = async function() {
             try {
-                const userName = document.getElementById('loginUser').value;
-                const input = document.getElementById('sifreInput').value;
+                const userName = (document.getElementById('loginUser') || {}).value;
+                const input = (document.getElementById('sifreInput') || {}).value;
                 if (!userName) {
-                    showToast('Lütfen kullanıcı seçin', 'error');
+                    alert('Lütfen kullanıcı seçin.');
                     return;
                 }
                 if (!input) {
-                    showToast('Şifre girin', 'error');
+                    alert('Lütfen şifre girin.');
                     return;
                 }
-                if (typeof db === 'undefined' || !db) {
-                    showToast('Bağlantı yok. İnterneti kontrol edip yenileyin.', 'error');
+                const email = AUTH_EMAIL_BY_NAME[userName];
+                if (!email) {
+                    alert('Geçersiz kullanıcı.');
                     return;
                 }
-                // Her girişte Firestore'dan güncel kullanıcıları al (şifreler yalnızca sunucuda)
+
+                showToast('Giriş yapılıyor…', 'info');
+                let cred;
                 try {
-                    const snap = await db.collection('settings').doc('appUsers').get();
-                    if (snap.exists && snap.data()) {
-                        const u = snap.data();
-                        const next = {};
-                        Object.keys(u).forEach(name => {
-                            if (u[name] && u[name].password) {
-                                next[name] = {
-                                    password: String(u[name].password),
-                                    role: u[name].role === 'admin' ? 'admin' : 'user'
-                                };
-                            }
-                        });
-                        USERS = next;
-                        usersLoaded = true;
+                    cred = await auth.signInWithEmailAndPassword(email, input);
+                } catch (authErr) {
+                    const code = (authErr && authErr.code) || '';
+                    if (code === 'auth/wrong-password' || code === 'auth/invalid-credential' || code === 'auth/invalid-login-credentials') {
+                        alert('Şifre hatalı. Firebase Console → Authentication → Users içindeki şifreyi kullanın.');
+                        return;
                     }
-                } catch (err) {
-                    console.warn('appUsers get:', err);
-                    showToast(friendlyFirebaseError(err), 'error');
+                    if (code === 'auth/user-not-found') {
+                        alert('Kullanıcı bulunamadı. Console → Authentication → Users kontrol edin.');
+                        return;
+                    }
+                    if (code === 'auth/too-many-requests') {
+                        alert('Çok fazla deneme. Bir süre sonra tekrar deneyin.');
+                        return;
+                    }
+                    alert('Giriş hatası: ' + (authErr.message || authErr));
                     return;
                 }
-                if (!Object.keys(USERS).length) {
-                    alert('Kullanıcı kaydı bulunamadı.\n\nFirebase Console → Firestore → settings koleksiyonu → appUsers dokümanı oluşturun.\n\nAlanlar (map):\nBekir → password, role: admin\nDuygu → password, role: user');
-                    return;
-                }
-                const account = USERS[userName];
-                if (!account || input !== account.password) {
-                    showToast('Kullanıcı veya şifre hatalı', 'error');
-                    return;
-                }
-                currentUser = { name: userName, role: account.role };
-                sessionStorage.setItem('yuvam_user', JSON.stringify(currentUser));
-                const loginEl = document.getElementById('errorContainer') || document.getElementById('loginScreen');
-                const appEl = document.getElementById('appContainer') || document.getElementById('app');
-                if (loginEl) {
-                    loginEl.classList.add('hidden');
-                    loginEl.style.display = 'none';
-                }
-                if (appEl) {
-                    appEl.classList.remove('hidden');
-                    appEl.style.display = '';
-                }
-                const label = document.getElementById('loggedInUserLabel') || document.getElementById('currentUserLabel');
-                if (label) {
-                    label.textContent = currentUser.role === 'admin'
-                        ? (currentUser.name + ' · Admin')
-                        : currentUser.name;
-                }
-                applyRoleAndTabs();
-                try { initRealtimeSync(); } catch (e) { console.error('sync', e); showToast('Veri bağlantısı kurulamadı', 'error'); }
-                logActivity('Giriş', 'Oturum açıldı', currentUser.role === 'admin' ? 'Admin girişi' : 'Kullanıcı girişi');
-                if (typeof maybeShowOnboarding === 'function') maybeShowOnboarding();
+
+                const fbUser = cred.user;
+                const profile = await loadUserProfile(fbUser);
+                await enterAppAsUser(profile);
             } catch (err) {
                 console.error(err);
                 alert('Giriş hatası: ' + (err && err.message ? err.message : err));
             }
         };
 
+        async function loadUserProfile(fbUser) {
+            const email = (fbUser.email || '').toLowerCase();
+            let name = NAME_BY_AUTH_EMAIL[email] || NAME_BY_AUTH_EMAIL[fbUser.email] || '';
+            let role = name === 'Bekir' ? 'admin' : 'user';
+            try {
+                const snap = await db.collection('users').doc(fbUser.uid).get();
+                if (snap.exists) {
+                    const d = snap.data() || {};
+                    if (d.name) name = d.name;
+                    if (d.role) role = d.role;
+                }
+            } catch (e) {
+                console.warn('users profil:', e);
+            }
+            if (!name) {
+                name = email.indexOf('bekir') >= 0 ? 'Bekir' : (email.indexOf('duygu') >= 0 ? 'Duygu' : (fbUser.email || 'Kullanıcı'));
+            }
+            if (name === 'Bekir') role = 'admin';
+            if (name === 'Duygu' && role === 'admin') { /* allow override from firestore */ }
+            return {
+                name: name,
+                role: role,
+                uid: fbUser.uid,
+                email: fbUser.email || email
+            };
+        }
+
+        async function enterAppAsUser(profile) {
+            currentUser = profile;
+            try { sessionStorage.setItem('yuvam_user', JSON.stringify(currentUser)); } catch (_) {}
+            const loginEl = document.getElementById('errorContainer') || document.getElementById('loginScreen');
+            const appEl = document.getElementById('appContainer') || document.getElementById('app');
+            if (loginEl) {
+                loginEl.classList.add('hidden');
+                loginEl.style.display = 'none';
+            }
+            if (appEl) {
+                appEl.classList.remove('hidden');
+                appEl.style.display = '';
+            }
+            const label = document.getElementById('loggedInUserLabel') || document.getElementById('currentUserLabel');
+            if (label) {
+                label.textContent = currentUser.role === 'admin'
+                    ? (currentUser.name + ' · Admin')
+                    : currentUser.name;
+            }
+            applyRoleAndTabs();
+            try { initRealtimeSync(); } catch (e) { console.error('sync', e); showToast('Veri bağlantısı kurulamadı', 'error'); }
+            logActivity('Giriş', 'Oturum açıldı', currentUser.role === 'admin' ? 'Admin girişi' : 'Kullanıcı girişi');
+            if (typeof maybeShowOnboarding === 'function') maybeShowOnboarding();
+            showToast('Hoş geldin, ' + currentUser.name, 'success');
+        }
+
         window.logout = function() {
             const name = currentUser ? currentUser.name : 'Sistem';
-            logActivity('Çıkış', 'Oturum kapatıldı', name + ' çıkış yaptı', name);
+            try { logActivity('Çıkış', 'Oturum kapatıldı', name + ' çıkış yaptı', name); } catch (_) {}
             currentUser = null;
             try { sessionStorage.removeItem('yuvam_user'); } catch (_) {}
+            try { auth.signOut(); } catch (_) {}
+            // realtime flag
+            try { syncInitialized = false; } catch (_) {}
             const appEl = document.getElementById('appContainer') || document.getElementById('app');
             const loginEl = document.getElementById('errorContainer') || document.getElementById('loginScreen');
             if (appEl) {
@@ -199,6 +243,7 @@
             if (lu) lu.value = '';
             showToast('Çıkış yapıldı', 'info');
         };
+
 
         function isAdmin() {
             return currentUser && currentUser.role === 'admin';
@@ -3914,28 +3959,43 @@
         };
 
         window.savePasswordChange = async function() {
-            if (!isAdmin()) { showToast('Sadece admin', 'error'); return; }
+            if (!isAdmin() && !(currentUser && currentUser.name)) {
+                showToast('Giriş gerekli', 'error');
+                return;
+            }
             const user = (document.getElementById('pwdUser') || {}).value;
             const p1 = (document.getElementById('pwdNew') || {}).value || '';
             const p2 = (document.getElementById('pwdNew2') || {}).value || '';
             if (!user || !p1) { showToast('Kullanıcı ve şifre gerekli', 'error'); return; }
             if (p1 !== p2) { showToast('Şifreler eşleşmiyor', 'error'); return; }
-            if (p1.length < 4) { showToast('En az 4 karakter', 'error'); return; }
+            if (p1.length < 6) { showToast('Firebase şifresi en az 6 karakter olmalı', 'error'); return; }
+
+            // Sadece kendi şifresi Auth üzerinden değiştirilebilir (güvenlik)
+            if (!currentUser || currentUser.name !== user) {
+                alert(
+                    'Başka kullanıcının Firebase şifresi siteden değiştirilemez.\n\n' +
+                    'Firebase Console → Authentication → Users → kullanıcıyı seçin → Reset password / şifre değiştir.'
+                );
+                return;
+            }
+            const fbUser = auth.currentUser;
+            if (!fbUser) {
+                showToast('Oturum bulunamadı, tekrar giriş yapın', 'error');
+                return;
+            }
             try {
-                const ref = db.collection('settings').doc('appUsers');
-                const snap = await ref.get();
-                const data = snap.exists ? (snap.data() || {}) : {};
-                if (!data[user]) data[user] = { role: user === 'Bekir' ? 'admin' : 'user' };
-                data[user].password = String(p1);
-                if (!data[user].role) data[user].role = user === 'Bekir' ? 'admin' : 'user';
-                await ref.set(data);
-                if (USERS[user]) USERS[user].password = String(p1);
+                await fbUser.updatePassword(p1);
                 document.getElementById('pwdNew').value = '';
                 document.getElementById('pwdNew2').value = '';
-                showToast(user + ' şifresi güncellendi', 'success');
+                showToast('Şifreniz güncellendi. Bir sonraki girişte yeni şifreyi kullanın.', 'success');
                 logActivity('Diğer', 'Şifre değiştirildi', user);
             } catch (err) {
-                showToast(friendlyFirebaseError(err), 'error');
+                const code = (err && err.code) || '';
+                if (code === 'auth/requires-recent-login') {
+                    alert('Güvenlik için çıkış yapıp tekrar giriş yaptıktan sonra şifre değiştirin.');
+                    return;
+                }
+                showToast(err.message || String(err), 'error');
             }
         };
 
@@ -4555,32 +4615,23 @@
 
 
         // Sayfa açılışında oturum varsa geri yükle ve veriyi çek
-        (function restoreSessionIfAny() {
+        // Firebase Auth oturum dinleyicisi (sayfa yenilenince de giriş kalır)
+        let authBootDone = false;
+        auth.onAuthStateChanged(async function(fbUser) {
+            if (authBootDone && !fbUser) return;
             try {
-                const raw = sessionStorage.getItem('yuvam_user');
-                if (!raw) return;
-                const u = JSON.parse(raw);
-                if (!u || !u.name) return;
-                currentUser = { name: u.name, role: u.role === 'admin' ? 'admin' : 'user' };
-                const loginEl = document.getElementById('errorContainer') || document.getElementById('loginScreen');
-                const appEl = document.getElementById('appContainer') || document.getElementById('app');
-                if (loginEl) {
-                    loginEl.classList.add('hidden');
-                    loginEl.style.display = 'none';
+                if (fbUser) {
+                    if (currentUser && currentUser.uid === fbUser.uid) return;
+                    const profile = await loadUserProfile(fbUser);
+                    await enterAppAsUser(profile);
+                } else if (!authBootDone) {
+                    // ilk yüklemede oturum yok → login ekranı
+                    currentUser = null;
                 }
-                if (appEl) {
-                    appEl.classList.remove('hidden');
-                    appEl.style.display = '';
-                }
-                const label = document.getElementById('loggedInUserLabel') || document.getElementById('currentUserLabel');
-                if (label) {
-                    label.textContent = currentUser.role === 'admin'
-                        ? (currentUser.name + ' · Admin')
-                        : currentUser.name;
-                }
-                applyRoleAndTabs();
-                initRealtimeSync();
             } catch (err) {
-                console.warn('restoreSession', err);
+                console.warn('onAuthStateChanged', err);
+            } finally {
+                authBootDone = true;
             }
-        })();
+        });
+
