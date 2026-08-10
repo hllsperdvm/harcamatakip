@@ -352,24 +352,19 @@
                     </div>
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div class="bg-white p-6 rounded-[2rem] card-shadow border border-slate-100">
-                            <h2 class="text-lg font-black mb-1">Aylık yakıt harcaması</h2>
-                            <p class="text-[11px] text-slate-400 font-semibold mb-4">Son 6 ay · TL</p>
+                            <h2 class="text-lg font-black mb-1">Aylık yakıt · Harcama &amp; Litre</h2>
+                            <p class="text-[11px] text-slate-400 font-semibold mb-4">Son 6 ay · sol: TL · sağ: L</p>
                             <div class="chart-box h-72 sm:h-80"><canvas id="vehicleFuelChart"></canvas></div>
                         </div>
                         <div class="bg-white p-6 rounded-[2rem] card-shadow border border-slate-100">
-                            <h2 class="text-lg font-black mb-1">Aylık alınan litre</h2>
-                            <p class="text-[11px] text-slate-400 font-semibold mb-4">Son 6 ay · L</p>
-                            <div class="chart-box h-72 sm:h-80"><canvas id="vehicleFuelLitersChart"></canvas></div>
-                        </div>
-                        <div class="bg-white p-6 rounded-[2rem] card-shadow border border-slate-100">
-                            <h2 class="text-lg font-black mb-1">Tüketim (L/100 km)</h2>
-                            <p class="text-[11px] text-slate-400 font-semibold mb-4">Dolum bazlı · KM+litre girilen kayıtlar</p>
+                            <h2 class="text-lg font-black mb-1">Tüketim &amp; Km maliyeti</h2>
+                            <p class="text-[11px] text-slate-400 font-semibold mb-4">Dolum bazlı · sol: L/100 km · sağ: TL/km</p>
                             <div class="chart-box h-72 sm:h-80"><canvas id="vehicleFuelConsChart"></canvas></div>
                         </div>
-                        <div class="bg-white p-6 rounded-[2rem] card-shadow border border-slate-100">
-                            <h2 class="text-lg font-black mb-1">Km maliyeti (TL/km)</h2>
-                            <p class="text-[11px] text-slate-400 font-semibold mb-4">Dolum bazlı</p>
-                            <div class="chart-box h-72 sm:h-80"><canvas id="vehicleFuelCostChart"></canvas></div>
+                        <div class="bg-white p-6 rounded-[2rem] card-shadow border border-slate-100 lg:col-span-2">
+                            <h2 class="text-lg font-black mb-1">Yakıt LT fiyatı (TL)</h2>
+                            <p class="text-[11px] text-slate-400 font-semibold mb-4">Dolum bazlı · girilen litre fiyatı</p>
+                            <div class="chart-box h-72 sm:h-80"><canvas id="vehicleFuelPriceChart"></canvas></div>
                         </div>
                     </div>
                     <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">

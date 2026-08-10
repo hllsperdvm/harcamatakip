@@ -1458,7 +1458,7 @@
             wrap.classList.toggle('hidden', !isFuel);
         };
 
-        let vehicleFuelChart = null, vehicleMaintChart = null, vehicleFuelConsChart = null, vehicleFuelCostChart = null, vehicleFuelLitersChart = null;
+        let vehicleFuelChart = null, vehicleMaintChart = null, vehicleFuelConsChart = null, vehicleFuelCostChart = null, vehicleFuelLitersChart = null, vehicleFuelPriceChart = null;
         let vehicleSubTab = 'fuel'; // fuel | maint
 
         window.showVehicleSubTab = function(which) {
@@ -1639,70 +1639,208 @@
             if (vehicleFuelLitersChart) { try { vehicleFuelLitersChart.destroy(); } catch (_) {} }
             if (vehicleFuelConsChart) { try { vehicleFuelConsChart.destroy(); } catch (_) {} }
             if (vehicleFuelCostChart) { try { vehicleFuelCostChart.destroy(); } catch (_) {} }
+            if (vehicleFuelPriceChart) { try { vehicleFuelPriceChart.destroy(); } catch (_) {} }
             if (vehicleMaintChart) { try { vehicleMaintChart.destroy(); } catch (_) {} }
 
+            // Dolum bazlı litre fiyatı
+            const fillPrice = sortedFuel.map(function(e) {
+                const p = parseFloat(e.fuelPricePerLt);
+                if (p > 0) return +p.toFixed(2);
+                const lt = parseFloat(e.fuelLiters);
+                if (lt > 0 && e.displayAmount > 0) return +(e.displayAmount / lt).toFixed(2);
+                return null;
+            });
+
+            // 1) Aylık harcama (TL) + litre — iki çubuk; web yan yana, mobil yatay (aylar alt alta)
             const ctxF = document.getElementById('vehicleFuelChart');
             if (ctxF) {
+                const fuelMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+                const fuelDatasets = fuelMobile ? [
+                    {
+                        label: 'Harcama (TL)',
+                        data: fuelSpend,
+                        backgroundColor: 'rgba(79, 70, 229, 0.85)',
+                        borderRadius: 6,
+                        maxBarThickness: 16,
+                        barPercentage: 0.9,
+                        categoryPercentage: 0.8,
+                        xAxisID: 'x'
+                    },
+                    {
+                        label: 'Litre (L)',
+                        data: fuelLitersM,
+                        backgroundColor: 'rgba(6, 182, 212, 0.85)',
+                        borderRadius: 6,
+                        maxBarThickness: 16,
+                        barPercentage: 0.9,
+                        categoryPercentage: 0.8,
+                        xAxisID: 'x1'
+                    }
+                ] : [
+                    {
+                        label: 'Harcama (TL)',
+                        data: fuelSpend,
+                        backgroundColor: 'rgba(79, 70, 229, 0.85)',
+                        borderRadius: 6,
+                        maxBarThickness: 32,
+                        barPercentage: 0.85,
+                        categoryPercentage: 0.75,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Litre (L)',
+                        data: fuelLitersM,
+                        backgroundColor: 'rgba(6, 182, 212, 0.85)',
+                        borderRadius: 6,
+                        maxBarThickness: 32,
+                        barPercentage: 0.85,
+                        categoryPercentage: 0.75,
+                        yAxisID: 'y1'
+                    }
+                ];
                 vehicleFuelChart = new Chart(ctxF, {
                     type: 'bar',
                     data: {
                         labels: monthLabels,
-                        datasets: [{ label: 'Harcama (TL)', data: fuelSpend, backgroundColor: '#4f46e5', borderRadius: 8, maxBarThickness: 36 }]
+                        datasets: fuelDatasets
                     },
-                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+                    options: {
+                        indexAxis: fuelMobile ? 'y' : 'x',
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: { legend: { display: true, position: 'bottom' } },
+                        scales: fuelMobile ? {
+                            x: {
+                                beginAtZero: true,
+                                position: 'bottom',
+                                title: { display: true, text: 'TL', font: { size: 11, weight: '600' }, color: '#4f46e5' },
+                                ticks: { color: '#4f46e5', font: { size: 10 } }
+                            },
+                            x1: {
+                                beginAtZero: true,
+                                position: 'top',
+                                grid: { drawOnChartArea: false },
+                                title: { display: true, text: 'Litre', font: { size: 11, weight: '600' }, color: '#06b6d4' },
+                                ticks: { color: '#06b6d4', font: { size: 10 } }
+                            },
+                            y: {
+                                ticks: { font: { size: 11 } }
+                            }
+                        } : {
+                            x: {
+                                stacked: false,
+                                ticks: { maxRotation: 40, font: { size: 10 } }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                position: 'left',
+                                stacked: false,
+                                title: { display: true, text: 'TL', font: { size: 11, weight: '600' }, color: '#4f46e5' },
+                                ticks: { color: '#4f46e5' }
+                            },
+                            y1: {
+                                beginAtZero: true,
+                                position: 'right',
+                                stacked: false,
+                                grid: { drawOnChartArea: false },
+                                title: { display: true, text: 'Litre', font: { size: 11, weight: '600' }, color: '#06b6d4' },
+                                ticks: { color: '#06b6d4' }
+                            }
+                        }
+                    }
                 });
             }
-            const ctxL = document.getElementById('vehicleFuelLitersChart');
-            if (ctxL) {
-                vehicleFuelLitersChart = new Chart(ctxL, {
-                    type: 'bar',
-                    data: {
-                        labels: monthLabels,
-                        datasets: [{ label: 'Litre', data: fuelLitersM, backgroundColor: '#06b6d4', borderRadius: 8, maxBarThickness: 36 }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
-                });
-            }
+
+            // 2) Tüketim (L/100km) + Km maliyeti (TL/km) — tek grafik
             const ctxC = document.getElementById('vehicleFuelConsChart');
             if (ctxC) {
                 vehicleFuelConsChart = new Chart(ctxC, {
                     type: 'line',
                     data: {
                         labels: fillLabels.length ? fillLabels : ['Veri yok'],
-                        datasets: [{
-                            label: 'L / 100 km',
-                            data: fillCons.length ? fillCons : [0],
-                            borderColor: '#10b981',
-                            backgroundColor: 'rgba(16,185,129,0.12)',
-                            fill: true,
-                            tension: 0.3,
-                            pointRadius: 4,
-                            pointBackgroundColor: '#10b981'
-                        }]
+                        datasets: [
+                            {
+                                label: 'L / 100 km',
+                                data: fillCons.length ? fillCons : [0],
+                                borderColor: '#10b981',
+                                backgroundColor: 'rgba(16,185,129,0.12)',
+                                fill: false,
+                                tension: 0.3,
+                                pointRadius: 4,
+                                pointBackgroundColor: '#10b981',
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: 'TL / km',
+                                data: fillCost.length ? fillCost : [0],
+                                borderColor: '#f59e0b',
+                                backgroundColor: 'rgba(245,158,11,0.12)',
+                                fill: false,
+                                tension: 0.3,
+                                pointRadius: 4,
+                                pointBackgroundColor: '#f59e0b',
+                                yAxisID: 'y1'
+                            }
+                        ]
                     },
-                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: true, position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: { legend: { display: true, position: 'bottom' } },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                position: 'left',
+                                title: { display: true, text: 'L/100 km', font: { size: 11, weight: '600' }, color: '#10b981' },
+                                ticks: { color: '#10b981' }
+                            },
+                            y1: {
+                                beginAtZero: true,
+                                position: 'right',
+                                grid: { drawOnChartArea: false },
+                                title: { display: true, text: 'TL/km', font: { size: 11, weight: '600' }, color: '#f59e0b' },
+                                ticks: { color: '#f59e0b' }
+                            }
+                        }
+                    }
                 });
             }
-            const ctxK = document.getElementById('vehicleFuelCostChart');
-            if (ctxK) {
-                vehicleFuelCostChart = new Chart(ctxK, {
+
+            // 3) Yakıt LT fiyatı (TL)
+            const ctxP = document.getElementById('vehicleFuelPriceChart');
+            if (ctxP) {
+                vehicleFuelPriceChart = new Chart(ctxP, {
                     type: 'line',
                     data: {
                         labels: fillLabels.length ? fillLabels : ['Veri yok'],
                         datasets: [{
-                            label: 'TL / km',
-                            data: fillCost.length ? fillCost : [0],
-                            borderColor: '#f59e0b',
-                            backgroundColor: 'rgba(245,158,11,0.12)',
+                            label: 'LT fiyatı (TL)',
+                            data: fillPrice.length ? fillPrice : [null],
+                            borderColor: '#8b5cf6',
+                            backgroundColor: 'rgba(139, 92, 246, 0.12)',
                             fill: true,
                             tension: 0.3,
                             pointRadius: 4,
-                            pointBackgroundColor: '#f59e0b'
+                            pointBackgroundColor: '#8b5cf6',
+                            spanGaps: true
                         }]
                     },
-                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: true, position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: { legend: { display: true, position: 'bottom' } },
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                title: { display: true, text: 'TL / L', font: { size: 11, weight: '600' }, color: '#8b5cf6' }
+                            }
+                        }
+                    }
                 });
             }
+
             const ctxM = document.getElementById('vehicleMaintChart');
             if (ctxM) {
                 vehicleMaintChart = new Chart(ctxM, {
