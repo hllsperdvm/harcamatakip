@@ -98,6 +98,16 @@
                     <p id="homePeriodBadge" class="inline-flex mt-3 text-[11px] font-bold bg-white/15 px-3 py-1 rounded-full">Dönem: —</p>
                 </div>
 
+                <button type="button" data-home-card="homeQuickAdd" onclick="switchTab('expense'); openExpenseModal();"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-[2rem] p-6 shadow-lg shadow-indigo-200/40 text-left flex items-center justify-between gap-4">
+                    <div>
+                        <p class="text-[10px] font-black text-indigo-100 uppercase tracking-wider">Hızlı işlem</p>
+                        <p class="text-xl font-black mt-1">+ Harcama ekle</p>
+                        <p class="text-[11px] text-indigo-100 font-semibold mt-1">Bütçe Takibe ekle</p>
+                    </div>
+                    <span class="text-3xl font-light opacity-80 shrink-0">＋</span>
+                </button>
+
                 <div class="grid grid-cols-2 gap-3">
                     <div data-home-card="homeToday" class="bg-white rounded-2xl p-4 card-shadow border border-slate-100">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Bugün harcama</p>
@@ -109,15 +119,10 @@
                         <p id="homePeriodSpend" class="text-lg font-black text-rose-600 mt-1">0 TL</p>
                         <p class="text-[11px] text-slate-400 font-semibold">29–28 ekstre</p>
                     </div>
-                    <button type="button" data-home-card="homeNotif" onclick="toggleNotifPanel(event)" class="bg-white rounded-2xl p-4 card-shadow border border-slate-100 text-left col-span-2 sm:col-span-1">
+                    <button type="button" data-home-card="homeNotif" onclick="openNotifAllModal()" class="bg-white rounded-2xl p-4 card-shadow border border-slate-100 text-left col-span-2">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Bildirimler</p>
                         <p class="text-lg font-black text-amber-600 mt-1"><span id="homeNotifCount">0</span> açık</p>
                         <p class="text-[11px] text-slate-400 font-semibold">Detay için dokunun</p>
-                    </button>
-                    <button type="button" data-home-card="homeQuickAdd" onclick="switchTab('expense'); openExpenseModal();" class="bg-indigo-600 text-white rounded-2xl p-4 shadow-md text-left">
-                        <p class="text-[10px] font-black text-indigo-100 uppercase tracking-wider">Hızlı işlem</p>
-                        <p class="text-lg font-black mt-1">+ Harcama</p>
-                        <p class="text-[11px] text-indigo-100 font-semibold">Bütçe Takibe ekle</p>
                     </button>
                 </div>
 
@@ -132,7 +137,7 @@
                 <div data-home-card="homeUpcoming" class="bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
                     <div class="flex items-center justify-between mb-3">
                         <h2 class="text-base font-black text-slate-800">Yaklaşanlar</h2>
-                        <button type="button" onclick="toggleNotifPanel(event)" class="text-xs font-bold text-sky-600">Tümü</button>
+                        <button type="button" onclick="openHomeAllNotifs()" class="text-xs font-bold text-sky-600">Tümü</button>
                     </div>
                     <div id="homeUpcomingList" class="space-y-2"></div>
                 </div>

@@ -489,17 +489,33 @@
         };
 
         window.openNotifAllModal = function() {
+            try {
+                if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
+            } catch (_) {}
             const modal = document.getElementById('notifAllModal');
             const body = document.getElementById('notifAllBody');
-            const items = (window._lastNotifItems || collectAppNotifications()).slice(0, 20);
+            let items = [];
+            try {
+                items = (window._lastNotifItems && window._lastNotifItems.length)
+                    ? window._lastNotifItems
+                    : (typeof collectAppNotifications === 'function' ? collectAppNotifications() : []);
+            } catch (_) { items = []; }
+            items = (items || []).slice(0, 20);
             if (body) {
-                body.innerHTML = items.length ? renderNotifItemsHtml(items) : '<p class="text-xs text-slate-400 font-semibold p-4 text-center">Bildirim yok</p>';
+                body.innerHTML = items.length
+                    ? renderNotifItemsHtml(items)
+                    : '<p class="text-xs text-slate-400 font-semibold p-4 text-center">Bildirim yok</p>';
             }
             if (modal) {
                 modal.classList.remove('hidden');
                 modal.classList.add('flex');
+                modal.style.display = 'flex';
             }
-            closeNotifPanel(true);
+            try { closeNotifPanel(true); } catch (_) {}
+        };
+
+        window.openHomeAllNotifs = function() {
+            openNotifAllModal();
         };
 
         window.closeNotifAllModal = function() {
@@ -507,6 +523,7 @@
             if (modal) {
                 modal.classList.add('hidden');
                 modal.classList.remove('flex');
+                modal.style.display = 'none';
             }
             markNotifsSeen(window._lastNotifItems || []);
             refreshAppNotifications();
@@ -4293,16 +4310,21 @@
         };
 
         function maskIban(raw) {
-            const s = String(raw || '').replace(/\s/g, '');
-            if (s.length < 8) return '•••• ••••';
+            const s = String(raw || '').replace(/\s/g, '').toUpperCase();
+            if (!s) return 'TR•• •••• •••• •••• •••• ••••';
             const start = s.slice(0, 4);
-            const end = s.slice(-4);
-            return start + ' •••• •••• ' + end;
+            const end = s.length > 8 ? s.slice(-4) : '';
+            return start + ' •••• •••• •••• •••• ' + end;
         }
 
         function formatIbanSpaces(raw) {
             const s = String(raw || '').replace(/\s/g, '').toUpperCase();
             return s.replace(/(.{4})/g, '$1 ').trim();
+        }
+
+        function getIbanFull(item) {
+            if (!item) return '';
+            return String(item.ibanNumber || item.iban || item.number || item.ibanNo || '').replace(/\s/g, '').toUpperCase();
         }
 
         window.toggleIbanReveal = function(btn) {
@@ -4311,41 +4333,45 @@
             if (!wrap) return;
             const el = wrap.querySelector('[data-iban-value]');
             const full = wrap.getAttribute('data-iban-full') || '';
-            const masked = wrap.getAttribute('data-iban-masked') || '';
+            const masked = wrap.getAttribute('data-iban-masked') || maskIban(full);
             const on = wrap.getAttribute('data-revealed') === '1';
             if (on) {
                 if (el) el.textContent = masked;
                 wrap.setAttribute('data-revealed', '0');
-                btn.textContent = '👁️';
-                btn.title = 'Göster';
+                btn.setAttribute('aria-label', 'Göster');
+                btn.innerHTML = '👁️';
             } else {
                 if (el) el.textContent = formatIbanSpaces(full);
                 wrap.setAttribute('data-revealed', '1');
-                btn.textContent = '🙈';
-                btn.title = 'Gizle';
+                btn.setAttribute('aria-label', 'Gizle');
+                btn.innerHTML = '🙈';
             }
         };
 
         window.renderIbans = function() {
             const box = document.getElementById('ibanListContainer');
             if (!box) return;
-            if (!(ibans || []).length) {
+            const list = Array.isArray(ibans) ? ibans : [];
+            if (!list.length) {
                 box.innerHTML = '<div class="text-center text-slate-400 py-8 col-span-full"><p class="text-sm">Henüz IBAN kaydı yok</p></div>';
                 return;
             }
-            box.innerHTML = ibans.map(function(item) {
-                const full = String(item.ibanNumber || '');
+            box.innerHTML = list.map(function(item) {
+                const full = getIbanFull(item);
                 const masked = maskIban(full);
-                const safeId = escapeHtml(item.id);
+                const safeId = escapeHtml(item.id || '');
+                const owner = escapeHtml(item.ownerName || item.name || '-');
+                const bank = escapeHtml(item.bank || item.bankName || '');
+                // full değeri attribute'ta; ekranda asla düz yazılmaz
                 return '<div class="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2" data-iban-wrap data-iban-full="' + escapeHtml(full) + '" data-iban-masked="' + escapeHtml(masked) + '" data-revealed="0">' +
                     '<div class="flex justify-between items-start gap-2">' +
-                    '<div><p class="font-black text-slate-800">' + escapeHtml(item.ownerName || '-') + '</p>' +
-                    '<p class="text-xs font-semibold text-slate-400">' + escapeHtml(item.bank || '') + '</p></div>' +
-                    '<div class="flex gap-1">' +
-                    '<button type="button" onclick="toggleIbanReveal(this)" class="w-9 h-9 rounded-xl bg-white border border-slate-200 text-sm" title="Göster">👁️</button>' +
-                    '<button type="button" onclick="deleteIban(\'' + safeId + '\')" class="w-9 h-9 rounded-xl bg-white border border-slate-200 text-xs text-rose-600" title="Sil">🗑️</button>' +
+                    '<div class="min-w-0"><p class="font-black text-slate-800">' + owner + '</p>' +
+                    '<p class="text-xs font-semibold text-slate-400">' + bank + '</p></div>' +
+                    '<div class="flex gap-1 shrink-0">' +
+                    '<button type="button" onclick="event.stopPropagation();toggleIbanReveal(this)" class="w-9 h-9 rounded-xl bg-white border border-slate-200 text-sm flex items-center justify-center" title="Göster">👁️</button>' +
+                    '<button type="button" onclick="event.stopPropagation();deleteIban(\'' + safeId + '\')" class="w-9 h-9 rounded-xl bg-white border border-slate-200 text-xs text-rose-600 flex items-center justify-center" title="Sil">🗑️</button>' +
                     '</div></div>' +
-                    '<p data-iban-value class="font-mono text-sm font-bold text-slate-700 tracking-wide">' + escapeHtml(masked) + '</p>' +
+                    '<p data-iban-value class="font-mono text-sm font-bold text-slate-700 tracking-wide select-all">' + escapeHtml(masked) + '</p>' +
                     '</div>';
             }).join('');
         };
