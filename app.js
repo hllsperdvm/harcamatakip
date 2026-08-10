@@ -635,8 +635,12 @@
         let expenseChart = null, weeklyTrendChart = null, monthlyTrendChart = null;
         let syncInitialized = false;
         let periodConfig = { startDay: 29, endDay: 28 };
+        let monthlyBudgetTarget = 0; // TL, 0 = kapalı
         let dashboardCards = { total: true, bekir: true, duygu: true, debt: true };
         let appTheme = 'light';
+        let monthCompareChart = null, categoryTrendChart = null;
+        const AMOUNT_MIN = 0.01;
+        const AMOUNT_MAX = 999999;
 
         let displayLimit = 10;
         let renderTimeout = null;
@@ -1024,6 +1028,16 @@
                     scheduleRenderApp();
                 }
             }, err => console.warn('periodConfig', err));
+            db.collection("settings").doc("budgetTarget").onSnapshot(d => {
+                if (d.exists && d.data()) {
+                    monthlyBudgetTarget = Number(d.data().amount) || 0;
+                    const inp = document.getElementById('budgetTargetInput');
+                    if (inp && document.activeElement !== inp) inp.value = monthlyBudgetTarget > 0 ? String(monthlyBudgetTarget) : '';
+                } else {
+                    monthlyBudgetTarget = 0;
+                }
+                if (typeof renderBudgetInfo === 'function') renderBudgetInfo();
+            }, err => console.warn('budgetTarget', err));
             db.collection("settings").doc("uiPrefs").onSnapshot(d => {
                 if (d.exists && d.data()) {
                     const u = d.data();
@@ -1157,8 +1171,63 @@
 
             const badge = document.getElementById('activePeriodBadge');
             if (badge && periodInfo) badge.textContent = 'Aktif dönem: ' + periodInfo.label;
+            renderBudgetTargetUI(totalSpent, periodInfo);
             if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
         }
+
+        function renderBudgetTargetUI(totalSpent, periodInfo) {
+            const card = document.getElementById('budgetTargetCard');
+            const label = document.getElementById('budgetTargetLabel');
+            const pctEl = document.getElementById('budgetTargetPct');
+            const bar = document.getElementById('budgetTargetBar');
+            const detail = document.getElementById('budgetTargetDetail');
+            const target = Number(monthlyBudgetTarget) || 0;
+            if (!card) return;
+            if (!(target > 0)) {
+                if (label) label.textContent = 'Hedef belirlenmedi';
+                if (pctEl) pctEl.textContent = '—';
+                if (bar) { bar.style.width = '0%'; bar.className = 'h-full rounded-full transition-all duration-700 bg-slate-300'; }
+                if (detail) detail.textContent = 'Ayarlar → Bütçe hedefi ile dönem limiti koyun';
+                return;
+            }
+            const spent = Number(totalSpent) || 0;
+            const pct = Math.min(999, (spent / target) * 100);
+            const remain = target - spent;
+            if (label) label.textContent = 'Hedef ' + target.toLocaleString('tr-TR') + ' TL';
+            if (pctEl) {
+                pctEl.textContent = '%' + pct.toFixed(0);
+                pctEl.className = 'text-lg font-black ' + (pct >= 100 ? 'text-rose-600' : pct >= 80 ? 'text-amber-600' : 'text-emerald-600');
+            }
+            if (bar) {
+                bar.style.width = Math.min(100, pct) + '%';
+                bar.className = 'h-full rounded-full transition-all duration-700 ' + (pct >= 100 ? 'bg-rose-500' : pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500');
+            }
+            if (detail) {
+                const pl = periodInfo && periodInfo.label ? periodInfo.label + ' · ' : '';
+                detail.textContent = pl + 'Harcama ' + Math.round(spent).toLocaleString('tr-TR') + ' TL · ' +
+                    (remain >= 0 ? ('kalan ' + Math.round(remain).toLocaleString('tr-TR') + ' TL') : ('aşım ' + Math.round(-remain).toLocaleString('tr-TR') + ' TL'));
+            }
+        }
+
+        window.saveBudgetTarget = async function() {
+            if (!isAdmin()) { showToast('Sadece admin', 'error'); return; }
+            const raw = (document.getElementById('budgetTargetInput') || {}).value;
+            const n = parseFloat(String(raw).replace(',', '.'));
+            if (raw !== '' && raw != null && (isNaN(n) || n < 0 || n > 9999999)) {
+                showToast('Geçerli bir hedef girin (0 = kapalı)', 'error');
+                return;
+            }
+            const val = (!raw && raw !== 0) || isNaN(n) ? 0 : Math.round(n);
+            try {
+                await db.collection('settings').doc('budgetTarget').set({ amount: val, updatedAt: new Date().toISOString() }, { merge: true });
+                monthlyBudgetTarget = val;
+                showToast(val > 0 ? ('Hedef: ' + val.toLocaleString('tr-TR') + ' TL') : 'Bütçe hedefi kapatıldı', 'success');
+                if (typeof renderBudgetInfo === 'function') renderBudgetInfo();
+                logActivity('Diğer', 'Bütçe hedefi güncellendi', val > 0 ? (val + ' TL') : 'kapalı');
+            } catch (err) {
+                showToast(friendlyFirebaseError(err), 'error');
+            }
+        };
 
         // Kart Borcu İşlemleri
         window.setCardDebt = (person) => openCardDebtModal(person);
@@ -1167,11 +1236,12 @@
             try {
                 const person = (document.getElementById('cardDebtPerson') || {}).value || 'bekir';
                 const key = person === 'bekir' || person === 'Bekir' ? 'bekir' : 'duygu';
-                const amount = parseFloat((document.getElementById('cardDebtAmount') || {}).value);
-                if (!(amount > 0)) {
-                    showToast('Geçerli tutar girin', 'error');
+                const amountCheck = validateExpenseAmount((document.getElementById('cardDebtAmount') || {}).value);
+                if (!amountCheck.ok) {
+                    showToast(amountCheck.message, 'error');
                     return;
                 }
+                const amount = amountCheck.amount;
                 const dueDate = getAutoCardDueDate();
                 const debt = {
                     amount: amount,
@@ -1879,15 +1949,36 @@
                         labels: monthLabels,
                         datasets: [{ label: 'Vergi & Bakım (TL)', data: maintSpend, backgroundColor: '#f59e0b', borderRadius: 8, maxBarThickness: 36 }]
                     },
-                    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
                 });
             }
         };
 
+        function validateExpenseAmount(raw) {
+            const amount = parseFloat(String(raw).replace(',', '.'));
+            if (isNaN(amount) || !isFinite(amount)) {
+                return { ok: false, message: 'Geçerli bir tutar girin.' };
+            }
+            if (amount < AMOUNT_MIN) {
+                return { ok: false, message: 'Tutar en az ' + AMOUNT_MIN + ' TL olmalı.' };
+            }
+            if (amount > AMOUNT_MAX) {
+                return { ok: false, message: 'Tutar en fazla ' + AMOUNT_MAX.toLocaleString('tr-TR') + ' TL olabilir.\n(Çok büyük değer yanlışlıkla girilmiş olabilir.)' };
+            }
+            return { ok: true, amount: amount };
+        }
+
         window.handleFormSubmit = async (e) => {
             e.preventDefault();
             const id = document.getElementById('editId').value;
-            const amount = parseFloat(document.getElementById('amount').value);
+            const amountCheck = validateExpenseAmount(document.getElementById('amount').value);
+            if (!amountCheck.ok) {
+                alert(amountCheck.message);
+                const amtEl = document.getElementById('amount');
+                if (amtEl) amtEl.focus();
+                return;
+            }
+            const amount = amountCheck.amount;
             const isRecurring = !!(document.getElementById('isRecurring') && document.getElementById('isRecurring').checked);
             let installment = parseInt(document.getElementById('installmentCount').value) || 1;
             let amountPerInstallment;
@@ -3105,7 +3196,175 @@
                     }
                 });
             }
+
+            // Bu dönem vs önceki dönem
+            try {
+                const keys2 = getPreviousPeriodKeys(2);
+                const prevKey = keys2[0];
+                const curKey = keys2[1] || getCurrentPeriod();
+                const allProc = getProcessedExpenses();
+                const sumPeriod = function(pk) {
+                    return allProc.filter(function(e) { return e.effectiveMonth === pk; })
+                        .reduce(function(s, e) { return s + (Number(e.displayAmount) || 0); }, 0);
+                };
+                const prevTotal = sumPeriod(prevKey);
+                const curTotal = sumPeriod(curKey);
+                const diff = curTotal - prevTotal;
+                const sumEl = document.getElementById('monthCompareSummary');
+                if (sumEl) {
+                    if (diff < 0) sumEl.textContent = Math.round(-diff).toLocaleString('tr-TR') + ' TL tasarruf (önceki döneme göre)';
+                    else if (diff > 0) sumEl.textContent = Math.round(diff).toLocaleString('tr-TR') + ' TL artış (önceki döneme göre)';
+                    else sumEl.textContent = 'Önceki dönemle aynı seviye';
+                }
+                const ctxCmp = document.getElementById('monthCompareChart');
+                if (ctxCmp) {
+                    if (monthCompareChart) { try { monthCompareChart.destroy(); } catch (_) {} }
+                    monthCompareChart = new Chart(ctxCmp, {
+                        type: 'bar',
+                        data: {
+                            labels: [formatPeriodLabel(prevKey) || 'Önceki', formatPeriodLabel(curKey) || 'Bu dönem'],
+                            datasets: [{
+                                label: 'Harcama (TL)',
+                                data: [prevTotal, curTotal],
+                                backgroundColor: ['#94a3b8', '#0284c7'],
+                                borderRadius: 8,
+                                maxBarThickness: 48
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: { y: { beginAtZero: true } }
+                        }
+                    });
+                }
+            } catch (err) { console.warn('monthCompare', err); }
+
+            // Kategori trendi son 3 dönem
+            try {
+                const keys3 = getPreviousPeriodKeys(3);
+                const allProc2 = getProcessedExpenses();
+                const catTotals = {};
+                allProc2.forEach(function(e) {
+                    if (keys3.indexOf(e.effectiveMonth) < 0) return;
+                    const c = e.category || 'Diğer';
+                    catTotals[c] = (catTotals[c] || 0) + (Number(e.displayAmount) || 0);
+                });
+                const topCats = Object.entries(catTotals).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 5).map(function(x) { return x[0]; });
+                const palette = ['#0284c7', '#ec4899', '#f59e0b', '#10b981', '#8b5cf6'];
+                const datasets = topCats.map(function(cat, i) {
+                    return {
+                        label: cat,
+                        data: keys3.map(function(pk) {
+                            return allProc2.filter(function(e) { return e.effectiveMonth === pk && e.category === cat; })
+                                .reduce(function(s, e) { return s + (Number(e.displayAmount) || 0); }, 0);
+                        }),
+                        borderColor: palette[i % palette.length],
+                        backgroundColor: palette[i % palette.length] + '33',
+                        tension: 0.3,
+                        fill: false,
+                        pointRadius: 4
+                    };
+                });
+                const ctxTr = document.getElementById('categoryTrendChart');
+                if (ctxTr) {
+                    if (categoryTrendChart) { try { categoryTrendChart.destroy(); } catch (_) {} }
+                    categoryTrendChart = new Chart(ctxTr, {
+                        type: 'line',
+                        data: {
+                            labels: keys3.map(function(k) { return formatPeriodLabel(k); }),
+                            datasets: datasets.length ? datasets : [{ label: 'Veri yok', data: [0, 0, 0], borderColor: '#cbd5e1' }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            interaction: { mode: 'index', intersect: false },
+                            plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
+                            scales: { y: { beginAtZero: true } }
+                        }
+                    });
+                }
+            } catch (err) { console.warn('catTrend', err); }
         }
+
+        function csvEscape(val) {
+            const s = String(val == null ? '' : val);
+            if (/[;"\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+            return s;
+        }
+
+        function buildExpensesCsv(rows) {
+            const header = ['Tip', 'Tarih', 'Kişi', 'Kategori', 'Alt', 'Ödeme', 'Açıklama', 'Tutar', 'Taksit', 'Dönem', 'Not'];
+            const lines = [header.join(';')];
+            (rows || []).forEach(function(e) {
+                lines.push([
+                    'Harcama',
+                    e.date || '',
+                    e.person || '',
+                    e.category || '',
+                    e.billSubtype || e.vehicleSubtype || '',
+                    e.paymentType || '',
+                    e.description || '',
+                    String(e.displayAmount != null ? e.displayAmount : (e.amount || '')).replace('.', ','),
+                    e.installmentLabel || (e.installmentCount > 1 ? e.installmentCount : 'Peşin'),
+                    e.effectiveMonth || '',
+                    e.fuelNote || ''
+                ].map(csvEscape).join(';'));
+            });
+            return '\uFEFF' + lines.join('\r\n');
+        }
+
+        function triggerCsvDownload(filename, csvText) {
+            const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function() {
+                URL.revokeObjectURL(url);
+                a.remove();
+            }, 500);
+        }
+
+        window.downloadExcel = function() {
+            try {
+                const rows = getProcessedExpenses().slice().sort(function(a, b) {
+                    return String(b.date || '').localeCompare(String(a.date || ''));
+                });
+                if (!rows.length) {
+                    showToast('İndirilecek harcama yok', 'error');
+                    return;
+                }
+                const csv = buildExpensesCsv(rows);
+                const stamp = new Date().toISOString().slice(0, 10);
+                triggerCsvDownload('yuvam-tum-harcamalar-' + stamp + '.csv', csv);
+                showToast(rows.length + ' satır indirildi (Excel ile açın)', 'success');
+                logActivity('Diğer', 'CSV yedek indirildi', rows.length + ' satır');
+            } catch (err) {
+                console.error(err);
+                showToast('İndirme hatası: ' + (err.message || err), 'error');
+            }
+        };
+
+        window.downloadPeriodExcel = function() {
+            try {
+                const pk = getCurrentPeriod();
+                const rows = getProcessedExpenses().filter(function(e) { return e.effectiveMonth === pk; })
+                    .sort(function(a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
+                if (!rows.length) {
+                    showToast('Bu dönemde harcama yok', 'error');
+                    return;
+                }
+                const csv = buildExpensesCsv(rows);
+                triggerCsvDownload('yuvam-donem-' + pk + '.csv', csv);
+                showToast('Dönem ' + pk + ': ' + rows.length + ' satır', 'success');
+            } catch (err) {
+                showToast('İndirme hatası', 'error');
+            }
+        };
 
         // Raporlar
         function renderMonthlyReports() {

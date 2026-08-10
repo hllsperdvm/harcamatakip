@@ -130,6 +130,21 @@
                     </div>
                 </div>
 
+                <!-- Aylık bütçe hedefi progress -->
+                <div id="budgetTargetCard" class="bg-white p-5 sm:p-6 rounded-3xl card-shadow border border-slate-100">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div>
+                            <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Dönem bütçe hedefi</p>
+                            <p id="budgetTargetLabel" class="text-sm font-black text-slate-800 mt-0.5">Hedef belirlenmedi</p>
+                        </div>
+                        <p id="budgetTargetPct" class="text-lg font-black text-sky-700">—</p>
+                    </div>
+                    <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                        <div id="budgetTargetBar" class="h-full rounded-full transition-all duration-700 bg-sky-500" style="width:0%"></div>
+                    </div>
+                    <p id="budgetTargetDetail" class="text-[11px] text-slate-500 font-semibold mt-2">Ayarlar → Bütçe hedefi</p>
+                </div>
+
                 <!-- Yeni Harcama Ekle Butonu -->
                 <div class="flex justify-center">
                     <button onclick="openExpenseModal()" class="w-full sm:w-auto bg-slate-900 hover:bg-indigo-600 text-white px-12 py-4 rounded-2xl text-base font-bold transition shadow-xl shadow-slate-200 flex items-center justify-center gap-3 active:scale-95">
@@ -240,7 +255,8 @@
                         <h2 class="text-xl font-black text-slate-900">İşlem Geçmişi</h2>
                         <div class="flex items-center gap-2">
                             <button onclick="toggleFilterPanel()" class="text-xs font-bold bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition">⚙️ Filtrele</button>
-                            <button type="button" onclick="downloadExcel()" class="text-xs font-bold bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 transition">📥 Yedek (CSV)</button>
+                            <button type="button" onclick="downloadExcel()" class="text-xs font-bold bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 transition" title="Tüm harcamalar CSV">📥 Excel / CSV</button>
+                            <button type="button" onclick="downloadPeriodExcel()" class="text-xs font-bold bg-teal-600 text-white px-4 py-2 rounded-xl hover:bg-teal-700 transition" title="Sadece aktif dönem">📅 Bu dönem</button>
                             <button onclick="resetFilters()" class="text-xs font-bold text-slate-400 hover:text-slate-900 transition">Temizle</button>
                         </div>
                     </div>
@@ -418,6 +434,19 @@
                     <div class="chart-box h-56 sm:h-64"><canvas id="monthlyTrendChart"></canvas></div>
                 </div>
 
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white p-5 sm:p-6 rounded-[2rem] card-shadow border border-slate-100">
+                        <h2 class="text-base font-black mb-1">Bu dönem vs önceki</h2>
+                        <p id="monthCompareSummary" class="text-[11px] text-slate-400 font-semibold mb-3">Karşılaştırma</p>
+                        <div class="chart-box h-56 sm:h-64"><canvas id="monthCompareChart"></canvas></div>
+                    </div>
+                    <div class="bg-white p-5 sm:p-6 rounded-[2rem] card-shadow border border-slate-100">
+                        <h2 class="text-base font-black mb-1">Kategori trendi (3 dönem)</h2>
+                        <p class="text-[11px] text-slate-400 font-semibold mb-3">En yüksek 5 kategori</p>
+                        <div class="chart-box h-56 sm:h-72"><canvas id="categoryTrendChart"></canvas></div>
+                    </div>
+                </div>
+
                 <div class="hidden" id="monthlySummaryReport"></div>
                 <div class="hidden" id="personSummaryReport"></div>
 
@@ -540,6 +569,28 @@
                                 <input type="password" id="pwdNew2" inputmode="numeric" pattern="[0-9]*" maxlength="32" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200" placeholder="••••">
                             </div>
                             <button type="button" onclick="savePasswordChange()" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl">Kaydet</button>
+                        </div>
+                    </div>
+
+                    <!-- Admin: Aylık bütçe hedefi -->
+                    <div class="bg-white rounded-[2rem] card-shadow border border-slate-100 overflow-hidden">
+                        <button type="button" onclick="toggleAdminPanel('budget')" class="w-full flex items-center justify-between gap-4 p-6 text-left hover:bg-slate-50 transition">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center text-xl shrink-0">🎯</div>
+                                <div>
+                                    <p class="font-black text-slate-900">Aylık bütçe hedefi</p>
+                                    <p class="text-[11px] text-slate-400 font-semibold">Dönem harcama limiti · ana sayfada progress</p>
+                                </div>
+                            </div>
+                            <span class="text-slate-300 text-lg">▾</span>
+                        </button>
+                        <div id="adminPanel_budget" class="hidden border-t border-slate-100 p-6 space-y-4">
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase">Hedef tutar (TL)</label>
+                                <input type="number" id="budgetTargetInput" min="0" max="9999999" step="1" placeholder="örn. 50000" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            </div>
+                            <p class="text-[11px] text-slate-500 font-medium">Aktif ekstre dönemindeki toplam harcama bu hedefe göre yüzde olarak gösterilir.</p>
+                            <button type="button" onclick="saveBudgetTarget()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 rounded-xl">Hedefi kaydet</button>
                         </div>
                     </div>
 
@@ -859,7 +910,8 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Tutar (TL)</label>
-                        <input type="number" step="any" id="amount" required class="w-full bg-slate-50 border-none rounded-2xl p-4 text-xl font-black focus:ring-2 focus:ring-indigo-500">
+                        <input type="number" step="0.01" min="0.01" max="999999" id="amount" required class="w-full bg-slate-50 border-none rounded-2xl p-4 text-xl font-black focus:ring-2 focus:ring-indigo-500" placeholder="0,01 – 999.999">
+                        <p id="amountHint" class="text-[10px] text-slate-400 font-semibold mt-1 ml-2">Min 0,01 · Max 999.999 TL</p>
                     </div>
                     <div>
                         <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Taksit</label>
