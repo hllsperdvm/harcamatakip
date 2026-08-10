@@ -401,18 +401,20 @@
                 });
             } catch (_) {}
 
-            // Aile takvimi
+            // Aile takvimi (yıllık doğum günü / yıldönümü dahil)
             try {
                 (familyCalendar || []).forEach(function(ev) {
                     if (!ev || !ev.date) return;
-                    const d = String(ev.date).slice(0, 10);
+                    const d = (typeof eventEffectiveDate === 'function') ? eventEffectiveDate(ev) : String(ev.date).slice(0, 10);
                     const days = daysUntilYMD(d);
                     if (days == null || days < 0 || days > 14) return;
                     const title = ev.title || 'Etkinlik';
-                    const key = 'fcal-' + (ev.id || d + title);
-                    if (days === 0) pushNotif(key, 'critical', '📅', 'Bugün: ' + title, formatDateTR(d));
-                    else if (days <= 3) pushNotif(key, 'warning', '📅', days + ' gün: ' + title, formatDateTR(d));
-                    else pushNotif(key, 'info', '🗓️', days + ' gün: ' + title, formatDateTR(d));
+                    const icon = (typeof calTypeIcon === 'function') ? calTypeIcon(ev.type) : '📅';
+                    const typeLab = (typeof calTypeLabel === 'function') ? calTypeLabel(ev.type) : '';
+                    const key = 'fcal-' + (ev.id || d + title) + '-' + d;
+                    if (days === 0) pushNotif(key, 'critical', icon, 'Bugün: ' + title, typeLab + ' · ' + formatDateTR(d));
+                    else if (days <= 3) pushNotif(key, 'warning', icon, days + ' gün: ' + title, typeLab + ' · ' + formatDateTR(d));
+                    else pushNotif(key, 'info', icon, days + ' gün: ' + title, typeLab + ' · ' + formatDateTR(d));
                 });
             } catch (_) {}
 
@@ -722,7 +724,7 @@
         let dashboardCards = {
             total: true, bekir: true, duygu: true, debt: true,
             homeToday: true, homePeriod: true, homeNotif: true, homeQuickAdd: true, homeUpcoming: true,
-            homeBudget: true, homeTasks: true
+            homeBudget: true, homeTasks: true, homeBriefing: true
         };
         let appTheme = 'light';
         let monthCompareChart = null, categoryTrendChart = null;
@@ -1013,15 +1015,6 @@
                     const target = Number(monthlyBudgetTarget) || 0;
                     const lab = document.getElementById('homeBudgetLabel');
                     const bar = document.getElementById('homeBudgetBar');
-                    const periodSum = (function() {
-                        let s = 0;
-                        const pk = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
-                        const list = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : [];
-                        list.forEach(function(e) {
-                            if (e && e.effectiveMonth === pk) s += Number(e.displayAmount) || 0;
-                        });
-                        return s;
-                    })();
                     if (lab) {
                         if (target > 0) {
                             const pct = Math.min(999, Math.round(periodSum / target * 100));
@@ -1036,6 +1029,8 @@
                         bar.className = 'h-full rounded-full transition-all ' + (pctW >= 100 ? 'bg-rose-500' : pctW >= 80 ? 'bg-amber-500' : 'bg-sky-500');
                     }
                 } catch (_) {}
+
+                try { if (typeof renderHomeLocalBriefing === 'function') renderHomeLocalBriefing(periodSum, todaySum); } catch (_) {}
 
                 // Ana sayfa görev listesi (sadece görüntüleme)
                 try {
@@ -1105,20 +1100,67 @@
                 '</div><div class="flex gap-1 shrink-0">' + (actionsHtml || '') + '</div></div>';
         }
 
+        function calTypeLabel(type) {
+            const m = { event: 'Etkinlik', birthday: 'Doğum günü', anniversary: 'Yıldönümü', appointment: 'Randevu', other: 'Diğer' };
+            return m[type] || 'Etkinlik';
+        }
+        function calTypeIcon(type) {
+            const m = { event: '📅', birthday: '🎂', anniversary: '💍', appointment: '🩺', other: '📌' };
+            return m[type] || '📅';
+        }
+        function taskRepeatLabel(r) {
+            if (r === 'weekly') return 'Her hafta';
+            if (r === 'monthly') return 'Her ay';
+            return '';
+        }
+        function addDaysYMD(ymd, days) {
+            const p = parseYMD(ymd) || new Date();
+            p.setDate(p.getDate() + days);
+            return formatYMD(p);
+        }
+        function addMonthsYMD(ymd, months) {
+            const p = parseYMD(ymd) || new Date();
+            const d = p.getDate();
+            p.setMonth(p.getMonth() + months);
+            if (p.getDate() < d) p.setDate(0);
+            return formatYMD(p);
+        }
+        /** Yıllık tekrar: bugünden sonraki ilk gün (MM-DD) */
+        function nextYearlyOccurrence(baseYmd) {
+            const base = String(baseYmd || '').slice(0, 10);
+            if (base.length < 10) return base;
+            const md = base.slice(5); // MM-DD
+            const today = todayDateStr();
+            const y = parseInt(today.slice(0, 4), 10);
+            let cand = y + '-' + md;
+            if (cand < today) cand = (y + 1) + '-' + md;
+            return cand;
+        }
+        function eventEffectiveDate(ev) {
+            if (!ev || !ev.date) return '';
+            if (ev.repeat === 'yearly' || ev.type === 'birthday' || ev.type === 'anniversary') {
+                return nextYearlyOccurrence(ev.date);
+            }
+            return String(ev.date).slice(0, 10);
+        }
+
         window.renderCalendarTab = function() {
             const list = document.getElementById('familyCalendarList');
             if (!list) return;
             const sorted = (familyCalendar || []).slice().sort(function(a, b) {
-                return String(a.date || '').localeCompare(String(b.date || ''));
+                return eventEffectiveDate(a).localeCompare(eventEffectiveDate(b));
             });
             if (!sorted.length) {
                 list.innerHTML = '<p class="text-sm text-slate-400 font-semibold py-4 text-center">Henüz etkinlik yok</p>';
                 return;
             }
             list.innerHTML = sorted.map(function(ev) {
-                const days = daysUntilYMD(ev.date);
+                const eff = eventEffectiveDate(ev);
+                const days = daysUntilYMD(eff);
                 const badge = days == null ? '' : (days < 0 ? 'geçti' : (days === 0 ? 'bugün' : days + ' gün'));
-                const sub = formatDateTR(ev.date) + (badge ? ' · ' + badge : '') + (ev.by ? ' · ' + ev.by : '');
+                const typeLab = calTypeLabel(ev.type);
+                const rep = (ev.repeat === 'yearly' || ev.type === 'birthday' || ev.type === 'anniversary') ? ' · her yıl' : '';
+                const sub = calTypeIcon(ev.type) + ' ' + typeLab + ' · ' + formatDateTR(eff) + (badge ? ' · ' + badge : '') + rep + (ev.by ? ' · ' + ev.by : '');
                 return familyRow(escapeHtml(ev.title || '-'), escapeHtml(sub),
                     '<button type="button" onclick="familyDelete(\'familyCalendar\',\'' + escapeHtml(ev.id) + '\')" class="text-xs font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50">Sil</button>');
             }).join('');
@@ -1131,10 +1173,15 @@
             const title = ((document.getElementById('famCalTitle') || {}).value || '').trim();
             const date = (document.getElementById('famCalDate') || {}).value;
             if (!title || !date) return;
+            let type = (document.getElementById('famCalType') || {}).value || 'event';
+            let repeat = (document.getElementById('famCalRepeat') || {}).value || 'none';
+            if (type === 'birthday' || type === 'anniversary') repeat = 'yearly';
             try {
                 await db.collection('familyCalendar').add({
                     title: title,
                     date: date,
+                    type: type,
+                    repeat: repeat,
                     by: (currentUser && currentUser.name) || '',
                     createdAt: new Date().toISOString()
                 });
@@ -1158,15 +1205,14 @@
             list.innerHTML = sorted.map(function(t) {
                 const due = t.due ? formatDateTR(t.due) : 'Tarihsiz';
                 const who = t.assignee && t.assignee !== 'Herkes' ? t.assignee : 'Herkes';
+                const rep = taskRepeatLabel(t.repeat);
                 const main = (t.done ? '<span class="line-through opacity-60">' : '') + escapeHtml(t.text || '-') + (t.done ? '</span>' : '');
-                const sub = due + ' · ' + who + (t.by ? ' · ekleyen: ' + t.by : '');
+                const sub = due + ' · ' + who + (rep ? ' · 🔁 ' + rep : '') + (t.by ? ' · ekleyen: ' + t.by : '');
                 const tog = '<button type="button" onclick="familyToggleTask(\'' + escapeHtml(t.id) + '\',' + (t.done ? 'false' : 'true') + ')" class="text-xs font-bold px-2 py-1 rounded-lg ' +
                     (t.done ? 'text-slate-500 bg-slate-100' : 'text-emerald-700 bg-emerald-50') + '">' + (t.done ? 'Geri al' : 'Tamam') + '</button>';
                 const del = '<button type="button" onclick="familyDelete(\'familyTasks\',\'' + escapeHtml(t.id) + '\')" class="text-xs font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50">Sil</button>';
                 return familyRow(main, escapeHtml(sub), tog + del);
             }).join('');
-            const dInp = document.getElementById('famTaskDue');
-            if (dInp && !dInp.value) dInp.value = '';
         };
 
         window.familyAddTask = async function(e) {
@@ -1175,24 +1221,38 @@
             if (!text) return;
             const due = (document.getElementById('famTaskDue') || {}).value || '';
             const assignee = (document.getElementById('famTaskAssignee') || {}).value || 'Herkes';
+            const repeat = (document.getElementById('famTaskRepeat') || {}).value || 'none';
             try {
                 await db.collection('familyTasks').add({
                     text: text,
                     due: due,
                     assignee: assignee,
+                    repeat: repeat,
                     done: false,
                     by: (currentUser && currentUser.name) || '',
                     createdAt: new Date().toISOString()
                 });
                 document.getElementById('famTaskText').value = '';
-                showToast('Görev eklendi', 'success');
+                showToast(repeat !== 'none' ? 'Tekrarlayan görev eklendi' : 'Görev eklendi', 'success');
             } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
         };
 
         window.familyToggleTask = async function(id, done) {
             if (!id) return;
             try {
-                await db.collection('familyTasks').doc(id).update({ done: !!done });
+                const t = (familyTasks || []).find(function(x) { return x.id === id; });
+                if (done && t && (t.repeat === 'weekly' || t.repeat === 'monthly')) {
+                    const base = t.due || todayDateStr();
+                    const next = t.repeat === 'weekly' ? addDaysYMD(base, 7) : addMonthsYMD(base, 1);
+                    await db.collection('familyTasks').doc(id).update({
+                        done: false,
+                        due: next,
+                        lastCompletedAt: new Date().toISOString()
+                    });
+                    showToast('Tamam · sonraki: ' + formatDateTR(next), 'success');
+                } else {
+                    await db.collection('familyTasks').doc(id).update({ done: !!done });
+                }
             } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
         };
 
@@ -1298,7 +1358,7 @@
         // Ana sayfa + finans kart görünürlüğü (Ayarlar)
         const DASH_CARD_KEYS = [
             'total', 'bekir', 'duygu', 'debt',
-            'homeToday', 'homePeriod', 'homeNotif', 'homeQuickAdd', 'homeUpcoming', 'homeBudget', 'homeTasks'
+            'homeToday', 'homePeriod', 'homeNotif', 'homeQuickAdd', 'homeUpcoming', 'homeBudget', 'homeTasks', 'homeBriefing'
         ];
 
         window.applyDashboardCards = function() {
@@ -3356,6 +3416,81 @@
                 console.error(err);
                 const box = document.getElementById('localAdvisorResult');
                 if (box) box.innerHTML = '<p class="text-sm text-rose-600 font-semibold">' + escapeHtml(err.message || String(err)) + '</p>';
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        };
+
+        /** Ana sayfa yerel günlük brifing (AI olmadan) */
+        window.renderHomeLocalBriefing = function(periodSum, todaySum) {
+            const box = document.getElementById('homeBriefingLocal');
+            if (!box) return;
+            const income = (typeof HOUSEHOLD_MONTHLY_INCOME === 'number') ? HOUSEHOLD_MONTHLY_INCOME : 110000;
+            const pSum = Number(periodSum);
+            const tSum = Number(todaySum);
+            const openTasks = (familyTasks || []).filter(function(t) { return !t.done; }).length;
+            const dueToday = (familyTasks || []).filter(function(t) {
+                return !t.done && t.due && String(t.due).slice(0, 10) === todayDateStr();
+            }).length;
+            const calSoon = (familyCalendar || []).filter(function(ev) {
+                const d = eventEffectiveDate(ev);
+                const days = daysUntilYMD(d);
+                return days != null && days >= 0 && days <= 7;
+            }).length;
+            const shopOpen = (familyShopping || []).filter(function(x) { return !x.bought; }).length;
+            const ratio = income > 0 && !isNaN(pSum) ? (pSum / income * 100) : 0;
+            const left = income - (isNaN(pSum) ? 0 : pSum);
+            const lines = [];
+            lines.push('• Dönem harcama: <b>' + Math.round(isNaN(pSum) ? 0 : pSum).toLocaleString('tr-TR') + ' TL</b> · gelire oran ~%' + ratio.toFixed(0) + ' · kalan nefes ~' + Math.round(left).toLocaleString('tr-TR') + ' TL');
+            if (!isNaN(tSum) && tSum > 0) lines.push('• Bugün harcama: <b>' + Math.round(tSum).toLocaleString('tr-TR') + ' TL</b>');
+            lines.push('• Görevler: <b>' + openTasks + '</b> açık' + (dueToday ? (' · <b>' + dueToday + '</b> bugün') : ''));
+            lines.push('• Takvim: <b>' + calSoon + '</b> etkinlik (7 gün) · Alışveriş: <b>' + shopOpen + '</b> ürün');
+            if (ratio >= 70) lines.push('• Uyarı: dönem harcaması gelirin %70+ — kart ve nakit akışına dikkat');
+            else if (ratio <= 40 && pSum > 0) lines.push('• Dönem harcaması gelirin altında — tasarruf fırsatı var');
+            box.innerHTML = lines.map(function(l) { return '<p>' + l + '</p>'; }).join('');
+        };
+
+        window.runHomeAiBriefing = async function() {
+            const btn = document.getElementById('homeBriefingAiBtn');
+            const out = document.getElementById('homeBriefingAi');
+            const st = document.getElementById('homeBriefingStatus');
+            if (btn) btn.disabled = true;
+            if (st) st.textContent = 'AI özet hazırlanıyor…';
+            if (out) {
+                out.classList.remove('hidden');
+                out.innerHTML = '<p class="text-slate-400 font-semibold">…</p>';
+            }
+            try {
+                if (!openrouterApiKey) throw new Error('OpenRouter anahtarı yok (settings/apiKeys)');
+                const income = HOUSEHOLD_MONTHLY_INCOME || 110000;
+                let periodSum = 0;
+                const pk = getCurrentPeriod();
+                getProcessedExpenses().forEach(function(e) {
+                    if (e && e.effectiveMonth === pk && e.installmentLabel !== 'Gelir') periodSum += Number(e.displayAmount) || 0;
+                });
+                const openTasks = (familyTasks || []).filter(function(t) { return !t.done; });
+                const taskTxt = openTasks.slice(0, 6).map(function(t) {
+                    return (t.text || '') + (t.due ? ' (son: ' + t.due + ')' : '');
+                }).join('; ') || 'yok';
+                const calTxt = (familyCalendar || []).slice(0, 5).map(function(ev) {
+                    return (ev.title || '') + ' ' + eventEffectiveDate(ev);
+                }).join('; ') || 'yok';
+                const shopN = (familyShopping || []).filter(function(x) { return !x.bought; }).length;
+                const prompt = [
+                    'Hane aylik geliri: ' + income + ' TL.',
+                    'Aktif ekstre donemi harcama: ' + Math.round(periodSum) + ' TL (oran %' + (income ? (periodSum / income * 100).toFixed(1) : 0) + ').',
+                    'Acik gorevler: ' + openTasks.length + ' → ' + taskTxt,
+                    'Yakin etkinlikler: ' + calTxt,
+                    'Alisveris bekleyen: ' + shopN + ' urun.',
+                    'Gorev: 3-4 cumlelik Turkce gunluk aile brifingi yaz. Bugun neye odaklanmali, butce durumu (gelire gore), bir pratik oneri. Markdown/emoji yok. Kisa tut.'
+                ].join('\n');
+                const text = await callOpenRouter(prompt, 'Sen aile ev asistaniisin. Kisa, sicak, net yaz.', 600);
+                if (out) out.innerHTML = '<p>' + escapeHtml(String(text || '').trim()).replace(/\n/g, '<br>') + '</p>';
+                if (st) st.textContent = 'AI özet · ' + new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+                logActivity('Diğer', 'Günlük AI brifing', '');
+            } catch (err) {
+                if (out) out.innerHTML = '<p class="text-rose-600 font-semibold">' + escapeHtml(err.message || String(err)) + '</p>';
+                if (st) st.textContent = 'AI kullanılamadı — yerel özet geçerli';
             } finally {
                 if (btn) btn.disabled = false;
             }

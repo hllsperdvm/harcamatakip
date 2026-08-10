@@ -98,6 +98,16 @@
                     <p id="homePeriodBadge" class="inline-flex mt-3 text-[11px] font-bold bg-white/15 px-3 py-1 rounded-full">Dönem: —</p>
                 </div>
 
+                <div data-home-card="homeBriefing" class="bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <h2 class="text-base font-black text-slate-800">☀️ Günlük brifing</h2>
+                        <button type="button" id="homeBriefingAiBtn" onclick="runHomeAiBriefing()" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-violet-50 text-violet-700 border border-violet-100">AI özet</button>
+                    </div>
+                    <div id="homeBriefingLocal" class="text-sm text-slate-600 font-semibold leading-relaxed space-y-1"></div>
+                    <div id="homeBriefingAi" class="hidden mt-3 pt-3 border-t border-slate-100 text-sm text-slate-700 font-medium leading-relaxed"></div>
+                    <p id="homeBriefingStatus" class="text-[11px] text-slate-400 font-semibold mt-2"></p>
+                </div>
+
                 <button type="button" data-home-card="homeQuickAdd" onclick="switchTab('expense'); openExpenseModal();"
                     class="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-[2rem] p-6 shadow-lg shadow-indigo-200/40 text-left flex items-center justify-between gap-4">
                     <div>
@@ -157,11 +167,24 @@
             <div id="tabContentCalendar" class="hidden space-y-4 fade-in max-w-2xl mx-auto">
                 <div class="bg-white p-5 rounded-[1.75rem] card-shadow border border-slate-100">
                     <h2 class="text-lg font-black mb-1">📅 Aile takvimi</h2>
-                    <p class="text-[11px] text-slate-400 font-semibold mb-4">Etkinlik ve vadeler · bildirimlere düşer</p>
-                    <form onsubmit="familyAddCalendar(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-4">
-                        <input type="text" id="famCalTitle" required placeholder="Başlık" class="sm:col-span-2 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
-                        <input type="date" id="famCalDate" required class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
-                        <button type="submit" class="bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl py-3 text-sm">Ekle</button>
+                    <p class="text-[11px] text-slate-400 font-semibold mb-4">Randevu · doğum günü · yıldönümü · hatırlatma</p>
+                    <form onsubmit="familyAddCalendar(event)" class="space-y-2 mb-4">
+                        <input type="text" id="famCalTitle" required placeholder="Başlık (örn. Duygu doğum günü)" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            <input type="date" id="famCalDate" required class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            <select id="famCalType" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                                <option value="event">Etkinlik</option>
+                                <option value="birthday">Doğum günü</option>
+                                <option value="anniversary">Yıldönümü</option>
+                                <option value="appointment">Randevu</option>
+                                <option value="other">Diğer</option>
+                            </select>
+                            <select id="famCalRepeat" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                                <option value="none">Tek sefer</option>
+                                <option value="yearly">Her yıl</option>
+                            </select>
+                            <button type="submit" class="bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl py-3 text-sm">Ekle</button>
+                        </div>
                     </form>
                     <div id="familyCalendarList" class="space-y-2"></div>
                 </div>
@@ -171,17 +194,22 @@
             <div id="tabContentTasks" class="hidden space-y-4 fade-in max-w-2xl mx-auto">
                 <div class="bg-white p-5 rounded-[1.75rem] card-shadow border border-slate-100">
                     <h2 class="text-lg font-black mb-1">✅ Ev / aile görevleri</h2>
-                    <p class="text-[11px] text-slate-400 font-semibold mb-4">Atama · son tarih · tamamla</p>
+                    <p class="text-[11px] text-slate-400 font-semibold mb-4">Atama · son tarih · tekrar (haftalık/aylık)</p>
                     <form onsubmit="familyAddTask(event)" class="space-y-2 mb-4">
                         <input type="text" id="famTaskText" required placeholder="Görev (örn. Akvaryum temizliği)" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
-                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             <input type="date" id="famTaskDue" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
                             <select id="famTaskAssignee" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
                                 <option value="Herkes">Herkes</option>
                                 <option value="Bekir">Bekir</option>
                                 <option value="Duygu">Duygu</option>
                             </select>
-                            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl py-3 text-sm col-span-2 sm:col-span-1">Ekle</button>
+                            <select id="famTaskRepeat" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                                <option value="none">Tek sefer</option>
+                                <option value="weekly">Her hafta</option>
+                                <option value="monthly">Her ay</option>
+                            </select>
+                            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl py-3 text-sm">Ekle</button>
                         </div>
                     </form>
                     <div id="familyTasksList" class="space-y-2"></div>
@@ -831,6 +859,10 @@
                             <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
                                 <span class="text-sm font-bold text-slate-800">Görevler listesi</span>
                                 <input type="checkbox" id="cardVis_homeTasks" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Günlük brifing</span>
+                                <input type="checkbox" id="cardVis_homeBriefing" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
                             </label>
 
                             <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider pt-2">Bütçe Takip özeti</p>
