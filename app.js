@@ -106,6 +106,10 @@
 
         const DEFAULT_TABS = [
             { id: 'home', emoji: '🏠', label: 'Ana Sayfa', visible: true, core: true, adminOnly: false },
+            { id: 'calendar', emoji: '📅', label: 'Takvim', visible: true, core: true, adminOnly: false },
+            { id: 'tasks', emoji: '✅', label: 'Görevler', visible: true, core: true, adminOnly: false },
+            { id: 'shopping', emoji: '🛒', label: 'Alışveriş', visible: true, core: true, adminOnly: false },
+            { id: 'homeHub', emoji: '🏡', label: 'Ev', visible: true, core: true, adminOnly: false },
             { id: 'expense', emoji: '💰', label: 'Finans', visible: true, core: true, adminOnly: false },
             { id: 'vehicle', emoji: '🚗', label: 'Araç', visible: true, core: true, adminOnly: false },
             { id: 'stats', emoji: '📊', label: 'Raporlar', visible: true, core: true, adminOnly: false },
@@ -114,8 +118,13 @@
             { id: 'trash', emoji: '🗑️', label: 'Çöp Kutusu', visible: true, core: true, adminOnly: true }
         ];
 
-        // Mobil alt menüde gösterilecek ana sekmeler (Diğer = more sheet)
-        const MOBILE_NAV_PRIMARY = ['home', 'expense', 'notes', 'vehicle'];
+        // Mobil alt menü: Ana · Takvim · Alışveriş · Finans · Daha
+        const MOBILE_NAV_PRIMARY = ['home', 'calendar', 'shopping', 'expense'];
+
+        let familyCalendar = [];
+        let familyTasks = [];
+        let familyShopping = [];
+        let familyAssets = []; // Ev envanter / garanti / bakım
 
         let tabsConfig = DEFAULT_TABS.map(t => ({ ...t }));
 
@@ -389,6 +398,56 @@
                 });
             } catch (_) {}
 
+            // Aile takvimi
+            try {
+                (familyCalendar || []).forEach(function(ev) {
+                    if (!ev || !ev.date) return;
+                    const d = String(ev.date).slice(0, 10);
+                    const days = daysUntilYMD(d);
+                    if (days == null || days < 0 || days > 14) return;
+                    const title = ev.title || 'Etkinlik';
+                    const key = 'fcal-' + (ev.id || d + title);
+                    if (days === 0) pushNotif(key, 'critical', '📅', 'Bugün: ' + title, formatDateTR(d));
+                    else if (days <= 3) pushNotif(key, 'warning', '📅', days + ' gün: ' + title, formatDateTR(d));
+                    else pushNotif(key, 'info', '🗓️', days + ' gün: ' + title, formatDateTR(d));
+                });
+            } catch (_) {}
+
+            // Aile görevleri
+            try {
+                (familyTasks || []).forEach(function(t) {
+                    if (!t || t.done || !t.due) return;
+                    const d = String(t.due).slice(0, 10);
+                    const days = daysUntilYMD(d);
+                    if (days == null || days < 0 || days > 7) return;
+                    const text = t.text || 'Görev';
+                    const key = 'ftask-' + (t.id || d + text);
+                    if (days === 0) pushNotif(key, 'critical', '✅', 'Bugün görev: ' + text, formatDateTR(d));
+                    else if (days <= 3) pushNotif(key, 'warning', '✅', days + ' gün görev: ' + text, formatDateTR(d));
+                    else pushNotif(key, 'info', '✅', days + ' gün görev: ' + text, formatDateTR(d));
+                });
+            } catch (_) {}
+
+            // Ev garanti / bakım
+            try {
+                (familyAssets || []).forEach(function(a) {
+                    if (!a) return;
+                    [['warranty', 'Garanti bitiş'], ['service', 'Bakım']].forEach(function(pair) {
+                        const field = pair[0];
+                        const label = pair[1];
+                        const d = a[field] ? String(a[field]).slice(0, 10) : '';
+                        if (!d) return;
+                        const days = daysUntilYMD(d);
+                        if (days == null || days < 0 || days > 30) return;
+                        const name = a.name || 'Cihaz';
+                        const key = 'fasset-' + field + '-' + (a.id || name) + '-' + d;
+                        if (days === 0) pushNotif(key, 'critical', '🛠️', label + ' bugün: ' + name, formatDateTR(d));
+                        else if (days <= 7) pushNotif(key, 'warning', '🛠️', label + ' ' + days + ' gün: ' + name, formatDateTR(d));
+                        else pushNotif(key, 'info', '🛠️', label + ' ' + days + ' gün: ' + name, formatDateTR(d));
+                    });
+                });
+            } catch (_) {}
+
             try {
                 (activityLog || []).slice(0, 30).forEach(function(row) {
                     if (!row) return;
@@ -582,13 +641,16 @@
                 el.classList.toggle('hidden', !isAdmin());
             });
             const visible = getVisibleTabs();
+            // Mümkünse Ana Sayfa ile aç
+            const homeTab = visible.find(t => t.id === 'home');
             if (lastActiveTabId && visible.some(t => t.id === lastActiveTabId)) {
                 renderTabBar();
                 if (typeof updateMobileBottomNav === 'function') updateMobileBottomNav(lastActiveTabId);
                 return;
             }
             renderTabBar();
-            if (visible.length) switchTab(visible[0].id);
+            if (homeTab) switchTab('home');
+            else if (visible.length) switchTab(visible[0].id);
         }
 
         let lastActiveTabId = null;
@@ -596,16 +658,28 @@
         window.renderTabBar = function() {
             const bar = document.getElementById('tabBar');
             if (!bar) return;
-            const visible = getVisibleTabs();
+            let visible = getVisibleTabs();
+            // Ana Sayfa görsel sırada en başta
+            const hi = visible.findIndex(t => t.id === 'home');
+            if (hi > 0) {
+                const h = visible.splice(hi, 1)[0];
+                visible.unshift(h);
+            }
             const activeId = lastActiveTabId && visible.some(t => t.id === lastActiveTabId)
                 ? lastActiveTabId
-                : (visible[0] && visible[0].id);
+                : ((visible.find(t => t.id === 'home') || visible[0] || {}).id);
+            const shortLabel = {
+                home: 'Ana', calendar: 'Takvim', tasks: 'Görev', shopping: 'Market',
+                expense: 'Finans', vehicle: 'Araç', stats: 'Rapor', notes: 'Not',
+                settings: 'Ayar', trash: 'Çöp', homeHub: 'Ev'
+            };
             bar.innerHTML = visible.map((t) => {
                 const active = t.id === activeId;
                 const cls = active
-                    ? 'tab-active'
-                    : 'tab-inactive hover:bg-white/80';
-                return `<button type="button" data-tab-id="${escapeHtml(t.id)}" title="${escapeHtml(t.label)}" onclick="switchTab('${escapeHtml(t.id)}')" class="${cls} flex items-center gap-1.5 font-bold rounded-xl transition"><span class="shrink-0">${escapeHtml(t.emoji || '📌')}</span><span class="truncate">${escapeHtml(t.label)}</span></button>`;
+                    ? 'tab-active yuvam-tab-btn'
+                    : 'tab-inactive yuvam-tab-btn hover:bg-white/80';
+                const lab = shortLabel[t.id] || t.label;
+                return `<button type="button" data-tab-id="${escapeHtml(t.id)}" title="${escapeHtml(t.label)}" onclick="switchTab('${escapeHtml(t.id)}')" class="${cls}"><span class="yuvam-tab-emoji">${escapeHtml(t.emoji || '📌')}</span><span class="yuvam-tab-text">${escapeHtml(lab)}</span></button>`;
             }).join('');
         };
 
@@ -798,7 +872,7 @@
         // Sekme Değiştirme
         window.switchTab = function(tabName) {
             lastActiveTabId = tabName;
-            const coreIds = ["home", "expense", "vehicle", "stats", "notes", "settings", "trash"];
+            const coreIds = ["home", "calendar", "tasks", "shopping", "homeHub", "expense", "vehicle", "stats", "notes", "settings", "trash"];
             const isCustom = String(tabName).startsWith('custom_');
 
             // Hide all core contents + custom
@@ -861,6 +935,14 @@
                 renderVehicleTab();
             } else if (tabName === 'home') {
                 if (typeof renderHomeTab === 'function') renderHomeTab();
+            } else if (tabName === 'calendar') {
+                if (typeof renderCalendarTab === 'function') renderCalendarTab();
+            } else if (tabName === 'tasks') {
+                if (typeof renderTasksTab === 'function') renderTasksTab();
+            } else if (tabName === 'shopping') {
+                if (typeof renderShoppingTab === 'function') renderShoppingTab();
+            } else if (tabName === 'homeHub') {
+                if (typeof renderHomeHubTab === 'function') renderHomeHubTab();
             } else if (tabName === 'trash') {
                 renderTrash();
             } else if (tabName === 'notes') {
@@ -939,6 +1021,21 @@
                         }).join('');
                     }
                 }
+
+                const calSoon = (familyCalendar || []).filter(function(e) {
+                    const d = daysUntilYMD(e.date);
+                    return d != null && d >= 0 && d <= 14;
+                }).length;
+                const hs = document.getElementById('homeCalSummary');
+                if (hs) hs.textContent = calSoon ? (calSoon + ' yaklaşan') : ((familyCalendar || []).length ? (familyCalendar.length + ' kayıt') : 'Etkinlik ekle');
+
+                const openTasks = (familyTasks || []).filter(function(t) { return !t.done; }).length;
+                const ht = document.getElementById('homeTaskSummary');
+                if (ht) ht.textContent = openTasks ? (openTasks + ' açık görev') : 'Görev yok';
+
+                const openShop = (familyShopping || []).filter(function(x) { return !x.bought; }).length;
+                const hshop = document.getElementById('homeShopSummary');
+                if (hshop) hshop.textContent = openShop ? (openShop + ' ürün') : 'Liste boş';
             } catch (err) {
                 console.warn('renderHomeTab', err);
             }
@@ -947,33 +1044,255 @@
         window.updateMobileBottomNav = function(activeId) {
             const nav = document.getElementById('mobileBottomNav');
             if (!nav) return;
+            const moreIds = ['tasks', 'stats', 'settings', 'trash', 'vehicle', 'notes', 'homeHub'];
             nav.querySelectorAll('[data-mnav]').forEach(function(btn) {
                 const id = btn.getAttribute('data-mnav');
-                const on = id === activeId || (id === 'more' && ['stats', 'settings', 'trash'].indexOf(activeId) >= 0);
+                const on = id === activeId || (id === 'more' && moreIds.indexOf(activeId) >= 0);
                 btn.classList.toggle('mnav-active', !!on);
             });
+        };
+
+        // ——— Aile: Takvim / Görev / Alışveriş ———
+        function familyRow(main, sub, actionsHtml) {
+            return '<div class="flex justify-between gap-3 items-start p-3 rounded-xl bg-slate-50 border border-slate-100">' +
+                '<div class="min-w-0 flex-1">' +
+                '<p class="text-sm font-bold text-slate-800">' + main + '</p>' +
+                (sub ? '<p class="text-[11px] text-slate-500 font-semibold mt-0.5">' + sub + '</p>' : '') +
+                '</div><div class="flex gap-1 shrink-0">' + (actionsHtml || '') + '</div></div>';
+        }
+
+        window.renderCalendarTab = function() {
+            const list = document.getElementById('familyCalendarList');
+            if (!list) return;
+            const sorted = (familyCalendar || []).slice().sort(function(a, b) {
+                return String(a.date || '').localeCompare(String(b.date || ''));
+            });
+            if (!sorted.length) {
+                list.innerHTML = '<p class="text-sm text-slate-400 font-semibold py-4 text-center">Henüz etkinlik yok</p>';
+                return;
+            }
+            list.innerHTML = sorted.map(function(ev) {
+                const days = daysUntilYMD(ev.date);
+                const badge = days == null ? '' : (days < 0 ? 'geçti' : (days === 0 ? 'bugün' : days + ' gün'));
+                const sub = formatDateTR(ev.date) + (badge ? ' · ' + badge : '') + (ev.by ? ' · ' + ev.by : '');
+                return familyRow(escapeHtml(ev.title || '-'), escapeHtml(sub),
+                    '<button type="button" onclick="familyDelete(\'familyCalendar\',\'' + escapeHtml(ev.id) + '\')" class="text-xs font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50">Sil</button>');
+            }).join('');
+            const dInp = document.getElementById('famCalDate');
+            if (dInp && !dInp.value) dInp.value = todayDateStr();
+        };
+
+        window.familyAddCalendar = async function(e) {
+            e.preventDefault();
+            const title = ((document.getElementById('famCalTitle') || {}).value || '').trim();
+            const date = (document.getElementById('famCalDate') || {}).value;
+            if (!title || !date) return;
+            try {
+                await db.collection('familyCalendar').add({
+                    title: title,
+                    date: date,
+                    by: (currentUser && currentUser.name) || '',
+                    createdAt: new Date().toISOString()
+                });
+                document.getElementById('famCalTitle').value = '';
+                showToast('Takvime eklendi', 'success');
+            } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
+        };
+
+        window.renderTasksTab = function() {
+            const list = document.getElementById('familyTasksList');
+            if (!list) return;
+            const open = (familyTasks || []).filter(function(t) { return !t.done; });
+            const done = (familyTasks || []).filter(function(t) { return t.done; });
+            const sorted = open.concat(done).sort(function(a, b) {
+                return String(a.due || '9999').localeCompare(String(b.due || '9999'));
+            });
+            if (!sorted.length) {
+                list.innerHTML = '<p class="text-sm text-slate-400 font-semibold py-4 text-center">Görev yok</p>';
+                return;
+            }
+            list.innerHTML = sorted.map(function(t) {
+                const due = t.due ? formatDateTR(t.due) : 'Tarihsiz';
+                const who = t.assignee && t.assignee !== 'Herkes' ? t.assignee : 'Herkes';
+                const main = (t.done ? '<span class="line-through opacity-60">' : '') + escapeHtml(t.text || '-') + (t.done ? '</span>' : '');
+                const sub = due + ' · ' + who + (t.by ? ' · ekleyen: ' + t.by : '');
+                const tog = '<button type="button" onclick="familyToggleTask(\'' + escapeHtml(t.id) + '\',' + (t.done ? 'false' : 'true') + ')" class="text-xs font-bold px-2 py-1 rounded-lg ' +
+                    (t.done ? 'text-slate-500 bg-slate-100' : 'text-emerald-700 bg-emerald-50') + '">' + (t.done ? 'Geri al' : 'Tamam') + '</button>';
+                const del = '<button type="button" onclick="familyDelete(\'familyTasks\',\'' + escapeHtml(t.id) + '\')" class="text-xs font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50">Sil</button>';
+                return familyRow(main, escapeHtml(sub), tog + del);
+            }).join('');
+            const dInp = document.getElementById('famTaskDue');
+            if (dInp && !dInp.value) dInp.value = '';
+        };
+
+        window.familyAddTask = async function(e) {
+            e.preventDefault();
+            const text = ((document.getElementById('famTaskText') || {}).value || '').trim();
+            if (!text) return;
+            const due = (document.getElementById('famTaskDue') || {}).value || '';
+            const assignee = (document.getElementById('famTaskAssignee') || {}).value || 'Herkes';
+            try {
+                await db.collection('familyTasks').add({
+                    text: text,
+                    due: due,
+                    assignee: assignee,
+                    done: false,
+                    by: (currentUser && currentUser.name) || '',
+                    createdAt: new Date().toISOString()
+                });
+                document.getElementById('famTaskText').value = '';
+                showToast('Görev eklendi', 'success');
+            } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
+        };
+
+        window.familyToggleTask = async function(id, done) {
+            if (!id) return;
+            try {
+                await db.collection('familyTasks').doc(id).update({ done: !!done });
+            } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
+        };
+
+        window.renderShoppingTab = function() {
+            const list = document.getElementById('familyShopList');
+            if (!list) return;
+            const open = (familyShopping || []).filter(function(x) { return !x.bought; });
+            const bought = (familyShopping || []).filter(function(x) { return x.bought; });
+            const sorted = open.concat(bought);
+            const openN = open.length;
+            const sumEl = document.getElementById('familyShopSummary');
+            if (sumEl) sumEl.textContent = openN + ' ürün alınacak' + (bought.length ? ' · ' + bought.length + ' alındı' : '');
+            if (!sorted.length) {
+                list.innerHTML = '<p class="text-sm text-slate-400 font-semibold py-4 text-center">Liste boş</p>';
+                return;
+            }
+            list.innerHTML = sorted.map(function(x) {
+                const main = (x.bought ? '<span class="line-through opacity-50">' : '') + escapeHtml(x.name || '-') + (x.bought ? '</span>' : '');
+                const qty = x.qty ? String(x.qty) : '';
+                const sub = [qty, x.category, x.by].filter(Boolean).join(' · ');
+                const tog = '<button type="button" onclick="familyToggleShop(\'' + escapeHtml(x.id) + '\',' + (x.bought ? 'false' : 'true') + ')" class="text-xs font-bold px-2 py-1 rounded-lg ' +
+                    (x.bought ? 'text-slate-500 bg-slate-100' : 'text-sky-700 bg-sky-50') + '">' + (x.bought ? 'Geri' : 'Alındı') + '</button>';
+                const del = '<button type="button" onclick="familyDelete(\'familyShopping\',\'' + escapeHtml(x.id) + '\')" class="text-xs font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50">Sil</button>';
+                return familyRow(main, escapeHtml(sub || '—'), tog + del);
+            }).join('');
+        };
+
+        window.familyAddShop = async function(e) {
+            e.preventDefault();
+            const name = ((document.getElementById('famShopName') || {}).value || '').trim();
+            if (!name) return;
+            const qty = ((document.getElementById('famShopQty') || {}).value || '').trim();
+            const category = (document.getElementById('famShopCat') || {}).value || 'Market';
+            try {
+                await db.collection('familyShopping').add({
+                    name: name,
+                    qty: qty,
+                    category: category,
+                    bought: false,
+                    by: (currentUser && currentUser.name) || '',
+                    createdAt: new Date().toISOString()
+                });
+                document.getElementById('famShopName').value = '';
+                document.getElementById('famShopQty').value = '';
+                showToast('Listeye eklendi', 'success');
+            } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
+        };
+
+        window.familyToggleShop = async function(id, bought) {
+            if (!id) return;
+            try {
+                await db.collection('familyShopping').doc(id).update({ bought: !!bought });
+            } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
+        };
+
+        window.familyDelete = async function(col, id) {
+            if (!col || !id) return;
+            if (!confirm('Silinsin mi?')) return;
+            try {
+                await db.collection(col).doc(id).delete();
+                showToast('Silindi', 'info');
+            } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
+        };
+
+        window.familyClearBoughtShop = async function() {
+            const bought = (familyShopping || []).filter(function(x) { return x.bought; });
+            if (!bought.length) { showToast('Alınan ürün yok', 'info'); return; }
+            if (!confirm(bought.length + ' alınan ürün listeden silinsin mi?')) return;
+            try {
+                await Promise.all(bought.map(function(x) { return db.collection('familyShopping').doc(x.id).delete(); }));
+                showToast('Temizlendi', 'success');
+            } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
+        };
+
+        // ——— Ev yönetimi: envanter / garanti / bakım ———
+        window.renderHomeHubTab = function() {
+            const list = document.getElementById('familyAssetList');
+            if (!list) return;
+            const sorted = (familyAssets || []).slice().sort(function(a, b) {
+                const da = a.service || a.warranty || '9999';
+                const db_ = b.service || b.warranty || '9999';
+                return String(da).localeCompare(String(db_));
+            });
+            if (!sorted.length) {
+                list.innerHTML = '<p class="text-sm text-slate-400 font-semibold py-4 text-center">Kayıt yok — kombi, klima, beyaz eşya ekleyin</p>';
+                return;
+            }
+            list.innerHTML = sorted.map(function(a) {
+                const bits = [];
+                if (a.place) bits.push(a.place);
+                if (a.warranty) bits.push('Garanti: ' + formatDateTR(a.warranty));
+                if (a.service) bits.push('Bakım: ' + formatDateTR(a.service));
+                if (a.note) bits.push(a.note);
+                return familyRow(escapeHtml(a.name || '-'), escapeHtml(bits.join(' · ') || '—'),
+                    '<button type="button" onclick="familyDelete(\'familyAssets\',\'' + escapeHtml(a.id) + '\')" class="text-xs font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50">Sil</button>');
+            }).join('');
+        };
+
+        window.familyAddAsset = async function(e) {
+            e.preventDefault();
+            const name = ((document.getElementById('famAssetName') || {}).value || '').trim();
+            if (!name) return;
+            try {
+                await db.collection('familyAssets').add({
+                    name: name,
+                    place: ((document.getElementById('famAssetPlace') || {}).value || '').trim(),
+                    note: ((document.getElementById('famAssetNote') || {}).value || '').trim(),
+                    warranty: (document.getElementById('famAssetWarranty') || {}).value || '',
+                    service: (document.getElementById('famAssetService') || {}).value || '',
+                    by: (currentUser && currentUser.name) || '',
+                    createdAt: new Date().toISOString()
+                });
+                document.getElementById('famAssetName').value = '';
+                document.getElementById('famAssetPlace').value = '';
+                document.getElementById('famAssetNote').value = '';
+                showToast('Ev kaydı eklendi', 'success');
+            } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
         };
 
         window.openMobileMoreSheet = function() {
             const sheet = document.getElementById('mobileMoreSheet');
             if (!sheet) return;
             sheet.classList.remove('hidden');
-            sheet.classList.add('flex');
+            sheet.style.display = 'flex';
         };
 
         window.closeMobileMoreSheet = function() {
             const sheet = document.getElementById('mobileMoreSheet');
             if (!sheet) return;
             sheet.classList.add('hidden');
-            sheet.classList.remove('flex');
+            sheet.style.display = 'none';
         };
 
         window.mobileNavGo = function(tabId) {
-            closeMobileMoreSheet();
             if (tabId === 'more') {
-                openMobileMoreSheet();
+                const sheet = document.getElementById('mobileMoreSheet');
+                if (sheet && !sheet.classList.contains('hidden')) {
+                    closeMobileMoreSheet();
+                } else {
+                    openMobileMoreSheet();
+                }
                 return;
             }
+            closeMobileMoreSheet();
             switchTab(tabId);
         };
 
@@ -1165,6 +1484,38 @@
                 }
                 if (typeof renderBudgetInfo === 'function') renderBudgetInfo();
             }, err => console.warn('budgetTarget', err));
+
+            function refreshFamilyViews() {
+                try {
+                    if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
+                    const home = document.getElementById('tabContentHome');
+                    if (home && !home.classList.contains('hidden') && typeof renderHomeTab === 'function') renderHomeTab();
+                    const cal = document.getElementById('tabContentCalendar');
+                    if (cal && !cal.classList.contains('hidden') && typeof renderCalendarTab === 'function') renderCalendarTab();
+                    const tk = document.getElementById('tabContentTasks');
+                    if (tk && !tk.classList.contains('hidden') && typeof renderTasksTab === 'function') renderTasksTab();
+                    const sh = document.getElementById('tabContentShopping');
+                    if (sh && !sh.classList.contains('hidden') && typeof renderShoppingTab === 'function') renderShoppingTab();
+                } catch (_) {}
+            }
+            db.collection('familyCalendar').onSnapshot(function(snap) {
+                familyCalendar = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+                refreshFamilyViews();
+            }, function(e) { console.warn('familyCalendar', e); });
+            db.collection('familyTasks').onSnapshot(function(snap) {
+                familyTasks = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+                refreshFamilyViews();
+            }, function(e) { console.warn('familyTasks', e); });
+            db.collection('familyShopping').onSnapshot(function(snap) {
+                familyShopping = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+                refreshFamilyViews();
+            }, function(e) { console.warn('familyShopping', e); });
+            db.collection('familyAssets').onSnapshot(function(snap) {
+                familyAssets = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+                refreshFamilyViews();
+                const hub = document.getElementById('tabContentHomeHub');
+                if (hub && !hub.classList.contains('hidden') && typeof renderHomeHubTab === 'function') renderHomeHubTab();
+            }, function(e) { console.warn('familyAssets', e); });
 
             db.collection("settings").doc("uiPrefs").onSnapshot(d => {
                 if (d.exists && d.data()) {
@@ -3978,6 +4329,16 @@
                 if (removedTabIds.includes(t.id)) return;
                 result.push({ ...t, content: '', widgetType: null });
             });
+
+            // Ana Sayfa her zaman en başta
+            const homeIdx = result.findIndex(t => t && t.id === 'home');
+            if (homeIdx > 0) {
+                const homeTab = result.splice(homeIdx, 1)[0];
+                result.unshift(homeTab);
+            } else if (homeIdx < 0 && !removedTabIds.includes('home')) {
+                const defHome = DEFAULT_TABS.find(t => t.id === 'home');
+                if (defHome) result.unshift(Object.assign({}, defHome, { content: '', widgetType: null }));
+            }
             return result;
         }
 
@@ -4067,24 +4428,13 @@
                 </div>`;
             }
             if (type === 'todo') {
+                // Eski "Yapılacaklar listesi" kaldırıldı — Görevler sekmesi kullanılır
                 return `
-                <div class="max-w-md mx-auto space-y-4">
-                    <div>
-                        <p class="text-xs text-slate-400 font-semibold">Yapılacaklar</p>
-                        <p class="text-[10px] text-emerald-600 font-bold mt-0.5">Kayıtlar otomatik saklanır (yenilemede silinmez)</p>
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <input type="text" id="dynTodoInput" placeholder="Görev ekle..." class="w-full bg-slate-50 rounded-xl p-3 font-bold outline-none ring-1 ring-slate-200">
-                        <div class="flex gap-2 items-stretch">
-                            <label for="dynTodoDue" class="flex-1 flex items-center justify-center gap-2 bg-slate-50 rounded-xl px-3 py-3 font-bold text-sm text-slate-600 ring-1 ring-slate-200 cursor-pointer">
-                                <span>📅 Tarih</span>
-                                <input type="date" id="dynTodoDue" class="dyn-todo-due-input flex-1 min-w-0 bg-transparent border-0 font-bold text-slate-800 outline-none">
-                            </label>
-                            <button type="button" id="dynTodoAdd" class="bg-indigo-600 text-white px-5 rounded-xl font-bold shrink-0">Ekle</button>
-                        </div>
-                    </div>
-                    <p class="text-[10px] text-slate-400 font-semibold">Tarih seçerseniz yaklaşınca 🔔 bildiriminde görünür.</p>
-                    <ul id="dynTodoList" class="space-y-2"></ul>
+                <div class="max-w-md mx-auto text-center space-y-3 py-6">
+                    <p class="text-3xl">✅</p>
+                    <p class="text-sm font-black text-slate-800">Yapılacaklar listesi kaldırıldı</p>
+                    <p class="text-xs text-slate-500 font-semibold">Aynı iş için <b>Görevler</b> sekmesini kullanın (atanabilir, tarihli, ortak).</p>
+                    <button type="button" onclick="switchTab('tasks')" class="mt-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold">Görevler sekmesine git</button>
                 </div>`;
             }
             if (type === 'notes') {
@@ -4212,6 +4562,8 @@
                 };
             }
             if (type === 'todo') {
+                // Widget devre dışı — Görevler sekmesi kullanılıyor
+                return;
                 const key = 'yuvam_todo_' + tabId;
                 const list = document.getElementById('dynTodoList');
                 const input = document.getElementById('dynTodoInput');
@@ -4330,7 +4682,7 @@
         }
 
         // Kalıcı widget türleri (yenilemede veri kaybolmaz)
-        const PERSISTENT_WIDGETS = new Set(['todo', 'notes', 'counter', 'calculator', 'percentage', 'timer', 'scratch', 'fuel']);
+        const PERSISTENT_WIDGETS = new Set(['notes', 'counter', 'calculator', 'percentage', 'timer', 'scratch', 'fuel']);
 
 
         async function callOpenRouter(userPrompt, systemPrompt, maxTokens) {

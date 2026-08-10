@@ -87,8 +87,8 @@
                 </div>
             </header>
 
-            <!-- Sekme Menüsü — web / geniş ekran (JS ile doldurulur) -->
-            <div id="tabBar" class="hidden sm:flex overflow-x-auto no-scrollbar bg-slate-100/50 p-1.5 rounded-2xl mb-8 gap-1 justify-start sm:justify-center"></div>
+            <!-- Tek navigasyon: webde üst şerit, mobilde gizli (alt menü) -->
+            <div id="tabBar" class="yuvam-top-tabs flex overflow-x-auto no-scrollbar bg-slate-100/50 p-1.5 rounded-2xl mb-8 gap-1 justify-start sm:justify-center"></div>
 
             <!-- SEKME: ANA SAYFA (YUVAM 2.0 iskelet) -->
             <div id="tabContentHome" class="hidden space-y-5 fade-in pb-4">
@@ -129,23 +129,22 @@
                     <div id="homeUpcomingList" class="space-y-2"></div>
                 </div>
 
-                <!-- Yer tutucular — sonraki test aşamalarında doldurulacak -->
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div class="bg-white/80 rounded-2xl p-4 border border-dashed border-slate-200">
+                    <button type="button" onclick="switchTab('calendar')" class="bg-white rounded-2xl p-4 card-shadow border border-slate-100 text-left">
                         <p class="text-2xl mb-1">📅</p>
                         <p class="text-sm font-black text-slate-700">Takvim</p>
-                        <p class="text-[11px] text-slate-400 font-semibold mt-1">Yakında eklenecek</p>
-                    </div>
-                    <div class="bg-white/80 rounded-2xl p-4 border border-dashed border-slate-200">
+                        <p id="homeCalSummary" class="text-[11px] text-slate-400 font-semibold mt-1">—</p>
+                    </button>
+                    <button type="button" onclick="switchTab('tasks')" class="bg-white rounded-2xl p-4 card-shadow border border-slate-100 text-left">
                         <p class="text-2xl mb-1">✅</p>
                         <p class="text-sm font-black text-slate-700">Görevler</p>
-                        <p class="text-[11px] text-slate-400 font-semibold mt-1">Yakında eklenecek</p>
-                    </div>
-                    <div class="bg-white/80 rounded-2xl p-4 border border-dashed border-slate-200">
+                        <p id="homeTaskSummary" class="text-[11px] text-slate-400 font-semibold mt-1">—</p>
+                    </button>
+                    <button type="button" onclick="switchTab('shopping')" class="bg-white rounded-2xl p-4 card-shadow border border-slate-100 text-left">
                         <p class="text-2xl mb-1">🛒</p>
                         <p class="text-sm font-black text-slate-700">Alışveriş</p>
-                        <p class="text-[11px] text-slate-400 font-semibold mt-1">Yakında eklenecek</p>
-                    </div>
+                        <p id="homeShopSummary" class="text-[11px] text-slate-400 font-semibold mt-1">—</p>
+                    </button>
                 </div>
 
                 <div class="flex flex-wrap gap-2">
@@ -153,6 +152,91 @@
                     <button type="button" onclick="switchTab('vehicle')" class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-700 shadow-sm">🚗 Araç</button>
                     <button type="button" onclick="switchTab('stats')" class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-700 shadow-sm">📊 Raporlar</button>
                     <button type="button" onclick="switchTab('notes')" class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-700 shadow-sm">📝 Notlar</button>
+                </div>
+            </div>
+
+            <!-- TAKVİM -->
+            <div id="tabContentCalendar" class="hidden space-y-4 fade-in max-w-2xl mx-auto">
+                <div class="bg-white p-5 rounded-[1.75rem] card-shadow border border-slate-100">
+                    <h2 class="text-lg font-black mb-1">📅 Aile takvimi</h2>
+                    <p class="text-[11px] text-slate-400 font-semibold mb-4">Etkinlik ve vadeler · bildirimlere düşer</p>
+                    <form onsubmit="familyAddCalendar(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-4">
+                        <input type="text" id="famCalTitle" required placeholder="Başlık" class="sm:col-span-2 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                        <input type="date" id="famCalDate" required class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                        <button type="submit" class="bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl py-3 text-sm">Ekle</button>
+                    </form>
+                    <div id="familyCalendarList" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- GÖREVLER -->
+            <div id="tabContentTasks" class="hidden space-y-4 fade-in max-w-2xl mx-auto">
+                <div class="bg-white p-5 rounded-[1.75rem] card-shadow border border-slate-100">
+                    <h2 class="text-lg font-black mb-1">✅ Ev / aile görevleri</h2>
+                    <p class="text-[11px] text-slate-400 font-semibold mb-4">Atama · son tarih · tamamla</p>
+                    <form onsubmit="familyAddTask(event)" class="space-y-2 mb-4">
+                        <input type="text" id="famTaskText" required placeholder="Görev (örn. Akvaryum temizliği)" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            <input type="date" id="famTaskDue" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            <select id="famTaskAssignee" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                                <option value="Herkes">Herkes</option>
+                                <option value="Bekir">Bekir</option>
+                                <option value="Duygu">Duygu</option>
+                            </select>
+                            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl py-3 text-sm col-span-2 sm:col-span-1">Ekle</button>
+                        </div>
+                    </form>
+                    <div id="familyTasksList" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- ALIŞVERİŞ -->
+            <div id="tabContentShopping" class="hidden space-y-4 fade-in max-w-2xl mx-auto">
+                <div class="bg-white p-5 rounded-[1.75rem] card-shadow border border-slate-100">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+                        <h2 class="text-lg font-black">🛒 Alışveriş listesi</h2>
+                        <button type="button" onclick="familyClearBoughtShop()" class="text-xs font-bold text-slate-500 hover:text-rose-600">Alınanları temizle</button>
+                    </div>
+                    <p id="familyShopSummary" class="text-[11px] text-slate-400 font-semibold mb-4">—</p>
+                    <form onsubmit="familyAddShop(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-4">
+                        <input type="text" id="famShopName" required placeholder="Ürün" class="sm:col-span-2 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                        <input type="text" id="famShopQty" placeholder="Miktar" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                        <select id="famShopCat" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            <option value="Market">Market</option>
+                            <option value="Ev">Ev</option>
+                            <option value="Teknoloji">Teknoloji</option>
+                            <option value="Diğer">Diğer</option>
+                        </select>
+                        <button type="submit" class="sm:col-span-4 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl py-3 text-sm">Listeye ekle</button>
+                    </form>
+                    <div id="familyShopList" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- EV YÖNETİMİ -->
+            <div id="tabContentHomeHub" class="hidden space-y-4 fade-in max-w-2xl mx-auto">
+                <div class="bg-white p-5 rounded-[1.75rem] card-shadow border border-slate-100">
+                    <h2 class="text-lg font-black mb-1">🏡 Ev envanteri &amp; bakım</h2>
+                    <p class="text-[11px] text-slate-400 font-semibold mb-4">Garanti ve bakım tarihleri bildirimlere düşer</p>
+                    <form onsubmit="familyAddAsset(event)" class="space-y-2 mb-4">
+                        <input type="text" id="famAssetName" required placeholder="Cihaz / kalem (Kombi, Klima…)" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <input type="text" id="famAssetPlace" placeholder="Konum (Salon, Mutfak…)" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            <input type="text" id="famAssetNote" placeholder="Not (marka / model)" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                                <label class="text-[9px] font-bold text-slate-400 uppercase ml-1">Garanti bitiş</label>
+                                <input type="date" id="famAssetWarranty" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            </div>
+                            <div>
+                                <label class="text-[9px] font-bold text-slate-400 uppercase ml-1">Sonraki bakım</label>
+                                <input type="date" id="famAssetService" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl py-3 text-sm">Ekle</button>
+                    </form>
+                    <div id="familyAssetList" class="space-y-2"></div>
                 </div>
             </div>
 
@@ -968,27 +1052,31 @@
         <button type="button" data-mnav="home" onclick="mobileNavGo('home')" class="mnav-item">
             <span class="mnav-ico">🏠</span><span class="mnav-lbl">Ana</span>
         </button>
+        <button type="button" data-mnav="calendar" onclick="mobileNavGo('calendar')" class="mnav-item">
+            <span class="mnav-ico">📅</span><span class="mnav-lbl">Takvim</span>
+        </button>
+        <button type="button" data-mnav="shopping" onclick="mobileNavGo('shopping')" class="mnav-item">
+            <span class="mnav-ico">🛒</span><span class="mnav-lbl">Alışveriş</span>
+        </button>
         <button type="button" data-mnav="expense" onclick="mobileNavGo('expense')" class="mnav-item">
             <span class="mnav-ico">💰</span><span class="mnav-lbl">Finans</span>
-        </button>
-        <button type="button" data-mnav="notes" onclick="mobileNavGo('notes')" class="mnav-item">
-            <span class="mnav-ico">📝</span><span class="mnav-lbl">Notlar</span>
-        </button>
-        <button type="button" data-mnav="vehicle" onclick="mobileNavGo('vehicle')" class="mnav-item">
-            <span class="mnav-ico">🚗</span><span class="mnav-lbl">Araç</span>
         </button>
         <button type="button" data-mnav="more" onclick="mobileNavGo('more')" class="mnav-item">
             <span class="mnav-ico">☰</span><span class="mnav-lbl">Daha</span>
         </button>
     </nav>
 
-    <div id="mobileMoreSheet" class="fixed inset-0 z-[120] hidden items-end sm:hidden bg-slate-900/40 backdrop-blur-sm" onclick="if(event.target===this)closeMobileMoreSheet()">
-        <div class="w-full bg-white rounded-t-[1.75rem] p-5 pb-8 shadow-2xl space-y-2">
+    <div id="mobileMoreSheet" class="fixed inset-0 z-[200] hidden items-end justify-center bg-slate-900/50 backdrop-blur-sm" style="display:none" onclick="if(event.target===this)closeMobileMoreSheet()">
+        <div class="w-full max-w-lg bg-white rounded-t-[1.75rem] p-5 pb-8 shadow-2xl space-y-2 max-h-[80vh] overflow-y-auto" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center mb-2">
                 <p class="text-sm font-black text-slate-800">Daha fazla</p>
-                <button type="button" onclick="closeMobileMoreSheet()" class="text-slate-400 font-bold text-xl leading-none">&times;</button>
+                <button type="button" onclick="closeMobileMoreSheet()" class="text-slate-400 font-bold text-xl leading-none px-2">&times;</button>
             </div>
+            <button type="button" onclick="mobileNavGo('tasks')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800">✅ Görevler</button>
+            <button type="button" onclick="mobileNavGo('vehicle')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800">🚗 Araç</button>
+            <button type="button" onclick="mobileNavGo('notes')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800">📝 Notlar</button>
             <button type="button" onclick="mobileNavGo('stats')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800">📊 Raporlar</button>
+            <button type="button" onclick="mobileNavGo('homeHub')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800">🏡 Ev yönetimi</button>
             <button type="button" onclick="mobileNavGo('settings')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800 admin-only-btn">⚙️ Ayarlar</button>
             <button type="button" onclick="mobileNavGo('trash')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800 admin-only-btn">🗑️ Çöp Kutusu</button>
             <button type="button" onclick="closeMobileMoreSheet(); logout();" class="w-full text-left px-4 py-3.5 rounded-xl bg-rose-50 font-bold text-rose-600">Çıkış</button>

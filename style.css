@@ -509,11 +509,45 @@ html.theme-dark .expense-m-badge-future {
   border-color: rgba(245, 158, 11, 0.4);
 }
 
-/* ===== Mobil alt navigasyon (YUVAM 2.0) ===== */
+/* ===== Tek navigasyon: web = üst, mobil = alt (ikisi birden asla) ===== */
+.yuvam-top-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  gap: 0.25rem;
+  scrollbar-width: thin;
+}
+.yuvam-tab-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 700;
+  font-size: 0.75rem;
+  line-height: 1.1;
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.75rem;
+  white-space: nowrap;
+  max-width: 7.5rem;
+}
+.yuvam-tab-emoji { flex-shrink: 0; font-size: 0.95rem; }
+.yuvam-tab-text { overflow: hidden; text-overflow: ellipsis; }
+@media (min-width: 1024px) {
+  .yuvam-tab-btn {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.75rem;
+    max-width: 9rem;
+  }
+}
 .mobile-bottom-nav {
   display: none;
 }
 @media (max-width: 639px) {
+  .yuvam-top-tabs {
+    display: none !important;
+  }
   .mobile-bottom-nav {
     display: flex;
     position: fixed;
@@ -535,6 +569,27 @@ html.theme-dark .expense-m-badge-future {
   #appContainer > .max-w-7xl {
     padding-bottom: 1rem;
   }
+}
+html.force-mobile-preview .yuvam-top-tabs {
+  display: none !important;
+}
+html.force-mobile-preview .mobile-bottom-nav {
+  display: flex !important;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 90;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid #e2e8f0;
+  padding: 0.35rem 0.25rem calc(0.35rem + env(safe-area-inset-bottom));
+  justify-content: space-around;
+  align-items: stretch;
+  box-shadow: 0 -4px 24px rgba(15, 23, 42, 0.06);
+}
+html.force-mobile-preview #appContainer {
+  padding-bottom: 5.5rem !important;
 }
 .mnav-item {
   flex: 1;
