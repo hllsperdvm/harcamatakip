@@ -611,11 +611,11 @@
         let expenses = [], notes = [], deletedExpenses = [];
         let categories = ["Gıda", "Araç", "Faturalar", "Eğlence", "Sağlık", "Eğitim", "Diğer", "Kredi Kartı Borcu"];
         let categorySubtypes = {
-            'Faturalar': ['Elektrik', 'Su', 'Doğalgaz', 'Telefon', 'İnternet', 'Platform'],
+            'Faturalar': ['Elektrik', 'Su', 'Doğalgaz', 'Telefon', 'İnternet', 'Abonelik'],
             'Araç': ['Yakıt', 'Vergi', 'Bakım']
         };
         const DEFAULT_CATEGORY_SUBTYPES = {
-            'Faturalar': ['Elektrik', 'Su', 'Doğalgaz', 'Telefon', 'İnternet', 'Platform'],
+            'Faturalar': ['Elektrik', 'Su', 'Doğalgaz', 'Telefon', 'İnternet', 'Abonelik'],
             'Araç': ['Yakıt', 'Vergi', 'Bakım']
         };
         let paymentTypes = ["Nakit", "Kredi Kartı"];
@@ -2002,7 +2002,7 @@
                 const bs = document.getElementById('billSubtype');
                 billSubtype = bs ? bs.value : '';
                 if (!billSubtype) {
-                    alert('Fatura türü seçin: Elektrik, Su, Doğalgaz, Telefon, İnternet veya Platform');
+                    alert('Fatura türü seçin: Elektrik, Su, Doğalgaz, Telefon, İnternet veya Abonelik');
                     return;
                 }
             }
