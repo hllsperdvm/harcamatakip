@@ -1655,25 +1655,46 @@
             const ctxF = document.getElementById('vehicleFuelChart');
             if (ctxF) {
                 const fuelMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+                // Mobilde boş ayları gizle → çubuklar daha büyük
+                let mLabels = monthLabels.slice();
+                let mSpend = fuelSpend.slice();
+                let mLiters = fuelLitersM.slice();
+                if (fuelMobile) {
+                    const keep = [];
+                    for (let i = 0; i < mLabels.length; i++) {
+                        if ((mSpend[i] || 0) > 0 || (mLiters[i] || 0) > 0) keep.push(i);
+                    }
+                    if (keep.length) {
+                        mLabels = keep.map(function(i) { return mLabels[i]; });
+                        mSpend = keep.map(function(i) { return mSpend[i]; });
+                        mLiters = keep.map(function(i) { return mLiters[i]; });
+                    }
+                    // Yüksek kutu: ay başına ~56px + eksen/legend
+                    const box = ctxF.parentElement;
+                    if (box) {
+                        const h = Math.max(320, 72 + mLabels.length * 56);
+                        box.style.height = h + 'px';
+                    }
+                }
                 const fuelDatasets = fuelMobile ? [
                     {
                         label: 'Harcama (TL)',
-                        data: fuelSpend,
+                        data: mSpend,
                         backgroundColor: 'rgba(79, 70, 229, 0.85)',
-                        borderRadius: 6,
-                        maxBarThickness: 16,
-                        barPercentage: 0.9,
-                        categoryPercentage: 0.8,
+                        borderRadius: 8,
+                        maxBarThickness: 22,
+                        barPercentage: 0.92,
+                        categoryPercentage: 0.72,
                         xAxisID: 'x'
                     },
                     {
                         label: 'Litre (L)',
-                        data: fuelLitersM,
+                        data: mLiters,
                         backgroundColor: 'rgba(6, 182, 212, 0.85)',
-                        borderRadius: 6,
-                        maxBarThickness: 16,
-                        barPercentage: 0.9,
-                        categoryPercentage: 0.8,
+                        borderRadius: 8,
+                        maxBarThickness: 22,
+                        barPercentage: 0.92,
+                        categoryPercentage: 0.72,
                         xAxisID: 'x1'
                     }
                 ] : [
@@ -1701,31 +1722,40 @@
                 vehicleFuelChart = new Chart(ctxF, {
                     type: 'bar',
                     data: {
-                        labels: monthLabels,
+                        labels: fuelMobile ? mLabels : monthLabels,
                         datasets: fuelDatasets
                     },
                     options: {
                         indexAxis: fuelMobile ? 'y' : 'x',
                         responsive: true,
-                        maintainAspectRatio: true,
+                        maintainAspectRatio: false,
                         interaction: { mode: 'index', intersect: false },
-                        plugins: { legend: { display: true, position: 'bottom' } },
+                        layout: {
+                            padding: fuelMobile ? { top: 4, bottom: 4, left: 2, right: 8 } : { top: 4, bottom: 0 }
+                        },
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'bottom',
+                                labels: { boxWidth: 12, font: { size: fuelMobile ? 12 : 11 }, padding: fuelMobile ? 12 : 10 }
+                            }
+                        },
                         scales: fuelMobile ? {
                             x: {
                                 beginAtZero: true,
                                 position: 'bottom',
-                                title: { display: true, text: 'TL', font: { size: 11, weight: '600' }, color: '#4f46e5' },
-                                ticks: { color: '#4f46e5', font: { size: 10 } }
+                                title: { display: true, text: 'TL', font: { size: 12, weight: '700' }, color: '#4f46e5' },
+                                ticks: { color: '#4f46e5', font: { size: 11 } }
                             },
                             x1: {
                                 beginAtZero: true,
                                 position: 'top',
                                 grid: { drawOnChartArea: false },
-                                title: { display: true, text: 'Litre', font: { size: 11, weight: '600' }, color: '#06b6d4' },
-                                ticks: { color: '#06b6d4', font: { size: 10 } }
+                                title: { display: true, text: 'Litre', font: { size: 12, weight: '700' }, color: '#06b6d4' },
+                                ticks: { color: '#06b6d4', font: { size: 11 } }
                             },
                             y: {
-                                ticks: { font: { size: 11 } }
+                                ticks: { font: { size: 12, weight: '600' }, color: '#334155' }
                             }
                         } : {
                             x: {
