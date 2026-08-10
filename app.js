@@ -1602,7 +1602,7 @@
                     },
                     options: {
                         responsive: true,
-                        maintainAspectRatio: true,
+                        maintainAspectRatio: false,
                         plugins: { legend: { display: false } },
                         scales: { y: { beginAtZero: true } }
                     }
@@ -1628,7 +1628,7 @@
                     },
                     options: {
                         responsive: true,
-                        maintainAspectRatio: true,
+                        maintainAspectRatio: false,
                         plugins: { legend: { display: true, position: 'bottom' } },
                         scales: { y: { beginAtZero: true } }
                     }
@@ -1816,7 +1816,7 @@
                     },
                     options: {
                         responsive: true,
-                        maintainAspectRatio: true,
+                        maintainAspectRatio: false,
                         interaction: { mode: 'index', intersect: false },
                         plugins: { legend: { display: true, position: 'bottom' } },
                         scales: {
@@ -1859,7 +1859,7 @@
                     },
                     options: {
                         responsive: true,
-                        maintainAspectRatio: true,
+                        maintainAspectRatio: false,
                         plugins: { legend: { display: true, position: 'bottom' } },
                         scales: {
                             y: {
@@ -3017,8 +3017,9 @@
                             borderWidth: 2,
                             fill: true,
                             tension: 0.35,
-                            pointRadius: 5,
-                            pointHoverRadius: 8,
+                            pointRadius: 7,
+                            pointHoverRadius: 10,
+                            pointHitRadius: 16,
                             pointBackgroundColor: '#4f46e5'
                         }]
                     },
