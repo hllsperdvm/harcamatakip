@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YUVAM Test - Ortak Bütçe</title>
+    <title>YUVAM - Ortak Bütçe</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -21,7 +21,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                     </svg>
                 </div>
-                <h2 class="mb-1 text-2xl font-extrabold text-slate-900">YUVAM TEST</h2>
+                <h2 class="mb-1 text-2xl font-extrabold text-slate-900">YUVAM</h2>
                 <p class="mb-8 text-sm text-slate-400 font-medium">Digital Home Hub — Giriş yapın</p>
 
                 <div class="space-y-4 text-left">
@@ -56,7 +56,7 @@
                         </svg>
                     </div>
                     <div>
-                        <h1 class="text-3xl font-black text-slate-900 tracking-tight">YUVAM TEST</h1>
+                        <h1 class="text-3xl font-black text-slate-900 tracking-tight">YUVAM</h1>
                         <p class="text-sm font-semibold text-slate-400 uppercase tracking-widest">Digital Home Hub</p>
                     </div>
                 </div>
@@ -87,11 +87,77 @@
                 </div>
             </header>
 
-            <!-- Sekme Menüsü (JS ile doldurulur) -->
-            <div id="tabBar" class="flex overflow-x-auto no-scrollbar bg-slate-100/50 p-1.5 rounded-2xl mb-8 gap-1 justify-start sm:justify-center"></div>
+            <!-- Sekme Menüsü — web / geniş ekran (JS ile doldurulur) -->
+            <div id="tabBar" class="hidden sm:flex overflow-x-auto no-scrollbar bg-slate-100/50 p-1.5 rounded-2xl mb-8 gap-1 justify-start sm:justify-center"></div>
 
-            <!-- SEKME 1: BÜTÇE TAKİP -->
-            <div id="tabContentExpense" class="space-y-8 fade-in">
+            <!-- SEKME: ANA SAYFA (YUVAM 2.0 iskelet) -->
+            <div id="tabContentHome" class="hidden space-y-5 fade-in pb-4">
+                <div class="bg-gradient-to-br from-sky-600 to-cyan-600 text-white rounded-[2rem] p-6 shadow-lg shadow-sky-200/40">
+                    <p id="homeGreeting" class="text-xl font-black">Merhaba</p>
+                    <p id="homeTodayDate" class="text-sm font-semibold text-sky-100 mt-1 opacity-90">—</p>
+                    <p id="homePeriodBadge" class="inline-flex mt-3 text-[11px] font-bold bg-white/15 px-3 py-1 rounded-full">Dönem: —</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-white rounded-2xl p-4 card-shadow border border-slate-100">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Bugün harcama</p>
+                        <p id="homeTodaySpend" class="text-lg font-black text-slate-800 mt-1">0 TL</p>
+                        <p id="homeTodayCount" class="text-[11px] text-slate-400 font-semibold">0 kayıt</p>
+                    </div>
+                    <div class="bg-white rounded-2xl p-4 card-shadow border border-slate-100">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Dönem toplam</p>
+                        <p id="homePeriodSpend" class="text-lg font-black text-rose-600 mt-1">0 TL</p>
+                        <p class="text-[11px] text-slate-400 font-semibold">29–28 ekstre</p>
+                    </div>
+                    <button type="button" onclick="toggleNotifPanel(event)" class="bg-white rounded-2xl p-4 card-shadow border border-slate-100 text-left col-span-2 sm:col-span-1">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Bildirimler</p>
+                        <p class="text-lg font-black text-amber-600 mt-1"><span id="homeNotifCount">0</span> açık</p>
+                        <p class="text-[11px] text-slate-400 font-semibold">Detay için dokunun</p>
+                    </button>
+                    <button type="button" onclick="switchTab('expense'); openExpenseModal();" class="bg-indigo-600 text-white rounded-2xl p-4 shadow-md text-left">
+                        <p class="text-[10px] font-black text-indigo-100 uppercase tracking-wider">Hızlı işlem</p>
+                        <p class="text-lg font-black mt-1">+ Harcama</p>
+                        <p class="text-[11px] text-indigo-100 font-semibold">Finansa ekle</p>
+                    </button>
+                </div>
+
+                <div class="bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-base font-black text-slate-800">Yaklaşanlar</h2>
+                        <button type="button" onclick="toggleNotifPanel(event)" class="text-xs font-bold text-sky-600">Tümü</button>
+                    </div>
+                    <div id="homeUpcomingList" class="space-y-2"></div>
+                </div>
+
+                <!-- Yer tutucular — sonraki test aşamalarında doldurulacak -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="bg-white/80 rounded-2xl p-4 border border-dashed border-slate-200">
+                        <p class="text-2xl mb-1">📅</p>
+                        <p class="text-sm font-black text-slate-700">Takvim</p>
+                        <p class="text-[11px] text-slate-400 font-semibold mt-1">Yakında eklenecek</p>
+                    </div>
+                    <div class="bg-white/80 rounded-2xl p-4 border border-dashed border-slate-200">
+                        <p class="text-2xl mb-1">✅</p>
+                        <p class="text-sm font-black text-slate-700">Görevler</p>
+                        <p class="text-[11px] text-slate-400 font-semibold mt-1">Yakında eklenecek</p>
+                    </div>
+                    <div class="bg-white/80 rounded-2xl p-4 border border-dashed border-slate-200">
+                        <p class="text-2xl mb-1">🛒</p>
+                        <p class="text-sm font-black text-slate-700">Alışveriş</p>
+                        <p class="text-[11px] text-slate-400 font-semibold mt-1">Yakında eklenecek</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                    <button type="button" onclick="switchTab('expense')" class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-700 shadow-sm">💰 Finans</button>
+                    <button type="button" onclick="switchTab('vehicle')" class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-700 shadow-sm">🚗 Araç</button>
+                    <button type="button" onclick="switchTab('stats')" class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-700 shadow-sm">📊 Raporlar</button>
+                    <button type="button" onclick="switchTab('notes')" class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-700 shadow-sm">📝 Notlar</button>
+                </div>
+            </div>
+
+            <!-- SEKME: FİNANS (eski Bütçe Takip) -->
+            <div id="tabContentExpense" class="hidden space-y-8 fade-in">
                 <div class="flex justify-center">
                     <span id="activePeriodBadge" class="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 text-xs font-bold px-4 py-2 rounded-full border border-indigo-100">Aktif dönem: —</span>
                 </div>
@@ -894,6 +960,38 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Mobil alt navigasyon (YUVAM 2.0 iskelet) -->
+    <nav id="mobileBottomNav" class="mobile-bottom-nav sm:hidden" aria-label="Ana menü">
+        <button type="button" data-mnav="home" onclick="mobileNavGo('home')" class="mnav-item">
+            <span class="mnav-ico">🏠</span><span class="mnav-lbl">Ana</span>
+        </button>
+        <button type="button" data-mnav="expense" onclick="mobileNavGo('expense')" class="mnav-item">
+            <span class="mnav-ico">💰</span><span class="mnav-lbl">Finans</span>
+        </button>
+        <button type="button" data-mnav="notes" onclick="mobileNavGo('notes')" class="mnav-item">
+            <span class="mnav-ico">📝</span><span class="mnav-lbl">Notlar</span>
+        </button>
+        <button type="button" data-mnav="vehicle" onclick="mobileNavGo('vehicle')" class="mnav-item">
+            <span class="mnav-ico">🚗</span><span class="mnav-lbl">Araç</span>
+        </button>
+        <button type="button" data-mnav="more" onclick="mobileNavGo('more')" class="mnav-item">
+            <span class="mnav-ico">☰</span><span class="mnav-lbl">Daha</span>
+        </button>
+    </nav>
+
+    <div id="mobileMoreSheet" class="fixed inset-0 z-[120] hidden items-end sm:hidden bg-slate-900/40 backdrop-blur-sm" onclick="if(event.target===this)closeMobileMoreSheet()">
+        <div class="w-full bg-white rounded-t-[1.75rem] p-5 pb-8 shadow-2xl space-y-2">
+            <div class="flex justify-between items-center mb-2">
+                <p class="text-sm font-black text-slate-800">Daha fazla</p>
+                <button type="button" onclick="closeMobileMoreSheet()" class="text-slate-400 font-bold text-xl leading-none">&times;</button>
+            </div>
+            <button type="button" onclick="mobileNavGo('stats')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800">📊 Raporlar</button>
+            <button type="button" onclick="mobileNavGo('settings')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800 admin-only-btn">⚙️ Ayarlar</button>
+            <button type="button" onclick="mobileNavGo('trash')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800 admin-only-btn">🗑️ Çöp Kutusu</button>
+            <button type="button" onclick="closeMobileMoreSheet(); logout();" class="w-full text-left px-4 py-3.5 rounded-xl bg-rose-50 font-bold text-rose-600">Çıkış</button>
         </div>
     </div>
 

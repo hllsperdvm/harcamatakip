@@ -105,13 +105,17 @@
         }
 
         const DEFAULT_TABS = [
-            { id: 'expense', emoji: '💰', label: 'Bütçe Takip', visible: true, core: true, adminOnly: false },
+            { id: 'home', emoji: '🏠', label: 'Ana Sayfa', visible: true, core: true, adminOnly: false },
+            { id: 'expense', emoji: '💰', label: 'Finans', visible: true, core: true, adminOnly: false },
             { id: 'vehicle', emoji: '🚗', label: 'Araç', visible: true, core: true, adminOnly: false },
-            { id: 'stats', emoji: '📊', label: 'İstatistik & Rapor', visible: true, core: true, adminOnly: false },
+            { id: 'stats', emoji: '📊', label: 'Raporlar', visible: true, core: true, adminOnly: false },
             { id: 'notes', emoji: '📝', label: 'Notlar', visible: true, core: true, adminOnly: false },
             { id: 'settings', emoji: '⚙️', label: 'Ayarlar', visible: true, core: true, adminOnly: true },
             { id: 'trash', emoji: '🗑️', label: 'Çöp Kutusu', visible: true, core: true, adminOnly: true }
         ];
+
+        // Mobil alt menüde gösterilecek ana sekmeler (Diğer = more sheet)
+        const MOBILE_NAV_PRIMARY = ['home', 'expense', 'notes', 'vehicle'];
 
         let tabsConfig = DEFAULT_TABS.map(t => ({ ...t }));
 
@@ -574,9 +578,13 @@
         }
 
         function applyRoleAndTabs() {
+            document.querySelectorAll('.admin-only-btn').forEach(function(el) {
+                el.classList.toggle('hidden', !isAdmin());
+            });
             const visible = getVisibleTabs();
             if (lastActiveTabId && visible.some(t => t.id === lastActiveTabId)) {
                 renderTabBar();
+                if (typeof updateMobileBottomNav === 'function') updateMobileBottomNav(lastActiveTabId);
                 return;
             }
             renderTabBar();
@@ -790,7 +798,7 @@
         // Sekme Değiştirme
         window.switchTab = function(tabName) {
             lastActiveTabId = tabName;
-            const coreIds = ["expense", "vehicle", "stats", "notes", "settings", "trash"];
+            const coreIds = ["home", "expense", "vehicle", "stats", "notes", "settings", "trash"];
             const isCustom = String(tabName).startsWith('custom_');
 
             // Hide all core contents + custom
@@ -851,6 +859,8 @@
                 if (expenseChart) expenseChart.resize();
             } else if (tabName === 'vehicle') {
                 renderVehicleTab();
+            } else if (tabName === 'home') {
+                if (typeof renderHomeTab === 'function') renderHomeTab();
             } else if (tabName === 'trash') {
                 renderTrash();
             } else if (tabName === 'notes') {
@@ -862,6 +872,109 @@
                 applyDashboardCards();
                 if (typeof setAppTheme === 'function') setAppTheme(appTheme);
             }
+            if (typeof updateMobileBottomNav === 'function') updateMobileBottomNav(tabName);
+        };
+
+        window.renderHomeTab = function() {
+            try {
+                const greet = document.getElementById('homeGreeting');
+                const name = (currentUser && currentUser.name) ? currentUser.name : '';
+                const hour = new Date().getHours();
+                const hi = hour < 12 ? 'Günaydın' : (hour < 18 ? 'İyi günler' : 'İyi akşamlar');
+                if (greet) greet.textContent = hi + (name ? ', ' + name : '');
+
+                const dateEl = document.getElementById('homeTodayDate');
+                if (dateEl) {
+                    dateEl.textContent = new Date().toLocaleDateString('tr-TR', {
+                        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+                    });
+                }
+
+                const period = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
+                const badge = document.getElementById('homePeriodBadge');
+                if (badge) badge.textContent = period ? ('Dönem: ' + period) : 'Dönem: —';
+
+                let periodSum = 0, todaySum = 0, todayCount = 0;
+                const today = (typeof todayDateStr === 'function') ? todayDateStr() : '';
+                try {
+                    const list = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : [];
+                    list.forEach(function(e) {
+                        if (!e || e.installmentLabel === 'Gelir') return;
+                        const amt = Number(e.displayAmount) || 0;
+                        if (e.effectiveMonth === period) periodSum += amt;
+                        if (String(e.date || '').slice(0, 10) === today) {
+                            todaySum += amt;
+                            todayCount += 1;
+                        }
+                    });
+                } catch (_) {}
+
+                const elPeriod = document.getElementById('homePeriodSpend');
+                if (elPeriod) elPeriod.textContent = Math.round(periodSum).toLocaleString('tr-TR') + ' TL';
+                const elToday = document.getElementById('homeTodaySpend');
+                if (elToday) elToday.textContent = Math.round(todaySum).toLocaleString('tr-TR') + ' TL';
+                const elTodayN = document.getElementById('homeTodayCount');
+                if (elTodayN) elTodayN.textContent = todayCount + ' kayıt';
+
+                let notifCount = 0;
+                try {
+                    notifCount = (typeof collectAppNotifications === 'function') ? collectAppNotifications().length : 0;
+                } catch (_) {}
+                const elN = document.getElementById('homeNotifCount');
+                if (elN) elN.textContent = String(notifCount);
+
+                // Yaklaşan bildirim özeti (max 4)
+                const listEl = document.getElementById('homeUpcomingList');
+                if (listEl) {
+                    let items = [];
+                    try { items = (typeof collectAppNotifications === 'function') ? collectAppNotifications().slice(0, 4) : []; } catch (_) {}
+                    if (!items.length) {
+                        listEl.innerHTML = '<p class="text-sm text-slate-400 font-semibold py-2">Yakın vadede uyarı yok 👍</p>';
+                    } else {
+                        listEl.innerHTML = items.map(function(n) {
+                            return '<div class="flex gap-2 items-start p-3 rounded-xl bg-slate-50 border border-slate-100">' +
+                                '<span class="text-lg shrink-0">' + (n.icon || '🔔') + '</span>' +
+                                '<div class="min-w-0"><p class="text-sm font-bold text-slate-800 truncate">' + escapeHtml(n.title || '') + '</p>' +
+                                '<p class="text-[11px] text-slate-500 font-semibold">' + escapeHtml(n.message || '') + '</p></div></div>';
+                        }).join('');
+                    }
+                }
+            } catch (err) {
+                console.warn('renderHomeTab', err);
+            }
+        };
+
+        window.updateMobileBottomNav = function(activeId) {
+            const nav = document.getElementById('mobileBottomNav');
+            if (!nav) return;
+            nav.querySelectorAll('[data-mnav]').forEach(function(btn) {
+                const id = btn.getAttribute('data-mnav');
+                const on = id === activeId || (id === 'more' && ['stats', 'settings', 'trash'].indexOf(activeId) >= 0);
+                btn.classList.toggle('mnav-active', !!on);
+            });
+        };
+
+        window.openMobileMoreSheet = function() {
+            const sheet = document.getElementById('mobileMoreSheet');
+            if (!sheet) return;
+            sheet.classList.remove('hidden');
+            sheet.classList.add('flex');
+        };
+
+        window.closeMobileMoreSheet = function() {
+            const sheet = document.getElementById('mobileMoreSheet');
+            if (!sheet) return;
+            sheet.classList.add('hidden');
+            sheet.classList.remove('flex');
+        };
+
+        window.mobileNavGo = function(tabId) {
+            closeMobileMoreSheet();
+            if (tabId === 'more') {
+                openMobileMoreSheet();
+                return;
+            }
+            switchTab(tabId);
         };
 
         // Modal Yönetimi
@@ -976,7 +1089,11 @@
             loadDeletedExpenses();
 
             db.collection("expenses").onSnapshot(snap => {
-                expenses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                expenses = snap.docs.map(function(d) {
+                    const row = Object.assign({ id: d.id }, d.data());
+                    if (row.billSubtype === 'Platform') row.billSubtype = 'Abonelik';
+                    return row;
+                });
                 scheduleRenderApp();
             });
             db.collection("notes").onSnapshot(snap => {
@@ -1013,6 +1130,16 @@
                         categorySubtypes = Object.assign({}, DEFAULT_CATEGORY_SUBTYPES, map);
                     }
                 }
+                // Platform → Abonelik
+                Object.keys(categorySubtypes || {}).forEach(function(cat) {
+                    if (!Array.isArray(categorySubtypes[cat])) return;
+                    categorySubtypes[cat] = categorySubtypes[cat].map(function(s) {
+                        return s === 'Platform' ? 'Abonelik' : s;
+                    });
+                    categorySubtypes[cat] = [...new Set(categorySubtypes[cat])];
+                });
+                if (!categorySubtypes['Faturalar']) categorySubtypes['Faturalar'] = DEFAULT_CATEGORY_SUBTYPES['Faturalar'].slice();
+                if (categorySubtypes['Faturalar'].indexOf('Abonelik') < 0) categorySubtypes['Faturalar'].push('Abonelik');
                 updateCategorySelects();
                 if (typeof fillSubtypeSelects === 'function') fillSubtypeSelects();
                 renderCategoriesList();
@@ -1038,6 +1165,7 @@
                 }
                 if (typeof renderBudgetInfo === 'function') renderBudgetInfo();
             }, err => console.warn('budgetTarget', err));
+
             db.collection("settings").doc("uiPrefs").onSnapshot(d => {
                 if (d.exists && d.data()) {
                     const u = d.data();
@@ -3809,7 +3937,7 @@
             const result = [];
             const seen = new Set();
 
-            const LEGACY_TABS = new Set(['calculator', 'reports', 'shopping', 'alisveris', 'alışveriş']);
+            const LEGACY_TABS = new Set(['calculator', 'reports', 'shopping', 'alisveris', 'alışveriş', 'deneme']);
             (saved || []).forEach(s => {
                 if (!s || !s.id) return;
                 if (LEGACY_TABS.has(s.id)) return;
