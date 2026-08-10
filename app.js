@@ -109,7 +109,7 @@
             { id: 'calendar', emoji: '📅', label: 'Takvim', visible: true, core: true, adminOnly: false },
             { id: 'tasks', emoji: '✅', label: 'Görevler', visible: true, core: true, adminOnly: false },
             { id: 'shopping', emoji: '🛒', label: 'Alışveriş', visible: true, core: true, adminOnly: false },
-            { id: 'expense', emoji: '💰', label: 'Finans', visible: true, core: true, adminOnly: false },
+            { id: 'expense', emoji: '💰', label: 'Bütçe Takip', visible: true, core: true, adminOnly: false },
             { id: 'vehicle', emoji: '🚗', label: 'Araç', visible: true, core: true, adminOnly: false },
             { id: 'stats', emoji: '📊', label: 'Raporlar', visible: true, core: true, adminOnly: false },
             { id: 'notes', emoji: '📝', label: 'Notlar', visible: true, core: true, adminOnly: false },
@@ -117,7 +117,7 @@
             { id: 'trash', emoji: '🗑️', label: 'Çöp Kutusu', visible: true, core: true, adminOnly: true }
         ];
 
-        // Mobil alt menü: Ana · Finans · Görevler · Takvim · Daha
+        // Mobil alt menü: Ana · Bütçe · Görevler · Takvim · Daha
         const MOBILE_NAV_PRIMARY = ['home', 'expense', 'tasks', 'calendar'];
 
         let familyCalendar = [];
@@ -705,7 +705,7 @@
         let dashboardCards = {
             total: true, bekir: true, duygu: true, debt: true,
             homeToday: true, homePeriod: true, homeNotif: true, homeQuickAdd: true, homeUpcoming: true,
-            homeBudget: true
+            homeBudget: true, homeTasks: true
         };
         let appTheme = 'light';
         let monthCompareChart = null, categoryTrendChart = null;
@@ -1020,6 +1020,30 @@
                     }
                 } catch (_) {}
 
+                // Ana sayfa görev listesi (sadece görüntüleme)
+                try {
+                    const htList = document.getElementById('homeTasksList');
+                    if (htList) {
+                        const open = (familyTasks || []).filter(function(t) { return !t.done; });
+                        const done = (familyTasks || []).filter(function(t) { return t.done; }).slice(0, 3);
+                        const show = open.concat(done).slice(0, 8);
+                        if (!show.length) {
+                            htList.innerHTML = '<p class="text-sm text-slate-400 font-semibold py-2">Açık görev yok · eklemek için Görevler sekmesine gidin</p>';
+                        } else {
+                            htList.innerHTML = show.map(function(t) {
+                                const due = t.due ? formatDateTR(t.due) : '';
+                                const who = t.assignee && t.assignee !== 'Herkes' ? t.assignee : '';
+                                const sub = [due, who].filter(Boolean).join(' · ');
+                                return '<div class="flex gap-2 items-start p-2.5 rounded-xl bg-slate-50 border border-slate-100">' +
+                                    '<span class="text-sm shrink-0">' + (t.done ? '☑️' : '⬜') + '</span>' +
+                                    '<div class="min-w-0"><p class="text-sm font-bold text-slate-800 ' + (t.done ? 'line-through opacity-60' : '') + '">' + escapeHtml(t.text || '-') + '</p>' +
+                                    (sub ? '<p class="text-[10px] text-slate-400 font-semibold">' + escapeHtml(sub) + '</p>' : '') +
+                                    '</div></div>';
+                            }).join('');
+                        }
+                    }
+                } catch (_) {}
+
                 if (typeof applyDashboardCards === 'function') applyDashboardCards();
 
                 // Yaklaşan bildirim özeti (max 4)
@@ -1257,7 +1281,7 @@
         // Ana sayfa + finans kart görünürlüğü (Ayarlar)
         const DASH_CARD_KEYS = [
             'total', 'bekir', 'duygu', 'debt',
-            'homeToday', 'homePeriod', 'homeNotif', 'homeQuickAdd', 'homeUpcoming', 'homeBudget'
+            'homeToday', 'homePeriod', 'homeNotif', 'homeQuickAdd', 'homeUpcoming', 'homeBudget', 'homeTasks'
         ];
 
         window.applyDashboardCards = function() {
@@ -4268,6 +4292,63 @@
             await db.collection("ibans").doc(id).delete();
         };
 
+        function maskIban(raw) {
+            const s = String(raw || '').replace(/\s/g, '');
+            if (s.length < 8) return '•••• ••••';
+            const start = s.slice(0, 4);
+            const end = s.slice(-4);
+            return start + ' •••• •••• ' + end;
+        }
+
+        function formatIbanSpaces(raw) {
+            const s = String(raw || '').replace(/\s/g, '').toUpperCase();
+            return s.replace(/(.{4})/g, '$1 ').trim();
+        }
+
+        window.toggleIbanReveal = function(btn) {
+            if (!btn) return;
+            const wrap = btn.closest('[data-iban-wrap]');
+            if (!wrap) return;
+            const el = wrap.querySelector('[data-iban-value]');
+            const full = wrap.getAttribute('data-iban-full') || '';
+            const masked = wrap.getAttribute('data-iban-masked') || '';
+            const on = wrap.getAttribute('data-revealed') === '1';
+            if (on) {
+                if (el) el.textContent = masked;
+                wrap.setAttribute('data-revealed', '0');
+                btn.textContent = '👁️';
+                btn.title = 'Göster';
+            } else {
+                if (el) el.textContent = formatIbanSpaces(full);
+                wrap.setAttribute('data-revealed', '1');
+                btn.textContent = '🙈';
+                btn.title = 'Gizle';
+            }
+        };
+
+        window.renderIbans = function() {
+            const box = document.getElementById('ibanListContainer');
+            if (!box) return;
+            if (!(ibans || []).length) {
+                box.innerHTML = '<div class="text-center text-slate-400 py-8 col-span-full"><p class="text-sm">Henüz IBAN kaydı yok</p></div>';
+                return;
+            }
+            box.innerHTML = ibans.map(function(item) {
+                const full = String(item.ibanNumber || '');
+                const masked = maskIban(full);
+                const safeId = escapeHtml(item.id);
+                return '<div class="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2" data-iban-wrap data-iban-full="' + escapeHtml(full) + '" data-iban-masked="' + escapeHtml(masked) + '" data-revealed="0">' +
+                    '<div class="flex justify-between items-start gap-2">' +
+                    '<div><p class="font-black text-slate-800">' + escapeHtml(item.ownerName || '-') + '</p>' +
+                    '<p class="text-xs font-semibold text-slate-400">' + escapeHtml(item.bank || '') + '</p></div>' +
+                    '<div class="flex gap-1">' +
+                    '<button type="button" onclick="toggleIbanReveal(this)" class="w-9 h-9 rounded-xl bg-white border border-slate-200 text-sm" title="Göster">👁️</button>' +
+                    '<button type="button" onclick="deleteIban(\'' + safeId + '\')" class="w-9 h-9 rounded-xl bg-white border border-slate-200 text-xs text-rose-600" title="Sil">🗑️</button>' +
+                    '</div></div>' +
+                    '<p data-iban-value class="font-mono text-sm font-bold text-slate-700 tracking-wide">' + escapeHtml(masked) + '</p>' +
+                    '</div>';
+            }).join('');
+        };
 
         // KATEGORİ YÖNETIMI FONKSIYONLARI
 
@@ -4288,7 +4369,7 @@
                 if (byId[s.id]) {
                     result.push({
                         ...byId[s.id],
-                        label: s.label || byId[s.id].label,
+                        label: (s.id === 'expense' ? 'Bütçe Takip' : (s.label || byId[s.id].label)),
                         emoji: s.emoji || byId[s.id].emoji,
                         visible: s.visible !== false,
                         adminOnly: s.adminOnly != null ? s.adminOnly : byId[s.id].adminOnly,

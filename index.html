@@ -49,17 +49,17 @@
         <div class="max-w-7xl mx-auto px-4 py-8">
             <!-- Header -->
             <header class="mb-10 flex flex-col sm:flex-row justify-between items-center gap-6">
-                <div class="flex items-center gap-4">
-                    <div class="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100 text-white">
+                <button type="button" onclick="switchTab('home')" class="flex items-center gap-4 text-left group cursor-pointer bg-transparent border-0 p-0" title="Ana Sayfa">
+                    <div class="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100 text-white group-hover:bg-indigo-700 transition">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                         </svg>
                     </div>
                     <div>
-                        <h1 class="text-3xl font-black text-slate-900 tracking-tight">YUVAM</h1>
-                        <p class="text-sm font-semibold text-slate-400 uppercase tracking-widest">Digital Home Hub</p>
+                        <h1 class="text-3xl font-black text-slate-900 tracking-tight group-hover:text-indigo-700 transition">YUVAM</h1>
+                        <p class="text-sm font-semibold text-slate-400 uppercase tracking-widest group-hover:text-slate-500">Digital Home Hub</p>
                     </div>
-                </div>
+                </button>
                 
                 <div class="flex items-center gap-2 flex-wrap justify-end relative">
                     <span id="loggedInUserLabel" class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-2 rounded-xl"></span>
@@ -117,7 +117,7 @@
                     <button type="button" data-home-card="homeQuickAdd" onclick="switchTab('expense'); openExpenseModal();" class="bg-indigo-600 text-white rounded-2xl p-4 shadow-md text-left">
                         <p class="text-[10px] font-black text-indigo-100 uppercase tracking-wider">Hızlı işlem</p>
                         <p class="text-lg font-black mt-1">+ Harcama</p>
-                        <p class="text-[11px] text-indigo-100 font-semibold">Finansa ekle</p>
+                        <p class="text-[11px] text-indigo-100 font-semibold">Bütçe Takibe ekle</p>
                     </button>
                 </div>
 
@@ -135,6 +135,15 @@
                         <button type="button" onclick="toggleNotifPanel(event)" class="text-xs font-bold text-sky-600">Tümü</button>
                     </div>
                     <div id="homeUpcomingList" class="space-y-2"></div>
+                </div>
+
+                <div data-home-card="homeTasks" class="bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
+                    <div class="flex items-center justify-between mb-3 gap-2">
+                        <h2 class="text-base font-black text-slate-800">✅ Görevler</h2>
+                        <button type="button" onclick="switchTab('tasks')" class="text-xs font-bold text-emerald-600 shrink-0">Görevler sekmesi</button>
+                    </div>
+                    <p class="text-[11px] text-slate-400 font-semibold mb-3">Sadece liste · ekleme Görevler sekmesinden</p>
+                    <div id="homeTasksList" class="space-y-2"></div>
                 </div>
 
             </div>
@@ -578,7 +587,22 @@
 
 <div id="tabContentNotes" class="hidden fade-in">
                 <div class="max-w-4xl mx-auto space-y-8">
-                    <!-- IBAN Yönetimi -->
+                    <!-- Notlar Bölümü -->
+                    <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
+                        <h2 id="noteFormTitle" class="text-xl font-black mb-6">Not Paylaş</h2>
+                        <form onsubmit="handleNoteSubmit(event)" class="space-y-4">
+                            <input type="hidden" id="editNoteId">
+                            <select id="notePerson" required class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="Bekir">Bekir</option>
+                                <option value="Duygu">Duygu</option>
+                            </select>
+                            <textarea id="noteContent" rows="3" required placeholder="Notunuzu buraya yazın..." class="w-full bg-slate-50 border-none rounded-2xl p-4 font-medium outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                            <button type="submit" id="noteSubmitBtn" class="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition">Kaydet</button>
+                        </form>
+                    </div>
+                    <div id="notesContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+
+                    <!-- IBAN en altta -->
                     <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
                         <div class="flex justify-between items-center mb-6">
                             <h2 class="text-xl font-black">💳 IBAN Numaraları</h2>
@@ -591,7 +615,6 @@
                         </div>
                     </div>
 
-                    <!-- IBAN Ekle Modal -->
                     <div id="ibanModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[110] p-4">
                         <div class="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden slide-in">
                             <div class="bg-indigo-600 p-6 text-white flex justify-between items-center">
@@ -619,21 +642,6 @@
                             </form>
                         </div>
                     </div>
-
-                    <!-- Notlar Bölümü -->
-                    <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
-                        <h2 id="noteFormTitle" class="text-xl font-black mb-6">Not Paylaş</h2>
-                        <form onsubmit="handleNoteSubmit(event)" class="space-y-4">
-                            <input type="hidden" id="editNoteId">
-                            <select id="notePerson" required class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold outline-none focus:ring-2 focus:ring-indigo-500">
-                                <option value="Bekir">Bekir</option>
-                                <option value="Duygu">Duygu</option>
-                            </select>
-                            <textarea id="noteContent" rows="3" required placeholder="Notunuzu buraya yazın..." class="w-full bg-slate-50 border-none rounded-2xl p-4 font-medium outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
-                            <button type="submit" id="noteSubmitBtn" class="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition">Kaydet</button>
-                        </form>
-                    </div>
-                    <div id="notesContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
                 </div>
             </div>
 
@@ -815,8 +823,12 @@
                                 <span class="text-sm font-bold text-slate-800">Bütçe hedefi (ilerleme)</span>
                                 <input type="checkbox" id="cardVis_homeBudget" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
                             </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Görevler listesi</span>
+                                <input type="checkbox" id="cardVis_homeTasks" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
 
-                            <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider pt-2">Finans özeti (Finans sekmesi)</p>
+                            <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider pt-2">Bütçe Takip özeti</p>
                             <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
                                 <span class="text-sm font-bold text-slate-800">Dönem harcaması</span>
                                 <input type="checkbox" id="cardVis_total" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
@@ -834,18 +846,38 @@
                                 <input type="checkbox" id="cardVis_debt" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
                             </label>
 
-                            <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider pt-2">İleride eklenebilir</p>
-                            <p class="text-[11px] text-slate-400 font-semibold">Takvim / görev / alışveriş özet kartları ana sayfaya yeniden eklendiğinde burada açılıp kapanır.</p>
+                            <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider pt-2">İleride eklenebilir (pasif)</p>
+                            <p class="text-[11px] text-slate-400 font-semibold">Şimdilik seçilemez · ileride aktifleştirilecek</p>
                             <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/80 cursor-not-allowed opacity-60">
-                                <span class="text-sm font-bold text-slate-600">Takvim özeti</span>
+                                <span class="text-sm font-bold text-slate-600">📅 Takvim özeti</span>
                                 <input type="checkbox" disabled class="rounded">
                             </label>
                             <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/80 cursor-not-allowed opacity-60">
-                                <span class="text-sm font-bold text-slate-600">Görev özeti</span>
+                                <span class="text-sm font-bold text-slate-600">🛒 Alışveriş özeti</span>
                                 <input type="checkbox" disabled class="rounded">
                             </label>
                             <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/80 cursor-not-allowed opacity-60">
-                                <span class="text-sm font-bold text-slate-600">Alışveriş özeti</span>
+                                <span class="text-sm font-bold text-slate-600">🌤️ Hava durumu</span>
+                                <input type="checkbox" disabled class="rounded">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/80 cursor-not-allowed opacity-60">
+                                <span class="text-sm font-bold text-slate-600">🎂 Önemli tarihler</span>
+                                <input type="checkbox" disabled class="rounded">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/80 cursor-not-allowed opacity-60">
+                                <span class="text-sm font-bold text-slate-600">📝 Son notlar</span>
+                                <input type="checkbox" disabled class="rounded">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/80 cursor-not-allowed opacity-60">
+                                <span class="text-sm font-bold text-slate-600">🚗 Araç hatırlatmaları</span>
+                                <input type="checkbox" disabled class="rounded">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/80 cursor-not-allowed opacity-60">
+                                <span class="text-sm font-bold text-slate-600">💳 Abonelik hatırlatma</span>
+                                <input type="checkbox" disabled class="rounded">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/80 cursor-not-allowed opacity-60">
+                                <span class="text-sm font-bold text-slate-600">📊 Mini grafik</span>
                                 <input type="checkbox" disabled class="rounded">
                             </label>
                         </div>
@@ -1052,7 +1084,7 @@
             <span class="mnav-ico">🏠</span><span class="mnav-lbl">Ana</span>
         </button>
         <button type="button" data-mnav="expense" onclick="mobileNavGo('expense')" class="mnav-item">
-            <span class="mnav-ico">💰</span><span class="mnav-lbl">Finans</span>
+            <span class="mnav-ico">💰</span><span class="mnav-lbl">Bütçe</span>
         </button>
         <button type="button" data-mnav="tasks" onclick="mobileNavGo('tasks')" class="mnav-item">
             <span class="mnav-ico">✅</span><span class="mnav-lbl">Görevler</span>
