@@ -109,7 +109,6 @@
             { id: 'calendar', emoji: '📅', label: 'Takvim', visible: true, core: true, adminOnly: false },
             { id: 'tasks', emoji: '✅', label: 'Görevler', visible: true, core: true, adminOnly: false },
             { id: 'shopping', emoji: '🛒', label: 'Alışveriş', visible: true, core: true, adminOnly: false },
-            { id: 'homeHub', emoji: '🏡', label: 'Ev', visible: true, core: true, adminOnly: false },
             { id: 'expense', emoji: '💰', label: 'Finans', visible: true, core: true, adminOnly: false },
             { id: 'vehicle', emoji: '🚗', label: 'Araç', visible: true, core: true, adminOnly: false },
             { id: 'stats', emoji: '📊', label: 'Raporlar', visible: true, core: true, adminOnly: false },
@@ -118,13 +117,12 @@
             { id: 'trash', emoji: '🗑️', label: 'Çöp Kutusu', visible: true, core: true, adminOnly: true }
         ];
 
-        // Mobil alt menü: Ana · Takvim · Alışveriş · Finans · Daha
-        const MOBILE_NAV_PRIMARY = ['home', 'calendar', 'shopping', 'expense'];
+        // Mobil alt menü: Ana · Finans · Görevler · Takvim · Daha
+        const MOBILE_NAV_PRIMARY = ['home', 'expense', 'tasks', 'calendar'];
 
         let familyCalendar = [];
         let familyTasks = [];
         let familyShopping = [];
-        let familyAssets = []; // Ev envanter / garanti / bakım
 
         let tabsConfig = DEFAULT_TABS.map(t => ({ ...t }));
 
@@ -237,6 +235,10 @@
                 appEl.classList.remove('hidden');
                 appEl.style.display = '';
             }
+            try {
+                document.body.classList.add('yuvam-app-open');
+                document.documentElement.classList.add('yuvam-app-open');
+            } catch (_) {}
             const label = document.getElementById('loggedInUserLabel') || document.getElementById('currentUserLabel');
             if (label) {
                 label.textContent = currentUser.role === 'admin'
@@ -244,6 +246,7 @@
                     : currentUser.name;
             }
             applyRoleAndTabs();
+            if (typeof applyDashboardCards === 'function') applyDashboardCards();
             // Once UI acilsin; senkron ve loglari ertele (mobil otomatik girisi hizlandirir)
             var uidEnter = currentUser && currentUser.uid;
             setTimeout(function() {
@@ -428,26 +431,6 @@
                 });
             } catch (_) {}
 
-            // Ev garanti / bakım
-            try {
-                (familyAssets || []).forEach(function(a) {
-                    if (!a) return;
-                    [['warranty', 'Garanti bitiş'], ['service', 'Bakım']].forEach(function(pair) {
-                        const field = pair[0];
-                        const label = pair[1];
-                        const d = a[field] ? String(a[field]).slice(0, 10) : '';
-                        if (!d) return;
-                        const days = daysUntilYMD(d);
-                        if (days == null || days < 0 || days > 30) return;
-                        const name = a.name || 'Cihaz';
-                        const key = 'fasset-' + field + '-' + (a.id || name) + '-' + d;
-                        if (days === 0) pushNotif(key, 'critical', '🛠️', label + ' bugün: ' + name, formatDateTR(d));
-                        else if (days <= 7) pushNotif(key, 'warning', '🛠️', label + ' ' + days + ' gün: ' + name, formatDateTR(d));
-                        else pushNotif(key, 'info', '🛠️', label + ' ' + days + ' gün: ' + name, formatDateTR(d));
-                    });
-                });
-            } catch (_) {}
-
             try {
                 (activityLog || []).slice(0, 30).forEach(function(row) {
                     if (!row) return;
@@ -592,6 +575,11 @@
                 appEl.classList.add('hidden');
                 appEl.style.display = 'none';
             }
+            try {
+                document.body.classList.remove('yuvam-app-open');
+                document.documentElement.classList.remove('yuvam-app-open');
+                closeMobileMoreSheet();
+            } catch (_) {}
             if (loginEl) {
                 loginEl.classList.remove('hidden');
                 loginEl.style.display = '';
@@ -668,18 +656,13 @@
             const activeId = lastActiveTabId && visible.some(t => t.id === lastActiveTabId)
                 ? lastActiveTabId
                 : ((visible.find(t => t.id === 'home') || visible[0] || {}).id);
-            const shortLabel = {
-                home: 'Ana', calendar: 'Takvim', tasks: 'Görev', shopping: 'Market',
-                expense: 'Finans', vehicle: 'Araç', stats: 'Rapor', notes: 'Not',
-                settings: 'Ayar', trash: 'Çöp', homeHub: 'Ev'
-            };
             bar.innerHTML = visible.map((t) => {
                 const active = t.id === activeId;
                 const cls = active
                     ? 'tab-active yuvam-tab-btn'
                     : 'tab-inactive yuvam-tab-btn hover:bg-white/80';
-                const lab = shortLabel[t.id] || t.label;
-                return `<button type="button" data-tab-id="${escapeHtml(t.id)}" title="${escapeHtml(t.label)}" onclick="switchTab('${escapeHtml(t.id)}')" class="${cls}"><span class="yuvam-tab-emoji">${escapeHtml(t.emoji || '📌')}</span><span class="yuvam-tab-text">${escapeHtml(lab)}</span></button>`;
+                const lab = t.label || t.id;
+                return `<button type="button" data-tab-id="${escapeHtml(t.id)}" title="${escapeHtml(lab)}" onclick="switchTab('${escapeHtml(t.id)}')" class="${cls}"><span class="yuvam-tab-emoji">${escapeHtml(t.emoji || '📌')}</span><span class="yuvam-tab-text">${escapeHtml(lab)}</span></button>`;
             }).join('');
         };
 
@@ -718,7 +701,12 @@
         let syncInitialized = false;
         let periodConfig = { startDay: 29, endDay: 28 };
         let monthlyBudgetTarget = 0; // TL, 0 = kapalı
-        let dashboardCards = { total: true, bekir: true, duygu: true, debt: true };
+        // Finans özet + Ana Sayfa kart görünürlüğü
+        let dashboardCards = {
+            total: true, bekir: true, duygu: true, debt: true,
+            homeToday: true, homePeriod: true, homeNotif: true, homeQuickAdd: true, homeUpcoming: true,
+            homeBudget: true
+        };
         let appTheme = 'light';
         let monthCompareChart = null, categoryTrendChart = null;
         const AMOUNT_MIN = 0.01;
@@ -872,7 +860,7 @@
         // Sekme Değiştirme
         window.switchTab = function(tabName) {
             lastActiveTabId = tabName;
-            const coreIds = ["home", "calendar", "tasks", "shopping", "homeHub", "expense", "vehicle", "stats", "notes", "settings", "trash"];
+            const coreIds = ["home", "calendar", "tasks", "shopping", "expense", "vehicle", "stats", "notes", "settings", "trash"];
             const isCustom = String(tabName).startsWith('custom_');
 
             // Hide all core contents + custom
@@ -941,8 +929,6 @@
                 if (typeof renderTasksTab === 'function') renderTasksTab();
             } else if (tabName === 'shopping') {
                 if (typeof renderShoppingTab === 'function') renderShoppingTab();
-            } else if (tabName === 'homeHub') {
-                if (typeof renderHomeHubTab === 'function') renderHomeHubTab();
             } else if (tabName === 'trash') {
                 renderTrash();
             } else if (tabName === 'notes') {
@@ -1005,6 +991,37 @@
                 const elN = document.getElementById('homeNotifCount');
                 if (elN) elN.textContent = String(notifCount);
 
+                // Bütçe hedefi kartı
+                try {
+                    const target = Number(monthlyBudgetTarget) || 0;
+                    const lab = document.getElementById('homeBudgetLabel');
+                    const bar = document.getElementById('homeBudgetBar');
+                    const periodSum = (function() {
+                        let s = 0;
+                        const pk = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
+                        const list = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : [];
+                        list.forEach(function(e) {
+                            if (e && e.effectiveMonth === pk) s += Number(e.displayAmount) || 0;
+                        });
+                        return s;
+                    })();
+                    if (lab) {
+                        if (target > 0) {
+                            const pct = Math.min(999, Math.round(periodSum / target * 100));
+                            lab.textContent = Math.round(periodSum).toLocaleString('tr-TR') + ' / ' + target.toLocaleString('tr-TR') + ' TL · %' + pct;
+                        } else {
+                            lab.textContent = 'Hedef tanımlı değil (Ayarlar)';
+                        }
+                    }
+                    if (bar) {
+                        const pctW = target > 0 ? Math.min(100, (periodSum / target) * 100) : 0;
+                        bar.style.width = pctW + '%';
+                        bar.className = 'h-full rounded-full transition-all ' + (pctW >= 100 ? 'bg-rose-500' : pctW >= 80 ? 'bg-amber-500' : 'bg-sky-500');
+                    }
+                } catch (_) {}
+
+                if (typeof applyDashboardCards === 'function') applyDashboardCards();
+
                 // Yaklaşan bildirim özeti (max 4)
                 const listEl = document.getElementById('homeUpcomingList');
                 if (listEl) {
@@ -1022,20 +1039,6 @@
                     }
                 }
 
-                const calSoon = (familyCalendar || []).filter(function(e) {
-                    const d = daysUntilYMD(e.date);
-                    return d != null && d >= 0 && d <= 14;
-                }).length;
-                const hs = document.getElementById('homeCalSummary');
-                if (hs) hs.textContent = calSoon ? (calSoon + ' yaklaşan') : ((familyCalendar || []).length ? (familyCalendar.length + ' kayıt') : 'Etkinlik ekle');
-
-                const openTasks = (familyTasks || []).filter(function(t) { return !t.done; }).length;
-                const ht = document.getElementById('homeTaskSummary');
-                if (ht) ht.textContent = openTasks ? (openTasks + ' açık görev') : 'Görev yok';
-
-                const openShop = (familyShopping || []).filter(function(x) { return !x.bought; }).length;
-                const hshop = document.getElementById('homeShopSummary');
-                if (hshop) hshop.textContent = openShop ? (openShop + ' ürün') : 'Liste boş';
             } catch (err) {
                 console.warn('renderHomeTab', err);
             }
@@ -1044,7 +1047,7 @@
         window.updateMobileBottomNav = function(activeId) {
             const nav = document.getElementById('mobileBottomNav');
             if (!nav) return;
-            const moreIds = ['tasks', 'stats', 'settings', 'trash', 'vehicle', 'notes', 'homeHub'];
+            const moreIds = ['shopping', 'stats', 'settings', 'trash', 'vehicle', 'notes'];
             nav.querySelectorAll('[data-mnav]').forEach(function(btn) {
                 const id = btn.getAttribute('data-mnav');
                 const on = id === activeId || (id === 'more' && moreIds.indexOf(activeId) >= 0);
@@ -1223,51 +1226,6 @@
             } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
         };
 
-        // ——— Ev yönetimi: envanter / garanti / bakım ———
-        window.renderHomeHubTab = function() {
-            const list = document.getElementById('familyAssetList');
-            if (!list) return;
-            const sorted = (familyAssets || []).slice().sort(function(a, b) {
-                const da = a.service || a.warranty || '9999';
-                const db_ = b.service || b.warranty || '9999';
-                return String(da).localeCompare(String(db_));
-            });
-            if (!sorted.length) {
-                list.innerHTML = '<p class="text-sm text-slate-400 font-semibold py-4 text-center">Kayıt yok — kombi, klima, beyaz eşya ekleyin</p>';
-                return;
-            }
-            list.innerHTML = sorted.map(function(a) {
-                const bits = [];
-                if (a.place) bits.push(a.place);
-                if (a.warranty) bits.push('Garanti: ' + formatDateTR(a.warranty));
-                if (a.service) bits.push('Bakım: ' + formatDateTR(a.service));
-                if (a.note) bits.push(a.note);
-                return familyRow(escapeHtml(a.name || '-'), escapeHtml(bits.join(' · ') || '—'),
-                    '<button type="button" onclick="familyDelete(\'familyAssets\',\'' + escapeHtml(a.id) + '\')" class="text-xs font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50">Sil</button>');
-            }).join('');
-        };
-
-        window.familyAddAsset = async function(e) {
-            e.preventDefault();
-            const name = ((document.getElementById('famAssetName') || {}).value || '').trim();
-            if (!name) return;
-            try {
-                await db.collection('familyAssets').add({
-                    name: name,
-                    place: ((document.getElementById('famAssetPlace') || {}).value || '').trim(),
-                    note: ((document.getElementById('famAssetNote') || {}).value || '').trim(),
-                    warranty: (document.getElementById('famAssetWarranty') || {}).value || '',
-                    service: (document.getElementById('famAssetService') || {}).value || '',
-                    by: (currentUser && currentUser.name) || '',
-                    createdAt: new Date().toISOString()
-                });
-                document.getElementById('famAssetName').value = '';
-                document.getElementById('famAssetPlace').value = '';
-                document.getElementById('famAssetNote').value = '';
-                showToast('Ev kaydı eklendi', 'success');
-            } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
-        };
-
         window.openMobileMoreSheet = function() {
             const sheet = document.getElementById('mobileMoreSheet');
             if (!sheet) return;
@@ -1294,6 +1252,47 @@
             }
             closeMobileMoreSheet();
             switchTab(tabId);
+        };
+
+        // Ana sayfa + finans kart görünürlüğü (Ayarlar)
+        const DASH_CARD_KEYS = [
+            'total', 'bekir', 'duygu', 'debt',
+            'homeToday', 'homePeriod', 'homeNotif', 'homeQuickAdd', 'homeUpcoming', 'homeBudget'
+        ];
+
+        window.applyDashboardCards = function() {
+            const dc = dashboardCards || {};
+            document.querySelectorAll('[data-dash-card]').forEach(function(el) {
+                const k = el.getAttribute('data-dash-card');
+                const on = dc[k] !== false;
+                el.classList.toggle('hidden', !on);
+            });
+            document.querySelectorAll('[data-home-card]').forEach(function(el) {
+                const k = el.getAttribute('data-home-card');
+                const on = dc[k] !== false;
+                el.classList.toggle('hidden', !on);
+            });
+            DASH_CARD_KEYS.forEach(function(k) {
+                const cb = document.getElementById('cardVis_' + k);
+                if (cb) cb.checked = dc[k] !== false;
+            });
+        };
+
+        window.saveDashboardCards = async function() {
+            if (!isAdmin()) { showToast('Sadece admin', 'error'); return; }
+            const next = Object.assign({}, dashboardCards);
+            DASH_CARD_KEYS.forEach(function(k) {
+                const cb = document.getElementById('cardVis_' + k);
+                if (cb) next[k] = !!cb.checked;
+            });
+            dashboardCards = next;
+            try {
+                await db.collection('settings').doc('uiPrefs').set({ dashboardCards: next }, { merge: true });
+                applyDashboardCards();
+                showToast('Kart görünürlüğü kaydedildi', 'success');
+            } catch (err) {
+                showToast(friendlyFirebaseError(err), 'error');
+            }
         };
 
         // Modal Yönetimi
@@ -1510,13 +1509,6 @@
                 familyShopping = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
                 refreshFamilyViews();
             }, function(e) { console.warn('familyShopping', e); });
-            db.collection('familyAssets').onSnapshot(function(snap) {
-                familyAssets = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
-                refreshFamilyViews();
-                const hub = document.getElementById('tabContentHomeHub');
-                if (hub && !hub.classList.contains('hidden') && typeof renderHomeHubTab === 'function') renderHomeHubTab();
-            }, function(e) { console.warn('familyAssets', e); });
-
             db.collection("settings").doc("uiPrefs").onSnapshot(d => {
                 if (d.exists && d.data()) {
                     const u = d.data();
@@ -4288,7 +4280,7 @@
             const result = [];
             const seen = new Set();
 
-            const LEGACY_TABS = new Set(['calculator', 'reports', 'shopping', 'alisveris', 'alışveriş', 'deneme']);
+            const LEGACY_TABS = new Set(['calculator', 'reports', 'alisveris', 'alışveriş', 'deneme', 'homeHub', 'homehub']);
             (saved || []).forEach(s => {
                 if (!s || !s.id) return;
                 if (LEGACY_TABS.has(s.id)) return;

@@ -99,29 +99,37 @@
                 </div>
 
                 <div class="grid grid-cols-2 gap-3">
-                    <div class="bg-white rounded-2xl p-4 card-shadow border border-slate-100">
+                    <div data-home-card="homeToday" class="bg-white rounded-2xl p-4 card-shadow border border-slate-100">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Bugün harcama</p>
                         <p id="homeTodaySpend" class="text-lg font-black text-slate-800 mt-1">0 TL</p>
                         <p id="homeTodayCount" class="text-[11px] text-slate-400 font-semibold">0 kayıt</p>
                     </div>
-                    <div class="bg-white rounded-2xl p-4 card-shadow border border-slate-100">
+                    <div data-home-card="homePeriod" class="bg-white rounded-2xl p-4 card-shadow border border-slate-100">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Dönem toplam</p>
                         <p id="homePeriodSpend" class="text-lg font-black text-rose-600 mt-1">0 TL</p>
                         <p class="text-[11px] text-slate-400 font-semibold">29–28 ekstre</p>
                     </div>
-                    <button type="button" onclick="toggleNotifPanel(event)" class="bg-white rounded-2xl p-4 card-shadow border border-slate-100 text-left col-span-2 sm:col-span-1">
+                    <button type="button" data-home-card="homeNotif" onclick="toggleNotifPanel(event)" class="bg-white rounded-2xl p-4 card-shadow border border-slate-100 text-left col-span-2 sm:col-span-1">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Bildirimler</p>
                         <p class="text-lg font-black text-amber-600 mt-1"><span id="homeNotifCount">0</span> açık</p>
                         <p class="text-[11px] text-slate-400 font-semibold">Detay için dokunun</p>
                     </button>
-                    <button type="button" onclick="switchTab('expense'); openExpenseModal();" class="bg-indigo-600 text-white rounded-2xl p-4 shadow-md text-left">
+                    <button type="button" data-home-card="homeQuickAdd" onclick="switchTab('expense'); openExpenseModal();" class="bg-indigo-600 text-white rounded-2xl p-4 shadow-md text-left">
                         <p class="text-[10px] font-black text-indigo-100 uppercase tracking-wider">Hızlı işlem</p>
                         <p class="text-lg font-black mt-1">+ Harcama</p>
                         <p class="text-[11px] text-indigo-100 font-semibold">Finansa ekle</p>
                     </button>
                 </div>
 
-                <div class="bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
+                <div data-home-card="homeBudget" class="bg-white rounded-2xl p-4 card-shadow border border-slate-100">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Aylık bütçe hedefi</p>
+                    <p id="homeBudgetLabel" class="text-sm font-bold text-slate-700">—</p>
+                    <div class="mt-2 h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                        <div id="homeBudgetBar" class="h-full rounded-full bg-sky-500 transition-all" style="width:0%"></div>
+                    </div>
+                </div>
+
+                <div data-home-card="homeUpcoming" class="bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
                     <div class="flex items-center justify-between mb-3">
                         <h2 class="text-base font-black text-slate-800">Yaklaşanlar</h2>
                         <button type="button" onclick="toggleNotifPanel(event)" class="text-xs font-bold text-sky-600">Tümü</button>
@@ -129,30 +137,6 @@
                     <div id="homeUpcomingList" class="space-y-2"></div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <button type="button" onclick="switchTab('calendar')" class="bg-white rounded-2xl p-4 card-shadow border border-slate-100 text-left">
-                        <p class="text-2xl mb-1">📅</p>
-                        <p class="text-sm font-black text-slate-700">Takvim</p>
-                        <p id="homeCalSummary" class="text-[11px] text-slate-400 font-semibold mt-1">—</p>
-                    </button>
-                    <button type="button" onclick="switchTab('tasks')" class="bg-white rounded-2xl p-4 card-shadow border border-slate-100 text-left">
-                        <p class="text-2xl mb-1">✅</p>
-                        <p class="text-sm font-black text-slate-700">Görevler</p>
-                        <p id="homeTaskSummary" class="text-[11px] text-slate-400 font-semibold mt-1">—</p>
-                    </button>
-                    <button type="button" onclick="switchTab('shopping')" class="bg-white rounded-2xl p-4 card-shadow border border-slate-100 text-left">
-                        <p class="text-2xl mb-1">🛒</p>
-                        <p class="text-sm font-black text-slate-700">Alışveriş</p>
-                        <p id="homeShopSummary" class="text-[11px] text-slate-400 font-semibold mt-1">—</p>
-                    </button>
-                </div>
-
-                <div class="flex flex-wrap gap-2">
-                    <button type="button" onclick="switchTab('expense')" class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-700 shadow-sm">💰 Finans</button>
-                    <button type="button" onclick="switchTab('vehicle')" class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-700 shadow-sm">🚗 Araç</button>
-                    <button type="button" onclick="switchTab('stats')" class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-700 shadow-sm">📊 Raporlar</button>
-                    <button type="button" onclick="switchTab('notes')" class="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-sm font-bold text-slate-700 shadow-sm">📝 Notlar</button>
-                </div>
             </div>
 
             <!-- TAKVİM -->
@@ -210,33 +194,6 @@
                         <button type="submit" class="sm:col-span-4 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl py-3 text-sm">Listeye ekle</button>
                     </form>
                     <div id="familyShopList" class="space-y-2"></div>
-                </div>
-            </div>
-
-            <!-- EV YÖNETİMİ -->
-            <div id="tabContentHomeHub" class="hidden space-y-4 fade-in max-w-2xl mx-auto">
-                <div class="bg-white p-5 rounded-[1.75rem] card-shadow border border-slate-100">
-                    <h2 class="text-lg font-black mb-1">🏡 Ev envanteri &amp; bakım</h2>
-                    <p class="text-[11px] text-slate-400 font-semibold mb-4">Garanti ve bakım tarihleri bildirimlere düşer</p>
-                    <form onsubmit="familyAddAsset(event)" class="space-y-2 mb-4">
-                        <input type="text" id="famAssetName" required placeholder="Cihaz / kalem (Kombi, Klima…)" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <input type="text" id="famAssetPlace" placeholder="Konum (Salon, Mutfak…)" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
-                            <input type="text" id="famAssetNote" placeholder="Not (marka / model)" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div>
-                                <label class="text-[9px] font-bold text-slate-400 uppercase ml-1">Garanti bitiş</label>
-                                <input type="date" id="famAssetWarranty" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
-                            </div>
-                            <div>
-                                <label class="text-[9px] font-bold text-slate-400 uppercase ml-1">Sonraki bakım</label>
-                                <input type="date" id="famAssetService" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
-                            </div>
-                        </div>
-                        <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl py-3 text-sm">Ekle</button>
-                    </form>
-                    <div id="familyAssetList" class="space-y-2"></div>
                 </div>
             </div>
 
@@ -832,7 +789,34 @@
                             </div>
                             <span class="text-slate-300 text-lg">▾</span>
                         </button>
-                        <div id="adminPanel_cards" class="hidden border-t border-slate-100 p-6 space-y-3">
+                        <div id="adminPanel_cards" class="hidden border-t border-slate-100 p-6 space-y-4">
+                            <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider">Ana Sayfa</p>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Bugün harcama</span>
+                                <input type="checkbox" id="cardVis_homeToday" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Dönem toplam</span>
+                                <input type="checkbox" id="cardVis_homePeriod" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Bildirimler özeti</span>
+                                <input type="checkbox" id="cardVis_homeNotif" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Hızlı + Harcama</span>
+                                <input type="checkbox" id="cardVis_homeQuickAdd" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Yaklaşanlar listesi</span>
+                                <input type="checkbox" id="cardVis_homeUpcoming" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Bütçe hedefi (ilerleme)</span>
+                                <input type="checkbox" id="cardVis_homeBudget" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+
+                            <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider pt-2">Finans özeti (Finans sekmesi)</p>
                             <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
                                 <span class="text-sm font-bold text-slate-800">Dönem harcaması</span>
                                 <input type="checkbox" id="cardVis_total" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
@@ -848,6 +832,21 @@
                             <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
                                 <span class="text-sm font-bold text-slate-800">Aktif KK borcu</span>
                                 <input type="checkbox" id="cardVis_debt" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+
+                            <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider pt-2">İleride eklenebilir</p>
+                            <p class="text-[11px] text-slate-400 font-semibold">Takvim / görev / alışveriş özet kartları ana sayfaya yeniden eklendiğinde burada açılıp kapanır.</p>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/80 cursor-not-allowed opacity-60">
+                                <span class="text-sm font-bold text-slate-600">Takvim özeti</span>
+                                <input type="checkbox" disabled class="rounded">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/80 cursor-not-allowed opacity-60">
+                                <span class="text-sm font-bold text-slate-600">Görev özeti</span>
+                                <input type="checkbox" disabled class="rounded">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/80 cursor-not-allowed opacity-60">
+                                <span class="text-sm font-bold text-slate-600">Alışveriş özeti</span>
+                                <input type="checkbox" disabled class="rounded">
                             </label>
                         </div>
                     </div>
@@ -1052,14 +1051,14 @@
         <button type="button" data-mnav="home" onclick="mobileNavGo('home')" class="mnav-item">
             <span class="mnav-ico">🏠</span><span class="mnav-lbl">Ana</span>
         </button>
-        <button type="button" data-mnav="calendar" onclick="mobileNavGo('calendar')" class="mnav-item">
-            <span class="mnav-ico">📅</span><span class="mnav-lbl">Takvim</span>
-        </button>
-        <button type="button" data-mnav="shopping" onclick="mobileNavGo('shopping')" class="mnav-item">
-            <span class="mnav-ico">🛒</span><span class="mnav-lbl">Alışveriş</span>
-        </button>
         <button type="button" data-mnav="expense" onclick="mobileNavGo('expense')" class="mnav-item">
             <span class="mnav-ico">💰</span><span class="mnav-lbl">Finans</span>
+        </button>
+        <button type="button" data-mnav="tasks" onclick="mobileNavGo('tasks')" class="mnav-item">
+            <span class="mnav-ico">✅</span><span class="mnav-lbl">Görevler</span>
+        </button>
+        <button type="button" data-mnav="calendar" onclick="mobileNavGo('calendar')" class="mnav-item">
+            <span class="mnav-ico">📅</span><span class="mnav-lbl">Takvim</span>
         </button>
         <button type="button" data-mnav="more" onclick="mobileNavGo('more')" class="mnav-item">
             <span class="mnav-ico">☰</span><span class="mnav-lbl">Daha</span>
@@ -1072,11 +1071,10 @@
                 <p class="text-sm font-black text-slate-800">Daha fazla</p>
                 <button type="button" onclick="closeMobileMoreSheet()" class="text-slate-400 font-bold text-xl leading-none px-2">&times;</button>
             </div>
-            <button type="button" onclick="mobileNavGo('tasks')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800">✅ Görevler</button>
+            <button type="button" onclick="mobileNavGo('shopping')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800">🛒 Alışveriş</button>
             <button type="button" onclick="mobileNavGo('vehicle')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800">🚗 Araç</button>
             <button type="button" onclick="mobileNavGo('notes')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800">📝 Notlar</button>
             <button type="button" onclick="mobileNavGo('stats')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800">📊 Raporlar</button>
-            <button type="button" onclick="mobileNavGo('homeHub')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800">🏡 Ev yönetimi</button>
             <button type="button" onclick="mobileNavGo('settings')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800 admin-only-btn">⚙️ Ayarlar</button>
             <button type="button" onclick="mobileNavGo('trash')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800 admin-only-btn">🗑️ Çöp Kutusu</button>
             <button type="button" onclick="closeMobileMoreSheet(); logout();" class="w-full text-left px-4 py-3.5 rounded-xl bg-rose-50 font-bold text-rose-600">Çıkış</button>
