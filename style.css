@@ -1303,3 +1303,12 @@ html.theme-dark .mnav-item.mnav-active .mnav-ico {
 header p.uppercase {
   letter-spacing: 0.18em;
 }
+
+
+/* Başlıklarda kelime başları büyük (Title Case) */
+#appContainer h2,
+#appContainer h3,
+#appContainer .chart-title,
+#appContainer .advisor-title {
+  text-transform: capitalize;
+}

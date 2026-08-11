@@ -752,7 +752,7 @@
         let syncInitialized = false;
         let periodConfig = { startDay: 29, endDay: 28 };
         let monthlyBudgetTarget = 0; // TL, 0 = kapalı
-        // Finans özet + Ana Sayfa kart görünürlüğü
+        // Ana sayfa / özet kart görünürlüğü
         let dashboardCards = {
             total: true, bekir: true, duygu: true, debt: true,
             homeToday: true, homePeriod: true, homeNotif: true, homeGold: true, homeQuickAdd: true, homeUpcoming: true,
@@ -1022,13 +1022,9 @@
                 const hi = hour < 12 ? 'Günaydın' : (hour < 18 ? 'İyi günler' : 'İyi akşamlar');
                 if (greet) greet.textContent = hi + (name ? ', ' + name : '');
 
-                const motEl = document.getElementById('homeMotivation');
-                if (motEl && typeof getDailyMotivation === 'function') {
-                    motEl.textContent = getDailyMotivation();
-                }
-                const otdEl = document.getElementById('homeOnThisDay');
-                if (otdEl && typeof getOnThisDay === 'function') {
-                    otdEl.textContent = getOnThisDay();
+                const dyk = document.getElementById('homeDidYouKnow');
+                if (dyk && typeof getDidYouKnow === 'function') {
+                    dyk.textContent = getDidYouKnow();
                 }
 
                 const dateEl = document.getElementById('homeTodayDate');
@@ -1173,88 +1169,52 @@
             if (typeof updateTaskNavBadges === 'function') updateTaskNavBadges();
         };
 
-        const DAILY_MOTIVATIONS = [
-            'Küçük adımlar, büyük düzen demektir. Bugün bir şeyi netleştirmen yeterli.',
-            'Aile düzeni bir sprint değil; her gün biraz daha kolaylaşır.',
-            'Bugünün işini bugün bitir; yarın kendine teşekkür edeceksin.',
-            'Paylaşmak yükü hafifletir — birlikte planlamak gücü artırır.',
-            'Net bir liste, karışık bir zihinden iyidir. Önce bir satır yaz.',
-            'Tasarruf cesaret ister; israf da sessizce birikir. Bugün bilinçli seç.',
-            'Ev, sadece duvarlar değil; rutinlerinizin toplamıdır.',
-            'Tamamlanan bir görev, yeni bir nefes demektir.',
-            'Plan olmadan hız, kaos üretir. Bugün sakin ve net ilerle.',
-            'Sevdiklerinle aynı hedefe bakmak, yolun yarısıdır.',
-            'Düzen, disiplin değil; kendine ve aileye saygıdır.',
-            'Bugün “sonra” demek yerine “şimdi küçük bir adım” de.',
-            'Harcama bilinci, kısıtlama değil; seçim özgürlüğüdür.',
-            'Yarın daha sakin olsun diye bugün bir şeyi kapat.',
-            'Motivasyon gelmezse rutin gelsin; rutin motivasyonu getirir.',
-            'Birlikte tutulan liste, unutulan stresi azaltır.',
-            'Küçük bir birikim, büyük bir rahatlığa dönüşür.',
-            'Bugün evine ve bütçene aynı özeni göster.',
-            'Netlik huzur getirir. Bir karar, bir kutu işaretle.',
-            'Güçlü aileler, görünmeyen küçük düzenlerden oluşur.',
-            'Bugün “yeterince iyi” de bir zaferdir.',
-            'Planını sade tut; uygulaman güçlensin.',
-            'Hatırlatma koy, unutmayı affet; sistemi çalıştır.',
-            'Bugünün disiplini, yarının rahatlığıdır.',
-            'Birlikte yapılan alışveriş listesi, gereksiz tartışmayı keser.',
-            'Para yönetimi aşk değil; alışkanlıktır. Alışkanlık bugün başlar.',
-            'Evin düzeni, zihninin aynasıdır. Bir köşeyi netleştir.',
-            'Tamamlanmamış işleri erteleme; böl ve bitir.',
-            'Bugün aile için bir şeyi kolaylaştır — bu da başarıdır.',
-            'Sakin başla, net bitir. YUVAM senin yannda.',
-            'Her gün bir küçük iyileştirme, bir ayda büyük farktır.'
+        const DID_YOU_KNOW = [
+            'Bunu biliyor muydunuz? Bal, uygun koşullarda bozulmayan nadir gıdalardan biridir; arkeolojik kazılarda binlerce yıllık yenilebilir bal bulunmuştur.',
+            'Bunu biliyor muydunuz? Ahtapotların üç kalbi vardır; ikisi solungaçlara, biri vücuda kan pompalar.',
+            'Bunu biliyor muydunuz? Büyük Çin Seddi, uzaydan çıplak gözle görülebilen tek insan yapısı değildir; bu yaygın bir efsanedir.',
+            'Bunu biliyor muydunuz? 1453\'te İstanbul\'un fethi, Orta Çağ\'dan erken modern döneme geçişin simgesel olaylarından kabul edilir.',
+            'Bunu biliyor muydunuz? Bir yıldırımın sıcaklığı, Güneş\'in yüzeyinden yaklaşık beş kat daha yüksek olabilir.',
+            'Bunu biliyor muydunuz? 1920\'de TBMM Ankara\'da açıldı; Milli Mücadele\'nin siyasi merkezi böyle şekillendi.',
+            'Bunu biliyor muydunuz? Penguenler yalnızca Güney Yarımküre\'de yaşar; Kuzey Kutbu\'nda doğal penguen popülasyonu yoktur.',
+            'Bunu biliyor muydunuz? Mozart\'ın 600\'den fazla eseri vardır; bestelerinin bir kısmını çocuk yaşta yazmıştır.',
+            'Bunu biliyor muydunuz? 1969\'da Apollo 11 ile Neil Armstrong Ay\'a ayak basan ilk insan oldu.',
+            'Bunu biliyor muydunuz? Türk kahvesi, UNESCO Somut Olmayan Kültürel Miras listesindedir.',
+            'Bunu biliyor muydunuz? Avustralya\'nın yüzölçümü neredeyse Avrupa kıtası kadar büyüktür; nüfusu ise çok daha düşüktür.',
+            'Bunu biliyor muydunuz? 29 Ekim 1923\'te Türkiye Cumhuriyeti ilan edildi.',
+            'Bunu biliyor muydunuz? Balinalar memelidir; yavrularını sütle besler ve akciğerleriyle nefes alırlar.',
+            'Bunu biliyor muydunuz? İlk modern Olimpiyat Oyunları 1896\'da Atina\'da düzenlendi.',
+            'Bunu biliyor muydunuz? Çanakkale Deniz Zaferi 18 Mart 1915\'te anılır.',
+            'Bunu biliyor muydunuz? Venüs, Güneş sisteminde bir günü bir yıldan uzun süren gezegendir (kendi ekseninde dönüşü yörünge süresinden uzundur).',
+            'Bunu biliyor muydunuz? 1989\'da Berlin Duvarı\'nın yıkılışı, Avrupa\'nın bölünmüşlüğünün sembolik sonuna işaret eder.',
+            'Bunu biliyor muydunuz? Arıların dansı, diğer arılara nektar kaynağının yönünü ve uzaklığını anlatmak için kullanılır.',
+            'Bunu biliyor muydunuz? Matematikteki π (pi) sayısı, bir çemberin çevresinin çapına oranıdır; ondalık kısmı sonsuza kadar sürer.',
+            'Bunu biliyor muydunuz? 1901\'de ilk Nobel Ödülleri verildi.',
+            'Bunu biliyor muydunuz? Kapadokya\'nın peri bacaları, volkanik tüflerin rüzgâr ve suyla aşınmasıyla oluşmuştur.',
+            'Bunu biliyor muydunuz? İnsan vücudundaki en sert madde diş minesidir.',
+            'Bunu biliyor muydunuz? 30 Ağustos 1922, Büyük Taarruz\'un zaferiyle anılan Zafer Bayramı\'dır.',
+            'Bunu biliyor muydunuz? Octopus (ahtapot) türlerinin birçoğu, tehlike anında mürekkep salarak görüşü engeller.',
+            'Bunu biliyor muydunuz? Kitab-ı Bahriye, Piri Reis\'in Akdeniz coğrafyasına dair ünlü denizcilik eseridir.',
+            'Bunu biliyor muydunuz? DNA\'nın çift sarmal yapısı 1953\'te Watson ve Crick tarafından modelleştirildi.',
+            'Bunu biliyor muydunuz? Efes Antik Kenti, UNESCO Dünya Mirası listesindedir.',
+            'Bunu biliyor muydunuz? Bir gün Dünya\'da yaklaşık 24 saattir; Mars\'ta bir gün (sol) yaklaşık 24,6 saattir.',
+            'Bunu biliyor muydunuz? 10 Kasım 1938\'de Mustafa Kemal Atatürk vefat etmiştir.',
+            'Bunu biliyor muydunuz? Flamenco, İspanya\'nın Endülüs bölgesiyle özdeşleşmiş müzik ve dans geleneğidir.',
+            'Bunu biliyor muydunuz? Antarktika, dünyanın en kurak ve en soğuk kıtasıdır; teknik olarak çöl sınıflandırmasına girer.',
+            'Bunu biliyor muydunuz? İstanbul, tarih boyunca Byzantion, Konstantinopolis gibi adlarla da anılmıştır.',
+            'Bunu biliyor muydunuz? Satrançta teorik olarak en fazla hamle sayısı sınırlıdır; oyun sonlu bir sistemdir.',
+            'Bunu biliyor muydunuz? Pamukkale\'nin beyaz travertenleri, sıcak suyun bıraktığı kalsiyum karbonat birikimidir.',
+            'Bunu biliyor muydunuz? 1948\'de İnsan Hakları Evrensel Bildirgesi kabul edildi.',
+            'Bunu biliyor muydunuz? Kedi ve köpeklerin burun izleri, insan parmak izi gibi bireye özgüdür.',
+            'Bunu biliyor muydunuz? Göbeklitepe, bilinen en eski anıtsal tapınak alanlarından biri olarak kabul edilir.',
+            'Bunu biliyor muydunuz? Müzikte "A" notasının standart frekansı birçok yerde 440 Hz olarak alınır.',
+            'Bunu biliyor muydunuz? Nil Nehri, uzunluk tartışmalarıyla birlikte Afrika\'nın en ünlü nehirlerindendir.',
+            'Bunu biliyor muydunuz? 9 Eylül, İzmir\'in kurtuluşunun yıl dönümü olarak anılır.'
         ];
 
-        window.getDailyMotivation = function() {
-            // Her sayfa yenilemede farklı cümle
-            const i = Math.floor(Math.random() * DAILY_MOTIVATIONS.length);
-            return DAILY_MOTIVATIONS[i];
-        };
-
-        // Tarihte bugün — MM-DD -> olaylar (Türkçe)
-        const ON_THIS_DAY = {
-            '01-01': ['1923: Türkiye\'de Cumhuriyet\'in ilk yılına girildi.', '1801: Ceres asteroiti keşfedildi.'],
-            '01-29': ['1856: Victoriai Victoriai Victoria Victoria Haçı nişanını oluşturdu.', '1886: Karl Benz ilk otomobil patentini aldı.'],
-            '02-14': ['1929: Saint Valentine\'s Day katliamı Chicago\'da yaşandı.', '1946: ENIAC bilgisayarı kamuoyuna tanıtıldı.'],
-            '03-18': ['1915: Çanakkale Deniz Zaferi.', '1965: Sovyet kozmonot Aleksey Leonov uzay yürüyüşü yaptı.'],
-            '04-23': ['1920: TBMM Ankara\'da açıldı.', '1564: William Shakespeare\'in doğum günü (kabul edilen).'],
-            '05-19': ['1919: Atatürk Samsun\'a çıktı; Milli Mücadele başladı.'],
-            '05-29': ['1453: İstanbul\'un fethi.', '1953: Everest\'e ilk tırmanış (Hillary & Norgay).'],
-            '06-01': ['1926: Marilyn Monroe doğdu.', '2009: General Motors iflas korumasına başvurdu.'],
-            '07-15': ['2016: Türkiye\'de darbe girişimi engellendi.', '1799: Rosetta Taşı bulundu.'],
-            '07-20': ['1969: Apollo 11 Ay\'a indi.', '1974: Kıbrıs Barış Harekâtı başladı.'],
-            '08-10': ['1920: Sevr Antlaşması imzalandı.', '1792: Fransız Devrimi\'nde Tuileries baskını.'],
-            '08-11': ['1960: Çad bağımsızlığını ilan etti.', '1929: Babe Ruth 500. home run\'ını attı.'],
-            '08-30': ['1922: Büyük Taarruz zaferi (Dumlupınar).'],
-            '09-01': ['1939: II. Dünya Savaşı başladı (Polonya işgali).'],
-            '09-09': ['1923: İzmir\'in kurtuluşu.', '1948: Kuzey Kore ilan edildi.'],
-            '10-29': ['1923: Türkiye Cumhuriyeti ilan edildi.'],
-            '11-10': ['1938: Atatürk vefat etti.', '1989: Berlin Duvarı yıkılışı süreci hızlandı.'],
-            '12-10': ['1901: İlk Nobel Ödülleri verildi.', '1948: İnsan Hakları Evrensel Bildirgesi kabul edildi.'],
-            '12-25': ['1642: Isaac Newton doğdu (eski takvim).', '1991: Sovyetler Birliği resmen dağıldı.']
-        };
-        const ON_THIS_DAY_FALLBACK = [
-            'Tarihte bugün: Bilim, sanat ve toplumda birçok kırılma noktası yaşandı; merak etmek keşfin başlangıcıdır.',
-            'Tarihte bugün: Dünyanın bir yerinde bir fikir ilk kez kağıda döküldü — küçük adımlar tarihi değiştirir.',
-            'Tarihte bugün: Bir buluş, bir antlaşma veya bir yolculuk insanlığın rotasını etkiledi.',
-            'Tarihte bugün: Cesaret ve sabır bir araya geldi; düzenli çaba büyük sonuçlar doğurur.',
-            'Tarihte bugün: Bir milletin veya bir ailenin hikâyesinde yeni bir sayfa açıldı.'
-        ];
-
-        window.getOnThisDay = function() {
-            const d = new Date();
-            const md = String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-            const list = ON_THIS_DAY[md];
-            let fact;
-            if (list && list.length) {
-                fact = list[Math.floor(Math.random() * list.length)];
-            } else {
-                fact = ON_THIS_DAY_FALLBACK[Math.floor(Math.random() * ON_THIS_DAY_FALLBACK.length)];
-            }
-            if (fact.indexOf('Tarihte bugün') === 0) return fact;
-            return 'Tarihte bugün: ' + fact;
+        window.getDidYouKnow = function() {
+            const i = Math.floor(Math.random() * DID_YOU_KNOW.length);
+            return DID_YOU_KNOW[i];
         };
 
         // ——— Aile: Takvim / Görev / Alışveriş ———
@@ -1379,28 +1339,38 @@
 
         function updateHomeGoldCard() {
             const el = document.getElementById('homeGoldPnL');
+            const netEl = document.getElementById('homeGoldNet');
             const sub = document.getElementById('homeGoldSub');
             if (!el) return;
             const p = computeGoldPortfolio();
             if (!(goldHoldings || []).length) {
                 el.textContent = 'Kayıt yok';
-                el.className = 'text-xl font-black text-slate-400 mt-1';
+                el.className = 'text-xl font-black text-slate-400';
+                if (netEl) { netEl.textContent = ''; netEl.className = 'text-lg font-black text-slate-400'; }
                 if (sub) sub.textContent = 'Raporlar · altın ekle';
                 return;
             }
             if (!p.hasPriced) {
                 el.textContent = 'Fiyat bekleniyor';
-                el.className = 'text-xl font-black text-slate-500 mt-1';
-                if (sub) sub.textContent = (p.totalGrams || 0) + ' g · maliyet ' + formatGoldTL(p.totalCost);
+                el.className = 'text-xl font-black text-slate-500';
+                if (netEl) {
+                    netEl.textContent = 'Net ' + formatGoldTL(p.totalCost);
+                    netEl.className = 'text-lg font-black text-slate-600';
+                }
+                if (sub) sub.textContent = (p.totalGrams || 0) + ' g · maliyet';
                 return;
             }
             const pnl = p.pnl;
             const pct = p.totalCost > 0 ? (pnl / p.totalCost * 100) : 0;
             el.textContent = (pnl >= 0 ? '+' : '') + Math.round(pnl).toLocaleString('tr-TR') + ' TL';
-            el.className = 'text-xl font-black mt-1 ' + (pnl >= 0 ? 'text-emerald-600' : 'text-rose-600');
+            el.className = 'text-xl font-black ' + (pnl >= 0 ? 'text-emerald-600' : 'text-rose-600');
+            if (netEl) {
+                netEl.textContent = 'Net ' + Math.round(p.totalValue).toLocaleString('tr-TR') + ' TL';
+                netEl.className = 'text-lg font-black text-slate-800';
+            }
             if (sub) {
                 sub.textContent = (pnl >= 0 ? '+' : '') + pct.toFixed(1) + '% · ' +
-                    (p.totalGrams || 0) + ' g · değer ' + formatGoldTL(p.totalValue);
+                    (p.totalGrams || 0) + ' g · maliyet ' + formatGoldTL(p.totalCost);
             }
         }
 
@@ -5315,13 +5285,9 @@
                 </div>`;
             }
             if (type === 'todo') {
-                // Eski "Yapılacaklar listesi" kaldırıldı — Görevler sekmesi kullanılır
-                return `
-                <div class="max-w-md mx-auto text-center space-y-3 py-6">
-                    <p class="text-3xl">✅</p>
-                    <p class="text-sm font-black text-slate-800">Yapılacaklar listesi kaldırıldı</p>
-                    <p class="text-xs text-slate-500 font-semibold">Aynı iş için <b>Görevler</b> sekmesini kullanın (atanabilir, tarihli, ortak).</p>
-                    <button type="button" onclick="switchTab('tasks')" class="mt-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold">Görevler sekmesine git</button>
+                return `<div class="max-w-md mx-auto text-center py-6 space-y-2">
+                    <p class="text-sm font-black text-slate-800">Görevler Sekmesini Kullanın</p>
+                    <button type="button" onclick="switchTab('tasks')" class="px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold">Görevler</button>
                 </div>`;
             }
             if (type === 'notes') {
