@@ -998,6 +998,10 @@
                 if (motEl && typeof getDailyMotivation === 'function') {
                     motEl.textContent = getDailyMotivation();
                 }
+                const otdEl = document.getElementById('homeOnThisDay');
+                if (otdEl && typeof getOnThisDay === 'function') {
+                    otdEl.textContent = getOnThisDay();
+                }
 
                 const dateEl = document.getElementById('homeTodayDate');
                 if (dateEl) {
@@ -1156,11 +1160,53 @@
         ];
 
         window.getDailyMotivation = function() {
-            const d = new Date();
-            // Yıl+gün bazlı sabit indeks (aynı gün aynı cümle)
-            const dayIndex = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
-            const i = Math.abs(dayIndex) % DAILY_MOTIVATIONS.length;
+            // Her sayfa yenilemede farklı cümle
+            const i = Math.floor(Math.random() * DAILY_MOTIVATIONS.length);
             return DAILY_MOTIVATIONS[i];
+        };
+
+        // Tarihte bugün — MM-DD -> olaylar (Türkçe)
+        const ON_THIS_DAY = {
+            '01-01': ['1923: Türkiye\'de Cumhuriyet\'in ilk yılına girildi.', '1801: Ceres asteroiti keşfedildi.'],
+            '01-29': ['1856: Victoriai Victoriai Victoria Victoria Haçı nişanını oluşturdu.', '1886: Karl Benz ilk otomobil patentini aldı.'],
+            '02-14': ['1929: Saint Valentine\'s Day katliamı Chicago\'da yaşandı.', '1946: ENIAC bilgisayarı kamuoyuna tanıtıldı.'],
+            '03-18': ['1915: Çanakkale Deniz Zaferi.', '1965: Sovyet kozmonot Aleksey Leonov uzay yürüyüşü yaptı.'],
+            '04-23': ['1920: TBMM Ankara\'da açıldı.', '1564: William Shakespeare\'in doğum günü (kabul edilen).'],
+            '05-19': ['1919: Atatürk Samsun\'a çıktı; Milli Mücadele başladı.'],
+            '05-29': ['1453: İstanbul\'un fethi.', '1953: Everest\'e ilk tırmanış (Hillary & Norgay).'],
+            '06-01': ['1926: Marilyn Monroe doğdu.', '2009: General Motors iflas korumasına başvurdu.'],
+            '07-15': ['2016: Türkiye\'de darbe girişimi engellendi.', '1799: Rosetta Taşı bulundu.'],
+            '07-20': ['1969: Apollo 11 Ay\'a indi.', '1974: Kıbrıs Barış Harekâtı başladı.'],
+            '08-10': ['1920: Sevr Antlaşması imzalandı.', '1792: Fransız Devrimi\'nde Tuileries baskını.'],
+            '08-11': ['1960: Çad bağımsızlığını ilan etti.', '1929: Babe Ruth 500. home run\'ını attı.'],
+            '08-30': ['1922: Büyük Taarruz zaferi (Dumlupınar).'],
+            '09-01': ['1939: II. Dünya Savaşı başladı (Polonya işgali).'],
+            '09-09': ['1923: İzmir\'in kurtuluşu.', '1948: Kuzey Kore ilan edildi.'],
+            '10-29': ['1923: Türkiye Cumhuriyeti ilan edildi.'],
+            '11-10': ['1938: Atatürk vefat etti.', '1989: Berlin Duvarı yıkılışı süreci hızlandı.'],
+            '12-10': ['1901: İlk Nobel Ödülleri verildi.', '1948: İnsan Hakları Evrensel Bildirgesi kabul edildi.'],
+            '12-25': ['1642: Isaac Newton doğdu (eski takvim).', '1991: Sovyetler Birliği resmen dağıldı.']
+        };
+        const ON_THIS_DAY_FALLBACK = [
+            'Tarihte bugün: Bilim, sanat ve toplumda birçok kırılma noktası yaşandı; merak etmek keşfin başlangıcıdır.',
+            'Tarihte bugün: Dünyanın bir yerinde bir fikir ilk kez kağıda döküldü — küçük adımlar tarihi değiştirir.',
+            'Tarihte bugün: Bir buluş, bir antlaşma veya bir yolculuk insanlığın rotasını etkiledi.',
+            'Tarihte bugün: Cesaret ve sabır bir araya geldi; düzenli çaba büyük sonuçlar doğurur.',
+            'Tarihte bugün: Bir milletin veya bir ailenin hikâyesinde yeni bir sayfa açıldı.'
+        ];
+
+        window.getOnThisDay = function() {
+            const d = new Date();
+            const md = String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            const list = ON_THIS_DAY[md];
+            let fact;
+            if (list && list.length) {
+                fact = list[Math.floor(Math.random() * list.length)];
+            } else {
+                fact = ON_THIS_DAY_FALLBACK[Math.floor(Math.random() * ON_THIS_DAY_FALLBACK.length)];
+            }
+            if (fact.indexOf('Tarihte bugün') === 0) return fact;
+            return 'Tarihte bugün: ' + fact;
         };
 
         // ——— Aile: Takvim / Görev / Alışveriş ———
@@ -1233,11 +1279,43 @@
                 const typeLab = calTypeLabel(ev.type);
                 const rep = (ev.repeat === 'yearly' || ev.type === 'birthday' || ev.type === 'anniversary') ? ' · her yıl' : '';
                 const sub = calTypeIcon(ev.type) + ' ' + typeLab + ' · ' + formatDateTR(eff) + (badge ? ' · ' + badge : '') + rep + (ev.by ? ' · ' + ev.by : '');
-                return familyRow(escapeHtml(ev.title || '-'), escapeHtml(sub),
-                    '<button type="button" onclick="familyDelete(\'familyCalendar\',\'' + escapeHtml(ev.id) + '\')" class="text-xs font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50">Sil</button>');
+                const editBtn = '<button type="button" onclick="familyEditCalendar(\'' + escapeHtml(ev.id) + '\')" class="text-xs font-bold text-sky-600 px-2 py-1 rounded-lg hover:bg-sky-50">Düzenle</button>';
+                const delBtn = '<button type="button" onclick="familyDelete(\'familyCalendar\',\'' + escapeHtml(ev.id) + '\')" class="text-xs font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50">Sil</button>';
+                return familyRow(escapeHtml(ev.title || '-'), escapeHtml(sub), editBtn + delBtn);
             }).join('');
             const dInp = document.getElementById('famCalDate');
             if (dInp && !dInp.value) dInp.value = todayDateStr();
+        };
+
+        window.familyEditCalendar = function(id) {
+            const ev = (familyCalendar || []).find(function(x) { return x.id === id; });
+            if (!ev) return;
+            const eid = document.getElementById('famCalEditId');
+            if (eid) eid.value = id;
+            const t = document.getElementById('famCalTitle');
+            if (t) t.value = ev.title || '';
+            const d = document.getElementById('famCalDate');
+            if (d) d.value = String(ev.date || '').slice(0, 10);
+            const ty = document.getElementById('famCalType');
+            if (ty) ty.value = ev.type || 'event';
+            const r = document.getElementById('famCalRepeat');
+            if (r) r.value = ev.repeat || 'none';
+            const btn = document.getElementById('famCalSubmitBtn');
+            if (btn) btn.textContent = 'Güncelle';
+            const c = document.getElementById('famCalCancelEdit');
+            if (c) c.classList.remove('hidden');
+            if (t) t.focus();
+        };
+
+        window.familyCancelCalEdit = function() {
+            const eid = document.getElementById('famCalEditId');
+            if (eid) eid.value = '';
+            const t = document.getElementById('famCalTitle');
+            if (t) t.value = '';
+            const btn = document.getElementById('famCalSubmitBtn');
+            if (btn) btn.textContent = 'Ekle';
+            const c = document.getElementById('famCalCancelEdit');
+            if (c) c.classList.add('hidden');
         };
 
         window.familyAddCalendar = async function(e) {
@@ -1248,17 +1326,31 @@
             let type = (document.getElementById('famCalType') || {}).value || 'event';
             let repeat = (document.getElementById('famCalRepeat') || {}).value || 'none';
             if (type === 'birthday' || type === 'anniversary') repeat = 'yearly';
+            const editId = ((document.getElementById('famCalEditId') || {}).value || '').trim();
             try {
-                await db.collection('familyCalendar').add({
-                    title: title,
-                    date: date,
-                    type: type,
-                    repeat: repeat,
-                    by: (currentUser && currentUser.name) || '',
-                    createdAt: new Date().toISOString()
-                });
-                document.getElementById('famCalTitle').value = '';
-                showToast('Takvime eklendi', 'success');
+                if (editId) {
+                    await db.collection('familyCalendar').doc(editId).update({
+                        title: title,
+                        date: date,
+                        type: type,
+                        repeat: repeat,
+                        updatedAt: new Date().toISOString(),
+                        updatedBy: (currentUser && currentUser.name) || ''
+                    });
+                    showToast('Etkinlik güncellendi', 'success');
+                    familyCancelCalEdit();
+                } else {
+                    await db.collection('familyCalendar').add({
+                        title: title,
+                        date: date,
+                        type: type,
+                        repeat: repeat,
+                        by: (currentUser && currentUser.name) || '',
+                        createdAt: new Date().toISOString()
+                    });
+                    document.getElementById('famCalTitle').value = '';
+                    showToast('Takvime eklendi', 'success');
+                }
             } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
         };
 
@@ -1280,11 +1372,45 @@
                 const rep = taskRepeatLabel(t.repeat);
                 const main = (t.done ? '<span class="line-through opacity-60">' : '') + escapeHtml(t.text || '-') + (t.done ? '</span>' : '');
                 const sub = due + ' · ' + who + (rep ? ' · 🔁 ' + rep : '') + (t.by ? ' · ekleyen: ' + t.by : '');
+                const editB = '<button type="button" onclick="familyEditTask(\'' + escapeHtml(t.id) + '\')" class="text-xs font-bold text-sky-600 px-2 py-1 rounded-lg hover:bg-sky-50">Düzenle</button>';
                 const tog = '<button type="button" onclick="familyToggleTask(\'' + escapeHtml(t.id) + '\',' + (t.done ? 'false' : 'true') + ')" class="text-xs font-bold px-2 py-1 rounded-lg ' +
                     (t.done ? 'text-slate-500 bg-slate-100' : 'text-emerald-700 bg-emerald-50') + '">' + (t.done ? 'Geri al' : 'Tamam') + '</button>';
                 const del = '<button type="button" onclick="familyDelete(\'familyTasks\',\'' + escapeHtml(t.id) + '\')" class="text-xs font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50">Sil</button>';
-                return familyRow(main, escapeHtml(sub), tog + del);
+                return familyRow(main, escapeHtml(sub), editB + tog + del);
             }).join('');
+        };
+
+        window.familyEditTask = function(id) {
+            const t = (familyTasks || []).find(function(x) { return x.id === id; });
+            if (!t) return;
+            const eid = document.getElementById('famTaskEditId');
+            if (eid) eid.value = id;
+            const tx = document.getElementById('famTaskText');
+            if (tx) tx.value = t.text || '';
+            const due = document.getElementById('famTaskDue');
+            if (due) due.value = t.due ? String(t.due).slice(0, 10) : '';
+            const asg = document.getElementById('famTaskAssignee');
+            if (asg) asg.value = t.assignee || 'Herkes';
+            const rep = document.getElementById('famTaskRepeat');
+            if (rep) rep.value = t.repeat || 'none';
+            const btn = document.getElementById('famTaskSubmitBtn');
+            if (btn) btn.textContent = 'Güncelle';
+            const c = document.getElementById('famTaskCancelEdit');
+            if (c) c.classList.remove('hidden');
+            if (tx) tx.focus();
+        };
+
+        window.familyCancelTaskEdit = function() {
+            const eid = document.getElementById('famTaskEditId');
+            if (eid) eid.value = '';
+            const tx = document.getElementById('famTaskText');
+            if (tx) tx.value = '';
+            const due = document.getElementById('famTaskDue');
+            if (due) due.value = '';
+            const btn = document.getElementById('famTaskSubmitBtn');
+            if (btn) btn.textContent = 'Ekle';
+            const c = document.getElementById('famTaskCancelEdit');
+            if (c) c.classList.add('hidden');
         };
 
         window.familyAddTask = async function(e) {
@@ -1294,18 +1420,32 @@
             const due = (document.getElementById('famTaskDue') || {}).value || '';
             const assignee = (document.getElementById('famTaskAssignee') || {}).value || 'Herkes';
             const repeat = (document.getElementById('famTaskRepeat') || {}).value || 'none';
+            const editId = ((document.getElementById('famTaskEditId') || {}).value || '').trim();
             try {
-                await db.collection('familyTasks').add({
-                    text: text,
-                    due: due,
-                    assignee: assignee,
-                    repeat: repeat,
-                    done: false,
-                    by: (currentUser && currentUser.name) || '',
-                    createdAt: new Date().toISOString()
-                });
-                document.getElementById('famTaskText').value = '';
-                showToast(repeat !== 'none' ? 'Tekrarlayan görev eklendi' : 'Görev eklendi', 'success');
+                if (editId) {
+                    await db.collection('familyTasks').doc(editId).update({
+                        text: text,
+                        due: due,
+                        assignee: assignee,
+                        repeat: repeat,
+                        updatedAt: new Date().toISOString(),
+                        updatedBy: (currentUser && currentUser.name) || ''
+                    });
+                    showToast('Görev güncellendi', 'success');
+                    familyCancelTaskEdit();
+                } else {
+                    await db.collection('familyTasks').add({
+                        text: text,
+                        due: due,
+                        assignee: assignee,
+                        repeat: repeat,
+                        done: false,
+                        by: (currentUser && currentUser.name) || '',
+                        createdAt: new Date().toISOString()
+                    });
+                    document.getElementById('famTaskText').value = '';
+                    showToast(repeat !== 'none' ? 'Tekrarlayan görev eklendi' : 'Görev eklendi', 'success');
+                }
             } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
         };
 
@@ -3148,7 +3288,7 @@
         };
 
 
-        // İstatistikler Paneli
+        // Raporlar paneli
         window.showCategoryExpenses = function(category) {
             const period = getCurrentPeriod();
             const items = getProcessedExpenses().filter(e =>
@@ -4624,7 +4764,7 @@
                 if (byId[s.id]) {
                     result.push({
                         ...byId[s.id],
-                        label: (s.id === 'expense' ? 'Bütçe Takip' : (s.label || byId[s.id].label)),
+                        label: (s.id === 'expense' ? 'Bütçe Takip' : (s.id === 'stats' ? 'Raporlar' : (s.label || byId[s.id].label))),
                         emoji: s.emoji || byId[s.id].emoji,
                         visible: s.visible !== false,
                         adminOnly: s.adminOnly != null ? s.adminOnly : byId[s.id].adminOnly,
@@ -6061,6 +6201,8 @@
             document.getElementById('editNoteId').value = '';
             document.getElementById('noteContent').value = '';
             document.getElementById('noteSubmitBtn').innerText = 'Kaydet';
+            const nt = document.getElementById('noteFormTitle');
+            if (nt) nt.textContent = 'Not Paylaş';
             logActivity('Not', id ? 'Not güncellendi' : 'Not eklendi', person);
         };
 
@@ -6088,14 +6230,36 @@
             const sorted = [...notes].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
             container.innerHTML = sorted.map(n => `
                 <div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative">
-                    <div class="flex justify-between items-center mb-2">
+                    <div class="flex justify-between items-center mb-2 gap-2">
                         <span class="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full ${n.person === 'Bekir' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'}">${escapeHtml(n.person)}</span>
-                        <button onclick="deleteNote('${escapeHtml(n.id)}')" class="text-xs text-rose-500 font-bold">Sil</button>
+                        <div class="flex gap-2 shrink-0">
+                            <button type="button" onclick="editNote('${escapeHtml(n.id)}')" class="text-xs text-sky-600 font-bold">Düzenle</button>
+                            <button type="button" onclick="deleteNote('${escapeHtml(n.id)}')" class="text-xs text-rose-500 font-bold">Sil</button>
+                        </div>
                     </div>
                     <p class="text-[11px] text-slate-400 font-semibold mb-3">${escapeHtml(formatNoteDateTime(n.date))}</p>
                     <p class="text-sm font-medium text-slate-700 whitespace-pre-wrap">${escapeHtml(n.content)}</p>
                 </div>
             `).join('');
+        };
+
+        window.editNote = function(id) {
+            const n = (notes || []).find(function(x) { return x.id === id; });
+            if (!n) return;
+            const eid = document.getElementById('editNoteId');
+            if (eid) eid.value = id;
+            const person = document.getElementById('notePerson');
+            if (person) person.value = n.person || 'Bekir';
+            const content = document.getElementById('noteContent');
+            if (content) content.value = n.content || '';
+            const btn = document.getElementById('noteSubmitBtn');
+            if (btn) btn.innerText = 'Güncelle';
+            const title = document.getElementById('noteFormTitle');
+            if (title) title.textContent = 'Notu düzenle';
+            if (content) {
+                content.focus();
+                try { content.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {}
+            }
         };
 
         // HESAPLAMA TAB

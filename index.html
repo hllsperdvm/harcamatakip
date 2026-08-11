@@ -95,6 +95,7 @@
                 <div class="bg-gradient-to-br from-sky-600 to-cyan-600 text-white rounded-[2rem] p-6 shadow-lg shadow-sky-200/40">
                     <p id="homeGreeting" class="text-xl font-black">Merhaba</p>
                     <p id="homeMotivation" class="text-sm font-semibold text-sky-50/95 mt-2 leading-snug">—</p>
+                    <p id="homeOnThisDay" class="text-xs font-semibold text-sky-100/90 mt-1.5 leading-snug opacity-95">—</p>
                     <p id="homeTodayDate" class="text-sm font-semibold text-sky-100 mt-2 opacity-90">—</p>
                     <p id="homePeriodBadge" class="inline-flex mt-3 text-[11px] font-bold bg-white/15 px-3 py-1 rounded-full">Dönem: —</p>
                 </div>
@@ -170,6 +171,7 @@
                     <h2 class="text-lg font-black mb-1">📅 Aile takvimi</h2>
                     <p class="text-[11px] text-slate-400 font-semibold mb-4">Randevu · doğum günü · yıldönümü · hatırlatma</p>
                     <form onsubmit="familyAddCalendar(event)" class="space-y-2 mb-4">
+                        <input type="hidden" id="famCalEditId" value="">
                         <input type="text" id="famCalTitle" required placeholder="Başlık (örn. Duygu doğum günü)" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             <input type="date" id="famCalDate" required class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
@@ -184,8 +186,9 @@
                                 <option value="none">Tek sefer</option>
                                 <option value="yearly">Her yıl</option>
                             </select>
-                            <button type="submit" class="bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl py-3 text-sm">Ekle</button>
+                            <button type="submit" id="famCalSubmitBtn" class="bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl py-3 text-sm">Ekle</button>
                         </div>
+                        <button type="button" id="famCalCancelEdit" onclick="familyCancelCalEdit()" class="hidden text-xs font-bold text-slate-500">Düzenlemeyi iptal</button>
                     </form>
                     <div id="familyCalendarList" class="space-y-2"></div>
                 </div>
@@ -197,6 +200,7 @@
                     <h2 class="text-lg font-black mb-1">✅ Ev / aile görevleri</h2>
                     <p class="text-[11px] text-slate-400 font-semibold mb-4">Atama · son tarih · tekrar (haftalık/aylık)</p>
                     <form onsubmit="familyAddTask(event)" class="space-y-2 mb-4">
+                        <input type="hidden" id="famTaskEditId" value="">
                         <input type="text" id="famTaskText" required placeholder="Görev (örn. Akvaryum temizliği)" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             <input type="date" id="famTaskDue" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
@@ -210,8 +214,9 @@
                                 <option value="weekly">Her hafta</option>
                                 <option value="monthly">Her ay</option>
                             </select>
-                            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl py-3 text-sm">Ekle</button>
+                            <button type="submit" id="famTaskSubmitBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl py-3 text-sm">Ekle</button>
                         </div>
+                        <button type="button" id="famTaskCancelEdit" onclick="familyCancelTaskEdit()" class="hidden text-xs font-bold text-slate-500">Düzenlemeyi iptal</button>
                     </form>
                     <div id="familyTasksList" class="space-y-2"></div>
                 </div>
