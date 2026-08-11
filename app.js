@@ -105,13 +105,28 @@
         }
 
         const DEFAULT_TABS = [
+            { id: 'home', emoji: '🏠', label: 'Ana Sayfa', visible: true, core: true, adminOnly: false },
+            { id: 'calendar', emoji: '📅', label: 'Takvim', visible: true, core: true, adminOnly: false },
+            { id: 'tasks', emoji: '✅', label: 'Görevler', visible: true, core: true, adminOnly: false },
+            { id: 'shopping', emoji: '🛒', label: 'Alışveriş', visible: true, core: true, adminOnly: false },
             { id: 'expense', emoji: '💰', label: 'Bütçe Takip', visible: true, core: true, adminOnly: false },
             { id: 'vehicle', emoji: '🚗', label: 'Araç', visible: true, core: true, adminOnly: false },
-            { id: 'stats', emoji: '📊', label: 'İstatistik & Rapor', visible: true, core: true, adminOnly: false },
+            { id: 'stats', emoji: '📊', label: 'Raporlar', visible: true, core: true, adminOnly: false },
             { id: 'notes', emoji: '📝', label: 'Notlar', visible: true, core: true, adminOnly: false },
             { id: 'settings', emoji: '⚙️', label: 'Ayarlar', visible: true, core: true, adminOnly: true },
             { id: 'trash', emoji: '🗑️', label: 'Çöp Kutusu', visible: true, core: true, adminOnly: true }
         ];
+
+        // Mobil alt menü: Ana · Bütçe · Görevler · Takvim · Daha
+        const MOBILE_NAV_PRIMARY = ['home', 'expense', 'tasks', 'calendar'];
+
+        let familyCalendar = [];
+        let familyTasks = [];
+        let familyShopping = [];
+        let goldHoldings = [];
+        let goldPricePerGram = null; // 24 satış (değerleme)
+        let goldPricePerGram22 = null; // 22 satış
+        let goldQuotes = { buy24: null, sell24: null, buy22: null, sell22: null };
 
         let tabsConfig = DEFAULT_TABS.map(t => ({ ...t }));
 
@@ -224,6 +239,11 @@
                 appEl.classList.remove('hidden');
                 appEl.style.display = '';
             }
+            try {
+                document.body.classList.add('yuvam-app-open');
+                document.documentElement.classList.add('yuvam-app-open');
+            } catch (_) {}
+            try { if (typeof showAppSkeleton === 'function') showAppSkeleton(); } catch (_) {}
             const label = document.getElementById('loggedInUserLabel') || document.getElementById('currentUserLabel');
             if (label) {
                 label.textContent = currentUser.role === 'admin'
@@ -231,6 +251,7 @@
                     : currentUser.name;
             }
             applyRoleAndTabs();
+            if (typeof applyDashboardCards === 'function') applyDashboardCards();
             // Once UI acilsin; senkron ve loglari ertele (mobil otomatik girisi hizlandirir)
             var uidEnter = currentUser && currentUser.uid;
             setTimeout(function() {
@@ -385,6 +406,39 @@
                 });
             } catch (_) {}
 
+            // Aile takvimi (yıllık doğum günü / yıldönümü dahil)
+            try {
+                (familyCalendar || []).forEach(function(ev) {
+                    if (!ev || !ev.date) return;
+                    const d = (typeof eventEffectiveDate === 'function') ? eventEffectiveDate(ev) : String(ev.date).slice(0, 10);
+                    const days = daysUntilYMD(d);
+                    if (days == null || days < 0 || days > 14) return;
+                    const title = ev.title || 'Etkinlik';
+                    const icon = (typeof calTypeIcon === 'function') ? calTypeIcon(ev.type) : '📅';
+                    const typeLab = (typeof calTypeLabel === 'function') ? calTypeLabel(ev.type) : '';
+                    const key = 'fcal-' + (ev.id || d + title) + '-' + d;
+                    if (days === 0) pushNotif(key, 'critical', icon, 'Bugün: ' + title, typeLab + ' · ' + formatDateTR(d));
+                    else if (days <= 3) pushNotif(key, 'warning', icon, days + ' gün: ' + title, typeLab + ' · ' + formatDateTR(d));
+                    else pushNotif(key, 'info', icon, days + ' gün: ' + title, typeLab + ' · ' + formatDateTR(d));
+                });
+            } catch (_) {}
+
+
+            // Aile görevleri
+            try {
+                (familyTasks || []).forEach(function(t) {
+                    if (!t || t.done || !t.due) return;
+                    const d = String(t.due).slice(0, 10);
+                    const days = daysUntilYMD(d);
+                    if (days == null || days < 0 || days > 7) return;
+                    const text = t.text || 'Görev';
+                    const key = 'ftask-' + (t.id || d + text);
+                    if (days === 0) pushNotif(key, 'critical', '✅', 'Bugün görev: ' + text, formatDateTR(d));
+                    else if (days <= 3) pushNotif(key, 'warning', '✅', days + ' gün görev: ' + text, formatDateTR(d));
+                    else pushNotif(key, 'info', '✅', days + ' gün görev: ' + text, formatDateTR(d));
+                });
+            } catch (_) {}
+
             try {
                 (activityLog || []).slice(0, 30).forEach(function(row) {
                     if (!row) return;
@@ -431,7 +485,7 @@
             }
             if (!body) return;
             if (!items.length) {
-                body.innerHTML = '<p class="text-xs text-slate-400 font-semibold p-4 text-center">Yakın vadede uyarı yok 👍</p>';
+                body.innerHTML = yuvamEmptyState('👍', 'Bildirim yok', 'Yakın vadede uyarı bulunmuyor', null, null);
                 return;
             }
             const top = items.slice(0, 5);
@@ -443,17 +497,33 @@
         };
 
         window.openNotifAllModal = function() {
+            try {
+                if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
+            } catch (_) {}
             const modal = document.getElementById('notifAllModal');
             const body = document.getElementById('notifAllBody');
-            const items = (window._lastNotifItems || collectAppNotifications()).slice(0, 20);
+            let items = [];
+            try {
+                items = (window._lastNotifItems && window._lastNotifItems.length)
+                    ? window._lastNotifItems
+                    : (typeof collectAppNotifications === 'function' ? collectAppNotifications() : []);
+            } catch (_) { items = []; }
+            items = (items || []).slice(0, 20);
             if (body) {
-                body.innerHTML = items.length ? renderNotifItemsHtml(items) : '<p class="text-xs text-slate-400 font-semibold p-4 text-center">Bildirim yok</p>';
+                body.innerHTML = items.length
+                    ? renderNotifItemsHtml(items)
+                    : '<p class="text-xs text-slate-400 font-semibold p-4 text-center">Bildirim yok</p>';
             }
             if (modal) {
                 modal.classList.remove('hidden');
                 modal.classList.add('flex');
+                modal.style.display = 'flex';
             }
-            closeNotifPanel(true);
+            try { closeNotifPanel(true); } catch (_) {}
+        };
+
+        window.openHomeAllNotifs = function() {
+            openNotifAllModal();
         };
 
         window.closeNotifAllModal = function() {
@@ -461,6 +531,7 @@
             if (modal) {
                 modal.classList.add('hidden');
                 modal.classList.remove('flex');
+                modal.style.display = 'none';
             }
             markNotifsSeen(window._lastNotifItems || []);
             refreshAppNotifications();
@@ -529,6 +600,13 @@
                 appEl.classList.add('hidden');
                 appEl.style.display = 'none';
             }
+            try {
+                document.body.classList.remove('yuvam-app-open');
+                document.documentElement.classList.remove('yuvam-app-open');
+                try { hideAppSkeleton(); } catch (_) {}
+                _skeletonHiddenOnce = false;
+                closeMobileMoreSheet();
+            } catch (_) {}
             if (loginEl) {
                 loginEl.classList.remove('hidden');
                 loginEl.style.display = '';
@@ -574,13 +652,20 @@
         }
 
         function applyRoleAndTabs() {
+            document.querySelectorAll('.admin-only-btn').forEach(function(el) {
+                el.classList.toggle('hidden', !isAdmin());
+            });
             const visible = getVisibleTabs();
+            // Mümkünse Ana Sayfa ile aç
+            const homeTab = visible.find(t => t.id === 'home');
             if (lastActiveTabId && visible.some(t => t.id === lastActiveTabId)) {
                 renderTabBar();
+                if (typeof updateMobileBottomNav === 'function') updateMobileBottomNav(lastActiveTabId);
                 return;
             }
             renderTabBar();
-            if (visible.length) switchTab(visible[0].id);
+            if (homeTab) switchTab('home');
+            else if (visible.length) switchTab(visible[0].id);
         }
 
         let lastActiveTabId = null;
@@ -588,17 +673,48 @@
         window.renderTabBar = function() {
             const bar = document.getElementById('tabBar');
             if (!bar) return;
-            const visible = getVisibleTabs();
+            let visible = getVisibleTabs();
+            // Ana Sayfa görsel sırada en başta
+            const hi = visible.findIndex(t => t.id === 'home');
+            if (hi > 0) {
+                const h = visible.splice(hi, 1)[0];
+                visible.unshift(h);
+            }
             const activeId = lastActiveTabId && visible.some(t => t.id === lastActiveTabId)
                 ? lastActiveTabId
-                : (visible[0] && visible[0].id);
+                : ((visible.find(t => t.id === 'home') || visible[0] || {}).id);
+            const openTaskN = (typeof countOpenFamilyTasks === 'function') ? countOpenFamilyTasks() : 0;
             bar.innerHTML = visible.map((t) => {
                 const active = t.id === activeId;
                 const cls = active
-                    ? 'tab-active'
-                    : 'tab-inactive hover:bg-white/80';
-                return `<button type="button" data-tab-id="${escapeHtml(t.id)}" title="${escapeHtml(t.label)}" onclick="switchTab('${escapeHtml(t.id)}')" class="${cls} flex items-center gap-1.5 font-bold rounded-xl transition"><span class="shrink-0">${escapeHtml(t.emoji || '📌')}</span><span class="truncate">${escapeHtml(t.label)}</span></button>`;
+                    ? 'tab-active yuvam-tab-btn'
+                    : 'tab-inactive yuvam-tab-btn hover:bg-white/80';
+                const lab = t.label || t.id;
+                let badge = '';
+                if (t.id === 'tasks' && openTaskN > 0) {
+                    badge = '<span class="tab-count-badge">' + (openTaskN > 9 ? '9+' : openTaskN) + '</span>';
+                }
+                return `<button type="button" data-tab-id="${escapeHtml(t.id)}" title="${escapeHtml(lab)}" onclick="switchTab('${escapeHtml(t.id)}')" class="${cls}"><span class="yuvam-tab-emoji relative">${escapeHtml(t.emoji || '📌')}${badge}</span><span class="yuvam-tab-text">${escapeHtml(lab)}</span></button>`;
             }).join('');
+            if (typeof updateTaskNavBadges === 'function') updateTaskNavBadges();
+        };
+
+        window.countOpenFamilyTasks = function() {
+            return (familyTasks || []).filter(function(t) { return t && !t.done; }).length;
+        };
+
+        window.updateTaskNavBadges = function() {
+            const n = countOpenFamilyTasks();
+            const m = document.getElementById('mnavTasksBadge');
+            if (m) {
+                if (n > 0) {
+                    m.textContent = n > 9 ? '9+' : String(n);
+                    m.classList.remove('hidden');
+                } else {
+                    m.classList.add('hidden');
+                }
+            }
+            // Üst menü rozeti renderTabBar ile gelir; burada sadece mobil
         };
 
         function capitalizeTab(name) {
@@ -636,7 +752,12 @@
         let syncInitialized = false;
         let periodConfig = { startDay: 29, endDay: 28 };
         let monthlyBudgetTarget = 0; // TL, 0 = kapalı
-        let dashboardCards = { total: true, bekir: true, duygu: true, debt: true };
+        // Finans özet + Ana Sayfa kart görünürlüğü
+        let dashboardCards = {
+            total: true, bekir: true, duygu: true, debt: true,
+            homeToday: true, homePeriod: true, homeNotif: true, homeGold: true, homeQuickAdd: true, homeUpcoming: true,
+            homeBudget: true, homeTasks: true, homeBriefing: true
+        };
         let appTheme = 'light';
         let monthCompareChart = null, categoryTrendChart = null;
         const AMOUNT_MIN = 0.01;
@@ -760,11 +881,29 @@
             return keys;
         }
 
+        let _skeletonHiddenOnce = false;
+        window.showAppSkeleton = function() {
+            const el = document.getElementById('appSkeleton');
+            if (el) {
+                el.classList.remove('hidden');
+                el.style.display = 'flex';
+            }
+        };
+        window.hideAppSkeleton = function() {
+            const el = document.getElementById('appSkeleton');
+            if (el) {
+                el.classList.add('hidden');
+                el.style.display = 'none';
+            }
+            _skeletonHiddenOnce = true;
+        };
+
         function scheduleRenderApp() {
             clearTimeout(renderTimeout);
             renderTimeout = setTimeout(() => {
                 renderApp();
                 if (isStatsTabActive()) updateStatsPanel();
+                try { hideAppSkeleton(); } catch (_) {}
             }, 80);
         }
 
@@ -790,7 +929,7 @@
         // Sekme Değiştirme
         window.switchTab = function(tabName) {
             lastActiveTabId = tabName;
-            const coreIds = ["expense", "vehicle", "stats", "notes", "settings", "trash"];
+            const coreIds = ["home", "calendar", "tasks", "shopping", "expense", "vehicle", "stats", "notes", "settings", "trash"];
             const isCustom = String(tabName).startsWith('custom_');
 
             // Hide all core contents + custom
@@ -849,8 +988,18 @@
                     renderCardStatements('duygu');
                 }
                 if (expenseChart) expenseChart.resize();
+                if (typeof refreshGoldPrice === 'function') refreshGoldPrice(false);
+                if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
             } else if (tabName === 'vehicle') {
                 renderVehicleTab();
+            } else if (tabName === 'home') {
+                if (typeof renderHomeTab === 'function') renderHomeTab();
+            } else if (tabName === 'calendar') {
+                if (typeof renderCalendarTab === 'function') renderCalendarTab();
+            } else if (tabName === 'tasks') {
+                if (typeof renderTasksTab === 'function') renderTasksTab();
+            } else if (tabName === 'shopping') {
+                if (typeof renderShoppingTab === 'function') renderShoppingTab();
             } else if (tabName === 'trash') {
                 renderTrash();
             } else if (tabName === 'notes') {
@@ -861,6 +1010,1008 @@
                 applyPeriodConfigToForm();
                 applyDashboardCards();
                 if (typeof setAppTheme === 'function') setAppTheme(appTheme);
+            }
+            if (typeof updateMobileBottomNav === 'function') updateMobileBottomNav(tabName);
+        };
+
+        window.renderHomeTab = function() {
+            try {
+                const greet = document.getElementById('homeGreeting');
+                const name = (currentUser && currentUser.name) ? currentUser.name : '';
+                const hour = new Date().getHours();
+                const hi = hour < 12 ? 'Günaydın' : (hour < 18 ? 'İyi günler' : 'İyi akşamlar');
+                if (greet) greet.textContent = hi + (name ? ', ' + name : '');
+
+                const motEl = document.getElementById('homeMotivation');
+                if (motEl && typeof getDailyMotivation === 'function') {
+                    motEl.textContent = getDailyMotivation();
+                }
+                const otdEl = document.getElementById('homeOnThisDay');
+                if (otdEl && typeof getOnThisDay === 'function') {
+                    otdEl.textContent = getOnThisDay();
+                }
+
+                const dateEl = document.getElementById('homeTodayDate');
+                if (dateEl) {
+                    dateEl.textContent = new Date().toLocaleDateString('tr-TR', {
+                        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+                    });
+                }
+
+                const period = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
+                const badge = document.getElementById('homePeriodBadge');
+                if (badge) badge.textContent = period ? ('Dönem: ' + period) : 'Dönem: —';
+
+                let periodSum = 0, todaySum = 0, todayCount = 0;
+                const today = (typeof todayDateStr === 'function') ? todayDateStr() : '';
+                try {
+                    const list = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : [];
+                    list.forEach(function(e) {
+                        if (!e || e.installmentLabel === 'Gelir') return;
+                        const amt = Number(e.displayAmount) || 0;
+                        if (e.effectiveMonth === period) periodSum += amt;
+                        if (String(e.date || '').slice(0, 10) === today) {
+                            todaySum += amt;
+                            todayCount += 1;
+                        }
+                    });
+                } catch (_) {}
+
+                const elPeriod = document.getElementById('homePeriodSpend');
+                if (elPeriod) elPeriod.textContent = Math.round(periodSum).toLocaleString('tr-TR') + ' TL';
+                const elToday = document.getElementById('homeTodaySpend');
+                if (elToday) elToday.textContent = Math.round(todaySum).toLocaleString('tr-TR') + ' TL';
+                const elTodayN = document.getElementById('homeTodayCount');
+                if (elTodayN) elTodayN.textContent = todayCount + ' kayıt';
+
+                let notifCount = 0;
+                try {
+                    notifCount = (typeof collectAppNotifications === 'function') ? collectAppNotifications().length : 0;
+                } catch (_) {}
+                const elN = document.getElementById('homeNotifCount');
+                if (elN) elN.textContent = String(notifCount);
+
+                // Bütçe hedefi kartı
+                try {
+                    const target = Number(monthlyBudgetTarget) || 0;
+                    const lab = document.getElementById('homeBudgetLabel');
+                    const bar = document.getElementById('homeBudgetBar');
+                    if (lab) {
+                        if (target > 0) {
+                            const pct = Math.min(999, Math.round(periodSum / target * 100));
+                            lab.textContent = Math.round(periodSum).toLocaleString('tr-TR') + ' / ' + target.toLocaleString('tr-TR') + ' TL · %' + pct;
+                        } else {
+                            lab.textContent = 'Hedef tanımlı değil (Ayarlar)';
+                        }
+                    }
+                    if (bar) {
+                        const pctW = target > 0 ? Math.min(100, (periodSum / target) * 100) : 0;
+                        bar.style.width = pctW + '%';
+                        bar.className = 'h-full rounded-full transition-all ' + (pctW >= 100 ? 'bg-rose-500' : pctW >= 80 ? 'bg-amber-500' : 'bg-sky-500');
+                    }
+                } catch (_) {}
+
+                try { if (typeof renderHomeLocalBriefing === 'function') renderHomeLocalBriefing(periodSum, todaySum); } catch (_) {}
+
+                // Ana sayfa görev listesi (sadece görüntüleme)
+                try {
+                    const htList = document.getElementById('homeTasksList');
+                    if (htList) {
+                        const open = (familyTasks || []).filter(function(t) { return !t.done; });
+                        const done = (familyTasks || []).filter(function(t) { return t.done; }).slice(0, 3);
+                        const show = open.concat(done).slice(0, 8);
+                        const allT = familyTasks || [];
+                        const openN = allT.filter(function(t) { return !t.done; }).length;
+                        const doneN = allT.filter(function(t) { return t.done; }).length;
+                        const totalN = openN + doneN;
+                        const progWrap = document.getElementById('homeTasksProgress');
+                        const progArc = document.getElementById('homeTasksProgressArc');
+                        const progLbl = document.getElementById('homeTasksProgressLabel');
+                        if (progWrap && totalN > 0) {
+                            progWrap.classList.remove('hidden');
+                            const pct = Math.round((doneN / totalN) * 100);
+                            if (progArc) progArc.setAttribute('stroke-dasharray', pct + ', 100');
+                            if (progLbl) progLbl.textContent = doneN + '/' + totalN;
+                        } else if (progWrap) {
+                            progWrap.classList.add('hidden');
+                        }
+                        if (!show.length) {
+                            htList.innerHTML = yuvamEmptyState('✅', 'Açık görev yok', 'Eklemek için Görevler sekmesine gidin', 'Görevler', "switchTab('tasks')");
+                        } else {
+                            htList.innerHTML = show.map(function(t) {
+                                const due = t.due ? formatDateTR(t.due) : '';
+                                const who = t.assignee && t.assignee !== 'Herkes' ? t.assignee : '';
+                                const sub = [due, who].filter(Boolean).join(' · ');
+                                return '<div class="flex gap-2 items-start p-2.5 rounded-xl bg-slate-50 border border-slate-100">' +
+                                    '<span class="text-sm shrink-0">' + (t.done ? '☑️' : '⬜') + '</span>' +
+                                    '<div class="min-w-0"><p class="text-sm font-bold text-slate-800 ' + (t.done ? 'line-through opacity-60' : '') + '">' + escapeHtml(t.text || '-') + '</p>' +
+                                    (sub ? '<p class="text-[10px] text-slate-400 font-semibold">' + escapeHtml(sub) + '</p>' : '') +
+                                    '</div></div>';
+                            }).join('');
+                        }
+                    }
+                } catch (_) {}
+
+                if (typeof applyDashboardCards === 'function') applyDashboardCards();
+                try {
+                    if (typeof refreshGoldPrice === 'function') refreshGoldPrice(false);
+                    if (typeof updateHomeGoldCard === 'function') updateHomeGoldCard();
+                    else if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
+                } catch (_) {}
+
+                // Yaklaşan bildirim özeti (max 4)
+                const listEl = document.getElementById('homeUpcomingList');
+                if (listEl) {
+                    let items = [];
+                    try { items = (typeof collectAppNotifications === 'function') ? collectAppNotifications().slice(0, 4) : []; } catch (_) {}
+                    if (!items.length) {
+                        listEl.innerHTML = yuvamEmptyState('👍', 'Yakın uyarı yok', 'Takvim ve ödemeler burada görünür', null, null);
+                    } else {
+                        listEl.innerHTML = items.map(function(n) {
+                            return '<div class="flex gap-2 items-start p-3 rounded-xl bg-slate-50 border border-slate-100">' +
+                                '<span class="text-lg shrink-0">' + (n.icon || '🔔') + '</span>' +
+                                '<div class="min-w-0"><p class="text-sm font-bold text-slate-800 truncate">' + escapeHtml(n.title || '') + '</p>' +
+                                '<p class="text-[11px] text-slate-500 font-semibold">' + escapeHtml(n.message || '') + '</p></div></div>';
+                        }).join('');
+                    }
+                }
+
+            } catch (err) {
+                console.warn('renderHomeTab', err);
+            }
+        };
+
+        window.updateMobileBottomNav = function(activeId) {
+            const nav = document.getElementById('mobileBottomNav');
+            if (!nav) return;
+            const moreIds = ['shopping', 'stats', 'settings', 'trash', 'vehicle', 'notes'];
+            nav.querySelectorAll('[data-mnav]').forEach(function(btn) {
+                const id = btn.getAttribute('data-mnav');
+                const on = id === activeId || (id === 'more' && moreIds.indexOf(activeId) >= 0);
+                btn.classList.toggle('mnav-active', !!on);
+            });
+            if (typeof updateTaskNavBadges === 'function') updateTaskNavBadges();
+        };
+
+        const DAILY_MOTIVATIONS = [
+            'Küçük adımlar, büyük düzen demektir. Bugün bir şeyi netleştirmen yeterli.',
+            'Aile düzeni bir sprint değil; her gün biraz daha kolaylaşır.',
+            'Bugünün işini bugün bitir; yarın kendine teşekkür edeceksin.',
+            'Paylaşmak yükü hafifletir — birlikte planlamak gücü artırır.',
+            'Net bir liste, karışık bir zihinden iyidir. Önce bir satır yaz.',
+            'Tasarruf cesaret ister; israf da sessizce birikir. Bugün bilinçli seç.',
+            'Ev, sadece duvarlar değil; rutinlerinizin toplamıdır.',
+            'Tamamlanan bir görev, yeni bir nefes demektir.',
+            'Plan olmadan hız, kaos üretir. Bugün sakin ve net ilerle.',
+            'Sevdiklerinle aynı hedefe bakmak, yolun yarısıdır.',
+            'Düzen, disiplin değil; kendine ve aileye saygıdır.',
+            'Bugün “sonra” demek yerine “şimdi küçük bir adım” de.',
+            'Harcama bilinci, kısıtlama değil; seçim özgürlüğüdür.',
+            'Yarın daha sakin olsun diye bugün bir şeyi kapat.',
+            'Motivasyon gelmezse rutin gelsin; rutin motivasyonu getirir.',
+            'Birlikte tutulan liste, unutulan stresi azaltır.',
+            'Küçük bir birikim, büyük bir rahatlığa dönüşür.',
+            'Bugün evine ve bütçene aynı özeni göster.',
+            'Netlik huzur getirir. Bir karar, bir kutu işaretle.',
+            'Güçlü aileler, görünmeyen küçük düzenlerden oluşur.',
+            'Bugün “yeterince iyi” de bir zaferdir.',
+            'Planını sade tut; uygulaman güçlensin.',
+            'Hatırlatma koy, unutmayı affet; sistemi çalıştır.',
+            'Bugünün disiplini, yarının rahatlığıdır.',
+            'Birlikte yapılan alışveriş listesi, gereksiz tartışmayı keser.',
+            'Para yönetimi aşk değil; alışkanlıktır. Alışkanlık bugün başlar.',
+            'Evin düzeni, zihninin aynasıdır. Bir köşeyi netleştir.',
+            'Tamamlanmamış işleri erteleme; böl ve bitir.',
+            'Bugün aile için bir şeyi kolaylaştır — bu da başarıdır.',
+            'Sakin başla, net bitir. YUVAM senin yannda.',
+            'Her gün bir küçük iyileştirme, bir ayda büyük farktır.'
+        ];
+
+        window.getDailyMotivation = function() {
+            // Her sayfa yenilemede farklı cümle
+            const i = Math.floor(Math.random() * DAILY_MOTIVATIONS.length);
+            return DAILY_MOTIVATIONS[i];
+        };
+
+        // Tarihte bugün — MM-DD -> olaylar (Türkçe)
+        const ON_THIS_DAY = {
+            '01-01': ['1923: Türkiye\'de Cumhuriyet\'in ilk yılına girildi.', '1801: Ceres asteroiti keşfedildi.'],
+            '01-29': ['1856: Victoriai Victoriai Victoria Victoria Haçı nişanını oluşturdu.', '1886: Karl Benz ilk otomobil patentini aldı.'],
+            '02-14': ['1929: Saint Valentine\'s Day katliamı Chicago\'da yaşandı.', '1946: ENIAC bilgisayarı kamuoyuna tanıtıldı.'],
+            '03-18': ['1915: Çanakkale Deniz Zaferi.', '1965: Sovyet kozmonot Aleksey Leonov uzay yürüyüşü yaptı.'],
+            '04-23': ['1920: TBMM Ankara\'da açıldı.', '1564: William Shakespeare\'in doğum günü (kabul edilen).'],
+            '05-19': ['1919: Atatürk Samsun\'a çıktı; Milli Mücadele başladı.'],
+            '05-29': ['1453: İstanbul\'un fethi.', '1953: Everest\'e ilk tırmanış (Hillary & Norgay).'],
+            '06-01': ['1926: Marilyn Monroe doğdu.', '2009: General Motors iflas korumasına başvurdu.'],
+            '07-15': ['2016: Türkiye\'de darbe girişimi engellendi.', '1799: Rosetta Taşı bulundu.'],
+            '07-20': ['1969: Apollo 11 Ay\'a indi.', '1974: Kıbrıs Barış Harekâtı başladı.'],
+            '08-10': ['1920: Sevr Antlaşması imzalandı.', '1792: Fransız Devrimi\'nde Tuileries baskını.'],
+            '08-11': ['1960: Çad bağımsızlığını ilan etti.', '1929: Babe Ruth 500. home run\'ını attı.'],
+            '08-30': ['1922: Büyük Taarruz zaferi (Dumlupınar).'],
+            '09-01': ['1939: II. Dünya Savaşı başladı (Polonya işgali).'],
+            '09-09': ['1923: İzmir\'in kurtuluşu.', '1948: Kuzey Kore ilan edildi.'],
+            '10-29': ['1923: Türkiye Cumhuriyeti ilan edildi.'],
+            '11-10': ['1938: Atatürk vefat etti.', '1989: Berlin Duvarı yıkılışı süreci hızlandı.'],
+            '12-10': ['1901: İlk Nobel Ödülleri verildi.', '1948: İnsan Hakları Evrensel Bildirgesi kabul edildi.'],
+            '12-25': ['1642: Isaac Newton doğdu (eski takvim).', '1991: Sovyetler Birliği resmen dağıldı.']
+        };
+        const ON_THIS_DAY_FALLBACK = [
+            'Tarihte bugün: Bilim, sanat ve toplumda birçok kırılma noktası yaşandı; merak etmek keşfin başlangıcıdır.',
+            'Tarihte bugün: Dünyanın bir yerinde bir fikir ilk kez kağıda döküldü — küçük adımlar tarihi değiştirir.',
+            'Tarihte bugün: Bir buluş, bir antlaşma veya bir yolculuk insanlığın rotasını etkiledi.',
+            'Tarihte bugün: Cesaret ve sabır bir araya geldi; düzenli çaba büyük sonuçlar doğurur.',
+            'Tarihte bugün: Bir milletin veya bir ailenin hikâyesinde yeni bir sayfa açıldı.'
+        ];
+
+        window.getOnThisDay = function() {
+            const d = new Date();
+            const md = String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            const list = ON_THIS_DAY[md];
+            let fact;
+            if (list && list.length) {
+                fact = list[Math.floor(Math.random() * list.length)];
+            } else {
+                fact = ON_THIS_DAY_FALLBACK[Math.floor(Math.random() * ON_THIS_DAY_FALLBACK.length)];
+            }
+            if (fact.indexOf('Tarihte bugün') === 0) return fact;
+            return 'Tarihte bugün: ' + fact;
+        };
+
+        // ——— Aile: Takvim / Görev / Alışveriş ———
+        function familyRow(main, sub, actionsHtml) {
+            return '<div class="flex justify-between gap-3 items-start p-3 rounded-xl bg-slate-50 border border-slate-100">' +
+                '<div class="min-w-0 flex-1">' +
+                '<p class="text-sm font-bold text-slate-800">' + main + '</p>' +
+                (sub ? '<p class="text-[11px] text-slate-500 font-semibold mt-0.5">' + sub + '</p>' : '') +
+                '</div><div class="flex gap-1 shrink-0">' + (actionsHtml || '') + '</div></div>';
+        }
+
+        window.yuvamEmptyState = function(icon, title, sub, btnLabel, btnOnclick) {
+            let html = '<div class="yuvam-empty">' +
+                '<span class="yuvam-empty-ico">' + (icon || '📭') + '</span>' +
+                '<p class="yuvam-empty-title">' + escapeHtml(title || 'Henüz kayıt yok') + '</p>' +
+                (sub ? '<p class="yuvam-empty-sub">' + escapeHtml(sub) + '</p>' : '');
+            if (btnLabel && btnOnclick) {
+                html += '<button type="button" class="yuvam-empty-btn" onclick="' + btnOnclick + '">' + escapeHtml(btnLabel) + '</button>';
+            }
+            html += '</div>';
+            return html;
+        };
+
+        function calTypeLabel(type) {
+            const m = { event: 'Etkinlik', birthday: 'Doğum günü', anniversary: 'Yıldönümü', appointment: 'Randevu', other: 'Diğer' };
+            return m[type] || 'Etkinlik';
+        }
+        function calTypeIcon(type) {
+            const m = { event: '📅', birthday: '🎂', anniversary: '💍', appointment: '🩺', other: '📌' };
+            return m[type] || '📅';
+        }
+        function taskRepeatLabel(r) {
+            if (r === 'weekly') return 'Her hafta';
+            if (r === 'monthly') return 'Her ay';
+            return '';
+        }
+        function addDaysYMD(ymd, days) {
+            const p = parseYMD(ymd) || new Date();
+            p.setDate(p.getDate() + days);
+            return formatYMD(p);
+        }
+        function addMonthsYMD(ymd, months) {
+            const p = parseYMD(ymd) || new Date();
+            const d = p.getDate();
+            p.setMonth(p.getMonth() + months);
+            if (p.getDate() < d) p.setDate(0);
+            return formatYMD(p);
+        }
+        /** Yıllık tekrar: bugünden sonraki ilk gün (MM-DD) */
+        function nextYearlyOccurrence(baseYmd) {
+            const base = String(baseYmd || '').slice(0, 10);
+            if (base.length < 10) return base;
+            const md = base.slice(5); // MM-DD
+            const today = todayDateStr();
+            const y = parseInt(today.slice(0, 4), 10);
+            let cand = y + '-' + md;
+            if (cand < today) cand = (y + 1) + '-' + md;
+            return cand;
+        }
+        function eventEffectiveDate(ev) {
+            if (!ev || !ev.date) return '';
+            if (ev.repeat === 'yearly' || ev.type === 'birthday' || ev.type === 'anniversary') {
+                return nextYearlyOccurrence(ev.date);
+            }
+            return String(ev.date).slice(0, 10);
+        }
+
+        // ——— Altın yatırımları (goldprice.dev · 24 ayar TRY/gram) ———
+        function formatGoldTL(n) {
+            const v = Number(n);
+            if (!isFinite(v)) return '—';
+            return v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺';
+        }
+
+        function currentGoldPriceForKarat(karat) {
+            const k = Number(karat) || 24;
+            if (k === 22) {
+                if (goldQuotes.sell22 != null) return goldQuotes.sell22;
+                if (goldPricePerGram22 != null) return goldPricePerGram22;
+                if (goldQuotes.sell24 != null) return goldQuotes.sell24 * (22 / 24);
+                if (goldPricePerGram != null) return goldPricePerGram * (22 / 24);
+                return null;
+            }
+            if (goldQuotes.sell24 != null) return goldQuotes.sell24;
+            return goldPricePerGram;
+        }
+
+        function updateGoldPriceUI() {
+            const fmt = function(v) { return v != null && isFinite(v) ? formatGoldTL(v) : '—'; };
+            const elB24 = document.getElementById('goldBuy24');
+            const elS24 = document.getElementById('goldSell24');
+            const elB22 = document.getElementById('goldBuy22');
+            const elS22 = document.getElementById('goldSell22');
+            if (elB24) elB24.textContent = fmt(goldQuotes.buy24);
+            if (elS24) elS24.textContent = fmt(goldQuotes.sell24);
+            if (elB22) elB22.textContent = fmt(goldQuotes.buy22);
+            if (elS22) elS22.textContent = fmt(goldQuotes.sell22);
+        }
+
+        function computeGoldPortfolio() {
+            let totalCost = 0, totalValue = 0, totalGrams = 0, hasPriced = false;
+            (goldHoldings || []).forEach(function(h) {
+                const g = Number(h.grams) || 0;
+                const bp = Number(h.buyPrice) || 0;
+                const karat = Number(h.karat) || 24;
+                const price = currentGoldPriceForKarat(karat);
+                totalCost += g * bp;
+                totalGrams += g;
+                if (price != null) {
+                    totalValue += g * price;
+                    hasPriced = true;
+                }
+            });
+            return {
+                totalCost: totalCost,
+                totalValue: totalValue,
+                totalGrams: totalGrams,
+                pnl: hasPriced ? (totalValue - totalCost) : null,
+                hasPriced: hasPriced
+            };
+        }
+
+        function updateHomeGoldCard() {
+            const el = document.getElementById('homeGoldPnL');
+            const sub = document.getElementById('homeGoldSub');
+            if (!el) return;
+            const p = computeGoldPortfolio();
+            if (!(goldHoldings || []).length) {
+                el.textContent = 'Kayıt yok';
+                el.className = 'text-xl font-black text-slate-400 mt-1';
+                if (sub) sub.textContent = 'Raporlar · altın ekle';
+                return;
+            }
+            if (!p.hasPriced) {
+                el.textContent = 'Fiyat bekleniyor';
+                el.className = 'text-xl font-black text-slate-500 mt-1';
+                if (sub) sub.textContent = (p.totalGrams || 0) + ' g · maliyet ' + formatGoldTL(p.totalCost);
+                return;
+            }
+            const pnl = p.pnl;
+            const pct = p.totalCost > 0 ? (pnl / p.totalCost * 100) : 0;
+            el.textContent = (pnl >= 0 ? '+' : '') + Math.round(pnl).toLocaleString('tr-TR') + ' TL';
+            el.className = 'text-xl font-black mt-1 ' + (pnl >= 0 ? 'text-emerald-600' : 'text-rose-600');
+            if (sub) {
+                sub.textContent = (pnl >= 0 ? '+' : '') + pct.toFixed(1) + '% · ' +
+                    (p.totalGrams || 0) + ' g · değer ' + formatGoldTL(p.totalValue);
+            }
+        }
+
+        window.renderGoldHoldings = function() {
+            const list = document.getElementById('goldHoldingsList');
+            if (!list) {
+                updateHomeGoldCard();
+                return;
+            }
+            const port = computeGoldPortfolio();
+            if (!(goldHoldings || []).length) {
+                list.innerHTML = '<p class="text-center text-xs text-slate-400 font-semibold py-3">Henüz altın kaydı yok</p>';
+            } else {
+                const sorted = goldHoldings.slice().sort(function(a, b) {
+                    return String(b.buyDate || '').localeCompare(String(a.buyDate || ''));
+                });
+                list.innerHTML = sorted.map(function(h) {
+                    const g = Number(h.grams) || 0;
+                    const bp = Number(h.buyPrice) || 0;
+                    const karat = Number(h.karat) || 24;
+                    const price = currentGoldPriceForKarat(karat);
+                    const cost = g * bp;
+                    const val = (price != null) ? g * price : null;
+                    const pnl = (val != null) ? val - cost : null;
+                    const pnlCls = pnl == null ? 'text-slate-500' : (pnl >= 0 ? 'text-emerald-600' : 'text-rose-600');
+                    const pnlTxt = pnl == null ? 'Fiyat bekleniyor' : ((pnl >= 0 ? '+' : '') + formatGoldTL(pnl));
+                    const karatBadge = '<span class="inline-block text-[10px] font-black px-1.5 py-0.5 rounded-md ' +
+                        (karat === 22 ? 'bg-orange-100 text-orange-800' : 'bg-amber-100 text-amber-900') + '">' + karat + ' ayar</span>';
+                    return '<div class="p-2.5 rounded-xl border border-slate-100 bg-slate-50/80">' +
+                        '<div class="flex justify-between gap-2 items-start">' +
+                        '<div class="min-w-0">' +
+                        '<p class="text-xs font-black text-slate-800 flex flex-wrap items-center gap-1.5">' + karatBadge + ' ' + g + ' g · alış ' + formatGoldTL(bp) + '/g</p>' +
+                        '<p class="text-[10px] text-slate-500 font-semibold">' + escapeHtml(h.buyDate || '') +
+                        (h.note ? (' · ' + escapeHtml(h.note)) : '') + '</p>' +
+                        '<p class="text-[10px] font-bold text-slate-600 mt-0.5">Maliyet ' + formatGoldTL(cost) +
+                        (val != null ? (' · Değer ' + formatGoldTL(val)) : '') + '</p>' +
+                        '<p class="text-xs font-black ' + pnlCls + '">' + pnlTxt + '</p>' +
+                        '</div>' +
+                        '<button type="button" onclick="deleteGoldHolding(\'' + escapeHtml(h.id) + '\')" class="text-[10px] font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50 shrink-0">Sil</button>' +
+                        '</div></div>';
+                }).join('');
+            }
+            const elCost = document.getElementById('goldSumCost');
+            const elVal = document.getElementById('goldSumValue');
+            const elPnL = document.getElementById('goldSumPnL');
+            if (elCost) elCost.textContent = formatGoldTL(port.totalCost) + (port.totalGrams ? (' · ' + port.totalGrams + ' g') : '');
+            if (elVal) elVal.textContent = port.hasPriced ? formatGoldTL(port.totalValue) : '—';
+            if (elPnL) {
+                if (!port.hasPriced) {
+                    elPnL.textContent = '—';
+                    elPnL.className = 'font-black text-slate-500';
+                } else {
+                    const pnl = port.pnl;
+                    const pct = port.totalCost > 0 ? (pnl / port.totalCost * 100) : 0;
+                    elPnL.textContent = (pnl >= 0 ? '+' : '') + formatGoldTL(pnl) + ' (' + (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%)';
+                    elPnL.className = 'font-black ' + (pnl >= 0 ? 'text-emerald-600' : 'text-rose-600');
+                }
+            }
+            updateHomeGoldCard();
+        };
+
+        window.refreshGoldPrice = async function(force) {
+            const elMeta = document.getElementById('goldPriceMeta');
+            try {
+                if (!force && goldQuotes.sell24 != null) {
+                    updateGoldPriceUI();
+                    renderGoldHoldings();
+                    return;
+                }
+                if (elMeta) elMeta.textContent = 'Fiyat çekiliyor…';
+
+                let buy24 = null, sell24 = null, buy22 = null, sell22 = null;
+                let source = '';
+                let change = null;
+
+                try {
+                    const res = await fetch('https://finans.truncgil.com/v4/today.json', { cache: 'no-store' });
+                    if (!res.ok) throw new Error('truncgil ' + res.status);
+                    const data = await res.json();
+                    const has = data.HAS || data.GRAMHASALTIN || data.GramAltin || data['Gram Altın'];
+                    if (has) {
+                        buy24 = parseFloat(has.Buying);
+                        sell24 = parseFloat(has.Selling);
+                        if (!(buy24 > 0)) buy24 = sell24;
+                        if (!(sell24 > 0)) sell24 = buy24;
+                        if (has.Change != null && has.Change !== '') change = has.Change;
+                        source = 'Truncgil' + (data.Update_Date ? (' · ' + data.Update_Date) : '');
+                    }
+                    const a22 = data['22AYARALTIN'] || data['22AYAR'] || data.AYAR22;
+                    if (a22) {
+                        buy22 = parseFloat(a22.Buying);
+                        sell22 = parseFloat(a22.Selling);
+                        if (!(buy22 > 0)) buy22 = sell22;
+                        if (!(sell22 > 0)) sell22 = buy22;
+                    }
+                } catch (_) {}
+
+                if (!(sell24 > 0)) {
+                    try {
+                        const res2 = await fetch('https://api.goldprice.dev/v1/carat?currency=TRY', { cache: 'no-store' });
+                        if (res2.ok) {
+                            const data2 = await res2.json();
+                            const g24 = parseFloat(data2.price_gram_24k);
+                            const g22 = parseFloat(data2.price_gram_22k);
+                            if (g24 > 0) { sell24 = g24; buy24 = g24; source = source || 'goldprice.dev'; }
+                            if (g22 > 0) { sell22 = g22; buy22 = g22; }
+                        }
+                    } catch (_) {}
+                }
+
+                if (!(sell24 > 0)) throw new Error('Fiyat alınamadı');
+                if (!(buy24 > 0)) buy24 = sell24;
+                if (!(sell22 > 0)) sell22 = sell24 * (22 / 24);
+                if (!(buy22 > 0)) buy22 = buy24 * (22 / 24);
+
+                goldQuotes = { buy24: buy24, sell24: sell24, buy22: buy22, sell22: sell22 };
+                goldPricePerGram = sell24;
+                goldPricePerGram22 = sell22;
+                updateGoldPriceUI();
+                if (elMeta) {
+                    let meta = source || 'Güncel';
+                    if (change != null && change !== '') meta += ' · ' + change + '%';
+                    elMeta.textContent = meta;
+                }
+                try {
+                    localStorage.setItem('yuvam_gold_price', JSON.stringify({
+                        quotes: goldQuotes, p: sell24, p22: sell22, at: Date.now(), source: source
+                    }));
+                } catch (_) {}
+                renderGoldHoldings();
+            } catch (e) {
+                try {
+                    const raw = localStorage.getItem('yuvam_gold_price');
+                    if (raw) {
+                        const o = JSON.parse(raw);
+                        if (o.quotes && o.quotes.sell24 > 0) {
+                            goldQuotes = o.quotes;
+                            goldPricePerGram = o.quotes.sell24;
+                            goldPricePerGram22 = o.quotes.sell22;
+                        } else if (o.p > 0) {
+                            goldPricePerGram = o.p;
+                            goldPricePerGram22 = o.p22 > 0 ? o.p22 : o.p * (22 / 24);
+                            goldQuotes = {
+                                buy24: o.p, sell24: o.p,
+                                buy22: goldPricePerGram22, sell22: goldPricePerGram22
+                            };
+                        }
+                        updateGoldPriceUI();
+                        if (elMeta) elMeta.textContent = 'Önbellek · elle de girebilirsiniz';
+                        renderGoldHoldings();
+                        return;
+                    }
+                } catch (_) {}
+                if (elMeta) elMeta.textContent = 'API yok — elle 24A satış ₺/g girin';
+            }
+        };
+
+        window.applyManualGoldPrice = function() {
+            const inp = document.getElementById('goldManualPrice');
+            const p = parseFloat(inp && inp.value);
+            if (!isFinite(p) || p <= 0) {
+                if (typeof showToast === 'function') showToast('Geçerli bir 24 ayar satış fiyatı girin', 'error');
+                return;
+            }
+            const p22 = p * (22 / 24);
+            goldQuotes = { buy24: p, sell24: p, buy22: p22, sell22: p22 };
+            goldPricePerGram = p;
+            goldPricePerGram22 = p22;
+            try {
+                localStorage.setItem('yuvam_gold_price', JSON.stringify({
+                    quotes: goldQuotes, p: p, p22: p22, at: Date.now()
+                }));
+            } catch (_) {}
+            updateGoldPriceUI();
+            const elMeta = document.getElementById('goldPriceMeta');
+            if (elMeta) elMeta.textContent = 'Elle girildi';
+            renderGoldHoldings();
+            if (typeof showToast === 'function') showToast('Fiyat güncellendi', 'success');
+        };
+
+        const GOLD_LS_KEY = 'yuvam_gold_holdings_v1';
+
+        function loadGoldHoldingsLocal() {
+            try {
+                const raw = localStorage.getItem(GOLD_LS_KEY);
+                if (!raw) return [];
+                const arr = JSON.parse(raw);
+                return Array.isArray(arr) ? arr : [];
+            } catch (_) { return []; }
+        }
+
+        function saveGoldHoldingsLocal(list) {
+            try { localStorage.setItem(GOLD_LS_KEY, JSON.stringify(list || [])); } catch (_) {}
+        }
+
+        async function persistGoldHoldings(list) {
+            goldHoldings = list || [];
+            saveGoldHoldingsLocal(goldHoldings);
+            // settings koleksiyonu zaten izinli — tek doküman
+            try {
+                await db.collection('settings').doc('goldHoldings').set({
+                    list: goldHoldings,
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+            } catch (e) {
+                console.warn('gold settings write', e);
+                // local yeterli
+            }
+            renderGoldHoldings();
+        }
+
+        window.addGoldHolding = async function(e) {
+            e.preventDefault();
+            if (!currentUser) {
+                if (typeof showToast === 'function') showToast('Önce giriş yapın', 'error');
+                return;
+            }
+            const karat = parseInt((document.getElementById('goldKarat') || {}).value, 10) || 24;
+            const grams = parseFloat((document.getElementById('goldGrams') || {}).value);
+            const buyPrice = parseFloat((document.getElementById('goldBuyPrice') || {}).value);
+            const buyDate = ((document.getElementById('goldBuyDate') || {}).value || '').trim();
+            const note = ((document.getElementById('goldNote') || {}).value || '').trim();
+            if (!isFinite(grams) || grams <= 0 || !isFinite(buyPrice) || buyPrice <= 0 || !buyDate) {
+                if (typeof showToast === 'function') showToast('Gram, alış fiyatı ve tarih zorunlu', 'error');
+                return;
+            }
+            try {
+                const row = {
+                    id: 'g_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+                    karat: (karat === 22 ? 22 : 24),
+                    grams: grams,
+                    buyPrice: buyPrice,
+                    buyDate: buyDate,
+                    note: note,
+                    createdAt: new Date().toISOString(),
+                    createdBy: currentUser.name || currentUser.uid || ''
+                };
+                const next = (goldHoldings || []).concat([row]);
+                await persistGoldHoldings(next);
+                const g = document.getElementById('goldGrams');
+                const bp = document.getElementById('goldBuyPrice');
+                const n = document.getElementById('goldNote');
+                if (g) g.value = '';
+                if (bp) bp.value = '';
+                if (n) n.value = '';
+                if (typeof showToast === 'function') showToast('Altın kaydı eklendi', 'success');
+            } catch (err) {
+                console.error(err);
+                if (typeof showToast === 'function') showToast('Kayıt eklenemedi: ' + (err.message || err), 'error');
+            }
+        };
+
+        window.deleteGoldHolding = async function(id) {
+            if (!id || !confirm('Bu altın kaydı silinsin mi?')) return;
+            try {
+                const next = (goldHoldings || []).filter(function(h) { return h.id !== id; });
+                await persistGoldHoldings(next);
+                if (typeof showToast === 'function') showToast('Silindi', 'success');
+            } catch (err) {
+                if (typeof showToast === 'function') showToast('Silinemedi', 'error');
+            }
+        };
+
+        // Sayfa açılışında fiyatı arka planda dene
+        setTimeout(function() {
+            try { if (currentUser && typeof refreshGoldPrice === 'function') refreshGoldPrice(true); } catch (_) {}
+        }, 2000);
+
+        window.renderCalendarTab = function() {
+            const list = document.getElementById('familyCalendarList');
+            if (!list) return;
+            const sorted = (familyCalendar || []).slice().sort(function(a, b) {
+                return eventEffectiveDate(a).localeCompare(eventEffectiveDate(b));
+            });
+            if (!sorted.length) {
+                list.innerHTML = yuvamEmptyState('📅', 'Takvim boş', 'Randevu, doğum günü veya hatırlatma ekleyin', null, null);
+                return;
+            }
+            list.innerHTML = sorted.map(function(ev) {
+                const eff = eventEffectiveDate(ev);
+                const days = daysUntilYMD(eff);
+                const badge = days == null ? '' : (days < 0 ? 'geçti' : (days === 0 ? 'bugün' : days + ' gün'));
+                const typeLab = calTypeLabel(ev.type);
+                const rep = (ev.repeat === 'yearly' || ev.type === 'birthday' || ev.type === 'anniversary') ? ' · her yıl' : '';
+                const sub = calTypeIcon(ev.type) + ' ' + typeLab + ' · ' + formatDateTR(eff) + (badge ? ' · ' + badge : '') + rep + (ev.by ? ' · ' + ev.by : '');
+                const editBtn = '<button type="button" onclick="familyEditCalendar(\'' + escapeHtml(ev.id) + '\')" class="text-xs font-bold text-sky-600 px-2 py-1 rounded-lg hover:bg-sky-50">Düzenle</button>';
+                const delBtn = '<button type="button" onclick="familyDelete(\'familyCalendar\',\'' + escapeHtml(ev.id) + '\')" class="text-xs font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50">Sil</button>';
+                return familyRow(escapeHtml(ev.title || '-'), escapeHtml(sub), editBtn + delBtn);
+            }).join('');
+            const dInp = document.getElementById('famCalDate');
+            if (dInp && !dInp.value) dInp.value = todayDateStr();
+        };
+
+        window.familyEditCalendar = function(id) {
+            const ev = (familyCalendar || []).find(function(x) { return x.id === id; });
+            if (!ev) return;
+            const eid = document.getElementById('famCalEditId');
+            if (eid) eid.value = id;
+            const t = document.getElementById('famCalTitle');
+            if (t) t.value = ev.title || '';
+            const d = document.getElementById('famCalDate');
+            if (d) d.value = String(ev.date || '').slice(0, 10);
+            const ty = document.getElementById('famCalType');
+            if (ty) ty.value = ev.type || 'event';
+            const r = document.getElementById('famCalRepeat');
+            if (r) r.value = ev.repeat || 'none';
+            const btn = document.getElementById('famCalSubmitBtn');
+            if (btn) btn.textContent = 'Güncelle';
+            const c = document.getElementById('famCalCancelEdit');
+            if (c) c.classList.remove('hidden');
+            if (t) t.focus();
+        };
+
+        window.familyCancelCalEdit = function() {
+            const eid = document.getElementById('famCalEditId');
+            if (eid) eid.value = '';
+            const t = document.getElementById('famCalTitle');
+            if (t) t.value = '';
+            const btn = document.getElementById('famCalSubmitBtn');
+            if (btn) btn.textContent = 'Ekle';
+            const c = document.getElementById('famCalCancelEdit');
+            if (c) c.classList.add('hidden');
+        };
+
+        window.familyAddCalendar = async function(e) {
+            e.preventDefault();
+            const title = ((document.getElementById('famCalTitle') || {}).value || '').trim();
+            const date = (document.getElementById('famCalDate') || {}).value;
+            if (!title || !date) return;
+            let type = (document.getElementById('famCalType') || {}).value || 'event';
+            let repeat = (document.getElementById('famCalRepeat') || {}).value || 'none';
+            if (type === 'birthday' || type === 'anniversary') repeat = 'yearly';
+            const editId = ((document.getElementById('famCalEditId') || {}).value || '').trim();
+            try {
+                if (editId) {
+                    await db.collection('familyCalendar').doc(editId).update({
+                        title: title,
+                        date: date,
+                        type: type,
+                        repeat: repeat,
+                        updatedAt: new Date().toISOString(),
+                        updatedBy: (currentUser && currentUser.name) || ''
+                    });
+                    showToast('Etkinlik güncellendi', 'success');
+                    familyCancelCalEdit();
+                } else {
+                    await db.collection('familyCalendar').add({
+                        title: title,
+                        date: date,
+                        type: type,
+                        repeat: repeat,
+                        by: (currentUser && currentUser.name) || '',
+                        createdAt: new Date().toISOString()
+                    });
+                    document.getElementById('famCalTitle').value = '';
+                    showToast('Takvime eklendi', 'success');
+                }
+            } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
+        };
+
+        window.renderTasksTab = function() {
+            const list = document.getElementById('familyTasksList');
+            if (!list) return;
+            const open = (familyTasks || []).filter(function(t) { return !t.done; });
+            const done = (familyTasks || []).filter(function(t) { return t.done; });
+            const sorted = open.concat(done).sort(function(a, b) {
+                return String(a.due || '9999').localeCompare(String(b.due || '9999'));
+            });
+            if (!sorted.length) {
+                list.innerHTML = yuvamEmptyState('✅', 'Görev yok', 'Aile görevlerini ekleyin; ana sayfada da görünür', null, null);
+                return;
+            }
+            list.innerHTML = sorted.map(function(t) {
+                const due = t.due ? formatDateTR(t.due) : 'Tarihsiz';
+                const who = t.assignee && t.assignee !== 'Herkes' ? t.assignee : 'Herkes';
+                const rep = taskRepeatLabel(t.repeat);
+                const main = (t.done ? '<span class="line-through opacity-60">' : '') + escapeHtml(t.text || '-') + (t.done ? '</span>' : '');
+                const sub = due + ' · ' + who + (rep ? ' · 🔁 ' + rep : '') + (t.by ? ' · ekleyen: ' + t.by : '');
+                const editB = '<button type="button" onclick="familyEditTask(\'' + escapeHtml(t.id) + '\')" class="text-xs font-bold text-sky-600 px-2 py-1 rounded-lg hover:bg-sky-50">Düzenle</button>';
+                const tog = '<button type="button" onclick="familyToggleTask(\'' + escapeHtml(t.id) + '\',' + (t.done ? 'false' : 'true') + ')" class="text-xs font-bold px-2 py-1 rounded-lg ' +
+                    (t.done ? 'text-slate-500 bg-slate-100' : 'text-emerald-700 bg-emerald-50') + '">' + (t.done ? 'Geri al' : 'Tamam') + '</button>';
+                const del = '<button type="button" onclick="familyDelete(\'familyTasks\',\'' + escapeHtml(t.id) + '\')" class="text-xs font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50">Sil</button>';
+                return familyRow(main, escapeHtml(sub), editB + tog + del);
+            }).join('');
+        };
+
+        window.familyEditTask = function(id) {
+            const t = (familyTasks || []).find(function(x) { return x.id === id; });
+            if (!t) return;
+            const eid = document.getElementById('famTaskEditId');
+            if (eid) eid.value = id;
+            const tx = document.getElementById('famTaskText');
+            if (tx) tx.value = t.text || '';
+            const due = document.getElementById('famTaskDue');
+            if (due) due.value = t.due ? String(t.due).slice(0, 10) : '';
+            const asg = document.getElementById('famTaskAssignee');
+            if (asg) asg.value = t.assignee || 'Herkes';
+            const rep = document.getElementById('famTaskRepeat');
+            if (rep) rep.value = t.repeat || 'none';
+            const btn = document.getElementById('famTaskSubmitBtn');
+            if (btn) btn.textContent = 'Güncelle';
+            const c = document.getElementById('famTaskCancelEdit');
+            if (c) c.classList.remove('hidden');
+            if (tx) tx.focus();
+        };
+
+        window.familyCancelTaskEdit = function() {
+            const eid = document.getElementById('famTaskEditId');
+            if (eid) eid.value = '';
+            const tx = document.getElementById('famTaskText');
+            if (tx) tx.value = '';
+            const due = document.getElementById('famTaskDue');
+            if (due) due.value = '';
+            const btn = document.getElementById('famTaskSubmitBtn');
+            if (btn) btn.textContent = 'Ekle';
+            const c = document.getElementById('famTaskCancelEdit');
+            if (c) c.classList.add('hidden');
+        };
+
+        window.familyAddTask = async function(e) {
+            e.preventDefault();
+            const text = ((document.getElementById('famTaskText') || {}).value || '').trim();
+            if (!text) return;
+            const due = (document.getElementById('famTaskDue') || {}).value || '';
+            const assignee = (document.getElementById('famTaskAssignee') || {}).value || 'Herkes';
+            const repeat = (document.getElementById('famTaskRepeat') || {}).value || 'none';
+            const editId = ((document.getElementById('famTaskEditId') || {}).value || '').trim();
+            try {
+                if (editId) {
+                    await db.collection('familyTasks').doc(editId).update({
+                        text: text,
+                        due: due,
+                        assignee: assignee,
+                        repeat: repeat,
+                        updatedAt: new Date().toISOString(),
+                        updatedBy: (currentUser && currentUser.name) || ''
+                    });
+                    showToast('Görev güncellendi', 'success');
+                    familyCancelTaskEdit();
+                } else {
+                    await db.collection('familyTasks').add({
+                        text: text,
+                        due: due,
+                        assignee: assignee,
+                        repeat: repeat,
+                        done: false,
+                        by: (currentUser && currentUser.name) || '',
+                        createdAt: new Date().toISOString()
+                    });
+                    document.getElementById('famTaskText').value = '';
+                    showToast(repeat !== 'none' ? 'Tekrarlayan görev eklendi' : 'Görev eklendi', 'success');
+                }
+            } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
+        };
+
+        window.familyToggleTask = async function(id, done) {
+            if (!id) return;
+            try {
+                const t = (familyTasks || []).find(function(x) { return x.id === id; });
+                if (done && t && (t.repeat === 'weekly' || t.repeat === 'monthly')) {
+                    const base = t.due || todayDateStr();
+                    const next = t.repeat === 'weekly' ? addDaysYMD(base, 7) : addMonthsYMD(base, 1);
+                    await db.collection('familyTasks').doc(id).update({
+                        done: false,
+                        due: next,
+                        lastCompletedAt: new Date().toISOString()
+                    });
+                    showToast('Tamam · sonraki: ' + formatDateTR(next), 'success');
+                } else {
+                    await db.collection('familyTasks').doc(id).update({ done: !!done });
+                }
+            } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
+        };
+
+        window.renderShoppingTab = function() {
+            const list = document.getElementById('familyShopList');
+            if (!list) return;
+            const open = (familyShopping || []).filter(function(x) { return !x.bought; });
+            const bought = (familyShopping || []).filter(function(x) { return x.bought; });
+            const sorted = open.concat(bought);
+            const openN = open.length;
+            const sumEl = document.getElementById('familyShopSummary');
+            if (sumEl) sumEl.textContent = openN + ' ürün alınacak' + (bought.length ? ' · ' + bought.length + ' alındı' : '');
+            if (!sorted.length) {
+                list.innerHTML = yuvamEmptyState('🛒', 'Alışveriş listesi boş', 'Market veya ev ihtiyaçlarını ekleyin', null, null);
+                return;
+            }
+            list.innerHTML = sorted.map(function(x) {
+                const main = (x.bought ? '<span class="line-through opacity-50">' : '') + escapeHtml(x.name || '-') + (x.bought ? '</span>' : '');
+                const qty = x.qty ? String(x.qty) : '';
+                const sub = [qty, x.category, x.by].filter(Boolean).join(' · ');
+                const tog = '<button type="button" onclick="familyToggleShop(\'' + escapeHtml(x.id) + '\',' + (x.bought ? 'false' : 'true') + ')" class="text-xs font-bold px-2 py-1 rounded-lg ' +
+                    (x.bought ? 'text-slate-500 bg-slate-100' : 'text-sky-700 bg-sky-50') + '">' + (x.bought ? 'Geri' : 'Alındı') + '</button>';
+                const del = '<button type="button" onclick="familyDelete(\'familyShopping\',\'' + escapeHtml(x.id) + '\')" class="text-xs font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50">Sil</button>';
+                return familyRow(main, escapeHtml(sub || '—'), tog + del);
+            }).join('');
+        };
+
+        window.familyAddShop = async function(e) {
+            e.preventDefault();
+            const name = ((document.getElementById('famShopName') || {}).value || '').trim();
+            if (!name) return;
+            const qty = ((document.getElementById('famShopQty') || {}).value || '').trim();
+            const category = (document.getElementById('famShopCat') || {}).value || 'Market';
+            try {
+                await db.collection('familyShopping').add({
+                    name: name,
+                    qty: qty,
+                    category: category,
+                    bought: false,
+                    by: (currentUser && currentUser.name) || '',
+                    createdAt: new Date().toISOString()
+                });
+                document.getElementById('famShopName').value = '';
+                document.getElementById('famShopQty').value = '';
+                showToast('Listeye eklendi', 'success');
+            } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
+        };
+
+        window.familyToggleShop = async function(id, bought) {
+            if (!id) return;
+            try {
+                await db.collection('familyShopping').doc(id).update({ bought: !!bought });
+            } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
+        };
+
+        window.familyDelete = async function(col, id) {
+            if (!col || !id) return;
+            if (!confirm('Silinsin mi?')) return;
+            try {
+                await db.collection(col).doc(id).delete();
+                showToast('Silindi', 'info');
+            } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
+        };
+
+        window.familyClearBoughtShop = async function() {
+            const bought = (familyShopping || []).filter(function(x) { return x.bought; });
+            if (!bought.length) { showToast('Alınan ürün yok', 'info'); return; }
+            if (!confirm(bought.length + ' alınan ürün listeden silinsin mi?')) return;
+            try {
+                await Promise.all(bought.map(function(x) { return db.collection('familyShopping').doc(x.id).delete(); }));
+                showToast('Temizlendi', 'success');
+            } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
+        };
+
+        window.openMobileMoreSheet = function() {
+            const sheet = document.getElementById('mobileMoreSheet');
+            if (!sheet) return;
+            sheet.classList.remove('hidden');
+            sheet.style.display = 'flex';
+        };
+
+        window.closeMobileMoreSheet = function() {
+            const sheet = document.getElementById('mobileMoreSheet');
+            if (!sheet) return;
+            sheet.classList.add('hidden');
+            sheet.style.display = 'none';
+        };
+
+        window.mobileNavGo = function(tabId) {
+            if (tabId === 'more') {
+                const sheet = document.getElementById('mobileMoreSheet');
+                if (sheet && !sheet.classList.contains('hidden')) {
+                    closeMobileMoreSheet();
+                } else {
+                    openMobileMoreSheet();
+                }
+                return;
+            }
+            closeMobileMoreSheet();
+            switchTab(tabId);
+        };
+
+        // Ana sayfa + finans kart görünürlüğü (Ayarlar)
+        const DASH_CARD_KEYS = [
+            'total', 'bekir', 'duygu', 'debt',
+            'homeToday', 'homePeriod', 'homeNotif', 'homeGold', 'homeQuickAdd', 'homeUpcoming', 'homeBudget', 'homeTasks', 'homeBriefing'
+        ];
+
+        window.applyDashboardCards = function() {
+            const dc = dashboardCards || {};
+            document.querySelectorAll('[data-dash-card]').forEach(function(el) {
+                const k = el.getAttribute('data-dash-card');
+                const on = dc[k] !== false;
+                el.classList.toggle('hidden', !on);
+            });
+            document.querySelectorAll('[data-home-card]').forEach(function(el) {
+                const k = el.getAttribute('data-home-card');
+                const on = dc[k] !== false;
+                el.classList.toggle('hidden', !on);
+            });
+            DASH_CARD_KEYS.forEach(function(k) {
+                const cb = document.getElementById('cardVis_' + k);
+                if (cb) cb.checked = dc[k] !== false;
+            });
+        };
+
+        window.saveDashboardCards = async function() {
+            if (!isAdmin()) { showToast('Sadece admin', 'error'); return; }
+            const next = Object.assign({}, dashboardCards);
+            DASH_CARD_KEYS.forEach(function(k) {
+                const cb = document.getElementById('cardVis_' + k);
+                if (cb) next[k] = !!cb.checked;
+            });
+            dashboardCards = next;
+            try {
+                await db.collection('settings').doc('uiPrefs').set({ dashboardCards: next }, { merge: true });
+                applyDashboardCards();
+                showToast('Kart görünürlüğü kaydedildi', 'success');
+            } catch (err) {
+                showToast(friendlyFirebaseError(err), 'error');
             }
         };
 
@@ -976,7 +2127,11 @@
             loadDeletedExpenses();
 
             db.collection("expenses").onSnapshot(snap => {
-                expenses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                expenses = snap.docs.map(function(d) {
+                    const row = Object.assign({ id: d.id }, d.data());
+                    if (row.billSubtype === 'Platform') row.billSubtype = 'Abonelik';
+                    return row;
+                });
                 scheduleRenderApp();
             });
             db.collection("notes").onSnapshot(snap => {
@@ -1013,6 +2168,16 @@
                         categorySubtypes = Object.assign({}, DEFAULT_CATEGORY_SUBTYPES, map);
                     }
                 }
+                // Platform → Abonelik
+                Object.keys(categorySubtypes || {}).forEach(function(cat) {
+                    if (!Array.isArray(categorySubtypes[cat])) return;
+                    categorySubtypes[cat] = categorySubtypes[cat].map(function(s) {
+                        return s === 'Platform' ? 'Abonelik' : s;
+                    });
+                    categorySubtypes[cat] = [...new Set(categorySubtypes[cat])];
+                });
+                if (!categorySubtypes['Faturalar']) categorySubtypes['Faturalar'] = DEFAULT_CATEGORY_SUBTYPES['Faturalar'].slice();
+                if (categorySubtypes['Faturalar'].indexOf('Abonelik') < 0) categorySubtypes['Faturalar'].push('Abonelik');
                 updateCategorySelects();
                 if (typeof fillSubtypeSelects === 'function') fillSubtypeSelects();
                 renderCategoriesList();
@@ -1038,6 +2203,46 @@
                 }
                 if (typeof renderBudgetInfo === 'function') renderBudgetInfo();
             }, err => console.warn('budgetTarget', err));
+
+            function refreshFamilyViews() {
+                try {
+                    if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
+                    if (typeof updateTaskNavBadges === 'function') updateTaskNavBadges();
+                    if (typeof renderTabBar === 'function' && currentUser) renderTabBar();
+                    const home = document.getElementById('tabContentHome');
+                    if (home && !home.classList.contains('hidden') && typeof renderHomeTab === 'function') renderHomeTab();
+                    const cal = document.getElementById('tabContentCalendar');
+                    if (cal && !cal.classList.contains('hidden') && typeof renderCalendarTab === 'function') renderCalendarTab();
+                    const tk = document.getElementById('tabContentTasks');
+                    if (tk && !tk.classList.contains('hidden') && typeof renderTasksTab === 'function') renderTasksTab();
+                    const sh = document.getElementById('tabContentShopping');
+                    if (sh && !sh.classList.contains('hidden') && typeof renderShoppingTab === 'function') renderShoppingTab();
+                } catch (_) {}
+            }
+            db.collection('familyCalendar').onSnapshot(function(snap) {
+                familyCalendar = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+                refreshFamilyViews();
+            }, function(e) { console.warn('familyCalendar', e); });
+            // Önce local, sonra settings/goldHoldings
+            try {
+                goldHoldings = loadGoldHoldingsLocal();
+                if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
+            } catch (_) {}
+            db.collection('settings').doc('goldHoldings').onSnapshot(function(d) {
+                if (d.exists && d.data() && Array.isArray(d.data().list)) {
+                    goldHoldings = d.data().list;
+                    saveGoldHoldingsLocal(goldHoldings);
+                    if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
+                }
+            }, function(e) { console.warn('goldHoldings settings', e); });
+            db.collection('familyTasks').onSnapshot(function(snap) {
+                familyTasks = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+                refreshFamilyViews();
+            }, function(e) { console.warn('familyTasks', e); });
+            db.collection('familyShopping').onSnapshot(function(snap) {
+                familyShopping = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+                refreshFamilyViews();
+            }, function(e) { console.warn('familyShopping', e); });
             db.collection("settings").doc("uiPrefs").onSnapshot(d => {
                 if (d.exists && d.data()) {
                     const u = d.data();
@@ -2502,7 +3707,7 @@
         };
 
 
-        // İstatistikler Paneli
+        // Raporlar paneli
         window.showCategoryExpenses = function(category) {
             const period = getCurrentPeriod();
             const items = getProcessedExpenses().filter(e =>
@@ -2844,6 +4049,81 @@
                 console.error(err);
                 const box = document.getElementById('localAdvisorResult');
                 if (box) box.innerHTML = '<p class="text-sm text-rose-600 font-semibold">' + escapeHtml(err.message || String(err)) + '</p>';
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        };
+
+        /** Ana sayfa yerel günlük brifing (AI olmadan) */
+        window.renderHomeLocalBriefing = function(periodSum, todaySum) {
+            const box = document.getElementById('homeBriefingLocal');
+            if (!box) return;
+            const income = (typeof HOUSEHOLD_MONTHLY_INCOME === 'number') ? HOUSEHOLD_MONTHLY_INCOME : 110000;
+            const pSum = Number(periodSum);
+            const tSum = Number(todaySum);
+            const openTasks = (familyTasks || []).filter(function(t) { return !t.done; }).length;
+            const dueToday = (familyTasks || []).filter(function(t) {
+                return !t.done && t.due && String(t.due).slice(0, 10) === todayDateStr();
+            }).length;
+            const calSoon = (familyCalendar || []).filter(function(ev) {
+                const d = eventEffectiveDate(ev);
+                const days = daysUntilYMD(d);
+                return days != null && days >= 0 && days <= 7;
+            }).length;
+            const shopOpen = (familyShopping || []).filter(function(x) { return !x.bought; }).length;
+            const ratio = income > 0 && !isNaN(pSum) ? (pSum / income * 100) : 0;
+            const left = income - (isNaN(pSum) ? 0 : pSum);
+            const lines = [];
+            lines.push('• Dönem harcama: <b>' + Math.round(isNaN(pSum) ? 0 : pSum).toLocaleString('tr-TR') + ' TL</b> · gelire oran ~%' + ratio.toFixed(0) + ' · kalan nefes ~' + Math.round(left).toLocaleString('tr-TR') + ' TL');
+            if (!isNaN(tSum) && tSum > 0) lines.push('• Bugün harcama: <b>' + Math.round(tSum).toLocaleString('tr-TR') + ' TL</b>');
+            lines.push('• Görevler: <b>' + openTasks + '</b> açık' + (dueToday ? (' · <b>' + dueToday + '</b> bugün') : ''));
+            lines.push('• Takvim: <b>' + calSoon + '</b> etkinlik (7 gün) · Alışveriş: <b>' + shopOpen + '</b> ürün');
+            if (ratio >= 70) lines.push('• Uyarı: dönem harcaması gelirin %70+ — kart ve nakit akışına dikkat');
+            else if (ratio <= 40 && pSum > 0) lines.push('• Dönem harcaması gelirin altında — tasarruf fırsatı var');
+            box.innerHTML = lines.map(function(l) { return '<p>' + l + '</p>'; }).join('');
+        };
+
+        window.runHomeAiBriefing = async function() {
+            const btn = document.getElementById('homeBriefingAiBtn');
+            const out = document.getElementById('homeBriefingAi');
+            const st = document.getElementById('homeBriefingStatus');
+            if (btn) btn.disabled = true;
+            if (st) st.textContent = 'AI özet hazırlanıyor…';
+            if (out) {
+                out.classList.remove('hidden');
+                out.innerHTML = '<p class="text-slate-400 font-semibold">…</p>';
+            }
+            try {
+                if (!openrouterApiKey) throw new Error('OpenRouter anahtarı yok (settings/apiKeys)');
+                const income = HOUSEHOLD_MONTHLY_INCOME || 110000;
+                let periodSum = 0;
+                const pk = getCurrentPeriod();
+                getProcessedExpenses().forEach(function(e) {
+                    if (e && e.effectiveMonth === pk && e.installmentLabel !== 'Gelir') periodSum += Number(e.displayAmount) || 0;
+                });
+                const openTasks = (familyTasks || []).filter(function(t) { return !t.done; });
+                const taskTxt = openTasks.slice(0, 6).map(function(t) {
+                    return (t.text || '') + (t.due ? ' (son: ' + t.due + ')' : '');
+                }).join('; ') || 'yok';
+                const calTxt = (familyCalendar || []).slice(0, 5).map(function(ev) {
+                    return (ev.title || '') + ' ' + eventEffectiveDate(ev);
+                }).join('; ') || 'yok';
+                const shopN = (familyShopping || []).filter(function(x) { return !x.bought; }).length;
+                const prompt = [
+                    'Hane aylik geliri: ' + income + ' TL.',
+                    'Aktif ekstre donemi harcama: ' + Math.round(periodSum) + ' TL (oran %' + (income ? (periodSum / income * 100).toFixed(1) : 0) + ').',
+                    'Acik gorevler: ' + openTasks.length + ' → ' + taskTxt,
+                    'Yakin etkinlikler: ' + calTxt,
+                    'Alisveris bekleyen: ' + shopN + ' urun.',
+                    'Gorev: 3-4 cumlelik Turkce gunluk aile brifingi yaz. Bugun neye odaklanmali, butce durumu (gelire gore), bir pratik oneri. Markdown/emoji yok. Kisa tut.'
+                ].join('\n');
+                const text = await callOpenRouter(prompt, 'Sen aile ev asistaniisin. Kisa, sicak, net yaz.', 600);
+                if (out) out.innerHTML = '<p>' + escapeHtml(String(text || '').trim()).replace(/\n/g, '<br>') + '</p>';
+                if (st) st.textContent = 'AI özet · ' + new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+                logActivity('Diğer', 'Günlük AI brifing', '');
+            } catch (err) {
+                if (out) out.innerHTML = '<p class="text-rose-600 font-semibold">' + escapeHtml(err.message || String(err)) + '</p>';
+                if (st) st.textContent = 'AI kullanılamadı — yerel özet geçerli';
             } finally {
                 if (btn) btn.disabled = false;
             }
@@ -3797,6 +5077,92 @@
             await db.collection("ibans").doc(id).delete();
         };
 
+        function maskIban(raw) {
+            const s = String(raw || '').replace(/\s/g, '').toUpperCase();
+            if (!s) return 'TR•• •••• •••• •••• •••• ••••';
+            const start = s.slice(0, 4);
+            const end = s.length > 8 ? s.slice(-4) : '';
+            return start + ' •••• •••• •••• •••• ' + end;
+        }
+
+        function formatIbanSpaces(raw) {
+            const s = String(raw || '').replace(/\s/g, '').toUpperCase();
+            return s.replace(/(.{4})/g, '$1 ').trim();
+        }
+
+        function getIbanFull(item) {
+            if (!item) return '';
+            // Olası tüm alan adları
+            const keys = ['ibanNumber', 'iban', 'number', 'ibanNo', 'IBAN', 'Iban'];
+            for (let i = 0; i < keys.length; i++) {
+                if (item[keys[i]]) return String(item[keys[i]]).replace(/\s/g, '').toUpperCase();
+            }
+            // Nesnedeki TR ile başlayan ilk string
+            try {
+                for (const k in item) {
+                    if (!Object.prototype.hasOwnProperty.call(item, k)) continue;
+                    if (k === 'id' || k === 'ownerName' || k === 'name' || k === 'bank' || k === 'bankName') continue;
+                    const v = String(item[k] || '').replace(/\s/g, '').toUpperCase();
+                    if (v.indexOf('TR') === 0 && v.length >= 16) return v;
+                }
+            } catch (_) {}
+            return '';
+        }
+
+        // Tam IBAN DOM'da tutulmaz (sadece bellek)
+        window._ibanSecrets = window._ibanSecrets || {};
+
+        window.toggleIbanReveal = function(btn) {
+            if (!btn) return;
+            const wrap = btn.closest('[data-iban-wrap]');
+            if (!wrap) return;
+            const id = wrap.getAttribute('data-iban-id') || '';
+            const el = wrap.querySelector('[data-iban-value]');
+            const full = (window._ibanSecrets && window._ibanSecrets[id]) || '';
+            const masked = maskIban(full);
+            const on = wrap.getAttribute('data-revealed') === '1';
+            if (on) {
+                if (el) el.textContent = masked;
+                wrap.setAttribute('data-revealed', '0');
+                btn.setAttribute('aria-label', 'Göster');
+                btn.innerHTML = '👁️';
+            } else {
+                if (el) el.textContent = full ? formatIbanSpaces(full) : masked;
+                wrap.setAttribute('data-revealed', '1');
+                btn.setAttribute('aria-label', 'Gizle');
+                btn.innerHTML = '🙈';
+            }
+        };
+
+        window.renderIbans = function() {
+            const box = document.getElementById('ibanListContainer');
+            if (!box) return;
+            const list = Array.isArray(ibans) ? ibans : [];
+            window._ibanSecrets = {};
+            if (!list.length) {
+                box.innerHTML = '<div class="col-span-full">' + yuvamEmptyState('💳', 'Henüz IBAN yok', 'Banka hesaplarınızı güvenle saklayın', '+ IBAN Ekle', 'openIbanModal()') + '</div>';
+                return;
+            }
+            box.innerHTML = list.map(function(item) {
+                const full = getIbanFull(item);
+                const masked = maskIban(full);
+                const safeId = String(item.id || '');
+                window._ibanSecrets[safeId] = full;
+                const owner = escapeHtml(item.ownerName || item.name || '-');
+                const bank = escapeHtml(item.bank || item.bankName || '');
+                // Ekranda SADECE maskeli metin
+                return '<div class="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2" data-iban-wrap data-iban-id="' + escapeHtml(safeId) + '" data-revealed="0">' +
+                    '<div class="flex justify-between items-start gap-2">' +
+                    '<div class="min-w-0"><p class="font-black text-slate-800">' + owner + '</p>' +
+                    '<p class="text-xs font-semibold text-slate-400">' + bank + '</p></div>' +
+                    '<div class="flex gap-1 shrink-0">' +
+                    '<button type="button" onclick="event.preventDefault();event.stopPropagation();toggleIbanReveal(this)" class="w-9 h-9 rounded-xl bg-white border border-slate-200 text-sm flex items-center justify-center" title="Göster">👁️</button>' +
+                    '<button type="button" onclick="event.preventDefault();event.stopPropagation();deleteIban(\'' + escapeHtml(safeId) + '\')" class="w-9 h-9 rounded-xl bg-white border border-slate-200 text-xs text-rose-600 flex items-center justify-center" title="Sil">🗑️</button>' +
+                    '</div></div>' +
+                    '<p data-iban-value class="font-mono text-sm font-bold text-slate-700 tracking-wide">' + escapeHtml(masked) + '</p>' +
+                    '</div>';
+            }).join('');
+        };
 
         // KATEGORİ YÖNETIMI FONKSIYONLARI
 
@@ -3809,7 +5175,7 @@
             const result = [];
             const seen = new Set();
 
-            const LEGACY_TABS = new Set(['calculator', 'reports', 'shopping', 'alisveris', 'alışveriş']);
+            const LEGACY_TABS = new Set(['calculator', 'reports', 'alisveris', 'alışveriş', 'deneme', 'homeHub', 'homehub']);
             (saved || []).forEach(s => {
                 if (!s || !s.id) return;
                 if (LEGACY_TABS.has(s.id)) return;
@@ -3817,7 +5183,7 @@
                 if (byId[s.id]) {
                     result.push({
                         ...byId[s.id],
-                        label: s.label || byId[s.id].label,
+                        label: (s.id === 'expense' ? 'Bütçe Takip' : (s.id === 'stats' ? 'Raporlar' : (s.label || byId[s.id].label))),
                         emoji: s.emoji || byId[s.id].emoji,
                         visible: s.visible !== false,
                         adminOnly: s.adminOnly != null ? s.adminOnly : byId[s.id].adminOnly,
@@ -3850,6 +5216,16 @@
                 if (removedTabIds.includes(t.id)) return;
                 result.push({ ...t, content: '', widgetType: null });
             });
+
+            // Ana Sayfa her zaman en başta
+            const homeIdx = result.findIndex(t => t && t.id === 'home');
+            if (homeIdx > 0) {
+                const homeTab = result.splice(homeIdx, 1)[0];
+                result.unshift(homeTab);
+            } else if (homeIdx < 0 && !removedTabIds.includes('home')) {
+                const defHome = DEFAULT_TABS.find(t => t.id === 'home');
+                if (defHome) result.unshift(Object.assign({}, defHome, { content: '', widgetType: null }));
+            }
             return result;
         }
 
@@ -3939,24 +5315,13 @@
                 </div>`;
             }
             if (type === 'todo') {
+                // Eski "Yapılacaklar listesi" kaldırıldı — Görevler sekmesi kullanılır
                 return `
-                <div class="max-w-md mx-auto space-y-4">
-                    <div>
-                        <p class="text-xs text-slate-400 font-semibold">Yapılacaklar</p>
-                        <p class="text-[10px] text-emerald-600 font-bold mt-0.5">Kayıtlar otomatik saklanır (yenilemede silinmez)</p>
-                    </div>
-                    <div class="flex flex-col gap-2">
-                        <input type="text" id="dynTodoInput" placeholder="Görev ekle..." class="w-full bg-slate-50 rounded-xl p-3 font-bold outline-none ring-1 ring-slate-200">
-                        <div class="flex gap-2 items-stretch">
-                            <label for="dynTodoDue" class="flex-1 flex items-center justify-center gap-2 bg-slate-50 rounded-xl px-3 py-3 font-bold text-sm text-slate-600 ring-1 ring-slate-200 cursor-pointer">
-                                <span>📅 Tarih</span>
-                                <input type="date" id="dynTodoDue" class="dyn-todo-due-input flex-1 min-w-0 bg-transparent border-0 font-bold text-slate-800 outline-none">
-                            </label>
-                            <button type="button" id="dynTodoAdd" class="bg-indigo-600 text-white px-5 rounded-xl font-bold shrink-0">Ekle</button>
-                        </div>
-                    </div>
-                    <p class="text-[10px] text-slate-400 font-semibold">Tarih seçerseniz yaklaşınca 🔔 bildiriminde görünür.</p>
-                    <ul id="dynTodoList" class="space-y-2"></ul>
+                <div class="max-w-md mx-auto text-center space-y-3 py-6">
+                    <p class="text-3xl">✅</p>
+                    <p class="text-sm font-black text-slate-800">Yapılacaklar listesi kaldırıldı</p>
+                    <p class="text-xs text-slate-500 font-semibold">Aynı iş için <b>Görevler</b> sekmesini kullanın (atanabilir, tarihli, ortak).</p>
+                    <button type="button" onclick="switchTab('tasks')" class="mt-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold">Görevler sekmesine git</button>
                 </div>`;
             }
             if (type === 'notes') {
@@ -4084,6 +5449,8 @@
                 };
             }
             if (type === 'todo') {
+                // Widget devre dışı — Görevler sekmesi kullanılıyor
+                return;
                 const key = 'yuvam_todo_' + tabId;
                 const list = document.getElementById('dynTodoList');
                 const input = document.getElementById('dynTodoInput');
@@ -4202,7 +5569,7 @@
         }
 
         // Kalıcı widget türleri (yenilemede veri kaybolmaz)
-        const PERSISTENT_WIDGETS = new Set(['todo', 'notes', 'counter', 'calculator', 'percentage', 'timer', 'scratch', 'fuel']);
+        const PERSISTENT_WIDGETS = new Set(['notes', 'counter', 'calculator', 'percentage', 'timer', 'scratch', 'fuel']);
 
 
         async function callOpenRouter(userPrompt, systemPrompt, maxTokens) {
@@ -4860,12 +6227,45 @@
             return 'yuvam_theme_' + user + '_' + getThemeDeviceKind();
         }
 
+        let themePalette = 'ocean';
+
+        window.setThemePalette = function(palette, opts) {
+            opts = opts || {};
+            const p = (palette === 'warm' || palette === 'forest') ? palette : 'ocean';
+            themePalette = p;
+            document.documentElement.classList.remove('theme-ocean', 'theme-warm', 'theme-forest');
+            document.documentElement.classList.add('theme-' + p);
+            try { localStorage.setItem('yuvam_palette', p); } catch (_) {}
+            const map = {
+                ocean: 'paletteBtnOcean',
+                warm: 'paletteBtnWarm',
+                forest: 'paletteBtnForest'
+            };
+            Object.keys(map).forEach(function(k) {
+                const el = document.getElementById(map[k]);
+                if (!el) return;
+                const on = k === p;
+                el.className = on
+                    ? 'py-3 rounded-xl font-bold text-xs border-2 border-sky-500 bg-sky-50 text-sky-800'
+                    : 'py-3 rounded-xl font-bold text-xs border-2 border-transparent bg-slate-50 text-slate-600';
+            });
+            try {
+                const meta = document.querySelector('meta[name="theme-color"]');
+                if (meta) {
+                    meta.setAttribute('content', p === 'warm' ? '#ea580c' : (p === 'forest' ? '#059669' : '#0284c7'));
+                }
+            } catch (_) {}
+        };
+
         window.setAppTheme = function(theme, opts) {
             opts = opts || {};
             appTheme = theme === 'dark' ? 'dark' : 'light';
             document.documentElement.classList.toggle('theme-dark', appTheme === 'dark');
-            document.documentElement.classList.add('theme-ocean');
-            // Sadece bu cihaz türüne kaydet (mobil ≠ web)
+            if (!document.documentElement.classList.contains('theme-warm') &&
+                !document.documentElement.classList.contains('theme-forest') &&
+                !document.documentElement.classList.contains('theme-ocean')) {
+                document.documentElement.classList.add('theme-' + (themePalette || 'ocean'));
+            }
             try {
                 localStorage.setItem(themeStorageKey(), appTheme);
             } catch (_) {}
@@ -4885,33 +6285,34 @@
             const hint = document.getElementById('themeDeviceHint');
             if (hint) {
                 const uname = (currentUser && currentUser.name) || 'bu hesap';
-                hint.textContent = uname + ' · ' + (device === 'mobile' ? 'mobil' : 'web') + ' teması (diğer kullanıcıyı etkilemez)';
+                hint.textContent = uname + ' · ' + (device === 'mobile' ? 'mobil' : 'web') + ' · ' + (themePalette || 'ocean');
             }
-            // Tema paylaşılan uiPrefs'e yazılmaz (Bekir ≠ Duygu)
-            // İsteğe bağlı: kullanıcı dokümanına yaz
             if (!opts.skipRemote && currentUser && currentUser.uid && typeof db !== 'undefined') {
                 const patch = {};
                 if (device === 'mobile') patch.themeMobile = appTheme;
                 else patch.themeDesktop = appTheme;
+                patch.themePalette = themePalette || 'ocean';
                 db.collection('users').doc(currentUser.uid).set(patch, { merge: true }).catch(function() {});
             }
         };
 
         function loadThemeFromStorage() {
             try {
+                let pal = localStorage.getItem('yuvam_palette');
+                if (pal === 'warm' || pal === 'forest' || pal === 'ocean') setThemePalette(pal, { skipRemote: true });
+                else setThemePalette('ocean', { skipRemote: true });
                 let t = localStorage.getItem(themeStorageKey());
-                // eski tek anahtar → ilgili cihaza taşı
                 if (!t) {
                     const legacy = localStorage.getItem('yuvam_theme');
                     if (legacy === 'dark' || legacy === 'light') t = legacy;
                 }
                 if (t === 'dark' || t === 'light') setAppTheme(t, { skipRemote: true });
                 else {
-                    document.documentElement.classList.add('theme-ocean');
                     appTheme = 'light';
+                    document.documentElement.classList.remove('theme-dark');
                 }
             } catch (_) {
-                document.documentElement.classList.add('theme-ocean');
+                setThemePalette('ocean', { skipRemote: true });
             }
         }
 
@@ -5253,6 +6654,8 @@
             document.getElementById('editNoteId').value = '';
             document.getElementById('noteContent').value = '';
             document.getElementById('noteSubmitBtn').innerText = 'Kaydet';
+            const nt = document.getElementById('noteFormTitle');
+            if (nt) nt.textContent = 'Not Paylaş';
             logActivity('Not', id ? 'Not güncellendi' : 'Not eklendi', person);
         };
 
@@ -5280,14 +6683,36 @@
             const sorted = [...notes].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
             container.innerHTML = sorted.map(n => `
                 <div class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative">
-                    <div class="flex justify-between items-center mb-2">
+                    <div class="flex justify-between items-center mb-2 gap-2">
                         <span class="text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full ${n.person === 'Bekir' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600'}">${escapeHtml(n.person)}</span>
-                        <button onclick="deleteNote('${escapeHtml(n.id)}')" class="text-xs text-rose-500 font-bold">Sil</button>
+                        <div class="flex gap-2 shrink-0">
+                            <button type="button" onclick="editNote('${escapeHtml(n.id)}')" class="text-xs text-sky-600 font-bold">Düzenle</button>
+                            <button type="button" onclick="deleteNote('${escapeHtml(n.id)}')" class="text-xs text-rose-500 font-bold">Sil</button>
+                        </div>
                     </div>
                     <p class="text-[11px] text-slate-400 font-semibold mb-3">${escapeHtml(formatNoteDateTime(n.date))}</p>
                     <p class="text-sm font-medium text-slate-700 whitespace-pre-wrap">${escapeHtml(n.content)}</p>
                 </div>
             `).join('');
+        };
+
+        window.editNote = function(id) {
+            const n = (notes || []).find(function(x) { return x.id === id; });
+            if (!n) return;
+            const eid = document.getElementById('editNoteId');
+            if (eid) eid.value = id;
+            const person = document.getElementById('notePerson');
+            if (person) person.value = n.person || 'Bekir';
+            const content = document.getElementById('noteContent');
+            if (content) content.value = n.content || '';
+            const btn = document.getElementById('noteSubmitBtn');
+            if (btn) btn.innerText = 'Güncelle';
+            const title = document.getElementById('noteFormTitle');
+            if (title) title.textContent = 'Notu düzenle';
+            if (content) {
+                content.focus();
+                try { content.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (_) {}
+            }
         };
 
         // HESAPLAMA TAB
