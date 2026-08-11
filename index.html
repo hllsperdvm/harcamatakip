@@ -51,6 +51,21 @@
         </div>
     </div>
 
+    <!-- Veri yüklenirken iskelet -->
+    <div id="appSkeleton" class="hidden fixed inset-0 z-[85] bg-slate-50/90 backdrop-blur-sm flex items-start justify-center pt-16 sm:pt-24 px-4">
+        <div class="w-full max-w-lg space-y-4">
+            <div class="yuvam-skeleton skel-card rounded-[2rem]" style="height:7rem"></div>
+            <div class="yuvam-skeleton skel-card" style="height:5.5rem"></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="yuvam-skeleton skel-card" style="height:4.5rem"></div>
+                <div class="yuvam-skeleton skel-card" style="height:4.5rem"></div>
+            </div>
+            <div class="yuvam-skeleton skel-line w-3/4"></div>
+            <div class="yuvam-skeleton skel-line w-1/2"></div>
+            <p class="text-center text-xs font-bold text-slate-400 pt-2">Veriler yükleniyor…</p>
+        </div>
+    </div>
+
     <!-- Ana Uygulama Alanı -->
     <div id="appContainer" class="hidden min-h-screen">
         <div class="max-w-7xl mx-auto px-4 py-8">
@@ -162,6 +177,11 @@
                         <p id="homePeriodSpend" class="text-lg font-black text-rose-600 mt-1">0 TL</p>
                         <p class="text-[11px] text-slate-400 font-semibold">29–28 ekstre</p>
                     </div>
+                    <button type="button" data-home-card="homeGold" onclick="switchTab('stats')" class="yuvam-card bg-white rounded-2xl p-4 card-shadow border border-amber-100 text-left col-span-2">
+                        <p class="text-[10px] font-black text-amber-700/80 uppercase tracking-wide">🥇 Altın yatırımı</p>
+                        <p id="homeGoldPnL" class="text-xl font-black text-slate-800 mt-1">—</p>
+                        <p id="homeGoldSub" class="text-[11px] text-slate-500 font-semibold mt-0.5">Raporlar · detay</p>
+                    </button>
                     <button type="button" data-home-card="homeNotif" onclick="openNotifAllModal()" class="yuvam-card stripe-notif bg-white rounded-2xl p-4 card-shadow border border-slate-100 text-left col-span-2">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Bildirimler</p>
                         <p class="text-lg font-black text-amber-600 mt-1"><span id="homeNotifCount">0</span> açık</p>
@@ -547,20 +567,20 @@
                         </div>
                     </div>
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div class="bg-white p-4 sm:p-6 rounded-[2rem] card-shadow border border-slate-100">
-                            <h2 class="text-lg font-black mb-1">Aylık yakıt · Harcama &amp; Litre</h2>
-                            <p class="text-[11px] text-slate-400 font-semibold mb-3">Son 6 ay · web yan yana · mobil yatay</p>
-                            <div class="chart-box h-[26rem] sm:h-80 md:h-96"><canvas id="vehicleFuelChart"></canvas></div>
+                        <div class="chart-block">
+                            <h2 class="chart-title">Aylık yakıt · Harcama &amp; Litre</h2>
+                            <p class="chart-sub">Son 6 ay · web yan yana · mobil yatay</p>
+                            <div class="chart-wrap chart-box h-[26rem] sm:h-80 md:h-96"><canvas id="vehicleFuelChart"></canvas></div>
                         </div>
-                        <div class="bg-white p-4 sm:p-6 rounded-[2rem] card-shadow border border-slate-100">
-                            <h2 class="text-lg font-black mb-1">Tüketim &amp; Km maliyeti</h2>
-                            <p class="text-[11px] text-slate-400 font-semibold mb-3">Dolum bazlı · L/100 km &amp; TL/km</p>
-                            <div class="chart-box h-80 sm:h-80 md:h-96"><canvas id="vehicleFuelConsChart"></canvas></div>
+                        <div class="chart-block">
+                            <h2 class="chart-title">Tüketim &amp; Km maliyeti</h2>
+                            <p class="chart-sub">Dolum bazlı · L/100 km &amp; TL/km</p>
+                            <div class="chart-wrap chart-box h-80 sm:h-80 md:h-96"><canvas id="vehicleFuelConsChart"></canvas></div>
                         </div>
-                        <div class="bg-white p-4 sm:p-6 rounded-[2rem] card-shadow border border-slate-100 lg:col-span-2">
-                            <h2 class="text-lg font-black mb-1">Yakıt LT fiyatı (TL)</h2>
-                            <p class="text-[11px] text-slate-400 font-semibold mb-3">Dolum bazlı · girilen litre fiyatı</p>
-                            <div class="chart-box h-72 sm:h-80"><canvas id="vehicleFuelPriceChart"></canvas></div>
+                        <div class="chart-block lg:col-span-2">
+                            <h2 class="chart-title">Yakıt LT fiyatı (TL)</h2>
+                            <p class="chart-sub">Dolum bazlı · girilen litre fiyatı</p>
+                            <div class="chart-wrap chart-box h-72 sm:h-80"><canvas id="vehicleFuelPriceChart"></canvas></div>
                         </div>
                     </div>
                     <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
@@ -570,9 +590,10 @@
                 </div>
 
                 <div id="vehicleMaintPanel" class="hidden space-y-6">
-                    <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
-                        <h2 class="text-xl font-black mb-4">Vergi &amp; Bakım — Aylık Grafik</h2>
-                        <div class="chart-box h-72 sm:h-80"><canvas id="vehicleMaintChart"></canvas></div>
+                    <div class="chart-block">
+                        <h2 class="chart-title">Vergi &amp; Bakım — Aylık Grafik</h2>
+                        <p class="chart-sub">Aylık toplam</p>
+                        <div class="chart-wrap chart-box h-72 sm:h-80"><canvas id="vehicleMaintChart"></canvas></div>
                     </div>
                     <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
                         <h2 class="text-xl font-black mb-4">Vergi &amp; Bakım Harcamaları</h2>
@@ -582,14 +603,59 @@
             </div>
 
 <div id="tabContentStats" class="hidden space-y-6 fade-in">
+                <div class="bg-white p-4 rounded-2xl card-shadow border border-slate-100">
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <div>
+                            <h2 class="text-base font-black text-slate-800">🥇 Altın</h2>
+                            <p id="goldPriceMeta" class="text-[10px] text-slate-400 font-semibold">Fiyat yükleniyor…</p>
+                        </div>
+                        <button type="button" onclick="refreshGoldPrice(true)" class="text-[10px] font-bold text-amber-700 px-2 py-1 rounded-lg bg-amber-50">Yenile</button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 mb-3 text-[11px]">
+                        <div class="rounded-xl bg-amber-50/80 border border-amber-100 p-2">
+                            <p class="font-black text-amber-900 mb-1">24 ayar</p>
+                            <p class="text-slate-600">Alış <span id="goldBuy24" class="font-black text-slate-800">—</span></p>
+                            <p class="text-slate-600">Satış <span id="goldSell24" class="font-black text-amber-800">—</span></p>
+                        </div>
+                        <div class="rounded-xl bg-orange-50/80 border border-orange-100 p-2">
+                            <p class="font-black text-orange-900 mb-1">22 ayar</p>
+                            <p class="text-slate-600">Alış <span id="goldBuy22" class="font-black text-slate-800">—</span></p>
+                            <p class="text-slate-600">Satış <span id="goldSell22" class="font-black text-orange-800">—</span></p>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-3 text-xs font-bold mb-3">
+                        <span>Maliyet: <span id="goldSumCost">—</span></span>
+                        <span>Değer: <span id="goldSumValue">—</span></span>
+                        <span id="goldSumPnL" class="font-black">—</span>
+                    </div>
+                    <form onsubmit="addGoldHolding(event)" class="grid grid-cols-2 sm:grid-cols-6 gap-2 mb-3">
+                        <select id="goldKarat" class="bg-slate-50 rounded-xl p-2.5 text-xs font-bold outline-none ring-1 ring-slate-200">
+                            <option value="24">24 ayar</option>
+                            <option value="22">22 ayar</option>
+                        </select>
+                        <input type="number" id="goldGrams" step="0.01" min="0.01" required placeholder="Gram" class="bg-slate-50 rounded-xl p-2.5 text-xs font-bold outline-none ring-1 ring-slate-200">
+                        <input type="number" id="goldBuyPrice" step="0.01" min="0.01" required placeholder="Alış ₺/g" class="bg-slate-50 rounded-xl p-2.5 text-xs font-bold outline-none ring-1 ring-slate-200">
+                        <input type="date" id="goldBuyDate" required class="bg-slate-50 rounded-xl p-2.5 text-xs font-bold outline-none ring-1 ring-slate-200">
+                        <input type="text" id="goldNote" placeholder="Not" class="bg-slate-50 rounded-xl p-2.5 text-xs font-bold outline-none ring-1 ring-slate-200">
+                        <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl py-2.5 text-xs">Ekle</button>
+                    </form>
+                    <div id="goldHoldingsList" class="space-y-1.5 max-h-48 overflow-y-auto"></div>
+                    <div class="mt-2 flex gap-2 items-center">
+                        <input type="number" id="goldManualPrice" step="0.01" min="0" placeholder="Elle ₺/g" class="flex-1 bg-slate-50 rounded-lg p-1.5 text-[11px] font-bold outline-none ring-1 ring-slate-200">
+                        <button type="button" onclick="applyManualGoldPrice()" class="text-[11px] font-bold px-2 py-1.5 rounded-lg bg-slate-100 text-slate-700">Uygula</button>
+                    </div>
+                </div>
+
+
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <h2 class="text-lg font-black text-slate-800">Özet &amp; Grafikler</h2>
                     <p class="text-[11px] text-slate-400 font-semibold">Pasta / güne tıklayınca detay açılır</p>
                 </div>
 
-                <div class="bg-white p-5 sm:p-8 rounded-[2rem] card-shadow border border-slate-100 max-w-5xl mx-auto w-full">
-                    <h2 id="chartTitle" class="text-lg font-black mb-2 text-center sm:text-left">Kategori dağılımı</h2>
-                    <div class="chart-box h-80 sm:h-[22rem] md:h-96 max-w-3xl mx-auto sm:max-w-none"><canvas id="expenseChart"></canvas></div>
+                <div class="chart-block max-w-5xl mx-auto w-full">
+                    <h2 id="chartTitle" class="chart-title text-center sm:text-left">Kategori dağılımı</h2>
+                    <p class="chart-sub text-center sm:text-left">Dönem bazlı · dilime tıklayın</p>
+                    <div class="chart-wrap chart-box h-80 sm:h-[22rem] md:h-96 max-w-3xl mx-auto sm:max-w-none"><canvas id="expenseChart"></canvas></div>
                     <div class="mt-5 pt-4 border-t border-slate-100 max-w-3xl mx-auto">
                         <h3 class="text-sm font-black text-slate-700 mb-2 text-center sm:text-left">Kategori özeti</h3>
                         <div id="detailedMonthlyReport" class="grid grid-cols-1 sm:grid-cols-2 gap-1.5"></div>
@@ -597,33 +663,34 @@
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="bg-white p-5 sm:p-6 rounded-[2rem] card-shadow border border-slate-100">
-                        <h2 class="text-lg font-black mb-2">Faturalar (aylık)</h2>
-                        <p class="text-[11px] text-slate-400 font-semibold mb-3">Elektrik · Su · Doğalgaz · Telefon · İnternet · Abonelik</p>
-                        <div class="chart-box h-[26rem] sm:h-96"><canvas id="billsChart"></canvas></div>
+                    <div class="chart-block">
+                        <h2 class="chart-title">Faturalar (aylık)</h2>
+                        <p class="chart-sub">Elektrik · Su · Doğalgaz · Telefon · İnternet · Abonelik</p>
+                        <div class="chart-wrap chart-box h-[26rem] sm:h-96"><canvas id="billsChart"></canvas></div>
                     </div>
-                    <div class="bg-white p-5 sm:p-6 rounded-[2rem] card-shadow border border-slate-100">
-                        <h2 class="text-base font-black mb-2">Haftalık trend</h2>
-                        <p class="text-[11px] text-slate-400 font-semibold mb-2">Güne tıklayın</p>
-                        <div class="chart-box h-56 sm:h-64"><canvas id="weeklyTrendChart"></canvas></div>
+                    <div class="chart-block">
+                        <h2 class="chart-title">Haftalık trend</h2>
+                        <p class="chart-sub">Güne tıklayın · detay açılır</p>
+                        <div class="chart-wrap chart-box h-56 sm:h-64"><canvas id="weeklyTrendChart"></canvas></div>
                     </div>
                 </div>
 
-                <div class="bg-white p-5 sm:p-6 rounded-[2rem] card-shadow border border-slate-100">
-                    <h2 class="text-base font-black mb-3">Ekstre dönemi trendi (29–28)</h2>
-                    <div class="chart-box h-56 sm:h-64"><canvas id="monthlyTrendChart"></canvas></div>
+                <div class="chart-block">
+                    <h2 class="chart-title">Ekstre dönemi trendi (29–28)</h2>
+                    <p class="chart-sub">Dönem toplamları</p>
+                    <div class="chart-wrap chart-box h-56 sm:h-64"><canvas id="monthlyTrendChart"></canvas></div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="bg-white p-5 sm:p-6 rounded-[2rem] card-shadow border border-slate-100">
-                        <h2 class="text-base font-black mb-1">Bu dönem vs önceki</h2>
-                        <p id="monthCompareSummary" class="text-[11px] text-slate-400 font-semibold mb-3">Karşılaştırma</p>
-                        <div class="chart-box h-56 sm:h-64"><canvas id="monthCompareChart"></canvas></div>
+                    <div class="chart-block">
+                        <h2 class="chart-title">Bu dönem vs önceki</h2>
+                        <p id="monthCompareSummary" class="chart-sub">Karşılaştırma</p>
+                        <div class="chart-wrap chart-box h-56 sm:h-64"><canvas id="monthCompareChart"></canvas></div>
                     </div>
-                    <div class="bg-white p-5 sm:p-6 rounded-[2rem] card-shadow border border-slate-100">
-                        <h2 class="text-base font-black mb-1">Kategori trendi (3 dönem)</h2>
-                        <p class="text-[11px] text-slate-400 font-semibold mb-3">En yüksek 5 kategori</p>
-                        <div class="chart-box h-56 sm:h-72"><canvas id="categoryTrendChart"></canvas></div>
+                    <div class="chart-block">
+                        <h2 class="chart-title">Kategori trendi (3 dönem)</h2>
+                        <p class="chart-sub">En yüksek 5 kategori</p>
+                        <div class="chart-wrap chart-box h-56 sm:h-72"><canvas id="categoryTrendChart"></canvas></div>
                     </div>
                 </div>
 
@@ -880,6 +947,10 @@
                             <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
                                 <span class="text-sm font-bold text-slate-800">Bildirimler özeti</span>
                                 <input type="checkbox" id="cardVis_homeNotif" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Altın yatırımı (kâr/zarar)</span>
+                                <input type="checkbox" id="cardVis_homeGold" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
                             </label>
                             <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
                                 <span class="text-sm font-bold text-slate-800">Hızlı + Harcama</span>

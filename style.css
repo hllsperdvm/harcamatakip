@@ -1151,28 +1151,50 @@ header h1 {
   background: #fff;
   border-radius: 1.5rem;
   border: 1px solid #e2e8f0;
-  padding: 1.25rem;
+  padding: 1.25rem 1.25rem 1.5rem;
   box-shadow: 0 4px 20px -2px rgba(3, 105, 161, 0.06);
 }
-.chart-block h3, .chart-block .chart-title {
-  font-size: 0.95rem;
+.chart-block h2.chart-title,
+.chart-block h3,
+.chart-block .chart-title {
+  font-size: 1rem;
   font-weight: 900;
   color: #0f172a;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.2rem;
+  line-height: 1.3;
 }
 .chart-block .chart-sub {
   font-size: 0.7rem;
   font-weight: 600;
   color: #94a3b8;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.85rem;
+  line-height: 1.35;
 }
-.chart-block .chart-wrap {
+.chart-block .chart-wrap,
+.chart-block .chart-box {
   position: relative;
   width: 100%;
   min-height: 220px;
 }
 @media (max-width: 640px) {
-  .chart-block .chart-wrap { min-height: 260px; }
+  .chart-block { padding: 1rem 1rem 1.25rem; }
+  .chart-block .chart-wrap,
+  .chart-block .chart-box { min-height: 240px; }
+}
+html.theme-dark .chart-block {
+  background: #132337 !important;
+  border-color: #334155 !important;
+}
+html.theme-dark .chart-block .chart-title,
+html.theme-dark .chart-block h2.chart-title {
+  color: #e2e8f0 !important;
+}
+html.theme-dark .chart-block .chart-sub {
+  color: #94a3b8 !important;
+}
+#appSkeleton { pointer-events: none; }
+html.theme-dark #appSkeleton {
+  background: rgba(12, 25, 41, 0.92) !important;
 }
 
 /* Theme palettes */

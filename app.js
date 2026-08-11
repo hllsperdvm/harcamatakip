@@ -123,6 +123,10 @@
         let familyCalendar = [];
         let familyTasks = [];
         let familyShopping = [];
+        let goldHoldings = [];
+        let goldPricePerGram = null; // 24 satış (değerleme)
+        let goldPricePerGram22 = null; // 22 satış
+        let goldQuotes = { buy24: null, sell24: null, buy22: null, sell22: null };
 
         let tabsConfig = DEFAULT_TABS.map(t => ({ ...t }));
 
@@ -239,6 +243,7 @@
                 document.body.classList.add('yuvam-app-open');
                 document.documentElement.classList.add('yuvam-app-open');
             } catch (_) {}
+            try { if (typeof showAppSkeleton === 'function') showAppSkeleton(); } catch (_) {}
             const label = document.getElementById('loggedInUserLabel') || document.getElementById('currentUserLabel');
             if (label) {
                 label.textContent = currentUser.role === 'admin'
@@ -417,6 +422,7 @@
                     else pushNotif(key, 'info', icon, days + ' gün: ' + title, typeLab + ' · ' + formatDateTR(d));
                 });
             } catch (_) {}
+
 
             // Aile görevleri
             try {
@@ -597,6 +603,8 @@
             try {
                 document.body.classList.remove('yuvam-app-open');
                 document.documentElement.classList.remove('yuvam-app-open');
+                try { hideAppSkeleton(); } catch (_) {}
+                _skeletonHiddenOnce = false;
                 closeMobileMoreSheet();
             } catch (_) {}
             if (loginEl) {
@@ -747,7 +755,7 @@
         // Finans özet + Ana Sayfa kart görünürlüğü
         let dashboardCards = {
             total: true, bekir: true, duygu: true, debt: true,
-            homeToday: true, homePeriod: true, homeNotif: true, homeQuickAdd: true, homeUpcoming: true,
+            homeToday: true, homePeriod: true, homeNotif: true, homeGold: true, homeQuickAdd: true, homeUpcoming: true,
             homeBudget: true, homeTasks: true, homeBriefing: true
         };
         let appTheme = 'light';
@@ -873,11 +881,29 @@
             return keys;
         }
 
+        let _skeletonHiddenOnce = false;
+        window.showAppSkeleton = function() {
+            const el = document.getElementById('appSkeleton');
+            if (el) {
+                el.classList.remove('hidden');
+                el.style.display = 'flex';
+            }
+        };
+        window.hideAppSkeleton = function() {
+            const el = document.getElementById('appSkeleton');
+            if (el) {
+                el.classList.add('hidden');
+                el.style.display = 'none';
+            }
+            _skeletonHiddenOnce = true;
+        };
+
         function scheduleRenderApp() {
             clearTimeout(renderTimeout);
             renderTimeout = setTimeout(() => {
                 renderApp();
                 if (isStatsTabActive()) updateStatsPanel();
+                try { hideAppSkeleton(); } catch (_) {}
             }, 80);
         }
 
@@ -962,6 +988,8 @@
                     renderCardStatements('duygu');
                 }
                 if (expenseChart) expenseChart.resize();
+                if (typeof refreshGoldPrice === 'function') refreshGoldPrice(false);
+                if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
             } else if (tabName === 'vehicle') {
                 renderVehicleTab();
             } else if (tabName === 'home') {
@@ -1105,6 +1133,11 @@
                 } catch (_) {}
 
                 if (typeof applyDashboardCards === 'function') applyDashboardCards();
+                try {
+                    if (typeof refreshGoldPrice === 'function') refreshGoldPrice(false);
+                    if (typeof updateHomeGoldCard === 'function') updateHomeGoldCard();
+                    else if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
+                } catch (_) {}
 
                 // Yaklaşan bildirim özeti (max 4)
                 const listEl = document.getElementById('homeUpcomingList');
@@ -1288,6 +1321,353 @@
             }
             return String(ev.date).slice(0, 10);
         }
+
+        // ——— Altın yatırımları (goldprice.dev · 24 ayar TRY/gram) ———
+        function formatGoldTL(n) {
+            const v = Number(n);
+            if (!isFinite(v)) return '—';
+            return v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺';
+        }
+
+        function currentGoldPriceForKarat(karat) {
+            const k = Number(karat) || 24;
+            if (k === 22) {
+                if (goldQuotes.sell22 != null) return goldQuotes.sell22;
+                if (goldPricePerGram22 != null) return goldPricePerGram22;
+                if (goldQuotes.sell24 != null) return goldQuotes.sell24 * (22 / 24);
+                if (goldPricePerGram != null) return goldPricePerGram * (22 / 24);
+                return null;
+            }
+            if (goldQuotes.sell24 != null) return goldQuotes.sell24;
+            return goldPricePerGram;
+        }
+
+        function updateGoldPriceUI() {
+            const fmt = function(v) { return v != null && isFinite(v) ? formatGoldTL(v) : '—'; };
+            const elB24 = document.getElementById('goldBuy24');
+            const elS24 = document.getElementById('goldSell24');
+            const elB22 = document.getElementById('goldBuy22');
+            const elS22 = document.getElementById('goldSell22');
+            if (elB24) elB24.textContent = fmt(goldQuotes.buy24);
+            if (elS24) elS24.textContent = fmt(goldQuotes.sell24);
+            if (elB22) elB22.textContent = fmt(goldQuotes.buy22);
+            if (elS22) elS22.textContent = fmt(goldQuotes.sell22);
+        }
+
+        function computeGoldPortfolio() {
+            let totalCost = 0, totalValue = 0, totalGrams = 0, hasPriced = false;
+            (goldHoldings || []).forEach(function(h) {
+                const g = Number(h.grams) || 0;
+                const bp = Number(h.buyPrice) || 0;
+                const karat = Number(h.karat) || 24;
+                const price = currentGoldPriceForKarat(karat);
+                totalCost += g * bp;
+                totalGrams += g;
+                if (price != null) {
+                    totalValue += g * price;
+                    hasPriced = true;
+                }
+            });
+            return {
+                totalCost: totalCost,
+                totalValue: totalValue,
+                totalGrams: totalGrams,
+                pnl: hasPriced ? (totalValue - totalCost) : null,
+                hasPriced: hasPriced
+            };
+        }
+
+        function updateHomeGoldCard() {
+            const el = document.getElementById('homeGoldPnL');
+            const sub = document.getElementById('homeGoldSub');
+            if (!el) return;
+            const p = computeGoldPortfolio();
+            if (!(goldHoldings || []).length) {
+                el.textContent = 'Kayıt yok';
+                el.className = 'text-xl font-black text-slate-400 mt-1';
+                if (sub) sub.textContent = 'Raporlar · altın ekle';
+                return;
+            }
+            if (!p.hasPriced) {
+                el.textContent = 'Fiyat bekleniyor';
+                el.className = 'text-xl font-black text-slate-500 mt-1';
+                if (sub) sub.textContent = (p.totalGrams || 0) + ' g · maliyet ' + formatGoldTL(p.totalCost);
+                return;
+            }
+            const pnl = p.pnl;
+            const pct = p.totalCost > 0 ? (pnl / p.totalCost * 100) : 0;
+            el.textContent = (pnl >= 0 ? '+' : '') + Math.round(pnl).toLocaleString('tr-TR') + ' TL';
+            el.className = 'text-xl font-black mt-1 ' + (pnl >= 0 ? 'text-emerald-600' : 'text-rose-600');
+            if (sub) {
+                sub.textContent = (pnl >= 0 ? '+' : '') + pct.toFixed(1) + '% · ' +
+                    (p.totalGrams || 0) + ' g · değer ' + formatGoldTL(p.totalValue);
+            }
+        }
+
+        window.renderGoldHoldings = function() {
+            const list = document.getElementById('goldHoldingsList');
+            if (!list) {
+                updateHomeGoldCard();
+                return;
+            }
+            const port = computeGoldPortfolio();
+            if (!(goldHoldings || []).length) {
+                list.innerHTML = '<p class="text-center text-xs text-slate-400 font-semibold py-3">Henüz altın kaydı yok</p>';
+            } else {
+                const sorted = goldHoldings.slice().sort(function(a, b) {
+                    return String(b.buyDate || '').localeCompare(String(a.buyDate || ''));
+                });
+                list.innerHTML = sorted.map(function(h) {
+                    const g = Number(h.grams) || 0;
+                    const bp = Number(h.buyPrice) || 0;
+                    const karat = Number(h.karat) || 24;
+                    const price = currentGoldPriceForKarat(karat);
+                    const cost = g * bp;
+                    const val = (price != null) ? g * price : null;
+                    const pnl = (val != null) ? val - cost : null;
+                    const pnlCls = pnl == null ? 'text-slate-500' : (pnl >= 0 ? 'text-emerald-600' : 'text-rose-600');
+                    const pnlTxt = pnl == null ? 'Fiyat bekleniyor' : ((pnl >= 0 ? '+' : '') + formatGoldTL(pnl));
+                    const karatBadge = '<span class="inline-block text-[10px] font-black px-1.5 py-0.5 rounded-md ' +
+                        (karat === 22 ? 'bg-orange-100 text-orange-800' : 'bg-amber-100 text-amber-900') + '">' + karat + ' ayar</span>';
+                    return '<div class="p-2.5 rounded-xl border border-slate-100 bg-slate-50/80">' +
+                        '<div class="flex justify-between gap-2 items-start">' +
+                        '<div class="min-w-0">' +
+                        '<p class="text-xs font-black text-slate-800 flex flex-wrap items-center gap-1.5">' + karatBadge + ' ' + g + ' g · alış ' + formatGoldTL(bp) + '/g</p>' +
+                        '<p class="text-[10px] text-slate-500 font-semibold">' + escapeHtml(h.buyDate || '') +
+                        (h.note ? (' · ' + escapeHtml(h.note)) : '') + '</p>' +
+                        '<p class="text-[10px] font-bold text-slate-600 mt-0.5">Maliyet ' + formatGoldTL(cost) +
+                        (val != null ? (' · Değer ' + formatGoldTL(val)) : '') + '</p>' +
+                        '<p class="text-xs font-black ' + pnlCls + '">' + pnlTxt + '</p>' +
+                        '</div>' +
+                        '<button type="button" onclick="deleteGoldHolding(\'' + escapeHtml(h.id) + '\')" class="text-[10px] font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50 shrink-0">Sil</button>' +
+                        '</div></div>';
+                }).join('');
+            }
+            const elCost = document.getElementById('goldSumCost');
+            const elVal = document.getElementById('goldSumValue');
+            const elPnL = document.getElementById('goldSumPnL');
+            if (elCost) elCost.textContent = formatGoldTL(port.totalCost) + (port.totalGrams ? (' · ' + port.totalGrams + ' g') : '');
+            if (elVal) elVal.textContent = port.hasPriced ? formatGoldTL(port.totalValue) : '—';
+            if (elPnL) {
+                if (!port.hasPriced) {
+                    elPnL.textContent = '—';
+                    elPnL.className = 'font-black text-slate-500';
+                } else {
+                    const pnl = port.pnl;
+                    const pct = port.totalCost > 0 ? (pnl / port.totalCost * 100) : 0;
+                    elPnL.textContent = (pnl >= 0 ? '+' : '') + formatGoldTL(pnl) + ' (' + (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%)';
+                    elPnL.className = 'font-black ' + (pnl >= 0 ? 'text-emerald-600' : 'text-rose-600');
+                }
+            }
+            updateHomeGoldCard();
+        };
+
+        window.refreshGoldPrice = async function(force) {
+            const elMeta = document.getElementById('goldPriceMeta');
+            try {
+                if (!force && goldQuotes.sell24 != null) {
+                    updateGoldPriceUI();
+                    renderGoldHoldings();
+                    return;
+                }
+                if (elMeta) elMeta.textContent = 'Fiyat çekiliyor…';
+
+                let buy24 = null, sell24 = null, buy22 = null, sell22 = null;
+                let source = '';
+                let change = null;
+
+                try {
+                    const res = await fetch('https://finans.truncgil.com/v4/today.json', { cache: 'no-store' });
+                    if (!res.ok) throw new Error('truncgil ' + res.status);
+                    const data = await res.json();
+                    const has = data.HAS || data.GRAMHASALTIN || data.GramAltin || data['Gram Altın'];
+                    if (has) {
+                        buy24 = parseFloat(has.Buying);
+                        sell24 = parseFloat(has.Selling);
+                        if (!(buy24 > 0)) buy24 = sell24;
+                        if (!(sell24 > 0)) sell24 = buy24;
+                        if (has.Change != null && has.Change !== '') change = has.Change;
+                        source = 'Truncgil' + (data.Update_Date ? (' · ' + data.Update_Date) : '');
+                    }
+                    const a22 = data['22AYARALTIN'] || data['22AYAR'] || data.AYAR22;
+                    if (a22) {
+                        buy22 = parseFloat(a22.Buying);
+                        sell22 = parseFloat(a22.Selling);
+                        if (!(buy22 > 0)) buy22 = sell22;
+                        if (!(sell22 > 0)) sell22 = buy22;
+                    }
+                } catch (_) {}
+
+                if (!(sell24 > 0)) {
+                    try {
+                        const res2 = await fetch('https://api.goldprice.dev/v1/carat?currency=TRY', { cache: 'no-store' });
+                        if (res2.ok) {
+                            const data2 = await res2.json();
+                            const g24 = parseFloat(data2.price_gram_24k);
+                            const g22 = parseFloat(data2.price_gram_22k);
+                            if (g24 > 0) { sell24 = g24; buy24 = g24; source = source || 'goldprice.dev'; }
+                            if (g22 > 0) { sell22 = g22; buy22 = g22; }
+                        }
+                    } catch (_) {}
+                }
+
+                if (!(sell24 > 0)) throw new Error('Fiyat alınamadı');
+                if (!(buy24 > 0)) buy24 = sell24;
+                if (!(sell22 > 0)) sell22 = sell24 * (22 / 24);
+                if (!(buy22 > 0)) buy22 = buy24 * (22 / 24);
+
+                goldQuotes = { buy24: buy24, sell24: sell24, buy22: buy22, sell22: sell22 };
+                goldPricePerGram = sell24;
+                goldPricePerGram22 = sell22;
+                updateGoldPriceUI();
+                if (elMeta) {
+                    let meta = source || 'Güncel';
+                    if (change != null && change !== '') meta += ' · ' + change + '%';
+                    elMeta.textContent = meta;
+                }
+                try {
+                    localStorage.setItem('yuvam_gold_price', JSON.stringify({
+                        quotes: goldQuotes, p: sell24, p22: sell22, at: Date.now(), source: source
+                    }));
+                } catch (_) {}
+                renderGoldHoldings();
+            } catch (e) {
+                try {
+                    const raw = localStorage.getItem('yuvam_gold_price');
+                    if (raw) {
+                        const o = JSON.parse(raw);
+                        if (o.quotes && o.quotes.sell24 > 0) {
+                            goldQuotes = o.quotes;
+                            goldPricePerGram = o.quotes.sell24;
+                            goldPricePerGram22 = o.quotes.sell22;
+                        } else if (o.p > 0) {
+                            goldPricePerGram = o.p;
+                            goldPricePerGram22 = o.p22 > 0 ? o.p22 : o.p * (22 / 24);
+                            goldQuotes = {
+                                buy24: o.p, sell24: o.p,
+                                buy22: goldPricePerGram22, sell22: goldPricePerGram22
+                            };
+                        }
+                        updateGoldPriceUI();
+                        if (elMeta) elMeta.textContent = 'Önbellek · elle de girebilirsiniz';
+                        renderGoldHoldings();
+                        return;
+                    }
+                } catch (_) {}
+                if (elMeta) elMeta.textContent = 'API yok — elle 24A satış ₺/g girin';
+            }
+        };
+
+        window.applyManualGoldPrice = function() {
+            const inp = document.getElementById('goldManualPrice');
+            const p = parseFloat(inp && inp.value);
+            if (!isFinite(p) || p <= 0) {
+                if (typeof showToast === 'function') showToast('Geçerli bir 24 ayar satış fiyatı girin', 'error');
+                return;
+            }
+            const p22 = p * (22 / 24);
+            goldQuotes = { buy24: p, sell24: p, buy22: p22, sell22: p22 };
+            goldPricePerGram = p;
+            goldPricePerGram22 = p22;
+            try {
+                localStorage.setItem('yuvam_gold_price', JSON.stringify({
+                    quotes: goldQuotes, p: p, p22: p22, at: Date.now()
+                }));
+            } catch (_) {}
+            updateGoldPriceUI();
+            const elMeta = document.getElementById('goldPriceMeta');
+            if (elMeta) elMeta.textContent = 'Elle girildi';
+            renderGoldHoldings();
+            if (typeof showToast === 'function') showToast('Fiyat güncellendi', 'success');
+        };
+
+        const GOLD_LS_KEY = 'yuvam_gold_holdings_v1';
+
+        function loadGoldHoldingsLocal() {
+            try {
+                const raw = localStorage.getItem(GOLD_LS_KEY);
+                if (!raw) return [];
+                const arr = JSON.parse(raw);
+                return Array.isArray(arr) ? arr : [];
+            } catch (_) { return []; }
+        }
+
+        function saveGoldHoldingsLocal(list) {
+            try { localStorage.setItem(GOLD_LS_KEY, JSON.stringify(list || [])); } catch (_) {}
+        }
+
+        async function persistGoldHoldings(list) {
+            goldHoldings = list || [];
+            saveGoldHoldingsLocal(goldHoldings);
+            // settings koleksiyonu zaten izinli — tek doküman
+            try {
+                await db.collection('settings').doc('goldHoldings').set({
+                    list: goldHoldings,
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+            } catch (e) {
+                console.warn('gold settings write', e);
+                // local yeterli
+            }
+            renderGoldHoldings();
+        }
+
+        window.addGoldHolding = async function(e) {
+            e.preventDefault();
+            if (!currentUser) {
+                if (typeof showToast === 'function') showToast('Önce giriş yapın', 'error');
+                return;
+            }
+            const karat = parseInt((document.getElementById('goldKarat') || {}).value, 10) || 24;
+            const grams = parseFloat((document.getElementById('goldGrams') || {}).value);
+            const buyPrice = parseFloat((document.getElementById('goldBuyPrice') || {}).value);
+            const buyDate = ((document.getElementById('goldBuyDate') || {}).value || '').trim();
+            const note = ((document.getElementById('goldNote') || {}).value || '').trim();
+            if (!isFinite(grams) || grams <= 0 || !isFinite(buyPrice) || buyPrice <= 0 || !buyDate) {
+                if (typeof showToast === 'function') showToast('Gram, alış fiyatı ve tarih zorunlu', 'error');
+                return;
+            }
+            try {
+                const row = {
+                    id: 'g_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+                    karat: (karat === 22 ? 22 : 24),
+                    grams: grams,
+                    buyPrice: buyPrice,
+                    buyDate: buyDate,
+                    note: note,
+                    createdAt: new Date().toISOString(),
+                    createdBy: currentUser.name || currentUser.uid || ''
+                };
+                const next = (goldHoldings || []).concat([row]);
+                await persistGoldHoldings(next);
+                const g = document.getElementById('goldGrams');
+                const bp = document.getElementById('goldBuyPrice');
+                const n = document.getElementById('goldNote');
+                if (g) g.value = '';
+                if (bp) bp.value = '';
+                if (n) n.value = '';
+                if (typeof showToast === 'function') showToast('Altın kaydı eklendi', 'success');
+            } catch (err) {
+                console.error(err);
+                if (typeof showToast === 'function') showToast('Kayıt eklenemedi: ' + (err.message || err), 'error');
+            }
+        };
+
+        window.deleteGoldHolding = async function(id) {
+            if (!id || !confirm('Bu altın kaydı silinsin mi?')) return;
+            try {
+                const next = (goldHoldings || []).filter(function(h) { return h.id !== id; });
+                await persistGoldHoldings(next);
+                if (typeof showToast === 'function') showToast('Silindi', 'success');
+            } catch (err) {
+                if (typeof showToast === 'function') showToast('Silinemedi', 'error');
+            }
+        };
+
+        // Sayfa açılışında fiyatı arka planda dene
+        setTimeout(function() {
+            try { if (currentUser && typeof refreshGoldPrice === 'function') refreshGoldPrice(true); } catch (_) {}
+        }, 2000);
 
         window.renderCalendarTab = function() {
             const list = document.getElementById('familyCalendarList');
@@ -1597,7 +1977,7 @@
         // Ana sayfa + finans kart görünürlüğü (Ayarlar)
         const DASH_CARD_KEYS = [
             'total', 'bekir', 'duygu', 'debt',
-            'homeToday', 'homePeriod', 'homeNotif', 'homeQuickAdd', 'homeUpcoming', 'homeBudget', 'homeTasks', 'homeBriefing'
+            'homeToday', 'homePeriod', 'homeNotif', 'homeGold', 'homeQuickAdd', 'homeUpcoming', 'homeBudget', 'homeTasks', 'homeBriefing'
         ];
 
         window.applyDashboardCards = function() {
@@ -1843,6 +2223,18 @@
                 familyCalendar = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
                 refreshFamilyViews();
             }, function(e) { console.warn('familyCalendar', e); });
+            // Önce local, sonra settings/goldHoldings
+            try {
+                goldHoldings = loadGoldHoldingsLocal();
+                if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
+            } catch (_) {}
+            db.collection('settings').doc('goldHoldings').onSnapshot(function(d) {
+                if (d.exists && d.data() && Array.isArray(d.data().list)) {
+                    goldHoldings = d.data().list;
+                    saveGoldHoldingsLocal(goldHoldings);
+                    if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
+                }
+            }, function(e) { console.warn('goldHoldings settings', e); });
             db.collection('familyTasks').onSnapshot(function(snap) {
                 familyTasks = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
                 refreshFamilyViews();
