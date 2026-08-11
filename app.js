@@ -479,7 +479,7 @@
             }
             if (!body) return;
             if (!items.length) {
-                body.innerHTML = '<p class="text-xs text-slate-400 font-semibold p-4 text-center">Yakın vadede uyarı yok 👍</p>';
+                body.innerHTML = yuvamEmptyState('👍', 'Bildirim yok', 'Yakın vadede uyarı bulunmuyor', null, null);
                 return;
             }
             const top = items.slice(0, 5);
@@ -1072,8 +1072,23 @@
                         const open = (familyTasks || []).filter(function(t) { return !t.done; });
                         const done = (familyTasks || []).filter(function(t) { return t.done; }).slice(0, 3);
                         const show = open.concat(done).slice(0, 8);
+                        const allT = familyTasks || [];
+                        const openN = allT.filter(function(t) { return !t.done; }).length;
+                        const doneN = allT.filter(function(t) { return t.done; }).length;
+                        const totalN = openN + doneN;
+                        const progWrap = document.getElementById('homeTasksProgress');
+                        const progArc = document.getElementById('homeTasksProgressArc');
+                        const progLbl = document.getElementById('homeTasksProgressLabel');
+                        if (progWrap && totalN > 0) {
+                            progWrap.classList.remove('hidden');
+                            const pct = Math.round((doneN / totalN) * 100);
+                            if (progArc) progArc.setAttribute('stroke-dasharray', pct + ', 100');
+                            if (progLbl) progLbl.textContent = doneN + '/' + totalN;
+                        } else if (progWrap) {
+                            progWrap.classList.add('hidden');
+                        }
                         if (!show.length) {
-                            htList.innerHTML = '<p class="text-sm text-slate-400 font-semibold py-2">Açık görev yok · eklemek için Görevler sekmesine gidin</p>';
+                            htList.innerHTML = yuvamEmptyState('✅', 'Açık görev yok', 'Eklemek için Görevler sekmesine gidin', 'Görevler', "switchTab('tasks')");
                         } else {
                             htList.innerHTML = show.map(function(t) {
                                 const due = t.due ? formatDateTR(t.due) : '';
@@ -1097,7 +1112,7 @@
                     let items = [];
                     try { items = (typeof collectAppNotifications === 'function') ? collectAppNotifications().slice(0, 4) : []; } catch (_) {}
                     if (!items.length) {
-                        listEl.innerHTML = '<p class="text-sm text-slate-400 font-semibold py-2">Yakın vadede uyarı yok 👍</p>';
+                        listEl.innerHTML = yuvamEmptyState('👍', 'Yakın uyarı yok', 'Takvim ve ödemeler burada görünür', null, null);
                     } else {
                         listEl.innerHTML = items.map(function(n) {
                             return '<div class="flex gap-2 items-start p-3 rounded-xl bg-slate-50 border border-slate-100">' +
@@ -1218,6 +1233,18 @@
                 '</div><div class="flex gap-1 shrink-0">' + (actionsHtml || '') + '</div></div>';
         }
 
+        window.yuvamEmptyState = function(icon, title, sub, btnLabel, btnOnclick) {
+            let html = '<div class="yuvam-empty">' +
+                '<span class="yuvam-empty-ico">' + (icon || '📭') + '</span>' +
+                '<p class="yuvam-empty-title">' + escapeHtml(title || 'Henüz kayıt yok') + '</p>' +
+                (sub ? '<p class="yuvam-empty-sub">' + escapeHtml(sub) + '</p>' : '');
+            if (btnLabel && btnOnclick) {
+                html += '<button type="button" class="yuvam-empty-btn" onclick="' + btnOnclick + '">' + escapeHtml(btnLabel) + '</button>';
+            }
+            html += '</div>';
+            return html;
+        };
+
         function calTypeLabel(type) {
             const m = { event: 'Etkinlik', birthday: 'Doğum günü', anniversary: 'Yıldönümü', appointment: 'Randevu', other: 'Diğer' };
             return m[type] || 'Etkinlik';
@@ -1269,7 +1296,7 @@
                 return eventEffectiveDate(a).localeCompare(eventEffectiveDate(b));
             });
             if (!sorted.length) {
-                list.innerHTML = '<p class="text-sm text-slate-400 font-semibold py-4 text-center">Henüz etkinlik yok</p>';
+                list.innerHTML = yuvamEmptyState('📅', 'Takvim boş', 'Randevu, doğum günü veya hatırlatma ekleyin', null, null);
                 return;
             }
             list.innerHTML = sorted.map(function(ev) {
@@ -1363,7 +1390,7 @@
                 return String(a.due || '9999').localeCompare(String(b.due || '9999'));
             });
             if (!sorted.length) {
-                list.innerHTML = '<p class="text-sm text-slate-400 font-semibold py-4 text-center">Görev yok</p>';
+                list.innerHTML = yuvamEmptyState('✅', 'Görev yok', 'Aile görevlerini ekleyin; ana sayfada da görünür', null, null);
                 return;
             }
             list.innerHTML = sorted.map(function(t) {
@@ -1478,7 +1505,7 @@
             const sumEl = document.getElementById('familyShopSummary');
             if (sumEl) sumEl.textContent = openN + ' ürün alınacak' + (bought.length ? ' · ' + bought.length + ' alındı' : '');
             if (!sorted.length) {
-                list.innerHTML = '<p class="text-sm text-slate-400 font-semibold py-4 text-center">Liste boş</p>';
+                list.innerHTML = yuvamEmptyState('🛒', 'Alışveriş listesi boş', 'Market veya ev ihtiyaçlarını ekleyin', null, null);
                 return;
             }
             list.innerHTML = sorted.map(function(x) {
@@ -4721,7 +4748,7 @@
             const list = Array.isArray(ibans) ? ibans : [];
             window._ibanSecrets = {};
             if (!list.length) {
-                box.innerHTML = '<div class="text-center text-slate-400 py-8 col-span-full"><p class="text-sm">Henüz IBAN kaydı yok</p></div>';
+                box.innerHTML = '<div class="col-span-full">' + yuvamEmptyState('💳', 'Henüz IBAN yok', 'Banka hesaplarınızı güvenle saklayın', '+ IBAN Ekle', 'openIbanModal()') + '</div>';
                 return;
             }
             box.innerHTML = list.map(function(item) {
@@ -5808,12 +5835,45 @@
             return 'yuvam_theme_' + user + '_' + getThemeDeviceKind();
         }
 
+        let themePalette = 'ocean';
+
+        window.setThemePalette = function(palette, opts) {
+            opts = opts || {};
+            const p = (palette === 'warm' || palette === 'forest') ? palette : 'ocean';
+            themePalette = p;
+            document.documentElement.classList.remove('theme-ocean', 'theme-warm', 'theme-forest');
+            document.documentElement.classList.add('theme-' + p);
+            try { localStorage.setItem('yuvam_palette', p); } catch (_) {}
+            const map = {
+                ocean: 'paletteBtnOcean',
+                warm: 'paletteBtnWarm',
+                forest: 'paletteBtnForest'
+            };
+            Object.keys(map).forEach(function(k) {
+                const el = document.getElementById(map[k]);
+                if (!el) return;
+                const on = k === p;
+                el.className = on
+                    ? 'py-3 rounded-xl font-bold text-xs border-2 border-sky-500 bg-sky-50 text-sky-800'
+                    : 'py-3 rounded-xl font-bold text-xs border-2 border-transparent bg-slate-50 text-slate-600';
+            });
+            try {
+                const meta = document.querySelector('meta[name="theme-color"]');
+                if (meta) {
+                    meta.setAttribute('content', p === 'warm' ? '#ea580c' : (p === 'forest' ? '#059669' : '#0284c7'));
+                }
+            } catch (_) {}
+        };
+
         window.setAppTheme = function(theme, opts) {
             opts = opts || {};
             appTheme = theme === 'dark' ? 'dark' : 'light';
             document.documentElement.classList.toggle('theme-dark', appTheme === 'dark');
-            document.documentElement.classList.add('theme-ocean');
-            // Sadece bu cihaz türüne kaydet (mobil ≠ web)
+            if (!document.documentElement.classList.contains('theme-warm') &&
+                !document.documentElement.classList.contains('theme-forest') &&
+                !document.documentElement.classList.contains('theme-ocean')) {
+                document.documentElement.classList.add('theme-' + (themePalette || 'ocean'));
+            }
             try {
                 localStorage.setItem(themeStorageKey(), appTheme);
             } catch (_) {}
@@ -5833,33 +5893,34 @@
             const hint = document.getElementById('themeDeviceHint');
             if (hint) {
                 const uname = (currentUser && currentUser.name) || 'bu hesap';
-                hint.textContent = uname + ' · ' + (device === 'mobile' ? 'mobil' : 'web') + ' teması (diğer kullanıcıyı etkilemez)';
+                hint.textContent = uname + ' · ' + (device === 'mobile' ? 'mobil' : 'web') + ' · ' + (themePalette || 'ocean');
             }
-            // Tema paylaşılan uiPrefs'e yazılmaz (Bekir ≠ Duygu)
-            // İsteğe bağlı: kullanıcı dokümanına yaz
             if (!opts.skipRemote && currentUser && currentUser.uid && typeof db !== 'undefined') {
                 const patch = {};
                 if (device === 'mobile') patch.themeMobile = appTheme;
                 else patch.themeDesktop = appTheme;
+                patch.themePalette = themePalette || 'ocean';
                 db.collection('users').doc(currentUser.uid).set(patch, { merge: true }).catch(function() {});
             }
         };
 
         function loadThemeFromStorage() {
             try {
+                let pal = localStorage.getItem('yuvam_palette');
+                if (pal === 'warm' || pal === 'forest' || pal === 'ocean') setThemePalette(pal, { skipRemote: true });
+                else setThemePalette('ocean', { skipRemote: true });
                 let t = localStorage.getItem(themeStorageKey());
-                // eski tek anahtar → ilgili cihaza taşı
                 if (!t) {
                     const legacy = localStorage.getItem('yuvam_theme');
                     if (legacy === 'dark' || legacy === 'light') t = legacy;
                 }
                 if (t === 'dark' || t === 'light') setAppTheme(t, { skipRemote: true });
                 else {
-                    document.documentElement.classList.add('theme-ocean');
                     appTheme = 'light';
+                    document.documentElement.classList.remove('theme-dark');
                 }
             } catch (_) {
-                document.documentElement.classList.add('theme-ocean');
+                setThemePalette('ocean', { skipRemote: true });
             }
         }
 

@@ -2,13 +2,20 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YUVAM - Ortak Bütçe</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0284c7">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="YUVAM">
+    <meta name="application-name" content="YUVAM">
+    <meta name="description" content="YUVAM Digital Home Hub — aile bütçe ve ev merkezi">
+    <title>YUVAM · Digital Home Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%234f46e5'/><path d='M50 22L20 45v35h60V45L50 22z' fill='none' stroke='%23ffffff' stroke-width='6' stroke-linejoin='round'/><path d='M68 35v10h8v-6h4V35h-12z' fill='%23ffffff'/><rect x='38' y='52' width='12' height='16' rx='2' fill='%23ffffff'/><rect x='56' y='52' width='12' height='16' rx='2' fill='%23ffffff'/></svg>">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230284c7'/%3E%3Cpath d='M50 22L20 45v35h60V45L50 22z' fill='none' stroke='%23ffffff' stroke-width='6' stroke-linejoin='round'/%3E%3Cpath d='M68 35v10h8v-6h4V35h-12z' fill='%23ffffff'/%3E%3Crect x='38' y='52' width='12' height='16' rx='2' fill='%23ffffff'/%3E%3Crect x='56' y='52' width='12' height='16' rx='2' fill='%23ffffff'/%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230284c7'/%3E%3Cpath d='M50 22L20 45v35h60V45L50 22z' fill='none' stroke='%23ffffff' stroke-width='6' stroke-linejoin='round'/%3E%3Cpath d='M68 35v10h8v-6h4V35h-12z' fill='%23ffffff'/%3E%3Crect x='38' y='52' width='12' height='16' rx='2' fill='%23ffffff'/%3E%3Crect x='56' y='52' width='12' height='16' rx='2' fill='%23ffffff'/%3E%3C/svg%3E">
 </head>
 <body class="text-slate-800 antialiased">
 
@@ -92,26 +99,41 @@
 
             <!-- SEKME: ANA SAYFA (YUVAM 2.0 iskelet) -->
             <div id="tabContentHome" class="hidden space-y-5 fade-in pb-4">
-                <div class="bg-gradient-to-br from-sky-600 to-cyan-600 text-white rounded-[2rem] p-6 shadow-lg shadow-sky-200/40">
-                    <p id="homeGreeting" class="text-xl font-black">Merhaba</p>
-                    <p id="homeMotivation" class="text-sm font-semibold text-sky-50/95 mt-2 leading-snug">—</p>
-                    <p id="homeOnThisDay" class="text-xs font-semibold text-sky-100/90 mt-1.5 leading-snug opacity-95">—</p>
-                    <p id="homeTodayDate" class="text-sm font-semibold text-sky-100 mt-2 opacity-90">—</p>
-                    <p id="homePeriodBadge" class="inline-flex mt-3 text-[11px] font-bold bg-white/15 px-3 py-1 rounded-full">Dönem: —</p>
+                <div class="home-hero relative overflow-hidden text-white rounded-[2rem] p-6 shadow-lg">
+                    <div class="home-hero-pattern" aria-hidden="true"></div>
+                    <div class="relative z-[1]">
+                        <p id="homeGreeting" class="text-2xl sm:text-3xl font-black tracking-tight">Merhaba</p>
+                        <p id="homeMotivation" class="text-sm sm:text-[0.95rem] font-semibold text-white/95 mt-2 leading-snug">—</p>
+                        <p id="homeOnThisDay" class="text-xs sm:text-sm font-semibold text-white/85 mt-1.5 leading-snug">—</p>
+                        <p id="homeTodayDate" class="text-sm font-semibold text-white/80 mt-3">—</p>
+                        <p id="homePeriodBadge" class="inline-flex mt-3 text-[11px] font-bold bg-white/15 px-3 py-1 rounded-full backdrop-blur-sm">Dönem: —</p>
+                    </div>
                 </div>
 
-                <div data-home-card="homeTasks" class="bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
-                    <div class="flex items-center justify-between mb-3 gap-2">
-                        <h2 class="text-base font-black text-slate-800">✅ Görevler</h2>
-                        <button type="button" onclick="switchTab('tasks')" class="text-xs font-bold text-emerald-600 shrink-0">Görevler sekmesi</button>
+                <div data-home-card="homeTasks" class="yuvam-card stripe-tasks bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
+                    <div class="flex items-center justify-between mb-2 gap-2">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="icon-ring icon-ring-emerald">✅</span>
+                            <h2 class="text-base font-black text-slate-800">Görevler</h2>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <div id="homeTasksProgress" class="task-progress hidden" title="Tamamlanan">
+                                <svg viewBox="0 0 36 36" class="task-progress-svg"><path class="tp-bg" d="M18 2.5a15.5 15.5 0 1 1 0 31 15.5 15.5 0 1 1 0-31"/><path id="homeTasksProgressArc" class="tp-fg" stroke-dasharray="0, 100" d="M18 2.5a15.5 15.5 0 1 1 0 31 15.5 15.5 0 1 1 0-31"/></svg>
+                                <span id="homeTasksProgressLabel" class="task-progress-lbl">0</span>
+                            </div>
+                            <button type="button" onclick="switchTab('tasks')" class="text-xs font-bold text-emerald-600">Aç</button>
+                        </div>
                     </div>
                     <p class="text-[11px] text-slate-400 font-semibold mb-3">Sadece liste · ekleme Görevler sekmesinden</p>
                     <div id="homeTasksList" class="space-y-2"></div>
                 </div>
 
-                <div data-home-card="homeBriefing" class="bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
+                <div data-home-card="homeBriefing" class="yuvam-card stripe-briefing bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
                     <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-                        <h2 class="text-base font-black text-slate-800">☀️ Günlük brifing</h2>
+                        <div class="flex items-center gap-2">
+                            <span class="icon-ring icon-ring-violet">☀️</span>
+                            <h2 class="text-base font-black text-slate-800">Günlük brifing</h2>
+                        </div>
                         <button type="button" id="homeBriefingAiBtn" onclick="runHomeAiBriefing()" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-violet-50 text-violet-700 border border-violet-100">AI özet</button>
                     </div>
                     <div id="homeBriefingLocal" class="text-sm text-slate-600 font-semibold leading-relaxed space-y-1"></div>
@@ -120,44 +142,47 @@
                 </div>
 
                 <button type="button" data-home-card="homeQuickAdd" onclick="switchTab('expense'); openExpenseModal();"
-                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-[2rem] p-6 shadow-lg shadow-indigo-200/40 text-left flex items-center justify-between gap-4">
+                    class="w-full home-quick-add text-white rounded-[2rem] p-6 shadow-lg text-left flex items-center justify-between gap-4 transition active:scale-[0.99]">
                     <div>
-                        <p class="text-[10px] font-black text-indigo-100 uppercase tracking-wider">Hızlı işlem</p>
+                        <p class="text-[10px] font-black text-white/80 uppercase tracking-wider">Hızlı işlem</p>
                         <p class="text-xl font-black mt-1">+ Harcama ekle</p>
-                        <p class="text-[11px] text-indigo-100 font-semibold mt-1">Bütçe Takibe ekle</p>
+                        <p class="text-[11px] text-white/80 font-semibold mt-1">Bütçe Takibe ekle</p>
                     </div>
                     <span class="text-3xl font-light opacity-80 shrink-0">＋</span>
                 </button>
 
                 <div class="grid grid-cols-2 gap-3">
-                    <div data-home-card="homeToday" class="bg-white rounded-2xl p-4 card-shadow border border-slate-100">
+                    <div data-home-card="homeToday" class="yuvam-card stripe-today bg-white rounded-2xl p-4 card-shadow border border-slate-100">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Bugün harcama</p>
                         <p id="homeTodaySpend" class="text-lg font-black text-slate-800 mt-1">0 TL</p>
                         <p id="homeTodayCount" class="text-[11px] text-slate-400 font-semibold">0 kayıt</p>
                     </div>
-                    <div data-home-card="homePeriod" class="bg-white rounded-2xl p-4 card-shadow border border-slate-100">
+                    <div data-home-card="homePeriod" class="yuvam-card stripe-period bg-white rounded-2xl p-4 card-shadow border border-slate-100">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Dönem toplam</p>
                         <p id="homePeriodSpend" class="text-lg font-black text-rose-600 mt-1">0 TL</p>
                         <p class="text-[11px] text-slate-400 font-semibold">29–28 ekstre</p>
                     </div>
-                    <button type="button" data-home-card="homeNotif" onclick="openNotifAllModal()" class="bg-white rounded-2xl p-4 card-shadow border border-slate-100 text-left col-span-2">
+                    <button type="button" data-home-card="homeNotif" onclick="openNotifAllModal()" class="yuvam-card stripe-notif bg-white rounded-2xl p-4 card-shadow border border-slate-100 text-left col-span-2">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Bildirimler</p>
                         <p class="text-lg font-black text-amber-600 mt-1"><span id="homeNotifCount">0</span> açık</p>
                         <p class="text-[11px] text-slate-400 font-semibold">Detay için dokunun</p>
                     </button>
                 </div>
 
-                <div data-home-card="homeBudget" class="bg-white rounded-2xl p-4 card-shadow border border-slate-100">
+                <div data-home-card="homeBudget" class="yuvam-card stripe-budget bg-white rounded-2xl p-4 card-shadow border border-slate-100">
                     <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Aylık bütçe hedefi</p>
                     <p id="homeBudgetLabel" class="text-sm font-bold text-slate-700">—</p>
                     <div class="mt-2 h-2.5 rounded-full bg-slate-100 overflow-hidden">
-                        <div id="homeBudgetBar" class="h-full rounded-full bg-sky-500 transition-all" style="width:0%"></div>
+                        <div id="homeBudgetBar" class="h-full rounded-full bg-sky-500 transition-all duration-500" style="width:0%"></div>
                     </div>
                 </div>
 
-                <div data-home-card="homeUpcoming" class="bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
+                <div data-home-card="homeUpcoming" class="yuvam-card stripe-upcoming bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
                     <div class="flex items-center justify-between mb-3">
-                        <h2 class="text-base font-black text-slate-800">Yaklaşanlar</h2>
+                        <div class="flex items-center gap-2">
+                            <span class="icon-ring icon-ring-amber">🔔</span>
+                            <h2 class="text-base font-black text-slate-800">Yaklaşanlar</h2>
+                        </div>
                         <button type="button" onclick="openHomeAllNotifs()" class="text-xs font-bold text-sky-600">Tümü</button>
                     </div>
                     <div id="homeUpcomingList" class="space-y-2"></div>
@@ -815,10 +840,16 @@
                             <span class="text-slate-300 text-lg">▾</span>
                         </button>
                         <div id="adminPanel_theme" class="hidden border-t border-slate-100 p-6 space-y-3">
-                            <p class="text-[11px] text-slate-500 font-semibold">Ocean Breeze · açık ve koyu tercih <b>cihazına özel</b>dir (mobil ≠ web).</p>
+                            <p class="text-[11px] text-slate-500 font-semibold">Açık / koyu tercih <b>cihazına özel</b>dir (mobil ≠ web). Palet tüm cihazlarda geçerli.</p>
                             <div class="flex gap-3">
                                 <button type="button" onclick="setAppTheme('light')" id="themeBtnLight" class="flex-1 py-3 rounded-xl font-bold border-2 border-sky-500 bg-sky-50 text-sky-800">☀️ Açık</button>
                                 <button type="button" onclick="setAppTheme('dark')" id="themeBtnDark" class="flex-1 py-3 rounded-xl font-bold border-2 border-transparent bg-slate-100 text-slate-600">🌙 Koyu</button>
+                            </div>
+                            <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider pt-1">Renk paleti</p>
+                            <div class="grid grid-cols-3 gap-2">
+                                <button type="button" onclick="setThemePalette('ocean')" id="paletteBtnOcean" class="py-3 rounded-xl font-bold text-xs border-2 border-sky-500 bg-sky-50 text-sky-800">🌊 Ocean</button>
+                                <button type="button" onclick="setThemePalette('warm')" id="paletteBtnWarm" class="py-3 rounded-xl font-bold text-xs border-2 border-transparent bg-orange-50 text-orange-800">🏠 Warm</button>
+                                <button type="button" onclick="setThemePalette('forest')" id="paletteBtnForest" class="py-3 rounded-xl font-bold text-xs border-2 border-transparent bg-emerald-50 text-emerald-800">🌲 Forest</button>
                             </div>
                             <p id="themeDeviceHint" class="text-[10px] text-sky-700 font-bold"></p>
                         </div>
