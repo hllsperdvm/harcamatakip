@@ -675,14 +675,38 @@
             const activeId = lastActiveTabId && visible.some(t => t.id === lastActiveTabId)
                 ? lastActiveTabId
                 : ((visible.find(t => t.id === 'home') || visible[0] || {}).id);
+            const openTaskN = (typeof countOpenFamilyTasks === 'function') ? countOpenFamilyTasks() : 0;
             bar.innerHTML = visible.map((t) => {
                 const active = t.id === activeId;
                 const cls = active
                     ? 'tab-active yuvam-tab-btn'
                     : 'tab-inactive yuvam-tab-btn hover:bg-white/80';
                 const lab = t.label || t.id;
-                return `<button type="button" data-tab-id="${escapeHtml(t.id)}" title="${escapeHtml(lab)}" onclick="switchTab('${escapeHtml(t.id)}')" class="${cls}"><span class="yuvam-tab-emoji">${escapeHtml(t.emoji || '📌')}</span><span class="yuvam-tab-text">${escapeHtml(lab)}</span></button>`;
+                let badge = '';
+                if (t.id === 'tasks' && openTaskN > 0) {
+                    badge = '<span class="tab-count-badge">' + (openTaskN > 9 ? '9+' : openTaskN) + '</span>';
+                }
+                return `<button type="button" data-tab-id="${escapeHtml(t.id)}" title="${escapeHtml(lab)}" onclick="switchTab('${escapeHtml(t.id)}')" class="${cls}"><span class="yuvam-tab-emoji relative">${escapeHtml(t.emoji || '📌')}${badge}</span><span class="yuvam-tab-text">${escapeHtml(lab)}</span></button>`;
             }).join('');
+            if (typeof updateTaskNavBadges === 'function') updateTaskNavBadges();
+        };
+
+        window.countOpenFamilyTasks = function() {
+            return (familyTasks || []).filter(function(t) { return t && !t.done; }).length;
+        };
+
+        window.updateTaskNavBadges = function() {
+            const n = countOpenFamilyTasks();
+            const m = document.getElementById('mnavTasksBadge');
+            if (m) {
+                if (n > 0) {
+                    m.textContent = n > 9 ? '9+' : String(n);
+                    m.classList.remove('hidden');
+                } else {
+                    m.classList.add('hidden');
+                }
+            }
+            // Üst menü rozeti renderTabBar ile gelir; burada sadece mobil
         };
 
         function capitalizeTab(name) {
@@ -970,6 +994,11 @@
                 const hi = hour < 12 ? 'Günaydın' : (hour < 18 ? 'İyi günler' : 'İyi akşamlar');
                 if (greet) greet.textContent = hi + (name ? ', ' + name : '');
 
+                const motEl = document.getElementById('homeMotivation');
+                if (motEl && typeof getDailyMotivation === 'function') {
+                    motEl.textContent = getDailyMotivation();
+                }
+
                 const dateEl = document.getElementById('homeTodayDate');
                 if (dateEl) {
                     dateEl.textContent = new Date().toLocaleDateString('tr-TR', {
@@ -1089,6 +1118,49 @@
                 const on = id === activeId || (id === 'more' && moreIds.indexOf(activeId) >= 0);
                 btn.classList.toggle('mnav-active', !!on);
             });
+            if (typeof updateTaskNavBadges === 'function') updateTaskNavBadges();
+        };
+
+        const DAILY_MOTIVATIONS = [
+            'Küçük adımlar, büyük düzen demektir. Bugün bir şeyi netleştirmen yeterli.',
+            'Aile düzeni bir sprint değil; her gün biraz daha kolaylaşır.',
+            'Bugünün işini bugün bitir; yarın kendine teşekkür edeceksin.',
+            'Paylaşmak yükü hafifletir — birlikte planlamak gücü artırır.',
+            'Net bir liste, karışık bir zihinden iyidir. Önce bir satır yaz.',
+            'Tasarruf cesaret ister; israf da sessizce birikir. Bugün bilinçli seç.',
+            'Ev, sadece duvarlar değil; rutinlerinizin toplamıdır.',
+            'Tamamlanan bir görev, yeni bir nefes demektir.',
+            'Plan olmadan hız, kaos üretir. Bugün sakin ve net ilerle.',
+            'Sevdiklerinle aynı hedefe bakmak, yolun yarısıdır.',
+            'Düzen, disiplin değil; kendine ve aileye saygıdır.',
+            'Bugün “sonra” demek yerine “şimdi küçük bir adım” de.',
+            'Harcama bilinci, kısıtlama değil; seçim özgürlüğüdür.',
+            'Yarın daha sakin olsun diye bugün bir şeyi kapat.',
+            'Motivasyon gelmezse rutin gelsin; rutin motivasyonu getirir.',
+            'Birlikte tutulan liste, unutulan stresi azaltır.',
+            'Küçük bir birikim, büyük bir rahatlığa dönüşür.',
+            'Bugün evine ve bütçene aynı özeni göster.',
+            'Netlik huzur getirir. Bir karar, bir kutu işaretle.',
+            'Güçlü aileler, görünmeyen küçük düzenlerden oluşur.',
+            'Bugün “yeterince iyi” de bir zaferdir.',
+            'Planını sade tut; uygulaman güçlensin.',
+            'Hatırlatma koy, unutmayı affet; sistemi çalıştır.',
+            'Bugünün disiplini, yarının rahatlığıdır.',
+            'Birlikte yapılan alışveriş listesi, gereksiz tartışmayı keser.',
+            'Para yönetimi aşk değil; alışkanlıktır. Alışkanlık bugün başlar.',
+            'Evin düzeni, zihninin aynasıdır. Bir köşeyi netleştir.',
+            'Tamamlanmamış işleri erteleme; böl ve bitir.',
+            'Bugün aile için bir şeyi kolaylaştır — bu da başarıdır.',
+            'Sakin başla, net bitir. YUVAM senin yannda.',
+            'Her gün bir küçük iyileştirme, bir ayda büyük farktır.'
+        ];
+
+        window.getDailyMotivation = function() {
+            const d = new Date();
+            // Yıl+gün bazlı sabit indeks (aynı gün aynı cümle)
+            const dayIndex = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
+            const i = Math.abs(dayIndex) % DAILY_MOTIVATIONS.length;
+            return DAILY_MOTIVATIONS[i];
         };
 
         // ——— Aile: Takvim / Görev / Alışveriş ———
@@ -1588,6 +1660,8 @@
             function refreshFamilyViews() {
                 try {
                     if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
+                    if (typeof updateTaskNavBadges === 'function') updateTaskNavBadges();
+                    if (typeof renderTabBar === 'function' && currentUser) renderTabBar();
                     const home = document.getElementById('tabContentHome');
                     if (home && !home.classList.contains('hidden') && typeof renderHomeTab === 'function') renderHomeTab();
                     const cal = document.getElementById('tabContentCalendar');
@@ -4459,16 +4533,34 @@
 
         function getIbanFull(item) {
             if (!item) return '';
-            return String(item.ibanNumber || item.iban || item.number || item.ibanNo || '').replace(/\s/g, '').toUpperCase();
+            // Olası tüm alan adları
+            const keys = ['ibanNumber', 'iban', 'number', 'ibanNo', 'IBAN', 'Iban'];
+            for (let i = 0; i < keys.length; i++) {
+                if (item[keys[i]]) return String(item[keys[i]]).replace(/\s/g, '').toUpperCase();
+            }
+            // Nesnedeki TR ile başlayan ilk string
+            try {
+                for (const k in item) {
+                    if (!Object.prototype.hasOwnProperty.call(item, k)) continue;
+                    if (k === 'id' || k === 'ownerName' || k === 'name' || k === 'bank' || k === 'bankName') continue;
+                    const v = String(item[k] || '').replace(/\s/g, '').toUpperCase();
+                    if (v.indexOf('TR') === 0 && v.length >= 16) return v;
+                }
+            } catch (_) {}
+            return '';
         }
+
+        // Tam IBAN DOM'da tutulmaz (sadece bellek)
+        window._ibanSecrets = window._ibanSecrets || {};
 
         window.toggleIbanReveal = function(btn) {
             if (!btn) return;
             const wrap = btn.closest('[data-iban-wrap]');
             if (!wrap) return;
+            const id = wrap.getAttribute('data-iban-id') || '';
             const el = wrap.querySelector('[data-iban-value]');
-            const full = wrap.getAttribute('data-iban-full') || '';
-            const masked = wrap.getAttribute('data-iban-masked') || maskIban(full);
+            const full = (window._ibanSecrets && window._ibanSecrets[id]) || '';
+            const masked = maskIban(full);
             const on = wrap.getAttribute('data-revealed') === '1';
             if (on) {
                 if (el) el.textContent = masked;
@@ -4476,7 +4568,7 @@
                 btn.setAttribute('aria-label', 'Göster');
                 btn.innerHTML = '👁️';
             } else {
-                if (el) el.textContent = formatIbanSpaces(full);
+                if (el) el.textContent = full ? formatIbanSpaces(full) : masked;
                 wrap.setAttribute('data-revealed', '1');
                 btn.setAttribute('aria-label', 'Gizle');
                 btn.innerHTML = '🙈';
@@ -4487,6 +4579,7 @@
             const box = document.getElementById('ibanListContainer');
             if (!box) return;
             const list = Array.isArray(ibans) ? ibans : [];
+            window._ibanSecrets = {};
             if (!list.length) {
                 box.innerHTML = '<div class="text-center text-slate-400 py-8 col-span-full"><p class="text-sm">Henüz IBAN kaydı yok</p></div>';
                 return;
@@ -4494,19 +4587,20 @@
             box.innerHTML = list.map(function(item) {
                 const full = getIbanFull(item);
                 const masked = maskIban(full);
-                const safeId = escapeHtml(item.id || '');
+                const safeId = String(item.id || '');
+                window._ibanSecrets[safeId] = full;
                 const owner = escapeHtml(item.ownerName || item.name || '-');
                 const bank = escapeHtml(item.bank || item.bankName || '');
-                // full değeri attribute'ta; ekranda asla düz yazılmaz
-                return '<div class="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2" data-iban-wrap data-iban-full="' + escapeHtml(full) + '" data-iban-masked="' + escapeHtml(masked) + '" data-revealed="0">' +
+                // Ekranda SADECE maskeli metin
+                return '<div class="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2" data-iban-wrap data-iban-id="' + escapeHtml(safeId) + '" data-revealed="0">' +
                     '<div class="flex justify-between items-start gap-2">' +
                     '<div class="min-w-0"><p class="font-black text-slate-800">' + owner + '</p>' +
                     '<p class="text-xs font-semibold text-slate-400">' + bank + '</p></div>' +
                     '<div class="flex gap-1 shrink-0">' +
-                    '<button type="button" onclick="event.stopPropagation();toggleIbanReveal(this)" class="w-9 h-9 rounded-xl bg-white border border-slate-200 text-sm flex items-center justify-center" title="Göster">👁️</button>' +
-                    '<button type="button" onclick="event.stopPropagation();deleteIban(\'' + safeId + '\')" class="w-9 h-9 rounded-xl bg-white border border-slate-200 text-xs text-rose-600 flex items-center justify-center" title="Sil">🗑️</button>' +
+                    '<button type="button" onclick="event.preventDefault();event.stopPropagation();toggleIbanReveal(this)" class="w-9 h-9 rounded-xl bg-white border border-slate-200 text-sm flex items-center justify-center" title="Göster">👁️</button>' +
+                    '<button type="button" onclick="event.preventDefault();event.stopPropagation();deleteIban(\'' + escapeHtml(safeId) + '\')" class="w-9 h-9 rounded-xl bg-white border border-slate-200 text-xs text-rose-600 flex items-center justify-center" title="Sil">🗑️</button>' +
                     '</div></div>' +
-                    '<p data-iban-value class="font-mono text-sm font-bold text-slate-700 tracking-wide select-all">' + escapeHtml(masked) + '</p>' +
+                    '<p data-iban-value class="font-mono text-sm font-bold text-slate-700 tracking-wide">' + escapeHtml(masked) + '</p>' +
                     '</div>';
             }).join('');
         };

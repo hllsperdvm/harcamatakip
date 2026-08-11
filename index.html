@@ -94,8 +94,18 @@
             <div id="tabContentHome" class="hidden space-y-5 fade-in pb-4">
                 <div class="bg-gradient-to-br from-sky-600 to-cyan-600 text-white rounded-[2rem] p-6 shadow-lg shadow-sky-200/40">
                     <p id="homeGreeting" class="text-xl font-black">Merhaba</p>
-                    <p id="homeTodayDate" class="text-sm font-semibold text-sky-100 mt-1 opacity-90">—</p>
+                    <p id="homeMotivation" class="text-sm font-semibold text-sky-50/95 mt-2 leading-snug">—</p>
+                    <p id="homeTodayDate" class="text-sm font-semibold text-sky-100 mt-2 opacity-90">—</p>
                     <p id="homePeriodBadge" class="inline-flex mt-3 text-[11px] font-bold bg-white/15 px-3 py-1 rounded-full">Dönem: —</p>
+                </div>
+
+                <div data-home-card="homeTasks" class="bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
+                    <div class="flex items-center justify-between mb-3 gap-2">
+                        <h2 class="text-base font-black text-slate-800">✅ Görevler</h2>
+                        <button type="button" onclick="switchTab('tasks')" class="text-xs font-bold text-emerald-600 shrink-0">Görevler sekmesi</button>
+                    </div>
+                    <p class="text-[11px] text-slate-400 font-semibold mb-3">Sadece liste · ekleme Görevler sekmesinden</p>
+                    <div id="homeTasksList" class="space-y-2"></div>
                 </div>
 
                 <div data-home-card="homeBriefing" class="bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
@@ -150,15 +160,6 @@
                         <button type="button" onclick="openHomeAllNotifs()" class="text-xs font-bold text-sky-600">Tümü</button>
                     </div>
                     <div id="homeUpcomingList" class="space-y-2"></div>
-                </div>
-
-                <div data-home-card="homeTasks" class="bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
-                    <div class="flex items-center justify-between mb-3 gap-2">
-                        <h2 class="text-base font-black text-slate-800">✅ Görevler</h2>
-                        <button type="button" onclick="switchTab('tasks')" class="text-xs font-bold text-emerald-600 shrink-0">Görevler sekmesi</button>
-                    </div>
-                    <p class="text-[11px] text-slate-400 font-semibold mb-3">Sadece liste · ekleme Görevler sekmesinden</p>
-                    <div id="homeTasksList" class="space-y-2"></div>
                 </div>
 
             </div>
@@ -1123,8 +1124,9 @@
         <button type="button" data-mnav="expense" onclick="mobileNavGo('expense')" class="mnav-item">
             <span class="mnav-ico">💰</span><span class="mnav-lbl">Bütçe</span>
         </button>
-        <button type="button" data-mnav="tasks" onclick="mobileNavGo('tasks')" class="mnav-item">
-            <span class="mnav-ico">✅</span><span class="mnav-lbl">Görevler</span>
+        <button type="button" data-mnav="tasks" onclick="mobileNavGo('tasks')" class="mnav-item relative">
+            <span class="mnav-ico relative inline-block">✅<span id="mnavTasksBadge" class="tab-count-badge hidden">0</span></span>
+            <span class="mnav-lbl">Görevler</span>
         </button>
         <button type="button" data-mnav="calendar" onclick="mobileNavGo('calendar')" class="mnav-item">
             <span class="mnav-ico">📅</span><span class="mnav-lbl">Takvim</span>
