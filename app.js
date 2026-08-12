@@ -891,24 +891,66 @@
         }
 
         let _skeletonHiddenOnce = false;
+        let _gateProgress = 0;
+        let _gateTickTimer = null;
+        let _gateHideTimer = null;
+
+        function setGateProgress(p) {
+            _gateProgress = Math.max(0, Math.min(100, Number(p) || 0));
+            const stage = document.getElementById('gateLoaderStage');
+            if (stage) stage.style.setProperty('--p', _gateProgress + '%');
+        }
+
+        function bumpGateProgress(toAtLeast, step) {
+            if (_skeletonHiddenOnce) return;
+            const target = Math.min(92, Math.max(_gateProgress + (step || 8), toAtLeast || 0));
+            if (target > _gateProgress) setGateProgress(target);
+        }
+
         window.showAppSkeleton = function() {
             const el = document.getElementById('appSkeleton');
-            if (el) {
-                el.classList.remove('hidden');
-                el.style.display = 'flex';
-            }
+            if (!el) return;
+            _skeletonHiddenOnce = false;
+            if (_gateHideTimer) { clearTimeout(_gateHideTimer); _gateHideTimer = null; }
+            setGateProgress(0);
+            el.classList.remove('hidden');
+            el.style.display = 'flex';
+            el.setAttribute('aria-hidden', 'false');
+            if (_gateTickTimer) clearInterval(_gateTickTimer);
+            // Yükleme süresince yavaş ilerleme (gerçek veri gelince bump + hide 100 yapar)
+            _gateTickTimer = setInterval(function() {
+                if (_skeletonHiddenOnce) {
+                    clearInterval(_gateTickTimer);
+                    _gateTickTimer = null;
+                    return;
+                }
+                if (_gateProgress < 88) {
+                    // yavaşlayan artış
+                    const add = _gateProgress < 40 ? 2.2 : (_gateProgress < 70 ? 1.1 : 0.45);
+                    setGateProgress(_gateProgress + add);
+                }
+            }, 120);
         };
+
         window.hideAppSkeleton = function() {
             const el = document.getElementById('appSkeleton');
-            if (el) {
+            if (_gateTickTimer) { clearInterval(_gateTickTimer); _gateTickTimer = null; }
+            setGateProgress(100);
+            _skeletonHiddenOnce = true;
+            if (!el) return;
+            if (_gateHideTimer) clearTimeout(_gateHideTimer);
+            // ışıltı %100 görünsün diye kısa bekleme
+            _gateHideTimer = setTimeout(function() {
                 el.classList.add('hidden');
                 el.style.display = 'none';
-            }
-            _skeletonHiddenOnce = true;
+                el.setAttribute('aria-hidden', 'true');
+                setGateProgress(0);
+            }, 280);
         };
 
         function scheduleRenderApp() {
             clearTimeout(renderTimeout);
+            try { bumpGateProgress(_gateProgress + 12, 10); } catch (_) {}
             renderTimeout = setTimeout(() => {
                 renderApp();
                 if (isStatsTabActive()) updateStatsPanel();
@@ -1202,6 +1244,21 @@
         let _ayahTimer = null;
         let _lastAyahText = '';
 
+        const SURAH_NAMES_TR = [
+            '', 'Fatiha', 'Bakara', 'Al-i Imran', 'Nisa', 'Maide', 'Enam', 'Araf', 'Enfal', 'Tevbe',
+            'Yunus', 'Hud', 'Yusuf', 'Rad', 'Ibrahim', 'Hicr', 'Nahl', 'Isra', 'Kehf', 'Meryem',
+            'Taha', 'Enbiya', 'Hac', 'Muminun', 'Nur', 'Furkan', 'Suara', 'Neml', 'Kasas', 'Ankebut',
+            'Rum', 'Lokman', 'Secde', 'Ahzab', 'Sebe', 'Fatir', 'Yasin', 'Saffat', 'Sad', 'Zumer',
+            'Mumin', 'Fussilet', 'Sura', 'Zuhruf', 'Duhan', 'Casiye', 'Ahkaf', 'Muhammed', 'Fetih', 'Hucurat',
+            'Kaf', 'Zariyat', 'Tur', 'Necm', 'Kamer', 'Rahman', 'Vakia', 'Hadid', 'Mucadele', 'Hasr',
+            'Mumtahine', 'Saff', 'Cuma', 'Munafikun', 'Tegabun', 'Talak', 'Tahrim', 'Mulk', 'Kalem', 'Hakka',
+            'Mearic', 'Nuh', 'Cin', 'Muzzemmil', 'Muddessir', 'Kiyame', 'Insan', 'Murselat', 'Nebe', 'Naziat',
+            'Abese', 'Tekvir', 'Infitar', 'Mutaffifin', 'Insikak', 'Buruc', 'Tarik', 'Ala', 'Gasiye', 'Fecr',
+            'Beled', 'Sems', 'Leyl', 'Duha', 'Insirah', 'Tin', 'Alak', 'Kadr', 'Beyyine', 'Zilzal',
+            'Adiyat', 'Karia', 'Tekasur', 'Asr', 'Humeze', 'Fil', 'Kureys', 'Maun', 'Kevser', 'Kafirun',
+            'Nasr', 'Tebbet', 'Ihlas', 'Felak', 'Nas'
+        ];
+
         async function fetchDailyAyah() {
             // 1–6236 arası rastgele ayet, Diyanet Türkçe meal
             const n = 1 + Math.floor(Math.random() * 6236);
@@ -1212,9 +1269,12 @@
             const d = j.data;
             const text = String(d.text || '').trim();
             if (!text) throw new Error('empty ayah');
-            const surah = (d.surah && d.surah.name) ? d.surah.name : '';
+            const surahNo = (d.surah && d.surah.number) ? Number(d.surah.number) : 0;
+            const surahTr = (SURAH_NAMES_TR[surahNo]) ? SURAH_NAMES_TR[surahNo] : (d.surah && d.surah.englishName ? d.surah.englishName : '');
             const num = d.numberInSurah || '';
-            const ref = (surah ? (surah + (num ? (' ' + num) : '')) : ('Ayet ' + n));
+            const ref = surahTr
+                ? (surahTr + (num ? (', ' + num) : ''))
+                : ('Ayet ' + n);
             return { text: text, ref: ref };
         }
 
@@ -2220,6 +2280,50 @@
             if (typeof showToast === 'function') showToast('Sıra kaydedildi (cihaz + bulut)', 'success');
         }
 
+
+        // Duygu: açık/koyu + ocean/warm/forest döngüsü
+        const USER_THEME_CYCLE = [
+            { theme: 'light', palette: 'ocean', icon: '🌊', label: 'Ocean · Açık' },
+            { theme: 'dark', palette: 'ocean', icon: '🌊', label: 'Ocean · Koyu' },
+            { theme: 'light', palette: 'warm', icon: '🏠', label: 'Warm · Açık' },
+            { theme: 'dark', palette: 'warm', icon: '🏠', label: 'Warm · Koyu' },
+            { theme: 'light', palette: 'forest', icon: '🌲', label: 'Forest · Açık' },
+            { theme: 'dark', palette: 'forest', icon: '🌲', label: 'Forest · Koyu' }
+        ];
+
+        function currentUserThemeIndex() {
+            const t = (typeof appTheme !== 'undefined' && appTheme === 'dark') ? 'dark' : 'light';
+            const p = (typeof themePalette !== 'undefined' && themePalette) ? themePalette : 'ocean';
+            for (let i = 0; i < USER_THEME_CYCLE.length; i++) {
+                if (USER_THEME_CYCLE[i].theme === t && USER_THEME_CYCLE[i].palette === p) return i;
+            }
+            return 0;
+        }
+
+        window.toggleUserTheme = function() {
+            try {
+                const i = currentUserThemeIndex();
+                const next = USER_THEME_CYCLE[(i + 1) % USER_THEME_CYCLE.length];
+                if (typeof setThemePalette === 'function') setThemePalette(next.palette);
+                if (typeof setAppTheme === 'function') setAppTheme(next.theme);
+                const icon = document.getElementById('userThemeBtnIcon');
+                if (icon) icon.textContent = next.icon;
+                if (typeof showToast === 'function') showToast(next.label, 'info');
+            } catch (e) { console.warn(e); }
+        };
+
+        window.updateUserThemeBtn = function() {
+            const btn = document.getElementById('userThemeBtn');
+            if (!btn) return;
+            const show = currentUser && typeof isAdmin === 'function' && !isAdmin();
+            btn.classList.toggle('hidden', !show);
+            const icon = document.getElementById('userThemeBtnIcon');
+            if (icon) {
+                const cur = USER_THEME_CYCLE[currentUserThemeIndex()];
+                icon.textContent = cur ? cur.icon : '🌊';
+            }
+        };
+
         window.updateAdminLayoutButtons = function() {
             const admin = typeof isAdmin === 'function' && isAdmin();
             ['layoutEditBtn', 'homeLayoutEditBtn'].forEach(function(id) {
@@ -2231,6 +2335,7 @@
                     if (layoutEditPage) layoutEditPage = null;
                 }
             });
+            try { if (typeof updateUserThemeBtn === 'function') updateUserThemeBtn(); } catch (_) {}
         };
 
         window.toggleLayoutEdit = function(page) {
@@ -6605,6 +6710,10 @@
                 patch.themePalette = themePalette || 'ocean';
                 db.collection('users').doc(currentUser.uid).set(patch, { merge: true }).catch(function() {});
             }
+            try {
+                const icon = document.getElementById('userThemeBtnIcon');
+                if (icon) icon.textContent = (appTheme === 'dark') ? '☀️' : '🌙';
+            } catch (_) {}
         };
 
         function loadThemeFromStorage() {
