@@ -116,12 +116,12 @@
 
             <!-- SEKME: ANA SAYFA (YUVAM 2.0 iskelet) -->
             <div id="tabContentHome" class="hidden space-y-5 fade-in pb-4">
-                <div class="home-hero relative overflow-hidden text-white rounded-[2rem] p-6 shadow-lg" data-layout-fixed="1">
+                <div class="home-hero relative overflow-hidden text-white rounded-[2rem] p-6 shadow-lg" data-layout-fixed="1" id="homeHeroBanner">
                     <div class="home-hero-pattern" aria-hidden="true"></div>
                     <div class="relative z-[1]">
-                        <p id="homeGreeting" class="text-2xl sm:text-3xl font-black tracking-tight">Merhaba</p>
-                        <p id="homeDidYouKnow" class="text-sm sm:text-[0.95rem] font-semibold text-white/95 mt-2 leading-snug">—</p>
-                        <p id="homeTodayDate" class="text-sm font-semibold text-white/80 mt-3">—</p>
+                        <p id="homeGreeting" class="text-2xl sm:text-3xl font-black tracking-tight order-first">Merhaba</p>
+                        <p id="homeTodayDate" class="text-sm font-semibold text-white/80 mt-2">—</p>
+                        <p id="homeDidYouKnow" onclick="loadDidYouKnowFact(true)" title="Yeni bilgi için dokunun" class="text-sm sm:text-[0.95rem] font-semibold text-white/95 mt-3 leading-snug cursor-pointer hover:text-white">Bunu biliyor muydunuz? Yükleniyor…</p>
                         <div class="flex flex-wrap items-center gap-2 mt-3">
                         <p id="homePeriodBadge" class="inline-flex text-[11px] font-bold bg-white/15 px-3 py-1 rounded-full backdrop-blur-sm">Dönem: —</p>
                         <button type="button" onclick="toggleLayoutEdit('home')" class="text-[11px] font-bold bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full backdrop-blur-sm">Sayfa Düzeni</button>
@@ -168,13 +168,13 @@
                         <p id="homePeriodSpend" class="text-lg font-black text-rose-600 mt-1">0 TL</p>
                         <p class="text-[11px] text-slate-400 font-semibold">29–28 ekstre</p>
                     </div>
-                    <button type="button" data-home-card="homeGold" onclick="switchTab('stats')" class="yuvam-card bg-white rounded-2xl p-4 card-shadow border border-amber-100 text-left col-span-2">
+                    <button type="button" data-home-card="homeGold" onclick="switchTab('expense')" class="yuvam-card bg-white rounded-2xl p-4 card-shadow border border-amber-100 text-left col-span-2">
                         <p class="text-[10px] font-black text-amber-700/80 uppercase tracking-wide">🥇 Altın Yatırımı</p>
                         <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 mt-1">
                             <p id="homeGoldPnL" class="text-xl font-black text-slate-800">—</p>
                             <p id="homeGoldNet" class="text-lg font-black text-slate-700">—</p>
                         </div>
-                        <p id="homeGoldSub" class="text-[11px] text-slate-500 font-semibold mt-0.5">Raporlar · detay</p>
+                        <p id="homeGoldSub" class="text-[11px] text-slate-500 font-semibold mt-0.5">Bütçe Takip · detay</p>
                     </button>
                     <div data-layout-block="homeBudget" data-home-card="homeBudget" class="yuvam-card stripe-budget bg-white rounded-2xl p-4 card-shadow border border-slate-100 col-span-2">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Aylık Bütçe Hedefi</p>
@@ -299,9 +299,6 @@
 
             <!-- SEKME: FİNANS (eski Bütçe Takip) -->
             <div id="tabContentExpense" class="hidden space-y-8 fade-in">
-                <div class="flex justify-end" data-layout-fixed="1">
-                    <button type="button" onclick="toggleLayoutEdit('expense')" class="text-xs font-bold px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200">Sayfa Düzeni</button>
-                </div>
                 <div data-layout-block="expensePeriod" class="flex justify-center">
                     <span id="activePeriodBadge" class="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 text-xs font-bold px-4 py-2 rounded-full border border-indigo-100">Aktif dönem: —</span>
                 </div>

@@ -1034,10 +1034,7 @@
                 const hi = hour < 12 ? 'Günaydın' : (hour < 18 ? 'İyi günler' : 'İyi akşamlar');
                 if (greet) greet.textContent = hi + (name ? ', ' + name : '');
 
-                const dyk = document.getElementById('homeDidYouKnow');
-                if (dyk && typeof getDidYouKnow === 'function') {
-                    dyk.textContent = getDidYouKnow();
-                }
+                try { if (typeof loadDidYouKnowFact === 'function') loadDidYouKnowFact(false); } catch (_) {}
 
                 const dateEl = document.getElementById('homeTodayDate');
                 if (dateEl) {
@@ -1182,76 +1179,190 @@
             if (typeof updateTaskNavBadges === 'function') updateTaskNavBadges();
         };
 
-        const DID_YOU_KNOW = [
-            'Bunu biliyor muydunuz? 1299 civarında Osmanlı Beyliği\'nin kuruluşu, Söğüt-Domaniç hattındaki uç beyliği geleneğiyle ilişkilendirilir; kesin "kuruluş günü" modern bir sadeleştirmedir.',
-            'Bunu biliyor muydunuz? 1071 Malazgirt Savaşı, Anadolu\'nun Türkler tarafından iskân sürecinde bir dönüm noktası kabul edilir; tek bir "fetih günü"nden ziyade uzun bir dönüşümün parçasıdır.',
-            'Bunu biliyor muydunuz? 1202–1204 IV. Haçlı Seferi, asıl hedef Kudüs iken Konstantinopolis\'in yağmalanmasıyla sonuçlanmış; Doğu Roma\'yı zayıflatmıştır.',
-            'Bunu biliyor muydunuz? 1453\'te surların aşılmasında büyük topların yanı sıra donanmanın Haliç\'e karadan indirilmesi de anlatıların merkezindedir.',
-            'Bunu biliyor muydunuz? 1517 Ridaniye sonrası Osmanlı, Memlük topraklarını devralarak İslam dünyasında "hadimü\'l-haremeyn" rolünü güçlendirmiştir.',
-            'Bunu biliyor muydunuz? 1571 İnebahtı yenilgisi Osmanlı donanmasını sarsmış; ancak birkaç yıl içinde gemi inşasıyla deniz gücü yeniden toparlanmıştır.',
-            'Bunu biliyor muydunuz? 1683 II. Viyana Kuşatması\'nın başarısızlığı, Karlofça sürecine giden uzun gerileme anlatısının sık anılan başlangıçlarından biridir.',
-            'Bunu biliyor muydunuz? 1839 Gülhane Hatt-ı Hümayunu, Osmanlı\'da hukuk eşitliği ve vergi düzeni vaatleriyle Tanzimat\'ı resmen açmıştır.',
-            'Bunu biliyor muydunuz? 1856 Islahat Fermanı, gayrimüslim tebaanın haklarını genişletmeyi hedeflemiş; Avrupa diplomasisinin baskısıyla da şekillenmiştir.',
-            'Bunu biliyor muydunuz? 1876 Kanun-i Esasi, Osmanlı\'nın ilk anayasasıdır; kısa süreli meşrutiyet II. Abdülhamid döneminde askıya alınmıştır.',
-            'Bunu biliyor muydunuz? 1908 II. Meşrutiyet, Jön Türk hareketinin baskısıyla anayasal düzenin yeniden ilanıdır.',
-            'Bunu biliyor muydunuz? 1912–13 Balkan Savaşları, Osmanlı\'nın Avrupa\'daki topraklarının büyük kısmını kaybettiği hızlandırılmış bir çözülme dönemidir.',
-            'Bunu biliyor muydunuz? 1915 Çanakkale kara muharebelerinde ANZAC birliklerinin çıkarması, Avustralya ve Yeni Zelanda ulusal hafızasında derin iz bırakmıştır.',
-            'Bunu biliyor muydunuz? 1919 Samsun\'a çıkış, Milli Mücadele\'nin örgütlenme sürecinin sembolik başlangıcıdır; fiilî direniş Anadolu\'nun birçok yerinde paralel yürümüştür.',
-            'Bunu biliyor muydunuz? 1920 Sevr taslağı fiilen uygulanamamış; 1923 Lozan ile yeni statüko tanınmıştır.',
-            'Bunu biliyor muydunuz? 1925 Tekke ve zaviyelerin kapatılması, Cumhuriyet\'in laik modernleşme paketinin parçasıdır.',
-            'Bunu biliyor muydunuz? 1928 Harf Devrimi, Arap harflerinden Latin tabanlı alfabeye geçişi birkaç ay içinde zorunlu kılmıştır.',
-            'Bunu biliyor muydunuz? 1934 Soyadı Kanunu ile her yurttaşa soyadı zorunlu olmuş; Atatürk soyadını TBMM vermiştir.',
-            'Bunu biliyor muydunuz? 1936 Montreux Boğazlar Sözleşmesi, boğazlar üzerinde Türkiye\'nin egemenlik haklarını barış ve savaş durumuna göre düzenler.',
-            'Bunu biliyor muydunuz? 1945 San Francisco Konferansı\'nda Türkiye, BM\'nin kurucu üyeleri arasında yer almıştır.',
-            'Bunu biliyor muydunuz? 1950 seçimleri, Türkiye\'de çok partili hayata geçişin sandıkla tescil edildiği dönüm noktasıdır.',
-            'Bunu biliyor muydunuz? 1960 askerî müdahalesi sonrası 1961 Anayasası, geniş özgürlükler ve Anayasa Mahkemesi gibi kurumlarla anılır.',
-            'Bunu biliyor muydunuz? 1974 Kıbrıs Barış Harekâtı, adadaki toplumlararası çatışma ve garantörlük bağlamında yürütülmüştür.',
-            'Bunu biliyor muydunuz? 1980 darbesi sonrası 1982 Anayasası, uzun süre Türkiye siyasetinin çerçevesini çizmiştir.',
-            'Bunu biliyor muydunuz? 1999 Helsinki Zirvesi\'nde Türkiye\'ye AB adaylık statüsü verilmesi, reform gündemini hızlandırmıştır.',
-            'Bunu biliyor muydunuz? Antik Troya\'nın Hisarlık\'ta olduğu yönündeki kazılar, 19. yüzyılda Schliemann adıyla popülerleşmiş; bilimsel arkeoloji daha temkinli ilerlemiştir.',
-            'Bunu biliyor muydunuz? Göbeklitepe\'deki T biçimli dikilitaşlar, yerleşik tarımdan önce anıtsal ritüel yapılabileceğini gösteren tartışmalı bulgulardandır.',
-            'Bunu biliyor muydunuz? 1206\'da Temüjin\'in Cengiz Han ilan edilmesi, bozkır imparatorlukları tarihinde bir eşiktir.',
-            'Bunu biliyor muydunuz? 1347 civarı Kara Ölüm, Avrupa nüfusunun önemli bir kısmını yok etmiş; işgücü ve toplumsal ilişkileri sarsmıştır.',
-            'Bunu biliyor muydunuz? 1455 civarı Gutenberg\'in hareketli hurufatı, bilgi dolaşımını hızlandıran matbaa devriminin Avrupa ayağıdır.',
-            'Bunu biliyor muydunuz? 1492\'de Granada\'nın düşüşü, İberya\'da Endülüs siyasi varlığının sonu olarak görülür.',
-            'Bunu biliyor muydunuz? 1607 Jamestown, İngilizlerin Kuzey Amerika\'daki kalıcı kolonileşme denemelerinin erken örneğidir.',
-            'Bunu biliyor muydunuz? 1755 Lizbon depremi, Aydınlanma düşünürlerinde doğa, kötülük ve ilahi adalet tartışmalarını alevlendirmiştir.',
-            'Bunu biliyor muydunuz? 1789 Fransız Devrimi\'nde İnsan ve Yurttaş Hakları Bildirisi, modern anayasal dilin köşe taşlarındandır.',
-            'Bunu biliyor muydunuz? 1815 Viyana Kongresi, Napolyon sonrası Avrupa\'da güç dengesini yeniden tasarlamaya çalışmıştır.',
-            'Bunu biliyor muydunuz? 1863\'te Gettysburg Hitabı, birkaç dakikalık konuşmayla ABD siyasal hafızasına kazınmıştır.',
-            'Bunu biliyor muydunuz? 1869 Süveyş Kanalı\'nın açılışı, Avrupa-Asya deniz ticaretini kısaltarak jeopolitiği değiştirmiştir.',
-            'Bunu biliyor muydunuz? 1905 Rus-Japon Savaşı, sanayileşmiş bir Asya devletinin büyük bir Avrupa imparatorluğunu yenilgiye uğrattığı ender örneklerdendir.',
-            'Bunu biliyor muydunuz? 1911\'de Amundsen\'in Güney Kutbu\'na ulaşması, keşif çağının dramatik final sahnelerinden biridir.',
-            'Bunu biliyor muydunuz? 1918 İspanyol gribi salgını, dünya savaşının gölgesinde on milyonlarca ölüme yol açtığı tahmin edilen bir pandemidir.',
-            'Bunu biliyor muydunuz? 1922 Tutankhamun mezarının bulunması, Mısıroloji\'yi popüler kültürün merkezine taşımıştır.',
-            'Bunu biliyor muydunuz? 1929 Kara Perşembe, New York borsası çöküşüyle Büyük Buhran anlatısının sembol tarihidir.',
-            'Bunu biliyor muydunuz? 1947 Hindistan-Pakistan paylaşımı, tarihî göç ve şiddetle birlikte iki devletli bir düzen yaratmıştır.',
-            'Bunu biliyor muydunuz? 1957 Sputnik, uzay yarışını fiilen başlatan ilk yapay uydu olarak anılır.',
-            'Bunu biliyor muydunuz? 1962 Küba Füze Krizi, nükleer gerilimin diplomasiyle geriletilmesinin klasik örneğidir.',
-            'Bunu biliyor muydunuz? 1969 Arpanet\'in ilk düğümleri, internetin askerî-akademik kökleridir.',
-            'Bunu biliyor muydunuz? 1986 Çernobil faciası, nükleer güvenlik ve şeffaflık tartışmalarını kalıcı biçimde değiştirmiştir.',
-            'Bunu biliyor muydunuz? 1991 Sovyetler\'in dağılması, Soğuk Savaş düzeninin kurumsal sonudur.',
-            'Bunu biliyor muydunuz? 1994 Rwanda soykırımı, uluslararası toplumun geç müdahalesiyle yüzleşilen trajedilerden biridir.',
-            'Bunu biliyor muydunuz? 2001 Kasım\'da Çin\'in DTÖ\'ye üyeliği, küresel tedarik zincirlerini yeniden şekillendirmiştir.'
+        // ——— Bunu biliyor muydunuz? (vay be kalitesi, Türkçe) ———
+        let _dykTimer = null;
+        let _dykLastText = '';
+
+        const DYK_WOW_TR = [
+            'Bal arısı bir uçuşta yaklaşık 50–100 çiçeği ziyaret edebilir; 1 kg bal için on binlerce uçuş gerekir.',
+            'Ahtapotların üç kalbi vardır; ikisi solungaçlara kan pompalar, biri vücuda.',
+            'Venüs\'te bir gün, bir yıldan daha uzundur: kendi ekseninde dönüşü Güneş etrafındaki turundan uzundur.',
+            'İnsan vücudundaki en sert doku diş minesidir.',
+            'Bir yıldırımın sıcaklığı Güneş yüzeyinden katbekat yüksek olabilir (yaklaşık 30.000 °C civarı).',
+            'Karıncalar Dünya\'daki toplam biyokütlenin şaşırtıcı bir payını oluşturur; bazı tahminlere göre insan biyokütlesine yakındır.',
+            'Bambunun bazı türleri günde bir metreden fazla uzayabilir.',
+            'Bir mavi balinanın kalbi küçük bir araba kadar ağır olabilir; atışları uzaktan duyulabilir düzeydedir.',
+            'Göbeklitepe, bilinen en eski anıtsal tapınak alanlarından biridir ve tarım öncesi topluluklarla ilişkilendirilir.',
+            'DNA\'nın çift sarmal modeli 1953\'te ortaya kondu; modern genetiğin kapısını araladı.',
+            'Apollo 11\'in Ay\'a inişi (1969), insanlığın başka bir gök cismine ilk adımıdır.',
+            'Çernobil (1986), nükleer güvenlik ve şeffaflık tartışmalarını kalıcı biçimde değiştirdi.',
+            'Kara Ölüm (14. yy), Avrupa nüfusunun büyük bir kısmını yok ederek toplumsal düzeni sarsmıştır.',
+            'Matbaanın Avrupa\'da yaygınlaşması, bilgiyi el yazmasından çıkarıp kitleselleştirdi.',
+            'Süveyş Kanalı (1869), Avrupa–Asya deniz yolunu kısaltarak dünya ticaretini yeniden çizdi.',
+            'Sputnik (1957), uzay çağının fiilî başlangıcı kabul edilir.',
+            'Montreux Boğazlar Sözleşmesi (1936), savaş ve barışta boğaz geçiş rejimini hâlâ etkiler.',
+            'Harf Devrimi (1928), birkaç ay içinde okuma-yazma altyapısını baştan kurmayı hedeflemiştir.',
+            'Bir nötron yıldızının bir çay kaşığı maddesi, milyarlarca ton ağırlığında olabilir.',
+            'Okyanusların en derin noktası (Mariana Çukuru) Everest\'ten daha derindir.',
+            'Penguenler yalnızca Güney Yarımküre\'de doğal olarak yaşar.',
+            'Bal, uygun saklandığında fiilen bozulmayan nadir gıdalardandır; arkeolojik kazılarda eski bal örnekleri bulunmuştur.',
+            'Octopus türleri, tehlike anında mürekkep salarak görüşü engelleyebilir ve renk değiştirebilir.',
+            'Dünya\'nın manyetik kutupları jeolojik zamanda yer değiştirmiştir; bu, kayalardaki manyetik kayıtlardan okunur.',
+            'İlk modern Olimpiyatlar 1896\'da Atina\'da yapıldı; antik oyunların yeniden doğuşudur.',
+            'Rosetta Taşı, hiyerogliflerin çözülmesinde kilit rol oynamıştır.',
+            'Titanic battığında (1912), telsiz trafiği ve buzdağı uyarıları felaketin parçasıydı.',
+            'Penisilinin tıbbi kullanımı, enfeksiyon hastalıklarında ölüm oranlarını kökten düşürmüştür.',
+            'İnternetin kökleri 1960\'ların sonundaki ARPANET deneylerinedir.',
+            'Bir gün Mars\'ta (sol) yaklaşık 24 saat 39 dakikadır; Dünya gününe şaşırtıcı derecede yakındır.'
         ];
 
-        window.getDidYouKnow = function() {
-            // Son gösterilenleri hatırla; mümkünse tekrar etme
-            var used = [];
-            try { used = JSON.parse(sessionStorage.getItem('yuvam_dyk_used') || '[]'); } catch (_) { used = []; }
-            if (!Array.isArray(used)) used = [];
-            var pool = [];
-            for (var i = 0; i < DID_YOU_KNOW.length; i++) {
-                if (used.indexOf(i) < 0) pool.push(i);
+        function isBoringGeoFact(text) {
+            const t = String(text || '').toLowerCase();
+            const bad = [
+                'ilçesi', 'ilçe', 'belediyesi', 'mahallesi', 'köyü', 'kasabası', 'şehir', 'kentidir',
+                'bağlıdır', 'bağlı bir', 'nüfus', 'km²', 'km2', 'yüzölçümü', 'il merkez',
+                'is a city', 'is a town', 'is a village', 'municipality', 'province of',
+                'district of', 'is a commune', 'is a county'
+            ];
+            let hits = 0;
+            for (let i = 0; i < bad.length; i++) {
+                if (t.indexOf(bad[i]) >= 0) hits++;
             }
-            if (!pool.length) { used = []; pool = DID_YOU_KNOW.map(function(_, i) { return i; }); }
-            var pick = pool[Math.floor(Math.random() * pool.length)];
-            used.push(pick);
-            if (used.length > 24) used = used.slice(-16);
-            try { sessionStorage.setItem('yuvam_dyk_used', JSON.stringify(used)); } catch (_) {}
-            return DID_YOU_KNOW[pick];
+            return hits >= 1 && (t.indexOf('nüfus') >= 0 || t.indexOf('bağlı') >= 0 || t.indexOf('ilçe') >= 0 || t.indexOf('is a city') >= 0 || t.indexOf('is a town') >= 0 || t.indexOf('municipality') >= 0);
+        }
+
+        function looksTurkish(s) {
+            return /[çğıöşüÇĞİÖŞÜ]/.test(s || '');
+        }
+
+        async function translateToTurkish(text) {
+            const t = String(text || '').trim();
+            if (!t) return t;
+            if (looksTurkish(t)) return t;
+            try {
+                const q = encodeURIComponent(t.slice(0, 400));
+                const r = await fetch('https://api.mymemory.translated.net/get?q=' + q + '&langpair=en|tr', { cache: 'no-store' });
+                if (!r.ok) throw new Error('tr');
+                const j = await r.json();
+                const out = j && j.responseData && j.responseData.translatedText;
+                if (out && String(out).trim()) return String(out).trim();
+            } catch (_) {}
+            return t;
+        }
+
+        async function fetchDidYouKnowFromApis() {
+            const sources = [
+                async function() {
+                    const r = await fetch('https://uselessfacts.jsph.pl/api/v2/facts/random', { cache: 'no-store' });
+                    if (!r.ok) throw new Error('facts');
+                    const j = await r.json();
+                    let raw = (j && j.text) ? String(j.text).trim() : '';
+                    if (!raw || raw.length < 30) throw new Error('short');
+                    if (isBoringGeoFact(raw)) throw new Error('boring');
+                    const tr = await translateToTurkish(raw);
+                    if (isBoringGeoFact(tr)) throw new Error('boring-tr');
+                    return { kind: 'İlginç bilgi', text: tr };
+                },
+                async function() {
+                    const d = new Date();
+                    const url = 'https://history.muffinlabs.com/date/' + (d.getMonth() + 1) + '/' + d.getDate();
+                    const r = await fetch(url, { cache: 'no-store' });
+                    if (!r.ok) throw new Error('history');
+                    const j = await r.json();
+                    const events = (j && j.data && j.data.Events) ? j.data.Events : [];
+                    if (!events.length) throw new Error('no events');
+                    // Daha "büyük" olayları tercih et (metin uzunluğu)
+                    const ranked = events.slice().sort(function(a, b) {
+                        return String(b.text || '').length - String(a.text || '').length;
+                    });
+                    const e = ranked[Math.floor(Math.random() * Math.min(8, ranked.length))];
+                    const year = e.year ? (e.year + ': ') : '';
+                    const raw = year + String(e.text || '').trim();
+                    if (raw.length < 40) throw new Error('short hist');
+                    const tr = await translateToTurkish(raw);
+                    return { kind: 'Tarihte bugün', text: tr };
+                },
+                async function() {
+                    const r = await fetch('https://official-joke-api.appspot.com/random_joke', { cache: 'no-store' });
+                    if (!r.ok) throw new Error('joke');
+                    const j = await r.json();
+                    const raw = ((j.setup || '') + ' — ' + (j.punchline || '')).trim();
+                    if (raw.length < 12) throw new Error('short joke');
+                    const tr = await translateToTurkish(raw);
+                    return { kind: 'Komik', text: tr };
+                },
+                async function() {
+                    // Yerel "vay be" havuzu
+                    let pick = DYK_WOW_TR[Math.floor(Math.random() * DYK_WOW_TR.length)];
+                    let guard = 0;
+                    while (pick === _dykLastText && guard < 8) {
+                        pick = DYK_WOW_TR[Math.floor(Math.random() * DYK_WOW_TR.length)];
+                        guard++;
+                    }
+                    return { kind: 'İlginç bilgi', text: pick };
+                }
+            ];
+            // Karıştır
+            for (let i = sources.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                const t = sources[i]; sources[i] = sources[j]; sources[j] = t;
+            }
+            let lastErr = null;
+            for (let i = 0; i < sources.length; i++) {
+                try {
+                    const item = await sources[i]();
+                    if (item && item.text && item.text !== _dykLastText && !isBoringGeoFact(item.text)) return item;
+                } catch (e) { lastErr = e; }
+            }
+            // Son çare yerel havuz
+            const fb = DYK_WOW_TR[Math.floor(Math.random() * DYK_WOW_TR.length)];
+            return { kind: 'İlginç bilgi', text: fb };
+        }
+
+        window.loadDidYouKnowFact = async function(force) {
+            const el = document.getElementById('homeDidYouKnow');
+            if (!el) return;
+            if (force || el.dataset.loaded !== '1') {
+                el.textContent = 'Bunu biliyor muydunuz? Yükleniyor…';
+            }
+            try {
+                const item = await fetchDidYouKnowFromApis();
+                _dykLastText = item.text;
+                let body = String(item.text || '').replace(/\s+/g, ' ').trim();
+                if (body.length > 320) body = body.slice(0, 317) + '…';
+                const kind = item.kind || 'İlginç bilgi';
+                el.textContent = 'Bunu biliyor muydunuz? (' + kind + ') ' + body;
+                el.dataset.loaded = '1';
+                try {
+                    sessionStorage.setItem('yuvam_dyk_cache', JSON.stringify({ t: Date.now(), kind: kind, text: body }));
+                } catch (_) {}
+            } catch (e) {
+                try {
+                    const raw = sessionStorage.getItem('yuvam_dyk_cache');
+                    if (raw) {
+                        const o = JSON.parse(raw);
+                        if (o && o.text) {
+                            el.textContent = 'Bunu biliyor muydunuz? (' + (o.kind || 'Bilgi') + ') ' + o.text;
+                            return;
+                        }
+                    }
+                } catch (_) {}
+                const fb = DYK_WOW_TR[Math.floor(Math.random() * DYK_WOW_TR.length)];
+                el.textContent = 'Bunu biliyor muydunuz? (İlginç bilgi) ' + fb;
+            }
+            if (_dykTimer) clearInterval(_dykTimer);
+            _dykTimer = setInterval(function() {
+                try {
+                    const home = document.getElementById('tabContentHome');
+                    if (home && !home.classList.contains('hidden')) loadDidYouKnowFact(true);
+                } catch (_) {}
+            }, 120000);
         };
 
+        window.getDidYouKnow = function() {
+            loadDidYouKnowFact(false);
+            return 'Yükleniyor…';
+        };
 
         // ——— Aile: Takvim / Görev / Alışveriş ———
         function familyRow(main, sub, actionsHtml) {
@@ -1383,7 +1494,7 @@
                 el.textContent = 'Kayıt yok';
                 el.className = 'text-xl font-black text-slate-400';
                 if (netEl) { netEl.textContent = ''; netEl.className = 'text-lg font-black text-slate-400'; }
-                if (sub) sub.textContent = 'Raporlar · altın ekle';
+                if (sub) sub.textContent = 'Bütçe Takip · altın ekle';
                 return;
             }
             if (!p.hasPriced) {
@@ -1988,15 +2099,15 @@
 
 
 
-        // ——— Sayfa düzeni (tüm sekmeler, tüm üst bloklar) ———
+        // ——— Sayfa düzeni (kalıcı: localStorage + Firebase) ———
         let layoutEditPage = null;
+        let pageLayoutsCloud = {}; // settings/pageLayouts
 
         function currentLayoutPageId() {
-            // Aktif sekme içeriği
             const tabs = document.querySelectorAll('[id^="tabContent"]');
             for (let i = 0; i < tabs.length; i++) {
                 const el = tabs[i];
-                if (el.classList && !el.classList.contains('hidden') && el.id.indexOf('tabContent') === 0) {
+                if (el.classList && !el.classList.contains('hidden')) {
                     return el.id.replace(/^tabContent/, '').toLowerCase();
                 }
             }
@@ -2006,37 +2117,14 @@
 
         function layoutContainer(page) {
             if (!page) return null;
-            // home -> tabContentHome
             const id = 'tabContent' + page.charAt(0).toUpperCase() + page.slice(1);
             let el = document.getElementById(id);
             if (el) return el;
-            // case variants
             const all = document.querySelectorAll('[id^="tabContent"]');
             for (let i = 0; i < all.length; i++) {
                 if (all[i].id.toLowerCase() === ('tabcontent' + page).toLowerCase()) return all[i];
             }
             return null;
-        }
-
-        function ensureLayoutBlocks(root, page) {
-            if (!root) return;
-            let n = 0;
-            Array.prototype.forEach.call(root.children, function(ch) {
-                if (!ch || ch.nodeType !== 1) return;
-                // atla: düzen toolbar / boş
-                if (ch.id === 'layoutEditBtn') return;
-                const cls = (ch.className && String(ch.className)) || '';
-                const text = (ch.textContent || '').trim();
-                if (!text || text.length < 2) return;
-                // zaten işaretli
-                if (ch.getAttribute('data-layout-block')) return;
-                // çok küçük satır içi elemanlar
-                if (ch.matches && ch.matches('script,style,link,br,hr')) return;
-                // hero her zaman en üstte kalsın istersen yine taşınabilir - işaretle
-                n += 1;
-                const id = page + '_b' + n + '_' + Math.abs(hashStr(cls + text.slice(0, 40))).toString(36).slice(0, 6);
-                ch.setAttribute('data-layout-block', id);
-            });
         }
 
         function hashStr(s) {
@@ -2045,7 +2133,38 @@
             return h;
         }
 
+        function ensureLayoutBlocks(root, page) {
+            if (!root) return;
+            let n = 0;
+            Array.prototype.forEach.call(root.children, function(ch) {
+                if (!ch || ch.nodeType !== 1) return;
+                if (ch.getAttribute('data-layout-fixed') === '1') return;
+                if (ch.classList && ch.classList.contains('home-hero')) {
+                    ch.setAttribute('data-layout-fixed', '1');
+                    return;
+                }
+                if (ch.id === 'homeHeroBanner') {
+                    ch.setAttribute('data-layout-fixed', '1');
+                    return;
+                }
+                const text = (ch.textContent || '').trim();
+                if (!text || text.length < 2) return;
+                if (ch.getAttribute('data-layout-block')) return;
+                // stabil kimlik: mevcut sabit id varsa onu kullan
+                const stable = ch.getAttribute('data-home-card') || ch.id || '';
+                n += 1;
+                const id = stable
+                    ? String(stable)
+                    : (page + '_b' + n + '_' + Math.abs(hashStr((ch.className || '') + text.slice(0, 32))).toString(36).slice(0, 6));
+                ch.setAttribute('data-layout-block', id);
+            });
+        }
+
         function getLayoutOrder(page) {
+            // Önce bulut, sonra local
+            if (pageLayoutsCloud && Array.isArray(pageLayoutsCloud[page]) && pageLayoutsCloud[page].length) {
+                return pageLayoutsCloud[page].slice();
+            }
             try {
                 const raw = localStorage.getItem('yuvam_layout_' + page);
                 if (raw) {
@@ -2058,14 +2177,22 @@
 
         function saveLayoutOrder(page, order) {
             try { localStorage.setItem('yuvam_layout_' + page, JSON.stringify(order)); } catch (_) {}
+            pageLayoutsCloud[page] = order.slice();
+            try {
+                if (typeof db !== 'undefined' && db) {
+                    const payload = {};
+                    payload[page] = order;
+                    payload.updatedAt = new Date().toISOString();
+                    db.collection('settings').doc('pageLayouts').set(payload, { merge: true }).catch(function() {});
+                }
+            } catch (_) {}
         }
 
         function collectLayoutBlocks(root) {
             const list = [];
             Array.prototype.forEach.call(root.children, function(ch) {
                 if (!ch.getAttribute) return;
-                // toolbar satırı (sadece düzen butonu içeren) taşıma
-                if (ch.querySelector && ch.children.length === 1 && ch.querySelector('#layoutEditBtn')) return;
+                if (ch.getAttribute('data-layout-fixed') === '1') return;
                 const id = ch.getAttribute('data-layout-block');
                 if (id) list.push({ id: id, el: ch });
             });
@@ -2077,10 +2204,20 @@
             const root = layoutContainer(page);
             if (!root) return;
 
+            // Hero / sabitler her zaman EN ÜSTE
+            const fixedNodes = [];
+            Array.prototype.forEach.call(root.children, function(ch) {
+                if (!ch.getAttribute) return;
+                if (ch.getAttribute('data-layout-fixed') === '1' || (ch.classList && ch.classList.contains('home-hero')) || ch.id === 'homeHeroBanner') {
+                    ch.setAttribute('data-layout-fixed', '1');
+                    // asla layout-block olmasın
+                    ch.removeAttribute('data-layout-block');
+                    fixedNodes.push(ch);
+                }
+            });
+
             ensureLayoutBlocks(root, page);
             const blocks = collectLayoutBlocks(root);
-            if (!blocks.length) return;
-
             const byId = {};
             blocks.forEach(function(b) { byId[b.id] = b.el; });
 
@@ -2088,36 +2225,18 @@
             blocks.forEach(function(b) {
                 if (order.indexOf(b.id) < 0) order.push(b.id);
             });
-            // Bütçe Takip: Altın, Yeni Harcama Ekle'nin hemen altında olsun
-            if (page === 'expense') {
-                const ia = order.indexOf('expenseAdd');
-                const ig = order.indexOf('expenseGold');
-                if (ia >= 0 && ig >= 0 && ig !== ia + 1) {
-                    order = order.filter(function(x) { return x !== 'expenseGold'; });
-                    const ia2 = order.indexOf('expenseAdd');
-                    order.splice(ia2 + 1, 0, 'expenseGold');
-                }
-            }
 
-            // Sabit olmayanları sırala; data-layout-fixed olanlar başta kalır
-            const fixed = [];
-            Array.prototype.forEach.call(root.children, function(ch) {
-                if (ch.getAttribute && ch.getAttribute('data-layout-fixed') === '1') fixed.push(ch);
-                else if (ch.getAttribute && !ch.getAttribute('data-layout-block')) {
-                    // işaretsiz küçük düğümler (eski toolbar)
-                    if (ch.querySelector && ch.querySelector('[onclick*="toggleLayoutEdit"]')) {
-                        ch.setAttribute('data-layout-fixed', '1');
-                        fixed.push(ch);
-                    }
-                }
-            });
-            fixed.forEach(function(ch) { root.appendChild(ch); });
+            // DOM: önce sabitler, sonra sıra
+            fixedNodes.forEach(function(ch) { root.appendChild(ch); });
             order.forEach(function(id) {
                 if (byId[id]) root.appendChild(byId[id]);
             });
-            saveLayoutOrder(page, order);
+            // order'ı local+cloud'a yazma her apply'da şişmesin; sadece move'da kaydet
+            // ama ilk keşfedilen eksik id'leri de kalıcı yap
+            if (order.length) {
+                try { localStorage.setItem('yuvam_layout_' + page, JSON.stringify(order)); } catch (_) {}
+            }
 
-            // Chrome
             blocks.forEach(function(b) {
                 const el = b.el;
                 let bar = null;
@@ -2131,8 +2250,7 @@
                     if (!bar) {
                         bar = document.createElement('div');
                         bar.className = 'layout-edit-bar';
-                        bar.innerHTML =
-                            '<span class="layout-edit-label">Taşı</span>' +
+                        bar.innerHTML = '<span class="layout-edit-label">Taşı</span>' +
                             '<button type="button" class="layout-btn" data-dir="up">↑</button>' +
                             '<button type="button" class="layout-btn" data-dir="down">↓</button>';
                         el.insertBefore(bar, el.firstChild);
@@ -2175,7 +2293,7 @@
             order[j] = t;
             saveLayoutOrder(page, order);
             applyPageLayout(page);
-            if (typeof showToast === 'function') showToast('Sıra kaydedildi', 'success');
+            if (typeof showToast === 'function') showToast('Sıra kaydedildi (cihaz + bulut)', 'success');
         }
 
         window.toggleLayoutEdit = function(page) {
@@ -2185,7 +2303,7 @@
                 applyPageLayout(page);
                 const on = layoutEditPage === page;
                 if (typeof showToast === 'function') {
-                    showToast(on ? 'Düzen açık — tüm kutularda ↑ ↓' : 'Düzen kapandı', 'info');
+                    showToast(on ? 'Düzen açık — ↑ ↓ ile taşıyın (kalıcı kaydedilir)' : 'Düzen kapandı', 'info');
                 }
                 const btn = document.getElementById('layoutEditBtn');
                 if (btn) {
@@ -2202,10 +2320,6 @@
         window.toggleLayoutEditCurrent = function() {
             toggleLayoutEdit(currentLayoutPageId());
         };
-
-        // Sekme değişince düzeni uygula
-        const _origSwitchTabLayout = typeof window.switchTab === 'function' ? window.switchTab : null;
-        // switchTab zaten var; applyPageLayout çağrıları switchTab içinde eklenecek aşağıda
 
         window.applyDashboardCards = function() {
             const dc = dashboardCards || {};
