@@ -116,7 +116,7 @@
 
             <!-- SEKME: ANA SAYFA (YUVAM 2.0 iskelet) -->
             <div id="tabContentHome" class="hidden space-y-5 fade-in pb-4">
-                <div class="home-hero relative overflow-hidden text-white rounded-[2rem] p-6 shadow-lg" data-layout-fixed="1">
+                <div class="home-hero relative overflow-hidden text-white rounded-[2rem] p-6 shadow-lg" data-layout-fixed="1" id="homeHeroBanner">
                     <div class="home-hero-pattern" aria-hidden="true"></div>
                     <div class="relative z-[1]">
                         <p id="homeGreeting" class="text-2xl sm:text-3xl font-black tracking-tight order-first">Merhaba</p>
@@ -168,13 +168,13 @@
                         <p id="homePeriodSpend" class="text-lg font-black text-rose-600 mt-1">0 TL</p>
                         <p class="text-[11px] text-slate-400 font-semibold">29–28 ekstre</p>
                     </div>
-                    <button type="button" data-home-card="homeGold" onclick="switchTab('stats')" class="yuvam-card bg-white rounded-2xl p-4 card-shadow border border-amber-100 text-left col-span-2">
+                    <button type="button" data-home-card="homeGold" onclick="switchTab('expense')" class="yuvam-card bg-white rounded-2xl p-4 card-shadow border border-amber-100 text-left col-span-2">
                         <p class="text-[10px] font-black text-amber-700/80 uppercase tracking-wide">🥇 Altın Yatırımı</p>
                         <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 mt-1">
                             <p id="homeGoldPnL" class="text-xl font-black text-slate-800">—</p>
                             <p id="homeGoldNet" class="text-lg font-black text-slate-700">—</p>
                         </div>
-                        <p id="homeGoldSub" class="text-[11px] text-slate-500 font-semibold mt-0.5">Raporlar · detay</p>
+                        <p id="homeGoldSub" class="text-[11px] text-slate-500 font-semibold mt-0.5">Bütçe Takip · detay</p>
                     </button>
                     <div data-layout-block="homeBudget" data-home-card="homeBudget" class="yuvam-card stripe-budget bg-white rounded-2xl p-4 card-shadow border border-slate-100 col-span-2">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Aylık Bütçe Hedefi</p>

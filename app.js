@@ -1179,47 +1179,90 @@
             if (typeof updateTaskNavBadges === 'function') updateTaskNavBadges();
         };
 
-        // ——— Bunu biliyor muydunuz? (Türkçe — ücretsiz API) ———
+        // ——— Bunu biliyor muydunuz? (vay be kalitesi, Türkçe) ———
         let _dykTimer = null;
         let _dykLastText = '';
 
+        const DYK_WOW_TR = [
+            'Bal arısı bir uçuşta yaklaşık 50–100 çiçeği ziyaret edebilir; 1 kg bal için on binlerce uçuş gerekir.',
+            'Ahtapotların üç kalbi vardır; ikisi solungaçlara kan pompalar, biri vücuda.',
+            'Venüs\'te bir gün, bir yıldan daha uzundur: kendi ekseninde dönüşü Güneş etrafındaki turundan uzundur.',
+            'İnsan vücudundaki en sert doku diş minesidir.',
+            'Bir yıldırımın sıcaklığı Güneş yüzeyinden katbekat yüksek olabilir (yaklaşık 30.000 °C civarı).',
+            'Karıncalar Dünya\'daki toplam biyokütlenin şaşırtıcı bir payını oluşturur; bazı tahminlere göre insan biyokütlesine yakındır.',
+            'Bambunun bazı türleri günde bir metreden fazla uzayabilir.',
+            'Bir mavi balinanın kalbi küçük bir araba kadar ağır olabilir; atışları uzaktan duyulabilir düzeydedir.',
+            'Göbeklitepe, bilinen en eski anıtsal tapınak alanlarından biridir ve tarım öncesi topluluklarla ilişkilendirilir.',
+            'DNA\'nın çift sarmal modeli 1953\'te ortaya kondu; modern genetiğin kapısını araladı.',
+            'Apollo 11\'in Ay\'a inişi (1969), insanlığın başka bir gök cismine ilk adımıdır.',
+            'Çernobil (1986), nükleer güvenlik ve şeffaflık tartışmalarını kalıcı biçimde değiştirdi.',
+            'Kara Ölüm (14. yy), Avrupa nüfusunun büyük bir kısmını yok ederek toplumsal düzeni sarsmıştır.',
+            'Matbaanın Avrupa\'da yaygınlaşması, bilgiyi el yazmasından çıkarıp kitleselleştirdi.',
+            'Süveyş Kanalı (1869), Avrupa–Asya deniz yolunu kısaltarak dünya ticaretini yeniden çizdi.',
+            'Sputnik (1957), uzay çağının fiilî başlangıcı kabul edilir.',
+            'Montreux Boğazlar Sözleşmesi (1936), savaş ve barışta boğaz geçiş rejimini hâlâ etkiler.',
+            'Harf Devrimi (1928), birkaç ay içinde okuma-yazma altyapısını baştan kurmayı hedeflemiştir.',
+            'Bir nötron yıldızının bir çay kaşığı maddesi, milyarlarca ton ağırlığında olabilir.',
+            'Okyanusların en derin noktası (Mariana Çukuru) Everest\'ten daha derindir.',
+            'Penguenler yalnızca Güney Yarımküre\'de doğal olarak yaşar.',
+            'Bal, uygun saklandığında fiilen bozulmayan nadir gıdalardandır; arkeolojik kazılarda eski bal örnekleri bulunmuştur.',
+            'Octopus türleri, tehlike anında mürekkep salarak görüşü engelleyebilir ve renk değiştirebilir.',
+            'Dünya\'nın manyetik kutupları jeolojik zamanda yer değiştirmiştir; bu, kayalardaki manyetik kayıtlardan okunur.',
+            'İlk modern Olimpiyatlar 1896\'da Atina\'da yapıldı; antik oyunların yeniden doğuşudur.',
+            'Rosetta Taşı, hiyerogliflerin çözülmesinde kilit rol oynamıştır.',
+            'Titanic battığında (1912), telsiz trafiği ve buzdağı uyarıları felaketin parçasıydı.',
+            'Penisilinin tıbbi kullanımı, enfeksiyon hastalıklarında ölüm oranlarını kökten düşürmüştür.',
+            'İnternetin kökleri 1960\'ların sonundaki ARPANET deneylerinedir.',
+            'Bir gün Mars\'ta (sol) yaklaşık 24 saat 39 dakikadır; Dünya gününe şaşırtıcı derecede yakındır.'
+        ];
+
+        function isBoringGeoFact(text) {
+            const t = String(text || '').toLowerCase();
+            const bad = [
+                'ilçesi', 'ilçe', 'belediyesi', 'mahallesi', 'köyü', 'kasabası', 'şehir', 'kentidir',
+                'bağlıdır', 'bağlı bir', 'nüfus', 'km²', 'km2', 'yüzölçümü', 'il merkez',
+                'is a city', 'is a town', 'is a village', 'municipality', 'province of',
+                'district of', 'is a commune', 'is a county'
+            ];
+            let hits = 0;
+            for (let i = 0; i < bad.length; i++) {
+                if (t.indexOf(bad[i]) >= 0) hits++;
+            }
+            return hits >= 1 && (t.indexOf('nüfus') >= 0 || t.indexOf('bağlı') >= 0 || t.indexOf('ilçe') >= 0 || t.indexOf('is a city') >= 0 || t.indexOf('is a town') >= 0 || t.indexOf('municipality') >= 0);
+        }
+
         function looksTurkish(s) {
-            return /[çğıöşüÇĞİÖŞÜ]/.test(s || '') || /\b(ve|bir|ile|için|olan|olarak|tarih|yıl)\b/i.test(s || '');
+            return /[çğıöşüÇĞİÖŞÜ]/.test(s || '');
         }
 
         async function translateToTurkish(text) {
             const t = String(text || '').trim();
             if (!t) return t;
-            if (looksTurkish(t) && t.length > 40) return t;
-            // MyMemory — ücretsiz, anahtarsız (günlük limit olabilir)
+            if (looksTurkish(t)) return t;
             try {
-                const q = encodeURIComponent(t.slice(0, 450));
+                const q = encodeURIComponent(t.slice(0, 400));
                 const r = await fetch('https://api.mymemory.translated.net/get?q=' + q + '&langpair=en|tr', { cache: 'no-store' });
-                if (!r.ok) throw new Error('tr http');
+                if (!r.ok) throw new Error('tr');
                 const j = await r.json();
                 const out = j && j.responseData && j.responseData.translatedText;
-                if (out && String(out).trim() && String(out).toUpperCase() !== t.toUpperCase()) {
-                    return String(out).trim();
-                }
+                if (out && String(out).trim()) return String(out).trim();
             } catch (_) {}
             return t;
         }
 
         async function fetchDidYouKnowFromApis() {
             const sources = [
-                // 1) Türkçe Vikipedi rastgele madde
                 async function() {
-                    const r = await fetch('https://tr.wikipedia.org/api/rest_v1/page/random/summary', { cache: 'no-store' });
-                    if (!r.ok) throw new Error('wiki-tr');
+                    const r = await fetch('https://uselessfacts.jsph.pl/api/v2/facts/random', { cache: 'no-store' });
+                    if (!r.ok) throw new Error('facts');
                     const j = await r.json();
-                    const title = (j.title || '').trim();
-                    const extract = (j.extract || '').trim();
-                    if (!extract || extract.length < 40) throw new Error('wiki short');
-                    let text = extract;
-                    if (title && extract.indexOf(title) !== 0) text = title + ': ' + extract;
-                    return { kind: 'İlginç bilgi', text: text, tr: true };
+                    let raw = (j && j.text) ? String(j.text).trim() : '';
+                    if (!raw || raw.length < 30) throw new Error('short');
+                    if (isBoringGeoFact(raw)) throw new Error('boring');
+                    const tr = await translateToTurkish(raw);
+                    if (isBoringGeoFact(tr)) throw new Error('boring-tr');
+                    return { kind: 'İlginç bilgi', text: tr };
                 },
-                // 2) Tarihte bugün (EN → TR çeviri)
                 async function() {
                     const d = new Date();
                     const url = 'https://history.muffinlabs.com/date/' + (d.getMonth() + 1) + '/' + d.getDate();
@@ -1228,76 +1271,52 @@
                     const j = await r.json();
                     const events = (j && j.data && j.data.Events) ? j.data.Events : [];
                     if (!events.length) throw new Error('no events');
-                    const e = events[Math.floor(Math.random() * events.length)];
+                    // Daha "büyük" olayları tercih et (metin uzunluğu)
+                    const ranked = events.slice().sort(function(a, b) {
+                        return String(b.text || '').length - String(a.text || '').length;
+                    });
+                    const e = ranked[Math.floor(Math.random() * Math.min(8, ranked.length))];
                     const year = e.year ? (e.year + ': ') : '';
                     const raw = year + String(e.text || '').trim();
+                    if (raw.length < 40) throw new Error('short hist');
                     const tr = await translateToTurkish(raw);
-                    return { kind: 'Tarihte bugün', text: tr, tr: true };
+                    return { kind: 'Tarihte bugün', text: tr };
                 },
-                // 3) İlginç bilgi (EN → TR)
-                async function() {
-                    const r = await fetch('https://uselessfacts.jsph.pl/api/v2/facts/random', { cache: 'no-store' });
-                    if (!r.ok) throw new Error('facts');
-                    const j = await r.json();
-                    const raw = (j && j.text) ? String(j.text).trim() : '';
-                    if (!raw) throw new Error('empty');
-                    const tr = await translateToTurkish(raw);
-                    return { kind: 'İlginç bilgi', text: tr, tr: true };
-                },
-                // 4) Komik (EN → TR)
                 async function() {
                     const r = await fetch('https://official-joke-api.appspot.com/random_joke', { cache: 'no-store' });
                     if (!r.ok) throw new Error('joke');
                     const j = await r.json();
                     const raw = ((j.setup || '') + ' — ' + (j.punchline || '')).trim();
-                    if (raw.length < 8) throw new Error('empty joke');
+                    if (raw.length < 12) throw new Error('short joke');
                     const tr = await translateToTurkish(raw);
-                    return { kind: 'Komik', text: tr, tr: true };
+                    return { kind: 'Komik', text: tr };
                 },
-                // 5) Hayvan bilgisi (EN → TR)
                 async function() {
-                    const r = await fetch('https://catfact.ninja/fact', { cache: 'no-store' });
-                    if (!r.ok) throw new Error('cat');
-                    const j = await r.json();
-                    const raw = (j && j.fact) ? String(j.fact).trim() : '';
-                    if (!raw) throw new Error('empty');
-                    const tr = await translateToTurkish(raw);
-                    return { kind: 'İlginç bilgi', text: tr, tr: true };
+                    // Yerel "vay be" havuzu
+                    let pick = DYK_WOW_TR[Math.floor(Math.random() * DYK_WOW_TR.length)];
+                    let guard = 0;
+                    while (pick === _dykLastText && guard < 8) {
+                        pick = DYK_WOW_TR[Math.floor(Math.random() * DYK_WOW_TR.length)];
+                        guard++;
+                    }
+                    return { kind: 'İlginç bilgi', text: pick };
                 }
             ];
+            // Karıştır
             for (let i = sources.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 const t = sources[i]; sources[i] = sources[j]; sources[j] = t;
             }
-            // Vikipedi TR'ye biraz daha şans: %40 başa koy
-            if (Math.random() < 0.4) {
-                const wiki = sources.find(function(fn) { return fn.toString().indexOf('wiki-tr') >= 0 || fn.toString().indexOf('tr.wikipedia') >= 0; });
-                // kaynaklar anonim; ilk olarak wiki denemek için yeniden sırala
-            }
-            // Önce TR Vikipedi dene
-            try {
-                const r = await fetch('https://tr.wikipedia.org/api/rest_v1/page/random/summary', { cache: 'no-store' });
-                if (r.ok) {
-                    const j = await r.json();
-                    const extract = (j.extract || '').trim();
-                    if (extract.length >= 40) {
-                        const title = (j.title || '').trim();
-                        let text = extract;
-                        if (title && extract.indexOf(title) !== 0) text = title + ': ' + extract;
-                        if (text !== _dykLastText) return { kind: 'İlginç bilgi', text: text, tr: true };
-                    }
-                }
-            } catch (_) {}
-
             let lastErr = null;
             for (let i = 0; i < sources.length; i++) {
                 try {
                     const item = await sources[i]();
-                    if (item && item.text && item.text !== _dykLastText) return item;
-                    if (item && item.text) return item;
+                    if (item && item.text && item.text !== _dykLastText && !isBoringGeoFact(item.text)) return item;
                 } catch (e) { lastErr = e; }
             }
-            throw lastErr || new Error('Tüm API\'ler başarısız');
+            // Son çare yerel havuz
+            const fb = DYK_WOW_TR[Math.floor(Math.random() * DYK_WOW_TR.length)];
+            return { kind: 'İlginç bilgi', text: fb };
         }
 
         window.loadDidYouKnowFact = async function(force) {
@@ -1315,9 +1334,7 @@
                 el.textContent = 'Bunu biliyor muydunuz? (' + kind + ') ' + body;
                 el.dataset.loaded = '1';
                 try {
-                    sessionStorage.setItem('yuvam_dyk_cache', JSON.stringify({
-                        t: Date.now(), kind: kind, text: body
-                    }));
+                    sessionStorage.setItem('yuvam_dyk_cache', JSON.stringify({ t: Date.now(), kind: kind, text: body }));
                 } catch (_) {}
             } catch (e) {
                 try {
@@ -1330,7 +1347,8 @@
                         }
                     }
                 } catch (_) {}
-                el.textContent = 'Bunu biliyor muydunuz? Yeni bilgi için buraya dokunun.';
+                const fb = DYK_WOW_TR[Math.floor(Math.random() * DYK_WOW_TR.length)];
+                el.textContent = 'Bunu biliyor muydunuz? (İlginç bilgi) ' + fb;
             }
             if (_dykTimer) clearInterval(_dykTimer);
             _dykTimer = setInterval(function() {
@@ -1476,7 +1494,7 @@
                 el.textContent = 'Kayıt yok';
                 el.className = 'text-xl font-black text-slate-400';
                 if (netEl) { netEl.textContent = ''; netEl.className = 'text-lg font-black text-slate-400'; }
-                if (sub) sub.textContent = 'Raporlar · altın ekle';
+                if (sub) sub.textContent = 'Bütçe Takip · altın ekle';
                 return;
             }
             if (!p.hasPriced) {
@@ -2081,15 +2099,15 @@
 
 
 
-        // ——— Sayfa düzeni (tüm sekmeler, tüm üst bloklar) ———
+        // ——— Sayfa düzeni (kalıcı: localStorage + Firebase) ———
         let layoutEditPage = null;
+        let pageLayoutsCloud = {}; // settings/pageLayouts
 
         function currentLayoutPageId() {
-            // Aktif sekme içeriği
             const tabs = document.querySelectorAll('[id^="tabContent"]');
             for (let i = 0; i < tabs.length; i++) {
                 const el = tabs[i];
-                if (el.classList && !el.classList.contains('hidden') && el.id.indexOf('tabContent') === 0) {
+                if (el.classList && !el.classList.contains('hidden')) {
                     return el.id.replace(/^tabContent/, '').toLowerCase();
                 }
             }
@@ -2099,37 +2117,14 @@
 
         function layoutContainer(page) {
             if (!page) return null;
-            // home -> tabContentHome
             const id = 'tabContent' + page.charAt(0).toUpperCase() + page.slice(1);
             let el = document.getElementById(id);
             if (el) return el;
-            // case variants
             const all = document.querySelectorAll('[id^="tabContent"]');
             for (let i = 0; i < all.length; i++) {
                 if (all[i].id.toLowerCase() === ('tabcontent' + page).toLowerCase()) return all[i];
             }
             return null;
-        }
-
-        function ensureLayoutBlocks(root, page) {
-            if (!root) return;
-            let n = 0;
-            Array.prototype.forEach.call(root.children, function(ch) {
-                if (!ch || ch.nodeType !== 1) return;
-                // atla: düzen toolbar / boş
-                if (ch.id === 'layoutEditBtn') return;
-                const cls = (ch.className && String(ch.className)) || '';
-                const text = (ch.textContent || '').trim();
-                if (!text || text.length < 2) return;
-                // zaten işaretli
-                if (ch.getAttribute('data-layout-block')) return;
-                // çok küçük satır içi elemanlar
-                if (ch.matches && ch.matches('script,style,link,br,hr')) return;
-                // hero her zaman en üstte kalsın istersen yine taşınabilir - işaretle
-                n += 1;
-                const id = page + '_b' + n + '_' + Math.abs(hashStr(cls + text.slice(0, 40))).toString(36).slice(0, 6);
-                ch.setAttribute('data-layout-block', id);
-            });
         }
 
         function hashStr(s) {
@@ -2138,7 +2133,38 @@
             return h;
         }
 
+        function ensureLayoutBlocks(root, page) {
+            if (!root) return;
+            let n = 0;
+            Array.prototype.forEach.call(root.children, function(ch) {
+                if (!ch || ch.nodeType !== 1) return;
+                if (ch.getAttribute('data-layout-fixed') === '1') return;
+                if (ch.classList && ch.classList.contains('home-hero')) {
+                    ch.setAttribute('data-layout-fixed', '1');
+                    return;
+                }
+                if (ch.id === 'homeHeroBanner') {
+                    ch.setAttribute('data-layout-fixed', '1');
+                    return;
+                }
+                const text = (ch.textContent || '').trim();
+                if (!text || text.length < 2) return;
+                if (ch.getAttribute('data-layout-block')) return;
+                // stabil kimlik: mevcut sabit id varsa onu kullan
+                const stable = ch.getAttribute('data-home-card') || ch.id || '';
+                n += 1;
+                const id = stable
+                    ? String(stable)
+                    : (page + '_b' + n + '_' + Math.abs(hashStr((ch.className || '') + text.slice(0, 32))).toString(36).slice(0, 6));
+                ch.setAttribute('data-layout-block', id);
+            });
+        }
+
         function getLayoutOrder(page) {
+            // Önce bulut, sonra local
+            if (pageLayoutsCloud && Array.isArray(pageLayoutsCloud[page]) && pageLayoutsCloud[page].length) {
+                return pageLayoutsCloud[page].slice();
+            }
             try {
                 const raw = localStorage.getItem('yuvam_layout_' + page);
                 if (raw) {
@@ -2151,14 +2177,22 @@
 
         function saveLayoutOrder(page, order) {
             try { localStorage.setItem('yuvam_layout_' + page, JSON.stringify(order)); } catch (_) {}
+            pageLayoutsCloud[page] = order.slice();
+            try {
+                if (typeof db !== 'undefined' && db) {
+                    const payload = {};
+                    payload[page] = order;
+                    payload.updatedAt = new Date().toISOString();
+                    db.collection('settings').doc('pageLayouts').set(payload, { merge: true }).catch(function() {});
+                }
+            } catch (_) {}
         }
 
         function collectLayoutBlocks(root) {
             const list = [];
             Array.prototype.forEach.call(root.children, function(ch) {
                 if (!ch.getAttribute) return;
-                // toolbar satırı (sadece düzen butonu içeren) taşıma
-                if (ch.querySelector && ch.children.length === 1 && ch.querySelector('#layoutEditBtn')) return;
+                if (ch.getAttribute('data-layout-fixed') === '1') return;
                 const id = ch.getAttribute('data-layout-block');
                 if (id) list.push({ id: id, el: ch });
             });
@@ -2170,10 +2204,20 @@
             const root = layoutContainer(page);
             if (!root) return;
 
+            // Hero / sabitler her zaman EN ÜSTE
+            const fixedNodes = [];
+            Array.prototype.forEach.call(root.children, function(ch) {
+                if (!ch.getAttribute) return;
+                if (ch.getAttribute('data-layout-fixed') === '1' || (ch.classList && ch.classList.contains('home-hero')) || ch.id === 'homeHeroBanner') {
+                    ch.setAttribute('data-layout-fixed', '1');
+                    // asla layout-block olmasın
+                    ch.removeAttribute('data-layout-block');
+                    fixedNodes.push(ch);
+                }
+            });
+
             ensureLayoutBlocks(root, page);
             const blocks = collectLayoutBlocks(root);
-            if (!blocks.length) return;
-
             const byId = {};
             blocks.forEach(function(b) { byId[b.id] = b.el; });
 
@@ -2181,36 +2225,18 @@
             blocks.forEach(function(b) {
                 if (order.indexOf(b.id) < 0) order.push(b.id);
             });
-            // Bütçe Takip: Altın, Yeni Harcama Ekle'nin hemen altında olsun
-            if (page === 'expense') {
-                const ia = order.indexOf('expenseAdd');
-                const ig = order.indexOf('expenseGold');
-                if (ia >= 0 && ig >= 0 && ig !== ia + 1) {
-                    order = order.filter(function(x) { return x !== 'expenseGold'; });
-                    const ia2 = order.indexOf('expenseAdd');
-                    order.splice(ia2 + 1, 0, 'expenseGold');
-                }
-            }
 
-            // Sabit olmayanları sırala; data-layout-fixed olanlar başta kalır
-            const fixed = [];
-            Array.prototype.forEach.call(root.children, function(ch) {
-                if (ch.getAttribute && ch.getAttribute('data-layout-fixed') === '1') fixed.push(ch);
-                else if (ch.getAttribute && !ch.getAttribute('data-layout-block')) {
-                    // işaretsiz küçük düğümler (eski toolbar)
-                    if (ch.querySelector && ch.querySelector('[onclick*="toggleLayoutEdit"]')) {
-                        ch.setAttribute('data-layout-fixed', '1');
-                        fixed.push(ch);
-                    }
-                }
-            });
-            fixed.forEach(function(ch) { root.appendChild(ch); });
+            // DOM: önce sabitler, sonra sıra
+            fixedNodes.forEach(function(ch) { root.appendChild(ch); });
             order.forEach(function(id) {
                 if (byId[id]) root.appendChild(byId[id]);
             });
-            saveLayoutOrder(page, order);
+            // order'ı local+cloud'a yazma her apply'da şişmesin; sadece move'da kaydet
+            // ama ilk keşfedilen eksik id'leri de kalıcı yap
+            if (order.length) {
+                try { localStorage.setItem('yuvam_layout_' + page, JSON.stringify(order)); } catch (_) {}
+            }
 
-            // Chrome
             blocks.forEach(function(b) {
                 const el = b.el;
                 let bar = null;
@@ -2224,8 +2250,7 @@
                     if (!bar) {
                         bar = document.createElement('div');
                         bar.className = 'layout-edit-bar';
-                        bar.innerHTML =
-                            '<span class="layout-edit-label">Taşı</span>' +
+                        bar.innerHTML = '<span class="layout-edit-label">Taşı</span>' +
                             '<button type="button" class="layout-btn" data-dir="up">↑</button>' +
                             '<button type="button" class="layout-btn" data-dir="down">↓</button>';
                         el.insertBefore(bar, el.firstChild);
@@ -2268,7 +2293,7 @@
             order[j] = t;
             saveLayoutOrder(page, order);
             applyPageLayout(page);
-            if (typeof showToast === 'function') showToast('Sıra kaydedildi', 'success');
+            if (typeof showToast === 'function') showToast('Sıra kaydedildi (cihaz + bulut)', 'success');
         }
 
         window.toggleLayoutEdit = function(page) {
@@ -2278,7 +2303,7 @@
                 applyPageLayout(page);
                 const on = layoutEditPage === page;
                 if (typeof showToast === 'function') {
-                    showToast(on ? 'Düzen açık — tüm kutularda ↑ ↓' : 'Düzen kapandı', 'info');
+                    showToast(on ? 'Düzen açık — ↑ ↓ ile taşıyın (kalıcı kaydedilir)' : 'Düzen kapandı', 'info');
                 }
                 const btn = document.getElementById('layoutEditBtn');
                 if (btn) {
@@ -2295,10 +2320,6 @@
         window.toggleLayoutEditCurrent = function() {
             toggleLayoutEdit(currentLayoutPageId());
         };
-
-        // Sekme değişince düzeni uygula
-        const _origSwitchTabLayout = typeof window.switchTab === 'function' ? window.switchTab : null;
-        // switchTab zaten var; applyPageLayout çağrıları switchTab içinde eklenecek aşağıda
 
         window.applyDashboardCards = function() {
             const dc = dashboardCards || {};
