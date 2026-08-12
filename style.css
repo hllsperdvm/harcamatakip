@@ -1467,3 +1467,66 @@ header p.uppercase {
   mix-blend-mode: screen;
   transition: left 0.12s linear;
 }
+
+
+/* Kapı logosu — mavi zemin, beyaz çizgi */
+.yuvam-logo-img {
+  display: block;
+  object-fit: cover;
+  background: transparent;
+}
+
+
+/* Mobil Hızlı Ekle FAB */
+.quick-add-fab-wrap {
+  display: none;
+  position: fixed;
+  right: 1rem;
+  bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  z-index: 95;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+@media (max-width: 640px) {
+  body.yuvam-app-open .quick-add-fab-wrap { display: flex; }
+}
+.quick-add-fab {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 1.1rem;
+  border: none;
+  background: var(--yuvam-primary, #0284c7);
+  color: #fff;
+  font-size: 1.75rem;
+  font-weight: 300;
+  line-height: 1;
+  box-shadow: 0 8px 24px rgba(2, 132, 199, 0.4);
+  cursor: pointer;
+}
+.quick-add-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background: #fff;
+  border-radius: 1rem;
+  padding: 0.5rem;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.15);
+  border: 1px solid #e2e8f0;
+  min-width: 10rem;
+}
+.quick-add-menu.hidden { display: none !important; }
+.quick-add-menu button {
+  text-align: left;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.75rem;
+  border: none;
+  background: #f8fafc;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #0f172a;
+  cursor: pointer;
+}
+.quick-add-menu button:active { background: #e0f2fe; }
+html.theme-dark .quick-add-menu { background: #132337; border-color: #334155; }
+html.theme-dark .quick-add-menu button { background: #0c1929; color: #e2e8f0; }
