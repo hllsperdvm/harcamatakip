@@ -86,6 +86,10 @@
                 <div class="flex items-center gap-2 flex-wrap justify-end relative">
                     <span id="loggedInUserLabel" class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-2 rounded-xl"></span>
                     <div class="relative">
+                        <button type="button" id="userThemeBtn" onclick="toggleUserTheme()" title="Tema değiştir"
+                            class="hidden bg-white border border-slate-200 text-slate-700 w-10 h-10 rounded-xl text-lg font-bold transition hover:bg-sky-50 hover:border-sky-200 shadow-sm flex items-center justify-center">
+                            <span id="userThemeBtnIcon">🌙</span>
+                        </button>
                         <button type="button" id="notifBtn" onclick="toggleNotifPanel(event)" title="Bildirimler"
                             class="relative bg-white border border-slate-200 text-slate-700 w-10 h-10 rounded-xl text-lg font-bold transition hover:bg-amber-50 hover:border-amber-200 shadow-sm flex items-center justify-center">
                             🔔
