@@ -260,6 +260,7 @@
             }
             applyRoleAndTabs();
             if (typeof applyDashboardCards === 'function') applyDashboardCards();
+            try { if (typeof updateAdminLayoutButtons === 'function') updateAdminLayoutButtons(); } catch (_) {}
             // Once UI acilsin; senkron ve loglari ertele (mobil otomatik girisi hizlandirir)
             var uidEnter = currentUser && currentUser.uid;
             setTimeout(function() {
@@ -316,10 +317,10 @@
             const seen = new Set();
             const startDay = Number((periodConfig && periodConfig.startDay) || 29);
 
-            function pushNotif(key, sev, icon, title, msg) {
+            function pushNotif(key, sev, icon, title, msg, category) {
                 if (seen.has(key)) return;
                 seen.add(key);
-                items.push({ key: key, severity: sev, icon: icon, title: title, message: msg });
+                items.push({ key: key, severity: sev, icon: icon, title: title, message: msg, category: category || 'general' });
             }
 
             // Dönem başlangıç günü (varsayılan 29): kart borcu girilmediyse
@@ -457,7 +458,7 @@
                     const detail = row.detail ? String(row.detail) : '';
                     const at = row.at ? String(row.at).slice(0, 16).replace('T', ' ') : '';
                     const key = 'act-' + (row.id || (who + action + at));
-                    pushNotif(key, 'info', '👤', who + ' kişisi · ' + action, (detail || '') + (at ? (detail ? ' · ' : '') + at : ''));
+                    pushNotif(key, 'info', '👤', who + ' kişisi · ' + action, (detail || '') + (at ? (detail ? ' · ' : '') + at : ''), 'activity');
                 });
             } catch (_) {}
 
@@ -1034,7 +1035,7 @@
                 const hi = hour < 12 ? 'Günaydın' : (hour < 18 ? 'İyi günler' : 'İyi akşamlar');
                 if (greet) greet.textContent = hi + (name ? ', ' + name : '');
 
-                try { if (typeof loadDidYouKnowFact === 'function') loadDidYouKnowFact(false); } catch (_) {}
+                try { if (typeof loadDailyAyah === 'function') loadDailyAyah(false); } catch (_) {}
 
                 const dateEl = document.getElementById('homeTodayDate');
                 if (dateEl) {
@@ -1047,14 +1048,23 @@
                 const badge = document.getElementById('homePeriodBadge');
                 if (badge) badge.textContent = period ? ('Dönem: ' + period) : 'Dönem: —';
 
-                let periodSum = 0, todaySum = 0, todayCount = 0;
+                let periodSum = 0, todaySum = 0, todayCount = 0, periodCash = 0, periodCard = 0;
                 const today = (typeof todayDateStr === 'function') ? todayDateStr() : '';
                 try {
                     const list = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : [];
                     list.forEach(function(e) {
                         if (!e || e.installmentLabel === 'Gelir') return;
                         const amt = Number(e.displayAmount) || 0;
-                        if (e.effectiveMonth === period) periodSum += amt;
+                        if (e.effectiveMonth === period) {
+                            periodSum += amt;
+                            if (typeof isCashPayment === 'function' && isCashPayment(e.paymentType)) periodCash += amt;
+                            else if (typeof isCreditPayment === 'function' && isCreditPayment(e.paymentType)) periodCard += amt;
+                            else {
+                                const pt = String(e.paymentType || '').toLowerCase();
+                                if (pt.indexOf('nakit') >= 0) periodCash += amt;
+                                else periodCard += amt;
+                            }
+                        }
                         if (String(e.date || '').slice(0, 10) === today) {
                             todaySum += amt;
                             todayCount += 1;
@@ -1064,6 +1074,10 @@
 
                 const elPeriod = document.getElementById('homePeriodSpend');
                 if (elPeriod) elPeriod.textContent = Math.round(periodSum).toLocaleString('tr-TR') + ' TL';
+                const elPC = document.getElementById('homePeriodCash');
+                const elPK = document.getElementById('homePeriodCard');
+                if (elPC) elPC.textContent = Math.round(periodCash).toLocaleString('tr-TR') + ' TL';
+                if (elPK) elPK.textContent = Math.round(periodCard).toLocaleString('tr-TR') + ' TL';
                 const elToday = document.getElementById('homeTodaySpend');
                 if (elToday) elToday.textContent = Math.round(todaySum).toLocaleString('tr-TR') + ' TL';
                 const elTodayN = document.getElementById('homeTodayCount');
@@ -1138,6 +1152,7 @@
                 } catch (_) {}
 
                 if (typeof applyDashboardCards === 'function') applyDashboardCards();
+                try { if (typeof updateAdminLayoutButtons === 'function') updateAdminLayoutButtons(); } catch (_) {}
                 try {
                     if (typeof refreshGoldPrice === 'function') refreshGoldPrice(false);
                     if (typeof updateHomeGoldCard === 'function') updateHomeGoldCard();
@@ -1149,7 +1164,11 @@
                 const listEl = document.getElementById('homeUpcomingList');
                 if (listEl) {
                     let items = [];
-                    try { items = (typeof collectAppNotifications === 'function') ? collectAppNotifications().slice(0, 4) : []; } catch (_) {}
+                    try {
+                        items = (typeof collectAppNotifications === 'function')
+                            ? collectAppNotifications().filter(function(n) { return n && n.category !== 'activity'; }).slice(0, 4)
+                            : [];
+                    } catch (_) {}
                     if (!items.length) {
                         listEl.innerHTML = yuvamEmptyState('👍', 'Yakın uyarı yok', 'Takvim ve ödemeler burada görünür', null, null);
                     } else {
@@ -1179,189 +1198,68 @@
             if (typeof updateTaskNavBadges === 'function') updateTaskNavBadges();
         };
 
-        // ——— Bunu biliyor muydunuz? (vay be kalitesi, Türkçe) ———
-        let _dykTimer = null;
-        let _dykLastText = '';
+        // ——— Günün ayeti (ücretsiz API, her seferinde değişir) ———
+        let _ayahTimer = null;
+        let _lastAyahText = '';
 
-        const DYK_WOW_TR = [
-            'Bal arısı bir uçuşta yaklaşık 50–100 çiçeği ziyaret edebilir; 1 kg bal için on binlerce uçuş gerekir.',
-            'Ahtapotların üç kalbi vardır; ikisi solungaçlara kan pompalar, biri vücuda.',
-            'Venüs\'te bir gün, bir yıldan daha uzundur: kendi ekseninde dönüşü Güneş etrafındaki turundan uzundur.',
-            'İnsan vücudundaki en sert doku diş minesidir.',
-            'Bir yıldırımın sıcaklığı Güneş yüzeyinden katbekat yüksek olabilir (yaklaşık 30.000 °C civarı).',
-            'Karıncalar Dünya\'daki toplam biyokütlenin şaşırtıcı bir payını oluşturur; bazı tahminlere göre insan biyokütlesine yakındır.',
-            'Bambunun bazı türleri günde bir metreden fazla uzayabilir.',
-            'Bir mavi balinanın kalbi küçük bir araba kadar ağır olabilir; atışları uzaktan duyulabilir düzeydedir.',
-            'Göbeklitepe, bilinen en eski anıtsal tapınak alanlarından biridir ve tarım öncesi topluluklarla ilişkilendirilir.',
-            'DNA\'nın çift sarmal modeli 1953\'te ortaya kondu; modern genetiğin kapısını araladı.',
-            'Apollo 11\'in Ay\'a inişi (1969), insanlığın başka bir gök cismine ilk adımıdır.',
-            'Çernobil (1986), nükleer güvenlik ve şeffaflık tartışmalarını kalıcı biçimde değiştirdi.',
-            'Kara Ölüm (14. yy), Avrupa nüfusunun büyük bir kısmını yok ederek toplumsal düzeni sarsmıştır.',
-            'Matbaanın Avrupa\'da yaygınlaşması, bilgiyi el yazmasından çıkarıp kitleselleştirdi.',
-            'Süveyş Kanalı (1869), Avrupa–Asya deniz yolunu kısaltarak dünya ticaretini yeniden çizdi.',
-            'Sputnik (1957), uzay çağının fiilî başlangıcı kabul edilir.',
-            'Montreux Boğazlar Sözleşmesi (1936), savaş ve barışta boğaz geçiş rejimini hâlâ etkiler.',
-            'Harf Devrimi (1928), birkaç ay içinde okuma-yazma altyapısını baştan kurmayı hedeflemiştir.',
-            'Bir nötron yıldızının bir çay kaşığı maddesi, milyarlarca ton ağırlığında olabilir.',
-            'Okyanusların en derin noktası (Mariana Çukuru) Everest\'ten daha derindir.',
-            'Penguenler yalnızca Güney Yarımküre\'de doğal olarak yaşar.',
-            'Bal, uygun saklandığında fiilen bozulmayan nadir gıdalardandır; arkeolojik kazılarda eski bal örnekleri bulunmuştur.',
-            'Octopus türleri, tehlike anında mürekkep salarak görüşü engelleyebilir ve renk değiştirebilir.',
-            'Dünya\'nın manyetik kutupları jeolojik zamanda yer değiştirmiştir; bu, kayalardaki manyetik kayıtlardan okunur.',
-            'İlk modern Olimpiyatlar 1896\'da Atina\'da yapıldı; antik oyunların yeniden doğuşudur.',
-            'Rosetta Taşı, hiyerogliflerin çözülmesinde kilit rol oynamıştır.',
-            'Titanic battığında (1912), telsiz trafiği ve buzdağı uyarıları felaketin parçasıydı.',
-            'Penisilinin tıbbi kullanımı, enfeksiyon hastalıklarında ölüm oranlarını kökten düşürmüştür.',
-            'İnternetin kökleri 1960\'ların sonundaki ARPANET deneylerinedir.',
-            'Bir gün Mars\'ta (sol) yaklaşık 24 saat 39 dakikadır; Dünya gününe şaşırtıcı derecede yakındır.'
-        ];
-
-        function isBoringGeoFact(text) {
-            const t = String(text || '').toLowerCase();
-            const bad = [
-                'ilçesi', 'ilçe', 'belediyesi', 'mahallesi', 'köyü', 'kasabası', 'şehir', 'kentidir',
-                'bağlıdır', 'bağlı bir', 'nüfus', 'km²', 'km2', 'yüzölçümü', 'il merkez',
-                'is a city', 'is a town', 'is a village', 'municipality', 'province of',
-                'district of', 'is a commune', 'is a county'
-            ];
-            let hits = 0;
-            for (let i = 0; i < bad.length; i++) {
-                if (t.indexOf(bad[i]) >= 0) hits++;
-            }
-            return hits >= 1 && (t.indexOf('nüfus') >= 0 || t.indexOf('bağlı') >= 0 || t.indexOf('ilçe') >= 0 || t.indexOf('is a city') >= 0 || t.indexOf('is a town') >= 0 || t.indexOf('municipality') >= 0);
+        async function fetchDailyAyah() {
+            // 1–6236 arası rastgele ayet, Diyanet Türkçe meal
+            const n = 1 + Math.floor(Math.random() * 6236);
+            const r = await fetch('https://api.alquran.cloud/v1/ayah/' + n + '/tr.diyanet', { cache: 'no-store' });
+            if (!r.ok) throw new Error('ayah http');
+            const j = await r.json();
+            if (!j || j.code !== 200 || !j.data) throw new Error('ayah data');
+            const d = j.data;
+            const text = String(d.text || '').trim();
+            if (!text) throw new Error('empty ayah');
+            const surah = (d.surah && d.surah.name) ? d.surah.name : '';
+            const num = d.numberInSurah || '';
+            const ref = (surah ? (surah + (num ? (' ' + num) : '')) : ('Ayet ' + n));
+            return { text: text, ref: ref };
         }
 
-        function looksTurkish(s) {
-            return /[çğıöşüÇĞİÖŞÜ]/.test(s || '');
-        }
-
-        async function translateToTurkish(text) {
-            const t = String(text || '').trim();
-            if (!t) return t;
-            if (looksTurkish(t)) return t;
-            try {
-                const q = encodeURIComponent(t.slice(0, 400));
-                const r = await fetch('https://api.mymemory.translated.net/get?q=' + q + '&langpair=en|tr', { cache: 'no-store' });
-                if (!r.ok) throw new Error('tr');
-                const j = await r.json();
-                const out = j && j.responseData && j.responseData.translatedText;
-                if (out && String(out).trim()) return String(out).trim();
-            } catch (_) {}
-            return t;
-        }
-
-        async function fetchDidYouKnowFromApis() {
-            const sources = [
-                async function() {
-                    const r = await fetch('https://uselessfacts.jsph.pl/api/v2/facts/random', { cache: 'no-store' });
-                    if (!r.ok) throw new Error('facts');
-                    const j = await r.json();
-                    let raw = (j && j.text) ? String(j.text).trim() : '';
-                    if (!raw || raw.length < 30) throw new Error('short');
-                    if (isBoringGeoFact(raw)) throw new Error('boring');
-                    const tr = await translateToTurkish(raw);
-                    if (isBoringGeoFact(tr)) throw new Error('boring-tr');
-                    return { kind: 'İlginç bilgi', text: tr };
-                },
-                async function() {
-                    const d = new Date();
-                    const url = 'https://history.muffinlabs.com/date/' + (d.getMonth() + 1) + '/' + d.getDate();
-                    const r = await fetch(url, { cache: 'no-store' });
-                    if (!r.ok) throw new Error('history');
-                    const j = await r.json();
-                    const events = (j && j.data && j.data.Events) ? j.data.Events : [];
-                    if (!events.length) throw new Error('no events');
-                    // Daha "büyük" olayları tercih et (metin uzunluğu)
-                    const ranked = events.slice().sort(function(a, b) {
-                        return String(b.text || '').length - String(a.text || '').length;
-                    });
-                    const e = ranked[Math.floor(Math.random() * Math.min(8, ranked.length))];
-                    const year = e.year ? (e.year + ': ') : '';
-                    const raw = year + String(e.text || '').trim();
-                    if (raw.length < 40) throw new Error('short hist');
-                    const tr = await translateToTurkish(raw);
-                    return { kind: 'Tarihte bugün', text: tr };
-                },
-                async function() {
-                    const r = await fetch('https://official-joke-api.appspot.com/random_joke', { cache: 'no-store' });
-                    if (!r.ok) throw new Error('joke');
-                    const j = await r.json();
-                    const raw = ((j.setup || '') + ' — ' + (j.punchline || '')).trim();
-                    if (raw.length < 12) throw new Error('short joke');
-                    const tr = await translateToTurkish(raw);
-                    return { kind: 'Komik', text: tr };
-                },
-                async function() {
-                    // Yerel "vay be" havuzu
-                    let pick = DYK_WOW_TR[Math.floor(Math.random() * DYK_WOW_TR.length)];
-                    let guard = 0;
-                    while (pick === _dykLastText && guard < 8) {
-                        pick = DYK_WOW_TR[Math.floor(Math.random() * DYK_WOW_TR.length)];
-                        guard++;
-                    }
-                    return { kind: 'İlginç bilgi', text: pick };
-                }
-            ];
-            // Karıştır
-            for (let i = sources.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                const t = sources[i]; sources[i] = sources[j]; sources[j] = t;
-            }
-            let lastErr = null;
-            for (let i = 0; i < sources.length; i++) {
-                try {
-                    const item = await sources[i]();
-                    if (item && item.text && item.text !== _dykLastText && !isBoringGeoFact(item.text)) return item;
-                } catch (e) { lastErr = e; }
-            }
-            // Son çare yerel havuz
-            const fb = DYK_WOW_TR[Math.floor(Math.random() * DYK_WOW_TR.length)];
-            return { kind: 'İlginç bilgi', text: fb };
-        }
-
-        window.loadDidYouKnowFact = async function(force) {
-            const el = document.getElementById('homeDidYouKnow');
+        window.loadDailyAyah = async function(force) {
+            const el = document.getElementById('homeDailyAyah');
             if (!el) return;
             if (force || el.dataset.loaded !== '1') {
-                el.textContent = 'Bunu biliyor muydunuz? Yükleniyor…';
+                el.textContent = 'Günün ayeti yükleniyor…';
             }
             try {
-                const item = await fetchDidYouKnowFromApis();
-                _dykLastText = item.text;
-                let body = String(item.text || '').replace(/\s+/g, ' ').trim();
-                if (body.length > 320) body = body.slice(0, 317) + '…';
-                const kind = item.kind || 'İlginç bilgi';
-                el.textContent = 'Bunu biliyor muydunuz? (' + kind + ') ' + body;
+                let item = null;
+                let tries = 0;
+                while (tries < 4) {
+                    tries++;
+                    item = await fetchDailyAyah();
+                    if (item.text && item.text !== _lastAyahText) break;
+                }
+                _lastAyahText = item.text;
+                let body = item.text.replace(/\s+/g, ' ').trim();
+                if (body.length > 300) body = body.slice(0, 297) + '…';
+                el.textContent = 'Günün ayeti (' + item.ref + '): ' + body;
                 el.dataset.loaded = '1';
                 try {
-                    sessionStorage.setItem('yuvam_dyk_cache', JSON.stringify({ t: Date.now(), kind: kind, text: body }));
+                    sessionStorage.setItem('yuvam_ayah_cache', JSON.stringify({ t: Date.now(), ref: item.ref, text: body }));
                 } catch (_) {}
             } catch (e) {
                 try {
-                    const raw = sessionStorage.getItem('yuvam_dyk_cache');
+                    const raw = sessionStorage.getItem('yuvam_ayah_cache');
                     if (raw) {
                         const o = JSON.parse(raw);
                         if (o && o.text) {
-                            el.textContent = 'Bunu biliyor muydunuz? (' + (o.kind || 'Bilgi') + ') ' + o.text;
+                            el.textContent = 'Günün ayeti' + (o.ref ? (' (' + o.ref + ')') : '') + ': ' + o.text;
                             return;
                         }
                     }
                 } catch (_) {}
-                const fb = DYK_WOW_TR[Math.floor(Math.random() * DYK_WOW_TR.length)];
-                el.textContent = 'Bunu biliyor muydunuz? (İlginç bilgi) ' + fb;
+                el.textContent = 'Günün ayeti yüklenemedi · dokunarak tekrar deneyin';
             }
-            if (_dykTimer) clearInterval(_dykTimer);
-            _dykTimer = setInterval(function() {
+            if (_ayahTimer) clearInterval(_ayahTimer);
+            _ayahTimer = setInterval(function() {
                 try {
                     const home = document.getElementById('tabContentHome');
-                    if (home && !home.classList.contains('hidden')) loadDidYouKnowFact(true);
+                    if (home && !home.classList.contains('hidden')) loadDailyAyah(true);
                 } catch (_) {}
-            }, 120000);
-        };
-
-        window.getDidYouKnow = function() {
-            loadDidYouKnowFact(false);
-            return 'Yükleniyor…';
+            }, 180000);
         };
 
         // ——— Aile: Takvim / Görev / Alışveriş ———
@@ -1576,6 +1474,16 @@
                     elPnL.className = 'font-black ' + (pnl >= 0 ? 'text-emerald-600' : 'text-rose-600');
                 }
             }
+            const prev = document.getElementById('goldSumPnLPreview');
+            if (prev) {
+                if (!(goldHoldings || []).length) prev.textContent = 'Kayıt yok';
+                else if (!port.hasPriced) prev.textContent = 'Fiyat bekleniyor';
+                else {
+                    const pnl = port.pnl;
+                    prev.textContent = (pnl >= 0 ? '+' : '') + Math.round(pnl).toLocaleString('tr-TR') + ' TL';
+                    prev.className = 'font-bold ' + (pnl >= 0 ? 'text-emerald-600' : 'text-rose-600');
+                }
+            }
             updateHomeGoldCard();
         };
 
@@ -1672,6 +1580,22 @@
                     }
                 } catch (_) {}
                 if (elMeta) elMeta.textContent = 'API yok — elle 24A satış ₺/g girin';
+            }
+        };
+
+
+        window.toggleGoldPanel = function() {
+            const body = document.getElementById('goldPanelBody');
+            const chev = document.getElementById('goldToggleChevron');
+            if (!body) return;
+            const open = body.classList.contains('hidden');
+            body.classList.toggle('hidden', !open);
+            if (chev) chev.style.transform = open ? 'rotate(180deg)' : '';
+            if (open) {
+                try {
+                    if (typeof refreshGoldPrice === 'function') refreshGoldPrice(false);
+                    if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
+                } catch (_) {}
             }
         };
 
@@ -2296,8 +2220,25 @@
             if (typeof showToast === 'function') showToast('Sıra kaydedildi (cihaz + bulut)', 'success');
         }
 
+        window.updateAdminLayoutButtons = function() {
+            const admin = typeof isAdmin === 'function' && isAdmin();
+            ['layoutEditBtn', 'homeLayoutEditBtn'].forEach(function(id) {
+                const b = document.getElementById(id);
+                if (!b) return;
+                if (admin) b.classList.remove('hidden');
+                else {
+                    b.classList.add('hidden');
+                    if (layoutEditPage) layoutEditPage = null;
+                }
+            });
+        };
+
         window.toggleLayoutEdit = function(page) {
             try {
+                if (typeof isAdmin === 'function' && !isAdmin()) {
+                    if (typeof showToast === 'function') showToast('Sayfa düzeni sadece admin için', 'error');
+                    return;
+                }
                 page = (page || currentLayoutPageId() || 'home').toLowerCase();
                 layoutEditPage = (layoutEditPage === page) ? null : page;
                 applyPageLayout(page);
@@ -3628,9 +3569,42 @@
                 updateStatsPanel();
                 logActivity('Harcama', id ? 'Harcama güncellendi' : 'Harcama eklendi',
                     (person || '') + ' · ' + (category || '') + ' · ' + amount + ' TL' + (description && description !== '-' ? ' · ' + description : ''));
+                if (!id) {
+                    setTimeout(function() {
+                        try { if (typeof showEyvahPopup === 'function') showEyvahPopup(); } catch (_) {}
+                    }, 350);
+                }
             } catch (err) {
                 console.error("Harcama kayıt hatası:", err);
                 showToast(friendlyFirebaseError(err), 'error');
+            }
+        };
+
+        let _eyvahTimer = null;
+        window.showEyvahPopup = function() {
+            try {
+                const ov = document.getElementById('eyvahOverlay');
+                if (!ov) {
+                    console.warn('eyvahOverlay yok');
+                    return;
+                }
+                ov.classList.remove('hidden');
+                ov.style.display = 'flex';
+                ov.setAttribute('aria-hidden', 'false');
+                if (_eyvahTimer) clearTimeout(_eyvahTimer);
+                _eyvahTimer = setTimeout(function() {
+                    ov.classList.add('hidden');
+                    ov.style.display = '';
+                    ov.setAttribute('aria-hidden', 'true');
+                }, 5000);
+                ov.onclick = function() {
+                    ov.classList.add('hidden');
+                    ov.style.display = '';
+                    ov.setAttribute('aria-hidden', 'true');
+                    if (_eyvahTimer) clearTimeout(_eyvahTimer);
+                };
+            } catch (err) {
+                console.error('showEyvahPopup', err);
             }
         };
 
