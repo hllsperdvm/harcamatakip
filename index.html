@@ -105,7 +105,9 @@
                         class="hidden sm:inline-flex items-center gap-1.5 bg-white border border-sky-200 text-sky-700 px-3 py-2.5 rounded-xl text-sm font-bold transition hover:bg-sky-50 shadow-sm">
                         <span id="mobilePreviewBtnLabel">📱 Mobil</span>
                     </button>
-                    <button onclick="logout()" class="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl text-sm font-bold transition hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 shadow-sm">Çıkış</button>
+                                    <button type="button" id="layoutEditBtn" onclick="toggleLayoutEditCurrent()" title="Sayfa düzeni"
+                    class="text-xs font-bold px-3 py-2 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-100 hover:bg-indigo-100">📐 Düzen</button>
+<button onclick="logout()" class="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl text-sm font-bold transition hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 shadow-sm">Çıkış</button>
                 </div>
             </header>
 
@@ -114,17 +116,20 @@
 
             <!-- SEKME: ANA SAYFA (YUVAM 2.0 iskelet) -->
             <div id="tabContentHome" class="hidden space-y-5 fade-in pb-4">
-                <div class="home-hero relative overflow-hidden text-white rounded-[2rem] p-6 shadow-lg">
+                <div class="home-hero relative overflow-hidden text-white rounded-[2rem] p-6 shadow-lg" data-layout-fixed="1">
                     <div class="home-hero-pattern" aria-hidden="true"></div>
                     <div class="relative z-[1]">
-                        <p id="homeGreeting" class="text-2xl sm:text-3xl font-black tracking-tight">Merhaba</p>
-                        <p id="homeDidYouKnow" class="text-sm sm:text-[0.95rem] font-semibold text-white/95 mt-2 leading-snug">—</p>
-                        <p id="homeTodayDate" class="text-sm font-semibold text-white/80 mt-3">—</p>
-                        <p id="homePeriodBadge" class="inline-flex mt-3 text-[11px] font-bold bg-white/15 px-3 py-1 rounded-full backdrop-blur-sm">Dönem: —</p>
+                        <p id="homeGreeting" class="text-2xl sm:text-3xl font-black tracking-tight order-first">Merhaba</p>
+                        <p id="homeTodayDate" class="text-sm font-semibold text-white/80 mt-2">—</p>
+                        <p id="homeDidYouKnow" onclick="loadDidYouKnowFact(true)" title="Yeni bilgi için dokunun" class="text-sm sm:text-[0.95rem] font-semibold text-white/95 mt-3 leading-snug cursor-pointer hover:text-white">Bunu biliyor muydunuz? Yükleniyor…</p>
+                        <div class="flex flex-wrap items-center gap-2 mt-3">
+                        <p id="homePeriodBadge" class="inline-flex text-[11px] font-bold bg-white/15 px-3 py-1 rounded-full backdrop-blur-sm">Dönem: —</p>
+                        <button type="button" onclick="toggleLayoutEdit('home')" class="text-[11px] font-bold bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full backdrop-blur-sm">Sayfa Düzeni</button>
+                    </div>
                     </div>
                 </div>
 
-                <div data-home-card="homeTasks" class="yuvam-card stripe-tasks bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
+                <div data-layout-block="homeTasks" data-home-card="homeTasks" class="yuvam-card stripe-tasks bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
                     <div class="flex items-center justify-between mb-2 gap-2">
                         <div class="flex items-center gap-2 min-w-0">
                             <span class="icon-ring icon-ring-emerald">✅</span>
@@ -142,7 +147,7 @@
                     <div id="homeTasksList" class="space-y-2"></div>
                 </div>
 
-                <button type="button" data-home-card="homeQuickAdd" onclick="switchTab('expense'); openExpenseModal();"
+                <button type="button" data-layout-block="homeQuickAdd" data-home-card="homeQuickAdd" onclick="switchTab('expense'); openExpenseModal();"
                     class="w-full home-quick-add text-white rounded-[2rem] p-6 shadow-lg text-left flex items-center justify-between gap-4 transition active:scale-[0.99]">
                     <div>
                         <p class="text-[10px] font-black text-white/80 uppercase tracking-wider">Hızlı İşlem</p>
@@ -152,7 +157,7 @@
                     <span class="text-3xl font-light opacity-80 shrink-0">＋</span>
                 </button>
 
-                <div class="grid grid-cols-2 gap-3">
+                <div data-layout-block="homeGrid" class="grid grid-cols-2 gap-3">
                     <div data-home-card="homeToday" class="yuvam-card stripe-today bg-white rounded-2xl p-4 card-shadow border border-slate-100">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Bugün Harcama</p>
                         <p id="homeTodaySpend" class="text-lg font-black text-slate-800 mt-1">0 TL</p>
@@ -171,22 +176,22 @@
                         </div>
                         <p id="homeGoldSub" class="text-[11px] text-slate-500 font-semibold mt-0.5">Raporlar · detay</p>
                     </button>
-                    <button type="button" data-home-card="homeNotif" onclick="openNotifAllModal()" class="yuvam-card stripe-notif bg-white rounded-2xl p-4 card-shadow border border-slate-100 text-left col-span-2">
-                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Bildirimler</p>
-                        <p class="text-lg font-black text-amber-600 mt-1"><span id="homeNotifCount">0</span> açık</p>
-                        <p class="text-[11px] text-slate-400 font-semibold">Detay için dokunun</p>
-                    </button>
-                </div>
-
-                <div data-home-card="homeBudget" class="yuvam-card stripe-budget bg-white rounded-2xl p-4 card-shadow border border-slate-100">
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Aylık Bütçe Hedefi</p>
-                    <p id="homeBudgetLabel" class="text-sm font-bold text-slate-700">—</p>
-                    <div class="mt-2 h-2.5 rounded-full bg-slate-100 overflow-hidden">
-                        <div id="homeBudgetBar" class="h-full rounded-full bg-sky-500 transition-all duration-500" style="width:0%"></div>
+                    <div data-layout-block="homeBudget" data-home-card="homeBudget" class="yuvam-card stripe-budget bg-white rounded-2xl p-4 card-shadow border border-slate-100 col-span-2">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Aylık Bütçe Hedefi</p>
+                        <p id="homeBudgetLabel" class="text-sm font-bold text-slate-700">—</p>
+                        <div class="mt-2 h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                            <div id="homeBudgetBar" class="h-full rounded-full bg-sky-500 transition-all duration-500" style="width:0%"></div>
+                        </div>
                     </div>
                 </div>
 
-                <div data-home-card="homeBriefing" class="yuvam-card stripe-briefing bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
+                <button type="button" data-layout-block="homeNotif" data-home-card="homeNotif" onclick="openNotifAllModal()" class="yuvam-card stripe-notif bg-white rounded-2xl p-4 card-shadow border border-slate-100 text-left w-full">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Bildirimler</p>
+                    <p class="text-lg font-black text-amber-600 mt-1"><span id="homeNotifCount">0</span> açık</p>
+                    <p class="text-[11px] text-slate-400 font-semibold">Detay için dokunun</p>
+                </button>
+
+                <div data-layout-block="homeBriefing" data-home-card="homeBriefing" class="yuvam-card stripe-briefing bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
                     <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
                         <div class="flex items-center gap-2">
                             <span class="icon-ring icon-ring-violet">☀️</span>
@@ -199,7 +204,7 @@
                     <p id="homeBriefingStatus" class="text-[11px] text-slate-400 font-semibold mt-2"></p>
                 </div>
 
-                <div data-home-card="homeUpcoming" class="yuvam-card stripe-upcoming bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
+                <div data-layout-block="homeUpcoming" data-home-card="homeUpcoming" class="yuvam-card stripe-upcoming bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-2">
                             <span class="icon-ring icon-ring-amber">🔔</span>
@@ -294,11 +299,11 @@
 
             <!-- SEKME: FİNANS (eski Bütçe Takip) -->
             <div id="tabContentExpense" class="hidden space-y-8 fade-in">
-                <div class="flex justify-center">
+                <div data-layout-block="expensePeriod" class="flex justify-center">
                     <span id="activePeriodBadge" class="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 text-xs font-bold px-4 py-2 rounded-full border border-indigo-100">Aktif dönem: —</span>
                 </div>
                 <!-- Özet Kartları -->
-                <div id="dashboardCardsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div data-layout-block="expenseDash" id="dashboardCardsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div data-dash-card="total" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
                         <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2">Dönem Harcaması</p>
                         <p id="totalExpense" class="text-xl font-black text-rose-600">0,00 TL</p>
@@ -335,7 +340,7 @@
                 <!-- Aylık Bütçe Hedefi progress -->
                 <div id="budgetTargetCard" class="bg-white p-5 sm:p-6 rounded-3xl card-shadow border border-slate-100">
                     <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-                        <div>
+                        <div data-layout-block="expenseBudget">
                             <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Dönem bütçe hedefi</p>
                             <p id="budgetTargetLabel" class="text-sm font-black text-slate-800 mt-0.5">Hedef belirlenmedi</p>
                         </div>
@@ -348,7 +353,7 @@
                 </div>
 
                 <!-- Yeni Harcama Ekle Butonu -->
-                <div class="flex justify-center">
+                <div data-layout-block="expenseAdd" class="flex justify-center">
                     <button onclick="openExpenseModal()" class="w-full sm:w-auto bg-slate-900 hover:bg-indigo-600 text-white px-12 py-4 rounded-2xl text-base font-bold transition shadow-xl shadow-slate-200 flex items-center justify-center gap-3 active:scale-95">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -357,8 +362,52 @@
                     </button>
                 </div>
 
+                <!-- Altın yatırımları -->
+                <div data-layout-block="expenseGold" class="bg-white p-4 rounded-2xl card-shadow border border-slate-100">
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <div>
+                            <h2 class="text-base font-black text-slate-800">🥇 Altın</h2>
+                            <p id="goldPriceMeta" class="text-[10px] text-slate-400 font-semibold">Fiyat yükleniyor…</p>
+                        </div>
+                        <button type="button" onclick="refreshGoldPrice(true)" class="text-[10px] font-bold text-amber-700 px-2 py-1 rounded-lg bg-amber-50">Yenile</button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 mb-3 text-[11px]">
+                        <div class="rounded-xl bg-amber-50/80 border border-amber-100 p-2">
+                            <p class="font-black text-amber-900 mb-1">24 ayar</p>
+                            <p class="text-slate-600">Alış <span id="goldBuy24" class="font-black text-slate-800">—</span></p>
+                            <p class="text-slate-600">Satış <span id="goldSell24" class="font-black text-amber-800">—</span></p>
+                        </div>
+                        <div class="rounded-xl bg-orange-50/80 border border-orange-100 p-2">
+                            <p class="font-black text-orange-900 mb-1">22 ayar</p>
+                            <p class="text-slate-600">Alış <span id="goldBuy22" class="font-black text-slate-800">—</span></p>
+                            <p class="text-slate-600">Satış <span id="goldSell22" class="font-black text-orange-800">—</span></p>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-3 text-xs font-bold mb-3">
+                        <span>Maliyet: <span id="goldSumCost">—</span></span>
+                        <span>Değer: <span id="goldSumValue">—</span></span>
+                        <span id="goldSumPnL" class="font-black">—</span>
+                    </div>
+                    <form onsubmit="addGoldHolding(event)" class="grid grid-cols-2 sm:grid-cols-6 gap-2 mb-3">
+                        <select id="goldKarat" class="bg-slate-50 rounded-xl p-2.5 text-xs font-bold outline-none ring-1 ring-slate-200">
+                            <option value="24">24 ayar</option>
+                            <option value="22">22 ayar</option>
+                        </select>
+                        <input type="number" id="goldGrams" step="0.01" min="0.01" required placeholder="Gram" class="bg-slate-50 rounded-xl p-2.5 text-xs font-bold outline-none ring-1 ring-slate-200">
+                        <input type="number" id="goldBuyPrice" step="0.01" min="0.01" required placeholder="Alış ₺/g" class="bg-slate-50 rounded-xl p-2.5 text-xs font-bold outline-none ring-1 ring-slate-200">
+                        <input type="date" id="goldBuyDate" required class="bg-slate-50 rounded-xl p-2.5 text-xs font-bold outline-none ring-1 ring-slate-200">
+                        <input type="text" id="goldNote" placeholder="Not" class="bg-slate-50 rounded-xl p-2.5 text-xs font-bold outline-none ring-1 ring-slate-200">
+                        <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl py-2.5 text-xs">Ekle</button>
+                    </form>
+                    <div id="goldHoldingsList" class="space-y-1.5 max-h-48 overflow-y-auto"></div>
+                    <div class="mt-2 flex gap-2 items-center">
+                        <input type="number" id="goldManualPrice" step="0.01" min="0" placeholder="Elle ₺/g" class="flex-1 bg-slate-50 rounded-lg p-1.5 text-[11px] font-bold outline-none ring-1 ring-slate-200">
+                        <button type="button" onclick="applyManualGoldPrice()" class="text-[11px] font-bold px-2 py-1.5 rounded-lg bg-slate-100 text-slate-700">Uygula</button>
+                    </div>
+                </div>
+
                 <!-- Kredi Kartları -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div data-layout-block="expenseCards" class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <!-- Bekir Kredi Kartı -->
                     <div id="bekirDebtCard" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative overflow-hidden hidden">
                         <div class="flex justify-between items-start mb-6">
@@ -415,7 +464,7 @@
                 </div>
 
                 <!-- Bütçe analizi: Yerel + AI -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div data-layout-block="expenseAdvisor" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <div class="advisor-card advisor-card-local bg-gradient-to-br from-indigo-50 to-slate-50 rounded-[2rem] card-shadow border border-indigo-100 p-5 sm:p-6">
                         <div class="flex items-start justify-between gap-3 mb-3">
                             <div>
@@ -452,7 +501,7 @@
                 </div>
 
 <!-- İşlem Geçmişi -->
-                <div class="bg-white rounded-[2.5rem] card-shadow border border-slate-100 overflow-hidden">
+                <div data-layout-block="expenseHistory" class="bg-white rounded-[2.5rem] card-shadow border border-slate-100 overflow-hidden">
                     <div class="p-8 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <h2 class="text-xl font-black text-slate-900">İşlem Geçmişi</h2>
                         <div class="flex items-center gap-2">
@@ -605,51 +654,7 @@
             </div>
 
 <div id="tabContentStats" class="hidden space-y-6 fade-in">
-                <div class="bg-white p-4 rounded-2xl card-shadow border border-slate-100">
-                    <div class="flex items-center justify-between gap-2 mb-2">
-                        <div>
-                            <h2 class="text-base font-black text-slate-800">🥇 Altın</h2>
-                            <p id="goldPriceMeta" class="text-[10px] text-slate-400 font-semibold">Fiyat yükleniyor…</p>
-                        </div>
-                        <button type="button" onclick="refreshGoldPrice(true)" class="text-[10px] font-bold text-amber-700 px-2 py-1 rounded-lg bg-amber-50">Yenile</button>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2 mb-3 text-[11px]">
-                        <div class="rounded-xl bg-amber-50/80 border border-amber-100 p-2">
-                            <p class="font-black text-amber-900 mb-1">24 ayar</p>
-                            <p class="text-slate-600">Alış <span id="goldBuy24" class="font-black text-slate-800">—</span></p>
-                            <p class="text-slate-600">Satış <span id="goldSell24" class="font-black text-amber-800">—</span></p>
-                        </div>
-                        <div class="rounded-xl bg-orange-50/80 border border-orange-100 p-2">
-                            <p class="font-black text-orange-900 mb-1">22 ayar</p>
-                            <p class="text-slate-600">Alış <span id="goldBuy22" class="font-black text-slate-800">—</span></p>
-                            <p class="text-slate-600">Satış <span id="goldSell22" class="font-black text-orange-800">—</span></p>
-                        </div>
-                    </div>
-                    <div class="flex flex-wrap gap-3 text-xs font-bold mb-3">
-                        <span>Maliyet: <span id="goldSumCost">—</span></span>
-                        <span>Değer: <span id="goldSumValue">—</span></span>
-                        <span id="goldSumPnL" class="font-black">—</span>
-                    </div>
-                    <form onsubmit="addGoldHolding(event)" class="grid grid-cols-2 sm:grid-cols-6 gap-2 mb-3">
-                        <select id="goldKarat" class="bg-slate-50 rounded-xl p-2.5 text-xs font-bold outline-none ring-1 ring-slate-200">
-                            <option value="24">24 ayar</option>
-                            <option value="22">22 ayar</option>
-                        </select>
-                        <input type="number" id="goldGrams" step="0.01" min="0.01" required placeholder="Gram" class="bg-slate-50 rounded-xl p-2.5 text-xs font-bold outline-none ring-1 ring-slate-200">
-                        <input type="number" id="goldBuyPrice" step="0.01" min="0.01" required placeholder="Alış ₺/g" class="bg-slate-50 rounded-xl p-2.5 text-xs font-bold outline-none ring-1 ring-slate-200">
-                        <input type="date" id="goldBuyDate" required class="bg-slate-50 rounded-xl p-2.5 text-xs font-bold outline-none ring-1 ring-slate-200">
-                        <input type="text" id="goldNote" placeholder="Not" class="bg-slate-50 rounded-xl p-2.5 text-xs font-bold outline-none ring-1 ring-slate-200">
-                        <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl py-2.5 text-xs">Ekle</button>
-                    </form>
-                    <div id="goldHoldingsList" class="space-y-1.5 max-h-48 overflow-y-auto"></div>
-                    <div class="mt-2 flex gap-2 items-center">
-                        <input type="number" id="goldManualPrice" step="0.01" min="0" placeholder="Elle ₺/g" class="flex-1 bg-slate-50 rounded-lg p-1.5 text-[11px] font-bold outline-none ring-1 ring-slate-200">
-                        <button type="button" onclick="applyManualGoldPrice()" class="text-[11px] font-bold px-2 py-1.5 rounded-lg bg-slate-100 text-slate-700">Uygula</button>
-                    </div>
-                </div>
-
-
-                <div class="flex flex-wrap items-center justify-between gap-2">
+<div class="flex flex-wrap items-center justify-between gap-2">
                     <h2 class="text-lg font-black text-slate-800">Özet &amp; Grafikler</h2>
                     <p class="text-[11px] text-slate-400 font-semibold">Pasta / Güne Tıklayınca Detay Açılır</p>
                 </div>

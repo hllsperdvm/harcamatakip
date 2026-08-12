@@ -130,6 +130,14 @@
 
         let tabsConfig = DEFAULT_TABS.map(t => ({ ...t }));
 
+        try {
+            if (typeof Chart !== 'undefined' && Chart.defaults && Chart.defaults.elements && Chart.defaults.elements.point) {
+                Chart.defaults.elements.point.radius = 8;
+                Chart.defaults.elements.point.hoverRadius = 12;
+                Chart.defaults.elements.point.hitRadius = 28;
+            }
+        } catch (_) {}
+
         window.handlePasswordKeyPress = function(event) {
             if (event.key === 'Enter') checkPassword();
         };
@@ -978,7 +986,13 @@
 
             const content = document.getElementById(`tabContent${capitalizeTab(tabName)}`);
             if (content) content.classList.remove('hidden');
+            try { if (typeof applyPageLayout === 'function') applyPageLayout(String(tabName || '').toLowerCase()); } catch (_l) {}
 
+            if (tabName === 'expense') {
+                if (typeof refreshGoldPrice === 'function') refreshGoldPrice(false);
+                if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
+                if (typeof applyPageLayout === 'function') applyPageLayout('expense');
+            }
             if (tabName === 'stats') {
                 updateStatsPanel();
                 renderMonthlyReports();
@@ -988,8 +1002,6 @@
                     renderCardStatements('duygu');
                 }
                 if (expenseChart) expenseChart.resize();
-                if (typeof refreshGoldPrice === 'function') refreshGoldPrice(false);
-                if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
             } else if (tabName === 'vehicle') {
                 renderVehicleTab();
             } else if (tabName === 'home') {
@@ -1022,10 +1034,7 @@
                 const hi = hour < 12 ? 'Günaydın' : (hour < 18 ? 'İyi günler' : 'İyi akşamlar');
                 if (greet) greet.textContent = hi + (name ? ', ' + name : '');
 
-                const dyk = document.getElementById('homeDidYouKnow');
-                if (dyk && typeof getDidYouKnow === 'function') {
-                    dyk.textContent = getDidYouKnow();
-                }
+                try { if (typeof loadDidYouKnowFact === 'function') loadDidYouKnowFact(false); } catch (_) {}
 
                 const dateEl = document.getElementById('homeTodayDate');
                 if (dateEl) {
@@ -1134,6 +1143,7 @@
                     if (typeof updateHomeGoldCard === 'function') updateHomeGoldCard();
                     else if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
                 } catch (_) {}
+                try { if (typeof applyPageLayout === 'function') applyPageLayout('home'); } catch (_) {}
 
                 // Yaklaşan bildirim özeti (max 4)
                 const listEl = document.getElementById('homeUpcomingList');
@@ -1169,52 +1179,171 @@
             if (typeof updateTaskNavBadges === 'function') updateTaskNavBadges();
         };
 
-        const DID_YOU_KNOW = [
-            'Bunu biliyor muydunuz? Bal, uygun koşullarda bozulmayan nadir gıdalardan biridir; arkeolojik kazılarda binlerce yıllık yenilebilir bal bulunmuştur.',
-            'Bunu biliyor muydunuz? Ahtapotların üç kalbi vardır; ikisi solungaçlara, biri vücuda kan pompalar.',
-            'Bunu biliyor muydunuz? Büyük Çin Seddi, uzaydan çıplak gözle görülebilen tek insan yapısı değildir; bu yaygın bir efsanedir.',
-            'Bunu biliyor muydunuz? 1453\'te İstanbul\'un fethi, Orta Çağ\'dan erken modern döneme geçişin simgesel olaylarından kabul edilir.',
-            'Bunu biliyor muydunuz? Bir yıldırımın sıcaklığı, Güneş\'in yüzeyinden yaklaşık beş kat daha yüksek olabilir.',
-            'Bunu biliyor muydunuz? 1920\'de TBMM Ankara\'da açıldı; Milli Mücadele\'nin siyasi merkezi böyle şekillendi.',
-            'Bunu biliyor muydunuz? Penguenler yalnızca Güney Yarımküre\'de yaşar; Kuzey Kutbu\'nda doğal penguen popülasyonu yoktur.',
-            'Bunu biliyor muydunuz? Mozart\'ın 600\'den fazla eseri vardır; bestelerinin bir kısmını çocuk yaşta yazmıştır.',
-            'Bunu biliyor muydunuz? 1969\'da Apollo 11 ile Neil Armstrong Ay\'a ayak basan ilk insan oldu.',
-            'Bunu biliyor muydunuz? Türk kahvesi, UNESCO Somut Olmayan Kültürel Miras listesindedir.',
-            'Bunu biliyor muydunuz? Avustralya\'nın yüzölçümü neredeyse Avrupa kıtası kadar büyüktür; nüfusu ise çok daha düşüktür.',
-            'Bunu biliyor muydunuz? 29 Ekim 1923\'te Türkiye Cumhuriyeti ilan edildi.',
-            'Bunu biliyor muydunuz? Balinalar memelidir; yavrularını sütle besler ve akciğerleriyle nefes alırlar.',
-            'Bunu biliyor muydunuz? İlk modern Olimpiyat Oyunları 1896\'da Atina\'da düzenlendi.',
-            'Bunu biliyor muydunuz? Çanakkale Deniz Zaferi 18 Mart 1915\'te anılır.',
-            'Bunu biliyor muydunuz? Venüs, Güneş sisteminde bir günü bir yıldan uzun süren gezegendir (kendi ekseninde dönüşü yörünge süresinden uzundur).',
-            'Bunu biliyor muydunuz? 1989\'da Berlin Duvarı\'nın yıkılışı, Avrupa\'nın bölünmüşlüğünün sembolik sonuna işaret eder.',
-            'Bunu biliyor muydunuz? Arıların dansı, diğer arılara nektar kaynağının yönünü ve uzaklığını anlatmak için kullanılır.',
-            'Bunu biliyor muydunuz? Matematikteki π (pi) sayısı, bir çemberin çevresinin çapına oranıdır; ondalık kısmı sonsuza kadar sürer.',
-            'Bunu biliyor muydunuz? 1901\'de ilk Nobel Ödülleri verildi.',
-            'Bunu biliyor muydunuz? Kapadokya\'nın peri bacaları, volkanik tüflerin rüzgâr ve suyla aşınmasıyla oluşmuştur.',
-            'Bunu biliyor muydunuz? İnsan vücudundaki en sert madde diş minesidir.',
-            'Bunu biliyor muydunuz? 30 Ağustos 1922, Büyük Taarruz\'un zaferiyle anılan Zafer Bayramı\'dır.',
-            'Bunu biliyor muydunuz? Octopus (ahtapot) türlerinin birçoğu, tehlike anında mürekkep salarak görüşü engeller.',
-            'Bunu biliyor muydunuz? Kitab-ı Bahriye, Piri Reis\'in Akdeniz coğrafyasına dair ünlü denizcilik eseridir.',
-            'Bunu biliyor muydunuz? DNA\'nın çift sarmal yapısı 1953\'te Watson ve Crick tarafından modelleştirildi.',
-            'Bunu biliyor muydunuz? Efes Antik Kenti, UNESCO Dünya Mirası listesindedir.',
-            'Bunu biliyor muydunuz? Bir gün Dünya\'da yaklaşık 24 saattir; Mars\'ta bir gün (sol) yaklaşık 24,6 saattir.',
-            'Bunu biliyor muydunuz? 10 Kasım 1938\'de Mustafa Kemal Atatürk vefat etmiştir.',
-            'Bunu biliyor muydunuz? Flamenco, İspanya\'nın Endülüs bölgesiyle özdeşleşmiş müzik ve dans geleneğidir.',
-            'Bunu biliyor muydunuz? Antarktika, dünyanın en kurak ve en soğuk kıtasıdır; teknik olarak çöl sınıflandırmasına girer.',
-            'Bunu biliyor muydunuz? İstanbul, tarih boyunca Byzantion, Konstantinopolis gibi adlarla da anılmıştır.',
-            'Bunu biliyor muydunuz? Satrançta teorik olarak en fazla hamle sayısı sınırlıdır; oyun sonlu bir sistemdir.',
-            'Bunu biliyor muydunuz? Pamukkale\'nin beyaz travertenleri, sıcak suyun bıraktığı kalsiyum karbonat birikimidir.',
-            'Bunu biliyor muydunuz? 1948\'de İnsan Hakları Evrensel Bildirgesi kabul edildi.',
-            'Bunu biliyor muydunuz? Kedi ve köpeklerin burun izleri, insan parmak izi gibi bireye özgüdür.',
-            'Bunu biliyor muydunuz? Göbeklitepe, bilinen en eski anıtsal tapınak alanlarından biri olarak kabul edilir.',
-            'Bunu biliyor muydunuz? Müzikte "A" notasının standart frekansı birçok yerde 440 Hz olarak alınır.',
-            'Bunu biliyor muydunuz? Nil Nehri, uzunluk tartışmalarıyla birlikte Afrika\'nın en ünlü nehirlerindendir.',
-            'Bunu biliyor muydunuz? 9 Eylül, İzmir\'in kurtuluşunun yıl dönümü olarak anılır.'
-        ];
+        // ——— Bunu biliyor muydunuz? (Türkçe — ücretsiz API) ———
+        let _dykTimer = null;
+        let _dykLastText = '';
+
+        function looksTurkish(s) {
+            return /[çğıöşüÇĞİÖŞÜ]/.test(s || '') || /\b(ve|bir|ile|için|olan|olarak|tarih|yıl)\b/i.test(s || '');
+        }
+
+        async function translateToTurkish(text) {
+            const t = String(text || '').trim();
+            if (!t) return t;
+            if (looksTurkish(t) && t.length > 40) return t;
+            // MyMemory — ücretsiz, anahtarsız (günlük limit olabilir)
+            try {
+                const q = encodeURIComponent(t.slice(0, 450));
+                const r = await fetch('https://api.mymemory.translated.net/get?q=' + q + '&langpair=en|tr', { cache: 'no-store' });
+                if (!r.ok) throw new Error('tr http');
+                const j = await r.json();
+                const out = j && j.responseData && j.responseData.translatedText;
+                if (out && String(out).trim() && String(out).toUpperCase() !== t.toUpperCase()) {
+                    return String(out).trim();
+                }
+            } catch (_) {}
+            return t;
+        }
+
+        async function fetchDidYouKnowFromApis() {
+            const sources = [
+                // 1) Türkçe Vikipedi rastgele madde
+                async function() {
+                    const r = await fetch('https://tr.wikipedia.org/api/rest_v1/page/random/summary', { cache: 'no-store' });
+                    if (!r.ok) throw new Error('wiki-tr');
+                    const j = await r.json();
+                    const title = (j.title || '').trim();
+                    const extract = (j.extract || '').trim();
+                    if (!extract || extract.length < 40) throw new Error('wiki short');
+                    let text = extract;
+                    if (title && extract.indexOf(title) !== 0) text = title + ': ' + extract;
+                    return { kind: 'İlginç bilgi', text: text, tr: true };
+                },
+                // 2) Tarihte bugün (EN → TR çeviri)
+                async function() {
+                    const d = new Date();
+                    const url = 'https://history.muffinlabs.com/date/' + (d.getMonth() + 1) + '/' + d.getDate();
+                    const r = await fetch(url, { cache: 'no-store' });
+                    if (!r.ok) throw new Error('history');
+                    const j = await r.json();
+                    const events = (j && j.data && j.data.Events) ? j.data.Events : [];
+                    if (!events.length) throw new Error('no events');
+                    const e = events[Math.floor(Math.random() * events.length)];
+                    const year = e.year ? (e.year + ': ') : '';
+                    const raw = year + String(e.text || '').trim();
+                    const tr = await translateToTurkish(raw);
+                    return { kind: 'Tarihte bugün', text: tr, tr: true };
+                },
+                // 3) İlginç bilgi (EN → TR)
+                async function() {
+                    const r = await fetch('https://uselessfacts.jsph.pl/api/v2/facts/random', { cache: 'no-store' });
+                    if (!r.ok) throw new Error('facts');
+                    const j = await r.json();
+                    const raw = (j && j.text) ? String(j.text).trim() : '';
+                    if (!raw) throw new Error('empty');
+                    const tr = await translateToTurkish(raw);
+                    return { kind: 'İlginç bilgi', text: tr, tr: true };
+                },
+                // 4) Komik (EN → TR)
+                async function() {
+                    const r = await fetch('https://official-joke-api.appspot.com/random_joke', { cache: 'no-store' });
+                    if (!r.ok) throw new Error('joke');
+                    const j = await r.json();
+                    const raw = ((j.setup || '') + ' — ' + (j.punchline || '')).trim();
+                    if (raw.length < 8) throw new Error('empty joke');
+                    const tr = await translateToTurkish(raw);
+                    return { kind: 'Komik', text: tr, tr: true };
+                },
+                // 5) Hayvan bilgisi (EN → TR)
+                async function() {
+                    const r = await fetch('https://catfact.ninja/fact', { cache: 'no-store' });
+                    if (!r.ok) throw new Error('cat');
+                    const j = await r.json();
+                    const raw = (j && j.fact) ? String(j.fact).trim() : '';
+                    if (!raw) throw new Error('empty');
+                    const tr = await translateToTurkish(raw);
+                    return { kind: 'İlginç bilgi', text: tr, tr: true };
+                }
+            ];
+            for (let i = sources.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                const t = sources[i]; sources[i] = sources[j]; sources[j] = t;
+            }
+            // Vikipedi TR'ye biraz daha şans: %40 başa koy
+            if (Math.random() < 0.4) {
+                const wiki = sources.find(function(fn) { return fn.toString().indexOf('wiki-tr') >= 0 || fn.toString().indexOf('tr.wikipedia') >= 0; });
+                // kaynaklar anonim; ilk olarak wiki denemek için yeniden sırala
+            }
+            // Önce TR Vikipedi dene
+            try {
+                const r = await fetch('https://tr.wikipedia.org/api/rest_v1/page/random/summary', { cache: 'no-store' });
+                if (r.ok) {
+                    const j = await r.json();
+                    const extract = (j.extract || '').trim();
+                    if (extract.length >= 40) {
+                        const title = (j.title || '').trim();
+                        let text = extract;
+                        if (title && extract.indexOf(title) !== 0) text = title + ': ' + extract;
+                        if (text !== _dykLastText) return { kind: 'İlginç bilgi', text: text, tr: true };
+                    }
+                }
+            } catch (_) {}
+
+            let lastErr = null;
+            for (let i = 0; i < sources.length; i++) {
+                try {
+                    const item = await sources[i]();
+                    if (item && item.text && item.text !== _dykLastText) return item;
+                    if (item && item.text) return item;
+                } catch (e) { lastErr = e; }
+            }
+            throw lastErr || new Error('Tüm API\'ler başarısız');
+        }
+
+        window.loadDidYouKnowFact = async function(force) {
+            const el = document.getElementById('homeDidYouKnow');
+            if (!el) return;
+            if (force || el.dataset.loaded !== '1') {
+                el.textContent = 'Bunu biliyor muydunuz? Yükleniyor…';
+            }
+            try {
+                const item = await fetchDidYouKnowFromApis();
+                _dykLastText = item.text;
+                let body = String(item.text || '').replace(/\s+/g, ' ').trim();
+                if (body.length > 320) body = body.slice(0, 317) + '…';
+                const kind = item.kind || 'İlginç bilgi';
+                el.textContent = 'Bunu biliyor muydunuz? (' + kind + ') ' + body;
+                el.dataset.loaded = '1';
+                try {
+                    sessionStorage.setItem('yuvam_dyk_cache', JSON.stringify({
+                        t: Date.now(), kind: kind, text: body
+                    }));
+                } catch (_) {}
+            } catch (e) {
+                try {
+                    const raw = sessionStorage.getItem('yuvam_dyk_cache');
+                    if (raw) {
+                        const o = JSON.parse(raw);
+                        if (o && o.text) {
+                            el.textContent = 'Bunu biliyor muydunuz? (' + (o.kind || 'Bilgi') + ') ' + o.text;
+                            return;
+                        }
+                    }
+                } catch (_) {}
+                el.textContent = 'Bunu biliyor muydunuz? Yeni bilgi için buraya dokunun.';
+            }
+            if (_dykTimer) clearInterval(_dykTimer);
+            _dykTimer = setInterval(function() {
+                try {
+                    const home = document.getElementById('tabContentHome');
+                    if (home && !home.classList.contains('hidden')) loadDidYouKnowFact(true);
+                } catch (_) {}
+            }, 120000);
+        };
 
         window.getDidYouKnow = function() {
-            const i = Math.floor(Math.random() * DID_YOU_KNOW.length);
-            return DID_YOU_KNOW[i];
+            loadDidYouKnowFact(false);
+            return 'Yükleniyor…';
         };
 
         // ——— Aile: Takvim / Görev / Alışveriş ———
@@ -1949,6 +2078,227 @@
             'total', 'bekir', 'duygu', 'debt',
             'homeToday', 'homePeriod', 'homeNotif', 'homeGold', 'homeQuickAdd', 'homeUpcoming', 'homeBudget', 'homeTasks', 'homeBriefing'
         ];
+
+
+
+        // ——— Sayfa düzeni (tüm sekmeler, tüm üst bloklar) ———
+        let layoutEditPage = null;
+
+        function currentLayoutPageId() {
+            // Aktif sekme içeriği
+            const tabs = document.querySelectorAll('[id^="tabContent"]');
+            for (let i = 0; i < tabs.length; i++) {
+                const el = tabs[i];
+                if (el.classList && !el.classList.contains('hidden') && el.id.indexOf('tabContent') === 0) {
+                    return el.id.replace(/^tabContent/, '').toLowerCase();
+                }
+            }
+            if (typeof currentTab !== 'undefined' && currentTab) return String(currentTab).toLowerCase();
+            return 'home';
+        }
+
+        function layoutContainer(page) {
+            if (!page) return null;
+            // home -> tabContentHome
+            const id = 'tabContent' + page.charAt(0).toUpperCase() + page.slice(1);
+            let el = document.getElementById(id);
+            if (el) return el;
+            // case variants
+            const all = document.querySelectorAll('[id^="tabContent"]');
+            for (let i = 0; i < all.length; i++) {
+                if (all[i].id.toLowerCase() === ('tabcontent' + page).toLowerCase()) return all[i];
+            }
+            return null;
+        }
+
+        function ensureLayoutBlocks(root, page) {
+            if (!root) return;
+            let n = 0;
+            Array.prototype.forEach.call(root.children, function(ch) {
+                if (!ch || ch.nodeType !== 1) return;
+                // atla: düzen toolbar / boş
+                if (ch.id === 'layoutEditBtn') return;
+                const cls = (ch.className && String(ch.className)) || '';
+                const text = (ch.textContent || '').trim();
+                if (!text || text.length < 2) return;
+                // zaten işaretli
+                if (ch.getAttribute('data-layout-block')) return;
+                // çok küçük satır içi elemanlar
+                if (ch.matches && ch.matches('script,style,link,br,hr')) return;
+                // hero her zaman en üstte kalsın istersen yine taşınabilir - işaretle
+                n += 1;
+                const id = page + '_b' + n + '_' + Math.abs(hashStr(cls + text.slice(0, 40))).toString(36).slice(0, 6);
+                ch.setAttribute('data-layout-block', id);
+            });
+        }
+
+        function hashStr(s) {
+            let h = 0;
+            for (let i = 0; i < s.length; i++) h = ((h << 5) - h) + s.charCodeAt(i) | 0;
+            return h;
+        }
+
+        function getLayoutOrder(page) {
+            try {
+                const raw = localStorage.getItem('yuvam_layout_' + page);
+                if (raw) {
+                    const arr = JSON.parse(raw);
+                    if (Array.isArray(arr) && arr.length) return arr;
+                }
+            } catch (_) {}
+            return [];
+        }
+
+        function saveLayoutOrder(page, order) {
+            try { localStorage.setItem('yuvam_layout_' + page, JSON.stringify(order)); } catch (_) {}
+        }
+
+        function collectLayoutBlocks(root) {
+            const list = [];
+            Array.prototype.forEach.call(root.children, function(ch) {
+                if (!ch.getAttribute) return;
+                // toolbar satırı (sadece düzen butonu içeren) taşıma
+                if (ch.querySelector && ch.children.length === 1 && ch.querySelector('#layoutEditBtn')) return;
+                const id = ch.getAttribute('data-layout-block');
+                if (id) list.push({ id: id, el: ch });
+            });
+            return list;
+        }
+
+        window.applyPageLayout = function(page) {
+            page = (page || currentLayoutPageId() || 'home').toLowerCase();
+            const root = layoutContainer(page);
+            if (!root) return;
+
+            ensureLayoutBlocks(root, page);
+            const blocks = collectLayoutBlocks(root);
+            if (!blocks.length) return;
+
+            const byId = {};
+            blocks.forEach(function(b) { byId[b.id] = b.el; });
+
+            let order = getLayoutOrder(page).filter(function(id) { return !!byId[id]; });
+            blocks.forEach(function(b) {
+                if (order.indexOf(b.id) < 0) order.push(b.id);
+            });
+            // Bütçe Takip: Altın, Yeni Harcama Ekle'nin hemen altında olsun
+            if (page === 'expense') {
+                const ia = order.indexOf('expenseAdd');
+                const ig = order.indexOf('expenseGold');
+                if (ia >= 0 && ig >= 0 && ig !== ia + 1) {
+                    order = order.filter(function(x) { return x !== 'expenseGold'; });
+                    const ia2 = order.indexOf('expenseAdd');
+                    order.splice(ia2 + 1, 0, 'expenseGold');
+                }
+            }
+
+            // Sabit olmayanları sırala; data-layout-fixed olanlar başta kalır
+            const fixed = [];
+            Array.prototype.forEach.call(root.children, function(ch) {
+                if (ch.getAttribute && ch.getAttribute('data-layout-fixed') === '1') fixed.push(ch);
+                else if (ch.getAttribute && !ch.getAttribute('data-layout-block')) {
+                    // işaretsiz küçük düğümler (eski toolbar)
+                    if (ch.querySelector && ch.querySelector('[onclick*="toggleLayoutEdit"]')) {
+                        ch.setAttribute('data-layout-fixed', '1');
+                        fixed.push(ch);
+                    }
+                }
+            });
+            fixed.forEach(function(ch) { root.appendChild(ch); });
+            order.forEach(function(id) {
+                if (byId[id]) root.appendChild(byId[id]);
+            });
+            saveLayoutOrder(page, order);
+
+            // Chrome
+            blocks.forEach(function(b) {
+                const el = b.el;
+                let bar = null;
+                for (let i = 0; i < el.children.length; i++) {
+                    if (el.children[i].classList && el.children[i].classList.contains('layout-edit-bar')) {
+                        bar = el.children[i];
+                        break;
+                    }
+                }
+                if (layoutEditPage === page) {
+                    if (!bar) {
+                        bar = document.createElement('div');
+                        bar.className = 'layout-edit-bar';
+                        bar.innerHTML =
+                            '<span class="layout-edit-label">Taşı</span>' +
+                            '<button type="button" class="layout-btn" data-dir="up">↑</button>' +
+                            '<button type="button" class="layout-btn" data-dir="down">↓</button>';
+                        el.insertBefore(bar, el.firstChild);
+                        bar.addEventListener('click', function(ev) {
+                            ev.preventDefault();
+                            ev.stopPropagation();
+                            const btn = ev.target.closest('[data-dir]');
+                            if (!btn) return;
+                            moveLayoutBlock(page, b.id, btn.getAttribute('data-dir'));
+                        });
+                    }
+                    bar.style.display = 'flex';
+                    el.classList.add('layout-edit-on');
+                    const pos = window.getComputedStyle(el).position;
+                    if (!pos || pos === 'static') el.style.position = 'relative';
+                } else {
+                    if (bar) bar.style.display = 'none';
+                    el.classList.remove('layout-edit-on');
+                }
+            });
+        };
+
+        function moveLayoutBlock(page, id, dir) {
+            const root = layoutContainer(page);
+            if (!root) return;
+            ensureLayoutBlocks(root, page);
+            const blocks = collectLayoutBlocks(root);
+            let order = getLayoutOrder(page).filter(function(x) {
+                return blocks.some(function(b) { return b.id === x; });
+            });
+            blocks.forEach(function(b) {
+                if (order.indexOf(b.id) < 0) order.push(b.id);
+            });
+            const i = order.indexOf(id);
+            if (i < 0) return;
+            const j = dir === 'up' ? i - 1 : i + 1;
+            if (j < 0 || j >= order.length) return;
+            const t = order[i];
+            order[i] = order[j];
+            order[j] = t;
+            saveLayoutOrder(page, order);
+            applyPageLayout(page);
+            if (typeof showToast === 'function') showToast('Sıra kaydedildi', 'success');
+        }
+
+        window.toggleLayoutEdit = function(page) {
+            try {
+                page = (page || currentLayoutPageId() || 'home').toLowerCase();
+                layoutEditPage = (layoutEditPage === page) ? null : page;
+                applyPageLayout(page);
+                const on = layoutEditPage === page;
+                if (typeof showToast === 'function') {
+                    showToast(on ? 'Düzen açık — tüm kutularda ↑ ↓' : 'Düzen kapandı', 'info');
+                }
+                const btn = document.getElementById('layoutEditBtn');
+                if (btn) {
+                    btn.classList.toggle('ring-2', on);
+                    btn.classList.toggle('ring-indigo-400', on);
+                    btn.textContent = on ? '✓ Düzen' : '📐 Düzen';
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Düzen hatası: ' + (err.message || err));
+            }
+        };
+
+        window.toggleLayoutEditCurrent = function() {
+            toggleLayoutEdit(currentLayoutPageId());
+        };
+
+        // Sekme değişince düzeni uygula
+        const _origSwitchTabLayout = typeof window.switchTab === 'function' ? window.switchTab : null;
+        // switchTab zaten var; applyPageLayout çağrıları switchTab içinde eklenecek aşağıda
 
         window.applyDashboardCards = function() {
             const dc = dashboardCards || {};
@@ -2867,7 +3217,7 @@
                             backgroundColor: color + '22',
                             fill: true,
                             tension: 0.3,
-                            pointRadius: 4,
+                            pointRadius: 8, pointHoverRadius: 12, pointHitRadius: 28,
                             pointBackgroundColor: color
                         }]
                     },
@@ -3042,7 +3392,7 @@
                                 backgroundColor: 'rgba(16,185,129,0.12)',
                                 fill: false,
                                 tension: 0.3,
-                                pointRadius: 4,
+                                pointRadius: 8, pointHoverRadius: 12, pointHitRadius: 28,
                                 pointBackgroundColor: '#10b981',
                                 yAxisID: 'y'
                             },
@@ -3053,7 +3403,7 @@
                                 backgroundColor: 'rgba(245,158,11,0.12)',
                                 fill: false,
                                 tension: 0.3,
-                                pointRadius: 4,
+                                pointRadius: 8, pointHoverRadius: 12, pointHitRadius: 28,
                                 pointBackgroundColor: '#f59e0b',
                                 yAxisID: 'y1'
                             }
@@ -3097,7 +3447,7 @@
                             backgroundColor: 'rgba(139, 92, 246, 0.12)',
                             fill: true,
                             tension: 0.3,
-                            pointRadius: 4,
+                            pointRadius: 8, pointHoverRadius: 12, pointHitRadius: 28,
                             pointBackgroundColor: '#8b5cf6',
                             spanGaps: true
                         }]
@@ -4358,9 +4708,9 @@
                             borderWidth: 2,
                             fill: true,
                             tension: 0.35,
-                            pointRadius: 7,
-                            pointHoverRadius: 10,
-                            pointHitRadius: 16,
+                            pointRadius: 10, pointHoverRadius: 14, pointHitRadius: 30,
+                            pointHoverRadius: 14,
+                            pointHitRadius: 30,
                             pointBackgroundColor: '#4f46e5'
                         }]
                     },
@@ -4514,7 +4864,7 @@
                         backgroundColor: palette[i % palette.length] + '33',
                         tension: 0.3,
                         fill: false,
-                        pointRadius: 4
+                        pointRadius: 8, pointHoverRadius: 12, pointHitRadius: 28
                     };
                 });
                 const ctxTr = document.getElementById('categoryTrendChart');
