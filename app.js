@@ -3569,12 +3569,42 @@
                 updateStatsPanel();
                 logActivity('Harcama', id ? 'Harcama güncellendi' : 'Harcama eklendi',
                     (person || '') + ' · ' + (category || '') + ' · ' + amount + ' TL' + (description && description !== '-' ? ' · ' + description : ''));
-                if (!id && typeof showEyvahPopup === 'function') {
-                    try { showEyvahPopup(); } catch (_) {}
+                if (!id) {
+                    setTimeout(function() {
+                        try { if (typeof showEyvahPopup === 'function') showEyvahPopup(); } catch (_) {}
+                    }, 350);
                 }
             } catch (err) {
                 console.error("Harcama kayıt hatası:", err);
                 showToast(friendlyFirebaseError(err), 'error');
+            }
+        };
+
+        let _eyvahTimer = null;
+        window.showEyvahPopup = function() {
+            try {
+                const ov = document.getElementById('eyvahOverlay');
+                if (!ov) {
+                    console.warn('eyvahOverlay yok');
+                    return;
+                }
+                ov.classList.remove('hidden');
+                ov.style.display = 'flex';
+                ov.setAttribute('aria-hidden', 'false');
+                if (_eyvahTimer) clearTimeout(_eyvahTimer);
+                _eyvahTimer = setTimeout(function() {
+                    ov.classList.add('hidden');
+                    ov.style.display = '';
+                    ov.setAttribute('aria-hidden', 'true');
+                }, 5000);
+                ov.onclick = function() {
+                    ov.classList.add('hidden');
+                    ov.style.display = '';
+                    ov.setAttribute('aria-hidden', 'true');
+                    if (_eyvahTimer) clearTimeout(_eyvahTimer);
+                };
+            } catch (err) {
+                console.error('showEyvahPopup', err);
             }
         };
 
