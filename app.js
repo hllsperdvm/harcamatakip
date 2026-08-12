@@ -1359,6 +1359,26 @@
             }, 120000);
         };
 
+
+        let _eyvahTimer = null;
+        window.showEyvahPopup = function() {
+            const ov = document.getElementById('eyvahOverlay');
+            if (!ov) return;
+            ov.classList.remove('hidden');
+            ov.setAttribute('aria-hidden', 'false');
+            if (_eyvahTimer) clearTimeout(_eyvahTimer);
+            _eyvahTimer = setTimeout(function() {
+                ov.classList.add('hidden');
+                ov.setAttribute('aria-hidden', 'true');
+            }, 5000);
+            // dokununca erken kapat
+            ov.onclick = function() {
+                ov.classList.add('hidden');
+                ov.setAttribute('aria-hidden', 'true');
+                if (_eyvahTimer) clearTimeout(_eyvahTimer);
+            };
+        };
+
         window.getDidYouKnow = function() {
             loadDidYouKnowFact(false);
             return 'Yükleniyor…';
@@ -3628,6 +3648,9 @@
                 updateStatsPanel();
                 logActivity('Harcama', id ? 'Harcama güncellendi' : 'Harcama eklendi',
                     (person || '') + ' · ' + (category || '') + ' · ' + amount + ' TL' + (description && description !== '-' ? ' · ' + description : ''));
+                if (!id && typeof showEyvahPopup === 'function') {
+                    try { showEyvahPopup(); } catch (_) {}
+                }
             } catch (err) {
                 console.error("Harcama kayıt hatası:", err);
                 showToast(friendlyFirebaseError(err), 'error');

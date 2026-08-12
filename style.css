@@ -1352,3 +1352,54 @@ header p.uppercase {
   cursor: pointer;
 }
 .layout-btn:active { transform: scale(0.94); }
+
+
+/* EYVAH harcama easter egg */
+.eyvah-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: eyvah-fade-in 0.25s ease-out;
+}
+.eyvah-overlay.hidden { display: none !important; }
+.eyvah-card {
+  text-align: center;
+  padding: 1.25rem 1.5rem 1.5rem;
+  border-radius: 1.75rem;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 25px 50px rgba(0,0,0,0.35);
+  max-width: min(92vw, 340px);
+  animation: eyvah-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.eyvah-title {
+  font-size: clamp(2rem, 8vw, 2.75rem);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #e11d48;
+  margin: 0 0 0.75rem;
+  line-height: 1.1;
+  text-shadow: 0 2px 0 rgba(0,0,0,0.06);
+}
+.eyvah-img {
+  width: min(72vw, 260px);
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  object-fit: contain;
+  user-select: none;
+  pointer-events: none;
+}
+@keyframes eyvah-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes eyvah-pop {
+  from { transform: scale(0.7); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
