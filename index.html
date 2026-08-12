@@ -51,18 +51,12 @@
         </div>
     </div>
 
-    <!-- Veri yüklenirken iskelet -->
-    <div id="appSkeleton" class="hidden fixed inset-0 z-[85] bg-slate-50/90 backdrop-blur-sm flex items-start justify-center pt-16 sm:pt-24 px-4">
-        <div class="w-full max-w-lg space-y-4">
-            <div class="yuvam-skeleton skel-card rounded-[2rem]" style="height:7rem"></div>
-            <div class="yuvam-skeleton skel-card" style="height:5.5rem"></div>
-            <div class="grid grid-cols-2 gap-3">
-                <div class="yuvam-skeleton skel-card" style="height:4.5rem"></div>
-                <div class="yuvam-skeleton skel-card" style="height:4.5rem"></div>
-            </div>
-            <div class="yuvam-skeleton skel-line w-3/4"></div>
-            <div class="yuvam-skeleton skel-line w-1/2"></div>
-            <p class="text-center text-xs font-bold text-slate-400 pt-2">Veriler yükleniyor…</p>
+    <!-- Veri yüklenirken — kapı görseli + ışıltı -->
+    <div id="appSkeleton" class="gate-loader hidden" aria-hidden="true">
+        <div class="gate-loader-stage" id="gateLoaderStage" style="--p:0%">
+            <img src="loading-gate.png" alt="" class="gate-loader-base" draggable="false">
+            <img src="loading-gate.png" alt="" class="gate-loader-lit" draggable="false">
+            <div class="gate-loader-shine" aria-hidden="true"></div>
         </div>
     </div>
 

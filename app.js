@@ -891,24 +891,66 @@
         }
 
         let _skeletonHiddenOnce = false;
+        let _gateProgress = 0;
+        let _gateTickTimer = null;
+        let _gateHideTimer = null;
+
+        function setGateProgress(p) {
+            _gateProgress = Math.max(0, Math.min(100, Number(p) || 0));
+            const stage = document.getElementById('gateLoaderStage');
+            if (stage) stage.style.setProperty('--p', _gateProgress + '%');
+        }
+
+        function bumpGateProgress(toAtLeast, step) {
+            if (_skeletonHiddenOnce) return;
+            const target = Math.min(92, Math.max(_gateProgress + (step || 8), toAtLeast || 0));
+            if (target > _gateProgress) setGateProgress(target);
+        }
+
         window.showAppSkeleton = function() {
             const el = document.getElementById('appSkeleton');
-            if (el) {
-                el.classList.remove('hidden');
-                el.style.display = 'flex';
-            }
+            if (!el) return;
+            _skeletonHiddenOnce = false;
+            if (_gateHideTimer) { clearTimeout(_gateHideTimer); _gateHideTimer = null; }
+            setGateProgress(0);
+            el.classList.remove('hidden');
+            el.style.display = 'flex';
+            el.setAttribute('aria-hidden', 'false');
+            if (_gateTickTimer) clearInterval(_gateTickTimer);
+            // Yükleme süresince yavaş ilerleme (gerçek veri gelince bump + hide 100 yapar)
+            _gateTickTimer = setInterval(function() {
+                if (_skeletonHiddenOnce) {
+                    clearInterval(_gateTickTimer);
+                    _gateTickTimer = null;
+                    return;
+                }
+                if (_gateProgress < 88) {
+                    // yavaşlayan artış
+                    const add = _gateProgress < 40 ? 2.2 : (_gateProgress < 70 ? 1.1 : 0.45);
+                    setGateProgress(_gateProgress + add);
+                }
+            }, 120);
         };
+
         window.hideAppSkeleton = function() {
             const el = document.getElementById('appSkeleton');
-            if (el) {
+            if (_gateTickTimer) { clearInterval(_gateTickTimer); _gateTickTimer = null; }
+            setGateProgress(100);
+            _skeletonHiddenOnce = true;
+            if (!el) return;
+            if (_gateHideTimer) clearTimeout(_gateHideTimer);
+            // ışıltı %100 görünsün diye kısa bekleme
+            _gateHideTimer = setTimeout(function() {
                 el.classList.add('hidden');
                 el.style.display = 'none';
-            }
-            _skeletonHiddenOnce = true;
+                el.setAttribute('aria-hidden', 'true');
+                setGateProgress(0);
+            }, 280);
         };
 
         function scheduleRenderApp() {
             clearTimeout(renderTimeout);
+            try { bumpGateProgress(_gateProgress + 12, 10); } catch (_) {}
             renderTimeout = setTimeout(() => {
                 renderApp();
                 if (isStatsTabActive()) updateStatsPanel();
