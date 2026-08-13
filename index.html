@@ -14,8 +14,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <link rel="icon" type="image/png" href="logo-gate.png">
-    <link rel="apple-touch-icon" href="logo-gate.png">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230284c7'/%3E%3Cpath d='M50 22L20 45v35h60V45L50 22z' fill='none' stroke='%23ffffff' stroke-width='6' stroke-linejoin='round'/%3E%3Cpath d='M68 35v10h8v-6h4V35h-12z' fill='%23ffffff'/%3E%3Crect x='38' y='52' width='12' height='16' rx='2' fill='%23ffffff'/%3E%3Crect x='56' y='52' width='12' height='16' rx='2' fill='%23ffffff'/%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230284c7'/%3E%3Cpath d='M50 22L20 45v35h60V45L50 22z' fill='none' stroke='%23ffffff' stroke-width='6' stroke-linejoin='round'/%3E%3Cpath d='M68 35v10h8v-6h4V35h-12z' fill='%23ffffff'/%3E%3Crect x='38' y='52' width='12' height='16' rx='2' fill='%23ffffff'/%3E%3Crect x='56' y='52' width='12' height='16' rx='2' fill='%23ffffff'/%3E%3C/svg%3E">
 </head>
 <body class="text-slate-800 antialiased">
 
@@ -23,10 +23,10 @@
     <div id="errorContainer" class="fixed inset-0 z-[100] flex items-center justify-center bg-gradient-to-br from-slate-50 via-indigo-50/40 to-slate-100">
         <div class="w-full max-w-md p-8">
             <div class="bg-white rounded-[2rem] shadow-xl shadow-indigo-100/50 border border-slate-100 p-8 text-center">
-                <div class="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-200 overflow-hidden">
-                    <img src="logo-gate.png" alt="YUVAM" width="80" height="80"
-                         class="yuvam-logo-img h-full w-full object-cover"
-                         onerror="this.style.display='none'">
+                <div class="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
                 </div>
                 <h2 class="mb-1 text-2xl font-extrabold text-slate-900">YUVAM</h2>
                 <p class="mb-8 text-sm text-slate-400 font-medium">Digital Home Hub — Giriş yapın</p>
@@ -66,10 +66,10 @@
             <!-- Header -->
             <header class="mb-10 flex flex-col sm:flex-row justify-between items-center gap-6">
                 <button type="button" onclick="switchTab('home')" class="flex items-center gap-4 text-left group cursor-pointer bg-transparent border-0 p-0" title="Ana Sayfa">
-                    <div class="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100 bg-indigo-600 overflow-hidden group-hover:bg-indigo-700 transition shrink-0">
-                        <img src="logo-gate.png" alt="YUVAM" width="56" height="56"
-                             class="yuvam-logo-img w-full h-full object-cover"
-                             onerror="this.style.display='none'">
+                    <div class="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100 text-white group-hover:bg-indigo-700 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
                     </div>
                     <div>
                         <h1 class="text-3xl font-black text-slate-900 tracking-tight group-hover:text-indigo-700 transition">YUVAM</h1>
@@ -174,7 +174,7 @@
                             <p id="homeGoldPnL" class="text-xl font-black text-slate-800">—</p>
                             <p id="homeGoldNet" class="text-lg font-black text-slate-700">—</p>
                         </div>
-                        <p id="homeGoldSub" class="text-[11px] text-slate-500 font-semibold mt-0.5">Bütçe Takip · detay</p>
+                        <p id="homeGoldSub" class="text-[11px] text-slate-500 font-semibold mt-0.5">Bütçe Takip</p>
                     </button>
                     <div data-layout-block="homeBudget" data-home-card="homeBudget" class="yuvam-card stripe-budget bg-white rounded-2xl p-4 card-shadow border border-slate-100 col-span-2">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Aylık Bütçe Hedefi</p>
@@ -632,41 +632,17 @@
                             <input type="date" id="vehicleInsuranceDate" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
                             <p class="text-[10px] text-slate-400 font-semibold mt-1">Yılda bir · 1 ay kala hatırlatma</p>
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="text-[10px] font-black text-slate-400 uppercase">Son MTV tarihi</label>
-                                <input type="date" id="vehicleMtvDate" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
-                            </div>
-                            <div>
-                                <label class="text-[10px] font-black text-slate-400 uppercase">Son MTV tutarı (TL)</label>
-                                <input type="number" step="0.01" id="vehicleMtvAmount" inputmode="decimal" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
-                            </div>
-                        </div>
-                        <p class="text-[10px] text-slate-400 font-semibold">MTV: Ocak ve Temmuz sonu · 1 ay kala hatırlatma</p>
                         <button type="button" onclick="saveVehicleProfile()" class="w-full py-3 rounded-xl bg-indigo-600 text-white font-bold">Kaydet</button>
                     </div>
                     <div id="vehicleDetailCards" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2"></div>
                 </div>
-                <p class="text-center text-[11px] text-slate-400 font-semibold">Yakıt / bakım grafikleri → Raporlar · Araç Raporları</p>
-            </div>
 
-<div id="tabContentStats" class="hidden space-y-6 fade-in">
-<div class="flex flex-wrap items-center justify-between gap-2">
-                    <h2 class="text-lg font-black text-slate-800">Özet &amp; Grafikler</h2>
-                    <p class="text-[11px] text-slate-400 font-semibold">Pasta / Güne Tıklayınca Detay Açılır</p>
-                </div>
-
-
-                <!-- Araç raporları (eski araç sekmesi grafikleri) -->
-                <div class="bg-white rounded-[2rem] card-shadow border border-slate-100 p-5 sm:p-6 space-y-4" data-layout-block="statsVehicleReports">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                        <h2 class="text-lg font-black text-slate-800">🚗 Araç Raporları</h2>
-                        <div class="flex gap-2">
-                            <button type="button" id="vehicleTabFuelBtn" onclick="showVehicleSubTab('fuel')" class="text-xs font-bold px-3 py-1.5 rounded-xl bg-indigo-600 text-white">Yakıt</button>
-                            <button type="button" id="vehicleTabMaintBtn" onclick="showVehicleSubTab('maint')" class="text-xs font-bold px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700">Vergi &amp; Bakım</button>
-                        </div>
-                    </div>
-<div id="vehicleFuelPanel" class="space-y-6">
+                <div class="space-y-3">
+                    <button type="button" id="vehicleTabFuelBtn" onclick="toggleVehicleAccordion('fuel')" class="w-full flex items-center justify-between gap-3 bg-white rounded-2xl p-4 card-shadow border border-slate-200 hover:border-indigo-300 text-left transition">
+                        <span class="font-black text-slate-800">⛽ Yakıt grafikleri &amp; liste</span>
+                        <span id="vehicleAccFuelChevron" class="text-slate-400 font-bold text-sm">▼</span>
+                    </button>
+                    <div id="vehicleFuelPanel" class="hidden space-y-6">
                     <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
                         <div class="bg-white p-4 rounded-2xl card-shadow border border-slate-100">
                             <p class="text-[10px] font-black text-slate-400 uppercase">Toplam harcama</p>
@@ -712,7 +688,11 @@
                     </div>
                 </div>
 
-                <div id="vehicleMaintPanel" class="hidden space-y-6">
+                    <button type="button" id="vehicleTabMaintBtn" onclick="toggleVehicleAccordion('maint')" class="w-full flex items-center justify-between gap-3 bg-white rounded-2xl p-4 card-shadow border border-slate-200 hover:border-indigo-300 text-left transition">
+                        <span class="font-black text-slate-800">🔧 Vergi &amp; bakım grafikleri</span>
+                        <span id="vehicleAccMaintChevron" class="text-slate-400 font-bold text-sm">▼</span>
+                    </button>
+                    <div id="vehicleMaintPanel" class="hidden space-y-6">
                     <div class="chart-block">
                         <h2 class="chart-title">Vergi &amp; Bakım — Aylık Grafik</h2>
                         <p class="chart-sub">Aylık toplam</p>
@@ -723,7 +703,13 @@
                         <div id="vehicleMaintList"></div>
                     </div>
                 </div>
-            
+                </div>
+            </div>
+
+<div id="tabContentStats" class="hidden space-y-6 fade-in">
+<div class="flex flex-wrap items-center justify-between gap-2">
+                    <h2 class="text-lg font-black text-slate-800">Özet &amp; Grafikler</h2>
+                    <p class="text-[11px] text-slate-400 font-semibold">Pasta / Güne Tıklayınca Detay Açılır</p>
                 </div>
 
                 <div class="chart-block max-w-5xl mx-auto w-full">

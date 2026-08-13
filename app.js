@@ -1487,7 +1487,7 @@
                     netEl.textContent = 'Net ' + formatGoldTL(p.totalCost);
                     netEl.className = 'text-lg font-black text-slate-600';
                 }
-                if (sub) sub.textContent = (p.totalGrams || 0) + ' g · maliyet';
+                if (sub) sub.textContent = 'Bütçe Takip';
                 return;
             }
             const pnl = p.pnl;
@@ -1499,8 +1499,7 @@
                 netEl.className = 'text-lg font-black text-slate-800';
             }
             if (sub) {
-                sub.textContent = (pnl >= 0 ? '+' : '') + pct.toFixed(1) + '% · ' +
-                    (p.totalGrams || 0) + ' g · maliyet ' + formatGoldTL(p.totalCost);
+                sub.textContent = (pnl >= 0 ? '+' : '') + pct.toFixed(1) + '%';
             }
         }
 
@@ -3174,8 +3173,7 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
             set('vehicleMaintNotes', v.maintNotes || '');
             set('vehicleInspectionDate', v.inspectionDate || '');
             set('vehicleInsuranceDate', v.insuranceDate || '');
-            set('vehicleMtvDate', v.mtvDate || '');
-            set('vehicleMtvAmount', v.mtvAmount != null ? v.mtvAmount : '');
+            // MTV kaldırıldı
         }
 
         window.saveVehicleProfile = async function() {
@@ -3196,8 +3194,8 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
                 maintNotes: str('vehicleMaintNotes'),
                 inspectionDate: str('vehicleInspectionDate'),
                 insuranceDate: str('vehicleInsuranceDate'),
-                mtvDate: str('vehicleMtvDate'),
-                mtvAmount: num('vehicleMtvAmount') || 0,
+                mtvDate: '',
+                mtvAmount: 0,
                 maintIntervalKm: vehicleProfile.maintIntervalKm || 10000,
                 updatedAt: new Date().toISOString()
             });
@@ -3216,8 +3214,8 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
 
         async function addVehicleKmFromFuel(km) {
             km = parseFloat(km);
-            if (!isFinite(km) || km <= 0) return;
-            vehicleProfile.totalKm = (Number(vehicleProfile.totalKm) || 0) + km;
+            if (!isFinite(km) || km === 0) return;
+            vehicleProfile.totalKm = Math.max(0, (Number(vehicleProfile.totalKm) || 0) + km);
             try {
                 await db.collection('settings').doc('vehicleProfile').set({
                     totalKm: vehicleProfile.totalKm,
@@ -3312,22 +3310,6 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
                     });
                 }
             }
-            const mtvNext = nextMtvDue(v.mtvDate || null);
-            if (mtvNext) {
-                const days = typeof daysUntilYMD === 'function' ? daysUntilYMD(mtvNext) : null;
-                if (days != null) {
-                    items.push({
-                        key: 'veh-mtv',
-                        icon: '💰',
-                        title: 'MTV',
-                        detail: days < 0 ? (Math.abs(days) + ' gün geçti') : (days + ' gün'),
-                        severity: days <= 0 ? 'critical' : (days <= 30 ? 'warning' : 'info'),
-                        sort: days,
-                        type: 'mtv',
-                        date: mtvNext
-                    });
-                }
-            }
             return items;
         }
 
@@ -3369,7 +3351,6 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
                 const maintTotal = getMaintExpenseTotal();
                 const nextInsp = v.inspectionDate ? addMonthsYMD(v.inspectionDate, 24) : '—';
                 const nextIns = v.insuranceDate ? addMonthsYMD(v.insuranceDate, 12) : '—';
-                const nextMtv = nextMtvDue(v.mtvDate || null) || '—';
                 cards.innerHTML =
                     '<div class="bg-slate-50 rounded-2xl p-3 border border-slate-100">' +
                     '<p class="text-[10px] font-black text-slate-400 uppercase">Son bakım</p>' +
@@ -3378,39 +3359,43 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
                     (v.maintNotes ? '<p class="text-[11px] text-slate-500 mt-1">' + escapeHtml(v.maintNotes) + '</p>' : '') +
                     '<p class="text-[11px] font-bold text-indigo-600 mt-1">Bakım harcamaları: ' + maintTotal.toLocaleString('tr-TR') + ' TL</p></div>' +
                     '<div class="bg-slate-50 rounded-2xl p-3 border border-slate-100">' +
-                    '<p class="text-[10px] font-black text-slate-400 uppercase">Muayene</p>' +
-                    '<p class="text-sm font-bold text-slate-800 mt-1">Son: ' + (v.inspectionDate ? formatDateTR(v.inspectionDate) : '—') + '</p>' +
-                    '<p class="text-[11px] text-slate-500">Sonraki: ' + (nextInsp !== '—' ? formatDateTR(nextInsp) : '—') + '</p></div>' +
+                    '<p class="text-[10px] font-black text-slate-400 uppercase">Muayene — sonraki tarih</p>' +
+                    '<p class="text-lg font-black text-slate-900 mt-1">' + (nextInsp !== '—' ? formatDateTR(nextInsp) : '—') + '</p>' +
+                    '<p class="text-[11px] text-slate-400 mt-0.5">Son: ' + (v.inspectionDate ? formatDateTR(v.inspectionDate) : '—') + '</p></div>' +
                     '<div class="bg-slate-50 rounded-2xl p-3 border border-slate-100">' +
-                    '<p class="text-[10px] font-black text-slate-400 uppercase">Sigorta / Kasko</p>' +
-                    '<p class="text-sm font-bold text-slate-800 mt-1">Son: ' + (v.insuranceDate ? formatDateTR(v.insuranceDate) : '—') + '</p>' +
-                    '<p class="text-[11px] text-slate-500">Sonraki: ' + (nextIns !== '—' ? formatDateTR(nextIns) : '—') + '</p></div>' +
-                    '<div class="bg-slate-50 rounded-2xl p-3 border border-slate-100">' +
-                    '<p class="text-[10px] font-black text-slate-400 uppercase">MTV</p>' +
-                    '<p class="text-sm font-bold text-slate-800 mt-1">Son: ' + (v.mtvDate ? formatDateTR(v.mtvDate) : '—') +
-                    (v.mtvAmount ? (' · ' + Number(v.mtvAmount).toLocaleString('tr-TR') + ' TL') : '') + '</p>' +
-                    '<p class="text-[11px] text-slate-500">Sonraki: ' + (nextMtv !== '—' ? formatDateTR(nextMtv) : '—') + '</p></div>';
+                    '<p class="text-[10px] font-black text-slate-400 uppercase">Sigorta / Kasko — sonraki tarih</p>' +
+                    '<p class="text-lg font-black text-slate-900 mt-1">' + (nextIns !== '—' ? formatDateTR(nextIns) : '—') + '</p>' +
+                    '<p class="text-[11px] text-slate-400 mt-0.5">Son: ' + (v.insuranceDate ? formatDateTR(v.insuranceDate) : '—') + '</p></div>';
             }
         }
 
 
         window.showVehicleSubTab = function(which) {
-            vehicleSubTab = which === 'maint' ? 'maint' : 'fuel';
+            window.toggleVehicleAccordion(which === 'maint' ? 'maint' : 'fuel');
+        };
+
+        window.toggleVehicleAccordion = function(which) {
+            which = which === 'maint' ? 'maint' : 'fuel';
             const fuelPanel = document.getElementById('vehicleFuelPanel');
             const maintPanel = document.getElementById('vehicleMaintPanel');
-            const fuelBtn = document.getElementById('vehicleTabFuelBtn');
-            const maintBtn = document.getElementById('vehicleTabMaintBtn');
-            if (fuelPanel) fuelPanel.classList.toggle('hidden', vehicleSubTab !== 'fuel');
-            if (maintPanel) maintPanel.classList.toggle('hidden', vehicleSubTab !== 'maint');
-            if (fuelBtn) {
-                fuelBtn.classList.toggle('border-indigo-600', vehicleSubTab === 'fuel');
-                fuelBtn.classList.toggle('border-slate-200', vehicleSubTab !== 'fuel');
+            const fuelChev = document.getElementById('vehicleAccFuelChevron');
+            const maintChev = document.getElementById('vehicleAccMaintChevron');
+            if (which === 'fuel') {
+                const open = fuelPanel && fuelPanel.classList.contains('hidden');
+                if (fuelPanel) fuelPanel.classList.toggle('hidden', !open);
+                if (maintPanel) maintPanel.classList.add('hidden');
+                if (fuelChev) fuelChev.textContent = open ? '▲' : '▼';
+                if (maintChev) maintChev.textContent = '▼';
+                if (open) vehicleSubTab = 'fuel';
+            } else {
+                const open = maintPanel && maintPanel.classList.contains('hidden');
+                if (maintPanel) maintPanel.classList.toggle('hidden', !open);
+                if (fuelPanel) fuelPanel.classList.add('hidden');
+                if (maintChev) maintChev.textContent = open ? '▲' : '▼';
+                if (fuelChev) fuelChev.textContent = '▼';
+                if (open) vehicleSubTab = 'maint';
             }
-            if (maintBtn) {
-                maintBtn.classList.toggle('border-indigo-600', vehicleSubTab === 'maint');
-                maintBtn.classList.toggle('border-slate-200', vehicleSubTab !== 'maint');
-            }
-            renderVehicleTab();
+            try { renderVehicleTab(); } catch (_) {}
         };
 
         function isVehicleExpense(e) {
@@ -4004,6 +3989,16 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
                 alert('Harcama bulunamadı');
                 return;
             }
+
+            // Yakıt km geri al
+            try {
+                const isFuel = (item.category === 'Araç' || item.category === 'Ulaşım')
+                    && (item.vehicleSubtype === 'Yakıt' || item.vehicleSubtype === 'Yakit');
+                const km = parseFloat(item.fuelKm);
+                if (isFuel && isFinite(km) && km > 0 && typeof addVehicleKmFromFuel === 'function') {
+                    await addVehicleKmFromFuel(-km);
+                }
+            } catch (e) { console.warn('KM geri alma', e); }
             
             deletedExpenses.push({...item, deletedAt: new Date().toISOString()});
             localStorage.setItem('deletedExpenses', JSON.stringify(deletedExpenses));
