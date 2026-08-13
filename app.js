@@ -415,6 +415,17 @@
                 });
             } catch (_) {}
 
+            // Araç hatırlatmaları (bakım 2bin km / diğerleri 1 ay)
+            try {
+                if (typeof getVehicleUpcomingItems === 'function') {
+                    getVehicleUpcomingItems().forEach(function(it) {
+                        if (it.type === 'maint' && it.sort > 2000) return;
+                        if ((it.type === 'inspection' || it.type === 'insurance' || it.type === 'mtv') && it.sort > 30) return;
+                        pushNotif(it.key, it.severity, it.icon, 'Araç: ' + it.title, it.detail + ((vehicleProfile && vehicleProfile.name) ? (' · ' + vehicleProfile.name) : ''));
+                    });
+                }
+            } catch (_) {}
+
             // Aile takvimi (yıllık doğum günü / yıldönümü dahil)
             try {
                 (familyCalendar || []).forEach(function(ev) {
@@ -745,6 +756,19 @@
         };
         let paymentTypes = ["Nakit", "Kredi Kartı"];
         let bekirDebt = { amount: 0, paid: false, dueDate: '' };
+        let vehicleProfile = {
+            name: 'Toyota Corolla',
+            totalKm: 184900,
+            maintDate: '2026-07-11',
+            maintKm: 183000,
+            maintNotes: '',
+            maintIntervalKm: 10000,
+            inspectionDate: '2024-11-23',
+            insuranceDate: '',
+            mtvDate: '',
+            mtvAmount: 0
+        };
+
         let duyguDebt = { amount: 0, paid: false, dueDate: '' };
         let cardStatements = [];
         let activityLog = [];
@@ -1037,6 +1061,7 @@
                 if (typeof applyPageLayout === 'function') applyPageLayout('expense');
             }
             if (tabName === 'stats') {
+                try { if (typeof renderVehicleTab === 'function') renderVehicleTab(); } catch (_) {}
                 updateStatsPanel();
                 renderMonthlyReports();
                 if (typeof renderBillsChart === 'function') renderBillsChart();
@@ -1462,7 +1487,7 @@
                     netEl.textContent = 'Net ' + formatGoldTL(p.totalCost);
                     netEl.className = 'text-lg font-black text-slate-600';
                 }
-                if (sub) sub.textContent = (p.totalGrams || 0) + ' g · maliyet';
+                if (sub) sub.textContent = 'Bütçe Takip';
                 return;
             }
             const pnl = p.pnl;
@@ -1474,8 +1499,7 @@
                 netEl.className = 'text-lg font-black text-slate-800';
             }
             if (sub) {
-                sub.textContent = (pnl >= 0 ? '+' : '') + pct.toFixed(1) + '% · ' +
-                    (p.totalGrams || 0) + ' g · maliyet ' + formatGoldTL(p.totalCost);
+                sub.textContent = (pnl >= 0 ? '+' : '') + pct.toFixed(1) + '%';
             }
         }
 
@@ -2569,7 +2593,15 @@
                 if (typeof fillSubtypeSelects === 'function') fillSubtypeSelects();
                 renderCategoriesList();
             }, err => console.warn('categorySubtypes:', err));
-            db.collection("settings").doc("periodConfig").onSnapshot(d => {
+            
+            db.collection("settings").doc("vehicleProfile").onSnapshot(d => {
+                if (d.exists && d.data()) {
+                    vehicleProfile = Object.assign({}, vehicleProfile, d.data());
+                    try { renderVehicleProfileUI(); } catch (_) {}
+                    try { if (typeof refreshAppNotifications === 'function') refreshAppNotifications(); } catch (_) {}
+                }
+            }, err => console.warn('vehicleProfile', err));
+db.collection("settings").doc("periodConfig").onSnapshot(d => {
                 if (d.exists && d.data()) {
                     const p = d.data();
                     periodConfig = {
@@ -3123,23 +3155,247 @@
         let vehicleFuelChart = null, vehicleMaintChart = null, vehicleFuelConsChart = null, vehicleFuelCostChart = null, vehicleFuelLitersChart = null, vehicleFuelPriceChart = null;
         let vehicleSubTab = 'fuel'; // fuel | maint
 
+
+        window.toggleVehicleEdit = function() {
+            const p = document.getElementById('vehicleEditPanel');
+            if (!p) return;
+            const open = p.classList.toggle('hidden') === false;
+            if (open) fillVehicleEditForm();
+        };
+
+        function fillVehicleEditForm() {
+            const v = vehicleProfile || {};
+            const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val != null ? val : ''; };
+            set('vehicleNameInput', v.name || 'Toyota Corolla');
+            set('vehicleKmInput', v.totalKm != null ? v.totalKm : 184900);
+            set('vehicleMaintDate', v.maintDate || '');
+            set('vehicleMaintKm', v.maintKm != null ? v.maintKm : '');
+            set('vehicleMaintNotes', v.maintNotes || '');
+            set('vehicleInspectionDate', v.inspectionDate || '');
+            set('vehicleInsuranceDate', v.insuranceDate || '');
+            // MTV kaldırıldı
+        }
+
+        window.saveVehicleProfile = async function() {
+            const num = (id) => {
+                const el = document.getElementById(id);
+                const n = el ? parseFloat(el.value) : NaN;
+                return isFinite(n) ? n : 0;
+            };
+            const str = (id) => {
+                const el = document.getElementById(id);
+                return el ? String(el.value || '').trim() : '';
+            };
+            vehicleProfile = Object.assign({}, vehicleProfile, {
+                name: str('vehicleNameInput') || 'Toyota Corolla',
+                totalKm: num('vehicleKmInput') || 0,
+                maintDate: str('vehicleMaintDate'),
+                maintKm: num('vehicleMaintKm') || 0,
+                maintNotes: str('vehicleMaintNotes'),
+                inspectionDate: str('vehicleInspectionDate'),
+                insuranceDate: str('vehicleInsuranceDate'),
+                mtvDate: '',
+                mtvAmount: 0,
+                maintIntervalKm: vehicleProfile.maintIntervalKm || 10000,
+                updatedAt: new Date().toISOString()
+            });
+            try {
+                await db.collection('settings').doc('vehicleProfile').set(vehicleProfile, { merge: true });
+                showToast('Araç bilgileri kaydedildi', 'success');
+            } catch (err) {
+                console.error(err);
+                showToast('Kaydedilemedi: ' + (err.message || err), 'error');
+            }
+            renderVehicleProfileUI();
+            try { refreshAppNotifications(); } catch (_) {}
+            const p = document.getElementById('vehicleEditPanel');
+            if (p) p.classList.add('hidden');
+        };
+
+        async function addVehicleKmFromFuel(km) {
+            km = parseFloat(km);
+            if (!isFinite(km) || km === 0) return;
+            vehicleProfile.totalKm = Math.max(0, (Number(vehicleProfile.totalKm) || 0) + km);
+            try {
+                await db.collection('settings').doc('vehicleProfile').set({
+                    totalKm: vehicleProfile.totalKm,
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+            } catch (err) {
+                console.warn('KM güncellenemedi', err);
+            }
+            try { renderVehicleProfileUI(); } catch (_) {}
+            try { refreshAppNotifications(); } catch (_) {}
+        }
+
+        function addMonthsYMD(ymd, months) {
+            if (!ymd) return '';
+            const p = String(ymd).slice(0, 10).split('-');
+            if (p.length < 3) return '';
+            const d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+            d.setMonth(d.getMonth() + months);
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+
+        function nextMtvDue(fromYmd) {
+            // next of Jan 31 or Jul 31 after fromYmd (or today)
+            const base = fromYmd ? parseYMD(fromYmd) : new Date();
+            if (!base) return '';
+            const y = base.getFullYear();
+            const candidates = [
+                new Date(y, 0, 31),
+                new Date(y, 6, 31),
+                new Date(y + 1, 0, 31),
+                new Date(y + 1, 6, 31)
+            ];
+            const t = Date.UTC(base.getFullYear(), base.getMonth(), base.getDate());
+            for (let i = 0; i < candidates.length; i++) {
+                const c = candidates[i];
+                const ct = Date.UTC(c.getFullYear(), c.getMonth(), c.getDate());
+                if (ct > t) {
+                    return c.getFullYear() + '-' + String(c.getMonth() + 1).padStart(2, '0') + '-' + String(c.getDate()).padStart(2, '0');
+                }
+            }
+            return (y + 1) + '-01-31';
+        }
+
+        function getVehicleUpcomingItems() {
+            const v = vehicleProfile || {};
+            const items = [];
+            const km = Number(v.totalKm) || 0;
+            const mKm = Number(v.maintKm) || 0;
+            const interval = Number(v.maintIntervalKm) || 10000;
+            const nextMaintKm = mKm + interval;
+            const kmLeft = nextMaintKm - km;
+            if (isFinite(kmLeft)) {
+                items.push({
+                    key: 'veh-maint-km',
+                    icon: '🔧',
+                    title: 'Bakım',
+                    detail: kmLeft <= 0 ? ('Geçti · ' + Math.abs(Math.round(kmLeft)) + ' km aşım') : (Math.round(kmLeft).toLocaleString('tr-TR') + ' km'),
+                    severity: kmLeft <= 0 ? 'critical' : (kmLeft <= 2000 ? 'warning' : 'info'),
+                    sort: kmLeft,
+                    type: 'maint'
+                });
+            }
+            if (v.inspectionDate) {
+                const next = addMonthsYMD(v.inspectionDate, 24);
+                const days = typeof daysUntilYMD === 'function' ? daysUntilYMD(next) : null;
+                if (days != null) {
+                    items.push({
+                        key: 'veh-insp',
+                        icon: '📄',
+                        title: 'Muayene',
+                        detail: days < 0 ? (Math.abs(days) + ' gün geçti') : (days + ' gün'),
+                        severity: days <= 0 ? 'critical' : (days <= 30 ? 'warning' : 'info'),
+                        sort: days,
+                        type: 'inspection',
+                        date: next
+                    });
+                }
+            }
+            if (v.insuranceDate) {
+                const next = addMonthsYMD(v.insuranceDate, 12);
+                const days = typeof daysUntilYMD === 'function' ? daysUntilYMD(next) : null;
+                if (days != null) {
+                    items.push({
+                        key: 'veh-ins',
+                        icon: '🛡️',
+                        title: 'Sigorta-Kasko',
+                        detail: days < 0 ? (Math.abs(days) + ' gün geçti') : (days + ' gün'),
+                        severity: days <= 0 ? 'critical' : (days <= 30 ? 'warning' : 'info'),
+                        sort: days,
+                        type: 'insurance',
+                        date: next
+                    });
+                }
+            }
+            return items;
+        }
+
+        function getMaintExpenseTotal() {
+            try {
+                return getProcessedExpenses().filter(function(e) {
+                    return isVehicleExpense(e) && (e.vehicleSubtype === 'Bakım' || e.vehicleSubtype === 'Bakim');
+                }).reduce(function(s, e) {
+                    return s + (Number(e.displayAmount != null ? e.displayAmount : e.amount) || 0);
+                }, 0);
+            } catch (_) { return 0; }
+        }
+
+        function renderVehicleProfileUI() {
+            const v = vehicleProfile || {};
+            const nameEl = document.getElementById('vehicleNameDisplay');
+            const kmEl = document.getElementById('vehicleKmDisplay');
+            if (nameEl) nameEl.textContent = v.name || 'Toyota Corolla';
+            if (kmEl) kmEl.textContent = (Number(v.totalKm) || 0).toLocaleString('tr-TR');
+
+            const up = document.getElementById('vehicleUpcomingBox');
+            if (up) {
+                const items = getVehicleUpcomingItems();
+                if (!items.length) {
+                    up.innerHTML = '<p class="text-xs text-slate-400 font-semibold">Yaklaşan araç hatırlatması yok</p>';
+                } else {
+                    up.innerHTML = '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Yaklaşanlar</p>' +
+                        items.map(function(it) {
+                            const col = it.severity === 'critical' ? 'text-rose-600' : (it.severity === 'warning' ? 'text-amber-600' : 'text-slate-700');
+                            return '<div class="flex items-center justify-between gap-2 py-1.5 px-2 rounded-xl bg-slate-50 border border-slate-100">' +
+                                '<span class="text-sm font-bold text-slate-800">' + it.icon + ' ' + it.title + '</span>' +
+                                '<span class="text-sm font-black ' + col + '">' + it.detail + '</span></div>';
+                        }).join('');
+                }
+            }
+
+            const cards = document.getElementById('vehicleDetailCards');
+            if (cards) {
+                const maintTotal = getMaintExpenseTotal();
+                const nextInsp = v.inspectionDate ? addMonthsYMD(v.inspectionDate, 24) : '—';
+                const nextIns = v.insuranceDate ? addMonthsYMD(v.insuranceDate, 12) : '—';
+                cards.innerHTML =
+                    '<div class="bg-slate-50 rounded-2xl p-3 border border-slate-100">' +
+                    '<p class="text-[10px] font-black text-slate-400 uppercase">Son bakım</p>' +
+                    '<p class="text-sm font-bold text-slate-800 mt-1">' + (v.maintDate ? formatDateTR(v.maintDate) : '—') +
+                    ' · ' + (Number(v.maintKm) || 0).toLocaleString('tr-TR') + ' km</p>' +
+                    (v.maintNotes ? '<p class="text-[11px] text-slate-500 mt-1">' + escapeHtml(v.maintNotes) + '</p>' : '') +
+                    '<p class="text-[11px] font-bold text-indigo-600 mt-1">Bakım harcamaları: ' + maintTotal.toLocaleString('tr-TR') + ' TL</p></div>' +
+                    '<div class="bg-slate-50 rounded-2xl p-3 border border-slate-100">' +
+                    '<p class="text-[10px] font-black text-slate-400 uppercase">Muayene — sonraki tarih</p>' +
+                    '<p class="text-lg font-black text-slate-900 mt-1">' + (nextInsp !== '—' ? formatDateTR(nextInsp) : '—') + '</p>' +
+                    '<p class="text-[11px] text-slate-400 mt-0.5">Son: ' + (v.inspectionDate ? formatDateTR(v.inspectionDate) : '—') + '</p></div>' +
+                    '<div class="bg-slate-50 rounded-2xl p-3 border border-slate-100">' +
+                    '<p class="text-[10px] font-black text-slate-400 uppercase">Sigorta / Kasko — sonraki tarih</p>' +
+                    '<p class="text-lg font-black text-slate-900 mt-1">' + (nextIns !== '—' ? formatDateTR(nextIns) : '—') + '</p>' +
+                    '<p class="text-[11px] text-slate-400 mt-0.5">Son: ' + (v.insuranceDate ? formatDateTR(v.insuranceDate) : '—') + '</p></div>';
+            }
+        }
+
+
         window.showVehicleSubTab = function(which) {
-            vehicleSubTab = which === 'maint' ? 'maint' : 'fuel';
+            window.toggleVehicleAccordion(which === 'maint' ? 'maint' : 'fuel');
+        };
+
+        window.toggleVehicleAccordion = function(which) {
+            which = which === 'maint' ? 'maint' : 'fuel';
             const fuelPanel = document.getElementById('vehicleFuelPanel');
             const maintPanel = document.getElementById('vehicleMaintPanel');
-            const fuelBtn = document.getElementById('vehicleTabFuelBtn');
-            const maintBtn = document.getElementById('vehicleTabMaintBtn');
-            if (fuelPanel) fuelPanel.classList.toggle('hidden', vehicleSubTab !== 'fuel');
-            if (maintPanel) maintPanel.classList.toggle('hidden', vehicleSubTab !== 'maint');
-            if (fuelBtn) {
-                fuelBtn.classList.toggle('border-indigo-600', vehicleSubTab === 'fuel');
-                fuelBtn.classList.toggle('border-slate-200', vehicleSubTab !== 'fuel');
+            const fuelChev = document.getElementById('vehicleAccFuelChevron');
+            const maintChev = document.getElementById('vehicleAccMaintChevron');
+            if (which === 'fuel') {
+                const open = fuelPanel && fuelPanel.classList.contains('hidden');
+                if (fuelPanel) fuelPanel.classList.toggle('hidden', !open);
+                if (maintPanel) maintPanel.classList.add('hidden');
+                if (fuelChev) fuelChev.textContent = open ? '▲' : '▼';
+                if (maintChev) maintChev.textContent = '▼';
+                if (open) vehicleSubTab = 'fuel';
+            } else {
+                const open = maintPanel && maintPanel.classList.contains('hidden');
+                if (maintPanel) maintPanel.classList.toggle('hidden', !open);
+                if (fuelPanel) fuelPanel.classList.add('hidden');
+                if (maintChev) maintChev.textContent = open ? '▲' : '▼';
+                if (fuelChev) fuelChev.textContent = '▼';
+                if (open) vehicleSubTab = 'maint';
             }
-            if (maintBtn) {
-                maintBtn.classList.toggle('border-indigo-600', vehicleSubTab === 'maint');
-                maintBtn.classList.toggle('border-slate-200', vehicleSubTab !== 'maint');
-            }
-            renderVehicleTab();
+            try { renderVehicleTab(); } catch (_) {}
         };
 
         function isVehicleExpense(e) {
@@ -3156,6 +3412,7 @@
         }
 
         window.renderVehicleTab = function() {
+            try { renderVehicleProfileUI(); } catch (_) {}
             const processed = getProcessedExpenses().filter(isVehicleExpense);
             const fuelItems = processed.filter(e => vehicleKind(e) === 'fuel');
             const maintItems = processed.filter(e => vehicleKind(e) === 'maint' || vehicleKind(e) === 'other');
@@ -3677,6 +3934,11 @@
                 if (!id) {
                     setTimeout(function() {
                         try { if (typeof showEyvahPopup === 'function') showEyvahPopup(); } catch (_) {}
+                        try {
+                            if (data && data.vehicleSubtype === 'Yakıt' && data.fuelKm) {
+                                addVehicleKmFromFuel(data.fuelKm);
+                            }
+                        } catch (_) {}
                     }, 350);
                 }
             } catch (err) {
@@ -3727,6 +3989,16 @@
                 alert('Harcama bulunamadı');
                 return;
             }
+
+            // Yakıt km geri al
+            try {
+                const isFuel = (item.category === 'Araç' || item.category === 'Ulaşım')
+                    && (item.vehicleSubtype === 'Yakıt' || item.vehicleSubtype === 'Yakit');
+                const km = parseFloat(item.fuelKm);
+                if (isFuel && isFinite(km) && km > 0 && typeof addVehicleKmFromFuel === 'function') {
+                    await addVehicleKmFromFuel(-km);
+                }
+            } catch (e) { console.warn('KM geri alma', e); }
             
             deletedExpenses.push({...item, deletedAt: new Date().toISOString()});
             localStorage.setItem('deletedExpenses', JSON.stringify(deletedExpenses));
@@ -4457,6 +4729,312 @@
             tips.push('İpucu: Kredi kartı ekstresini dönem kapanmadan kontrol etmek faiz riskini azaltır.');
             return tips;
         }
+
+
+        window.askYuvamPreset = function(q) {
+            const inp = document.getElementById('yuvamAskInput');
+            if (inp) inp.value = q;
+            askYuvam();
+        };
+
+        function answerYuvamLocal(question) {
+            const q = String(question || '').toLowerCase().trim();
+            const lines = [];
+            const list = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : (expenses || []);
+            const period = (typeof getCurrentStatementPeriod === 'function') ? getCurrentStatementPeriod() : null;
+            const inPeriod = function(e) {
+                if (!period || !period.startDate || !period.endDate) return true;
+                const d = String(e.date || '').slice(0, 10);
+                return d >= formatYMD(period.startDate) && d <= formatYMD(period.endDate);
+            };
+            const sum = function(arr) {
+                return arr.reduce(function(s, e) {
+                    return s + (Number(e.displayAmount != null ? e.displayAmount : e.amount) || 0);
+                }, 0);
+            };
+            const thisMonth = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
+            const monthOf = function(e) { return String(e.effectiveMonth || e.expenseMonth || (e.date || '').slice(0, 7)); };
+
+            if (/ne kadar harcad|bu ay.*harca|dönem.*harca|toplam harcama/.test(q)) {
+                const cur = list.filter(inPeriod);
+                lines.push('Bu ekstre döneminde toplam harcama: **' + sum(cur).toLocaleString('tr-TR') + ' TL** (' + cur.length + ' kayıt).');
+                const byCat = {};
+                cur.forEach(function(e) {
+                    const c = e.category || 'Diğer';
+                    byCat[c] = (byCat[c] || 0) + (Number(e.displayAmount != null ? e.displayAmount : e.amount) || 0);
+                });
+                Object.keys(byCat).sort(function(a, b) { return byCat[b] - byCat[a]; }).slice(0, 5).forEach(function(c) {
+                    lines.push('· ' + c + ': ' + byCat[c].toLocaleString('tr-TR') + ' TL');
+                });
+                return lines;
+            }
+            if (/araç|corolla|yakıt|bakım|masraf/.test(q) && /3 ay|üç ay|son/.test(q)) {
+                const now = new Date();
+                const months = [];
+                for (let i = 0; i < 3; i++) {
+                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                    months.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'));
+                }
+                const veh = list.filter(function(e) {
+                    return isVehicleExpense(e) && months.indexOf(monthOf(e)) >= 0;
+                });
+                lines.push('Son 3 ay araç masrafı: **' + sum(veh).toLocaleString('tr-TR') + ' TL**');
+                ['Yakıt', 'Bakım', 'Vergi'].forEach(function(st) {
+                    const sub = veh.filter(function(e) { return (e.vehicleSubtype || '') === st; });
+                    if (sub.length) lines.push('· ' + st + ': ' + sum(sub).toLocaleString('tr-TR') + ' TL');
+                });
+                return lines;
+            }
+            if (/neden fazla|neden çok|analiz/.test(q)) {
+                try {
+                    if (typeof buildLocalAdvisorTips === 'function') {
+                        const tips = buildLocalAdvisorTips();
+                        return tips.slice(0, 8);
+                    }
+                } catch (_) {}
+                lines.push('Dönem harcamalarını kategorilere göre Raporlar sekmesinden inceleyebilirsiniz.');
+                return lines;
+            }
+            if (/önümüzdeki hafta|yaklaşan ödeme|hangi ödeme/.test(q)) {
+                const today = todayDateStr();
+                const week = list.filter(function(e) {
+                    const d = String(e.date || '').slice(0, 10);
+                    const days = daysUntilYMD(d);
+                    return days != null && days >= 0 && days <= 7;
+                }).sort(function(a, b) { return String(a.date).localeCompare(String(b.date)); });
+                if (!week.length) lines.push('Önümüzdeki 7 günde planlı harcama/ödeme kaydı yok.');
+                else {
+                    lines.push('Önümüzdeki 7 gün:');
+                    week.slice(0, 12).forEach(function(e) {
+                        lines.push('· ' + formatDateTR(e.date) + ' — ' + (e.description || e.category) + ' · ' +
+                            (Number(e.displayAmount != null ? e.displayAmount : e.amount) || 0).toLocaleString('tr-TR') + ' TL');
+                    });
+                }
+                return lines;
+            }
+            if (/fatura/.test(q)) {
+                const bills = list.filter(function(e) {
+                    return e.category === 'Faturalar' && inPeriod(e);
+                });
+                lines.push('Bu dönem fatura toplamı: **' + sum(bills).toLocaleString('tr-TR') + ' TL**');
+                const by = {};
+                bills.forEach(function(e) {
+                    const s = e.billSubtype || 'Diğer';
+                    by[s] = (by[s] || 0) + (Number(e.displayAmount != null ? e.displayAmount : e.amount) || 0);
+                });
+                Object.keys(by).forEach(function(s) {
+                    lines.push('· ' + s + ': ' + by[s].toLocaleString('tr-TR') + ' TL');
+                });
+                return lines;
+            }
+            if (/market|gıda/.test(q) && /geçen|arttı|kıyas|karşılaştır/.test(q)) {
+                const now = new Date();
+                const m0 = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+                const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                const m1 = prev.getFullYear() + '-' + String(prev.getMonth() + 1).padStart(2, '0');
+                const food = function(m) {
+                    return sum(list.filter(function(e) {
+                        return (e.category === 'Gıda' || /market/i.test(e.description || '')) && monthOf(e) === m;
+                    }));
+                };
+                const a = food(m0), b = food(m1);
+                const diff = a - b;
+                lines.push('Bu ay Gıda/Market: **' + a.toLocaleString('tr-TR') + ' TL**');
+                lines.push('Geçen ay: **' + b.toLocaleString('tr-TR') + ' TL**');
+                lines.push(diff > 0 ? ('Artış: ' + diff.toLocaleString('tr-TR') + ' TL') :
+                    (diff < 0 ? ('Azalış: ' + Math.abs(diff).toLocaleString('tr-TR') + ' TL') : 'Aynı seviyede'));
+                return lines;
+            }
+            if (/corolla|araç km|kilometre/.test(q)) {
+                const v = vehicleProfile || {};
+                lines.push((v.name || 'Araç') + ': **' + (Number(v.totalKm) || 0).toLocaleString('tr-TR') + ' km**');
+                getVehicleUpcomingItems().forEach(function(it) {
+                    lines.push(it.icon + ' ' + it.title + ': ' + it.detail);
+                });
+                return lines;
+            }
+            // fallback: short local tips
+            try {
+                if (typeof buildLocalAdvisorTips === 'function') {
+                    lines.push('Soruya özel eşleşme bulunamadı. Genel özet:');
+                    return lines.concat(buildLocalAdvisorTips().slice(0, 6));
+                }
+            } catch (_) {}
+            lines.push('Bu soruyu AI ile de sorabilirsiniz; «Sor» tekrar veya daha net yazın.');
+            return lines;
+        }
+
+        window.askYuvam = async function() {
+            const inp = document.getElementById('yuvamAskInput');
+            const box = document.getElementById('yuvamAskResult');
+            const q = inp ? String(inp.value || '').trim() : '';
+            if (!q) {
+                showToast('Bir soru yazın', 'info');
+                return;
+            }
+            const localLines = answerYuvamLocal(q);
+            if (box) {
+                box.innerHTML = '<p class="text-[10px] font-black text-slate-400 uppercase mb-2">Yanıt</p>' +
+                    localLines.map(function(l) {
+                        return '<p class="text-sm text-slate-700 font-medium leading-relaxed mb-1">' +
+                            String(l).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') + '</p>';
+                    }).join('');
+            }
+            // AI zenginleştirme (opsiyonel)
+            if (openrouterApiKey) {
+                try {
+                    const btn = document.getElementById('yuvamAskBtn');
+                    if (btn) btn.disabled = true;
+                    const wrap = document.getElementById('aiAdvisorProgressWrap');
+                    if (wrap) wrap.classList.remove('hidden');
+                    // reuse runAiAdvisor style prompt with question
+                    const ctx = localLines.join('\n');
+                    const prompt = 'Sen YUVAM aile bütçe asistanısın. Kullanıcı sorusu: "' + q +
+                        '". Aşağıdaki yerel veri özetine dayanarak kısa, net Türkçe cevap ver (3-8 madde). Uydurma rakam yazma.\n\n' + ctx;
+                    // light progress
+                    const bar = document.getElementById('aiAdvisorProgressBar');
+                    const pct = document.getElementById('aiAdvisorProgressPct');
+                    let p = 10;
+                    const t = setInterval(function() {
+                        p = Math.min(90, p + 8);
+                        if (bar) bar.style.width = p + '%';
+                        if (pct) pct.textContent = p + '%';
+                    }, 200);
+                    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': 'Bearer ' + openrouterApiKey,
+                            'Content-Type': 'application/json',
+                            'HTTP-Referer': (typeof location !== 'undefined' ? location.origin : ''),
+                            'X-Title': 'YUVAM'
+                        },
+                        body: JSON.stringify({
+                            model: 'openrouter/auto',
+                            messages: [
+                                { role: 'system', content: 'YUVAM bütçe asistanı. Kısa Türkçe yanıt. Sadece verilen rakamlara dayan.' },
+                                { role: 'user', content: prompt }
+                            ]
+                        })
+                    });
+                    clearInterval(t);
+                    if (bar) bar.style.width = '100%';
+                    if (pct) pct.textContent = '100%';
+                    const data = await resp.json();
+                    const text = data && data.choices && data.choices[0] && data.choices[0].message
+                        ? data.choices[0].message.content : '';
+                    if (text && box) {
+                        box.innerHTML += '<div class="mt-3 pt-3 border-t border-slate-100"><p class="text-[10px] font-black text-violet-500 uppercase mb-2">AI tamamlayıcı</p>' +
+                            '<p class="text-sm text-slate-700 font-medium whitespace-pre-wrap">' + escapeHtml(text) + '</p></div>';
+                    }
+                    if (wrap) setTimeout(function() { wrap.classList.add('hidden'); }, 400);
+                    if (btn) btn.disabled = false;
+                } catch (err) {
+                    console.warn('askYuvam AI', err);
+                    const btn = document.getElementById('yuvamAskBtn');
+                    if (btn) btn.disabled = false;
+                    const wrap = document.getElementById('aiAdvisorProgressWrap');
+                    if (wrap) wrap.classList.add('hidden');
+                }
+            }
+        };
+
+        window.openSiteSearch = function() {
+            const m = document.getElementById('siteSearchModal');
+            if (!m) return;
+            m.classList.remove('hidden');
+            m.classList.add('flex');
+            const inp = document.getElementById('siteSearchInput');
+            if (inp) { inp.value = ''; inp.focus(); }
+            runSiteSearch('');
+        };
+        window.closeSiteSearch = function() {
+            const m = document.getElementById('siteSearchModal');
+            if (!m) return;
+            m.classList.add('hidden');
+            m.classList.remove('flex');
+        };
+        window.runSiteSearch = function(q) {
+            const box = document.getElementById('siteSearchResults');
+            if (!box) return;
+            q = String(q || '').trim().toLowerCase();
+            if (!q) {
+                box.innerHTML = '<p class="text-xs text-slate-400 font-semibold text-center py-6">Kelime yazın…</p>';
+                return;
+            }
+            const hits = [];
+            const v = vehicleProfile || {};
+            const vblob = [v.name, 'araç', 'corolla', 'yakıt', 'bakım', 'muayene', 'sigorta', 'kasko', 'mtv', 'km'].join(' ').toLowerCase();
+            if (vblob.indexOf(q) >= 0 || (v.name || '').toLowerCase().indexOf(q) >= 0) {
+                hits.push({ cat: 'Araç', title: v.name || 'Araç', sub: (Number(v.totalKm) || 0).toLocaleString('tr-TR') + ' km', tab: 'vehicle' });
+            }
+            if (/yakıt|yakit|fuel|benzin/.test(q) || q === 'corolla') {
+                hits.push({ cat: 'Yakıt', title: 'Yakıt raporları', sub: 'Raporlar · Araç', tab: 'stats' });
+            }
+            if (/bakım|bakim|servis/.test(q)) {
+                hits.push({ cat: 'Bakım', title: 'Bakım bilgisi', sub: (v.maintDate ? formatDateTR(v.maintDate) : '') + ' · ' + (Number(v.maintKm) || 0).toLocaleString('tr-TR') + ' km', tab: 'vehicle' });
+            }
+            if (/sigorta|kasko/.test(q)) {
+                hits.push({ cat: 'Sigorta', title: 'Sigorta / Kasko', sub: v.insuranceDate ? formatDateTR(v.insuranceDate) : 'Tarih girilmemiş', tab: 'vehicle' });
+            }
+            if (/muayene/.test(q)) {
+                hits.push({ cat: 'Muayene', title: 'Araç muayenesi', sub: v.inspectionDate ? formatDateTR(v.inspectionDate) : '—', tab: 'vehicle' });
+            }
+            try {
+                getProcessedExpenses().filter(function(e) {
+                    const blob = [e.description, e.category, e.person, e.billSubtype, e.vehicleSubtype, e.paymentType].join(' ').toLowerCase();
+                    return blob.indexOf(q) >= 0;
+                }).slice(0, 25).forEach(function(e) {
+                    hits.push({
+                        cat: 'Harcama',
+                        title: e.description || e.category || 'Harcama',
+                        sub: formatDateTR(e.date) + ' · ' + (Number(e.displayAmount != null ? e.displayAmount : e.amount) || 0).toLocaleString('tr-TR') + ' TL · ' + (e.category || ''),
+                        tab: 'expense'
+                    });
+                });
+            } catch (_) {}
+            if (!hits.length) {
+                box.innerHTML = '<p class="text-xs text-slate-400 font-semibold text-center py-6">Sonuç yok</p>';
+                return;
+            }
+            box.innerHTML = hits.map(function(h) {
+                return '<button type="button" onclick="closeSiteSearch(); switchTab(\'' + h.tab + '\')" class="w-full text-left p-3 rounded-xl bg-slate-50 hover:bg-sky-50 border border-slate-100">' +
+                    '<span class="text-[10px] font-black text-sky-600 uppercase">' + escapeHtml(h.cat) + '</span>' +
+                    '<p class="text-sm font-bold text-slate-800">' + escapeHtml(h.title) + '</p>' +
+                    '<p class="text-[11px] text-slate-500 font-semibold">' + escapeHtml(h.sub) + '</p></button>';
+            }).join('');
+        };
+
+        window.toggleQuickAddMenu = function() {
+            const m = document.getElementById('quickAddMenu');
+            if (!m) return;
+            m.classList.toggle('hidden');
+        };
+        window.quickAddAction = function(kind) {
+            const m = document.getElementById('quickAddMenu');
+            if (m) m.classList.add('hidden');
+            if (kind === 'expense' || kind === 'bill') {
+                switchTab('expense');
+                setTimeout(function() {
+                    openExpenseModal();
+                    if (kind === 'bill') {
+                        const cat = document.getElementById('category');
+                        if (cat) {
+                            cat.value = 'Faturalar';
+                            if (typeof onCategoryChange === 'function') onCategoryChange();
+                        }
+                    }
+                }, 100);
+            } else if (kind === 'task') {
+                switchTab('tasks');
+            } else if (kind === 'calendar') {
+                switchTab('calendar');
+            } else if (kind === 'shopping') {
+                switchTab('shopping');
+            } else if (kind === 'note') {
+                switchTab('notes');
+            }
+        };
+
 
         window.runLocalAdvisor = function() {
             const btn = document.getElementById('localAdvisorBtn');

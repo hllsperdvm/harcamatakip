@@ -79,6 +79,7 @@
                 
                 <div class="flex items-center gap-2 flex-wrap justify-end relative">
                     <span id="loggedInUserLabel" class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-2 rounded-xl"></span>
+                    <button type="button" onclick="openSiteSearch()" title="Ara" class="bg-white border border-slate-200 text-slate-700 w-10 h-10 rounded-xl text-lg font-bold transition hover:bg-sky-50 shadow-sm flex items-center justify-center">🔍</button>
                     <div class="relative">
                         <button type="button" id="userThemeBtn" onclick="toggleUserTheme()" title="Tema değiştir"
                             class="hidden bg-white border border-slate-200 text-slate-700 w-10 h-10 rounded-xl text-lg font-bold transition hover:bg-sky-50 hover:border-sky-200 shadow-sm flex items-center justify-center">
@@ -173,7 +174,7 @@
                             <p id="homeGoldPnL" class="text-xl font-black text-slate-800">—</p>
                             <p id="homeGoldNet" class="text-lg font-black text-slate-700">—</p>
                         </div>
-                        <p id="homeGoldSub" class="text-[11px] text-slate-500 font-semibold mt-0.5">Bütçe Takip · detay</p>
+                        <p id="homeGoldSub" class="text-[11px] text-slate-500 font-semibold mt-0.5">Bütçe Takip</p>
                     </button>
                     <div data-layout-block="homeBudget" data-home-card="homeBudget" class="yuvam-card stripe-budget bg-white rounded-2xl p-4 card-shadow border border-slate-100 col-span-2">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Aylık Bütçe Hedefi</p>
@@ -469,41 +470,42 @@
                     </div>
                 </div>
 
-                <!-- Bütçe analizi: Yerel + AI -->
-                <div data-layout-block="expenseAdvisor" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div class="advisor-card advisor-card-local bg-gradient-to-br from-indigo-50 to-slate-50 rounded-[2rem] card-shadow border border-indigo-100 p-5 sm:p-6">
-                        <div class="flex items-start justify-between gap-3 mb-3">
-                            <div>
-                                <h2 class="advisor-title text-base font-black text-slate-900">📊 Yerel Analiz</h2>
-                                <p class="advisor-sub text-[11px] text-slate-600 font-semibold mt-0.5">Anında · dönem, kategori, kişi, fatura, araç</p>
-                            </div>
-                            <button type="button" id="localAdvisorBtn" onclick="runLocalAdvisor()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl shrink-0">Analiz et</button>
-                        </div>
-                        <div id="localAdvisorResult" class="bg-white/80 rounded-2xl p-3 min-h-[4rem] border border-indigo-50 max-h-80 overflow-y-auto">
-                            <p class="text-sm text-slate-400 font-medium">Detaylı yerel özet için «Analiz et».</p>
+                <!-- Yuvam'a Sor -->
+                <div data-layout-block="expenseAdvisor" class="advisor-card bg-gradient-to-br from-violet-50 via-indigo-50 to-sky-50 rounded-[2rem] card-shadow border border-violet-100 p-5 sm:p-6">
+                    <div class="flex items-start justify-between gap-3 mb-3">
+                        <div>
+                            <h2 class="advisor-title text-base font-black text-slate-900">💬 Yuvam'a Sor</h2>
+                            <p class="advisor-sub text-[11px] text-slate-600 font-semibold mt-0.5">Sorunuzu yazın · önce yerel cevap, gerekirse AI</p>
                         </div>
                     </div>
-                    <div class="advisor-card advisor-card-ai bg-gradient-to-br from-violet-50 to-indigo-50 rounded-[2rem] card-shadow border border-violet-100 p-5 sm:p-6">
-                        <div class="flex items-start justify-between gap-3 mb-3">
-                            <div>
-                                <h2 class="advisor-title text-base font-black text-slate-900">🤖 AI Analiz</h2>
-                                <p class="advisor-sub text-[11px] text-slate-600 font-semibold mt-0.5">OpenRouter · tıklayınca çalışır</p>
-                            </div>
-                            <button type="button" id="aiAdvisorBtn" onclick="runAiAdvisor()" class="bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold px-4 py-2 rounded-xl shrink-0">AI Analiz</button>
+                    <div class="flex flex-col sm:flex-row gap-2 mb-3">
+                        <input type="text" id="yuvamAskInput" placeholder="Örn: Bu ay ne kadar harcadık?"
+                            class="flex-1 bg-white rounded-xl p-3 text-sm font-semibold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-violet-500"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault();askYuvam();}">
+                        <button type="button" id="yuvamAskBtn" onclick="askYuvam()" class="bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold px-5 py-3 rounded-xl shrink-0">Sor</button>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 mb-3" id="yuvamAskChips">
+                        <button type="button" onclick="askYuvamPreset('Bu ay ne kadar harcadık?')" class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-600">Bu ay harcama</button>
+                        <button type="button" onclick="askYuvamPreset('Son 3 ayda araç masrafımız ne kadar?')" class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-600">Araç 3 ay</button>
+                        <button type="button" onclick="askYuvamPreset('Önümüzdeki hafta hangi ödemeler var?')" class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-600">Yaklaşan ödemeler</button>
+                        <button type="button" onclick="askYuvamPreset('Hangi faturaları ödememiz gerekiyor?')" class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-600">Faturalar</button>
+                        <button type="button" onclick="askYuvamPreset('Geçen aya göre market harcamamız arttı mı?')" class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-600">Market karşılaştırması</button>
+                    </div>
+                    <div id="aiAdvisorProgressWrap" class="hidden mb-3">
+                        <div class="flex justify-between text-[10px] font-bold text-violet-600 mb-1">
+                            <span>Yanıt hazırlanıyor…</span>
+                            <span id="aiAdvisorProgressPct">0%</span>
                         </div>
-                        <div id="aiAdvisorProgressWrap" class="hidden mb-3">
-                            <div class="flex justify-between text-[10px] font-bold text-violet-600 mb-1">
-                                <span>Yükleniyor…</span>
-                                <span id="aiAdvisorProgressPct">0%</span>
-                            </div>
-                            <div class="h-2 bg-violet-100 rounded-full overflow-hidden">
-                                <div id="aiAdvisorProgressBar" class="h-full bg-violet-600 rounded-full transition-all duration-200" style="width:0%"></div>
-                            </div>
-                        </div>
-                        <div id="aiAdvisorResult" class="bg-white/80 rounded-2xl p-3 min-h-[4rem] border border-violet-50 max-h-80 overflow-y-auto">
-                            <p class="text-sm text-slate-400 font-medium">AI önerisi için «AI Analiz»e basın.</p>
+                        <div class="h-2 bg-violet-100 rounded-full overflow-hidden">
+                            <div id="aiAdvisorProgressBar" class="h-full bg-violet-600 rounded-full transition-all duration-200" style="width:0%"></div>
                         </div>
                     </div>
+                    <div id="yuvamAskResult" class="bg-white/90 rounded-2xl p-3 min-h-[4rem] border border-violet-50 max-h-96 overflow-y-auto">
+                        <p class="text-sm text-slate-400 font-medium">Sorunuzu yazın veya yukarıdaki örneklerden birine dokunun.</p>
+                    </div>
+                    <!-- Geriye uyum gizli -->
+                    <div id="localAdvisorResult" class="hidden"></div>
+                    <div id="aiAdvisorResult" class="hidden"></div>
                 </div>
 
 <!-- İşlem Geçmişi -->
@@ -586,21 +588,61 @@
             <!-- Diğer Sekmeler (Gizli) -->
                         
             <!-- SEKME: ARAÇ -->
-            <div id="tabContentVehicle" class="hidden space-y-6 fade-in">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <button type="button" id="vehicleTabFuelBtn" onclick="showVehicleSubTab('fuel')" class="bg-white p-6 rounded-3xl card-shadow border-2 border-indigo-600 text-left transition">
-                        <p class="text-2xl mb-1">⛽</p>
-                        <p class="font-black text-slate-900">Yakıt</p>
-                        <p class="text-xs text-slate-400 font-semibold mt-1">Yakıt harcamaları ve aylık grafik</p>
-                    </button>
-                    <button type="button" id="vehicleTabMaintBtn" onclick="showVehicleSubTab('maint')" class="bg-white p-6 rounded-3xl card-shadow border-2 border-slate-200 text-left transition">
-                        <p class="text-2xl mb-1">🔧</p>
-                        <p class="font-black text-slate-900">Vergi &amp; Bakım</p>
-                        <p class="text-xs text-slate-400 font-semibold mt-1">Vergi ve bakım harcamaları</p>
-                    </button>
+                        <div id="tabContentVehicle" class="hidden space-y-5 fade-in">
+                <div class="max-w-2xl mx-auto bg-white rounded-[2rem] card-shadow border border-slate-100 p-5 sm:p-6">
+                    <div class="flex items-start justify-between gap-3 mb-4">
+                        <div>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Aracım</p>
+                            <h2 id="vehicleNameDisplay" class="text-2xl font-black text-slate-900 mt-0.5">Toyota Corolla</h2>
+                            <p class="text-sm font-bold text-slate-500 mt-1"><span id="vehicleKmDisplay">184.900</span> km</p>
+                        </div>
+                        <button type="button" onclick="toggleVehicleEdit()" class="text-xs font-bold px-3 py-2 rounded-xl bg-slate-100 text-slate-700">Düzenle</button>
+                    </div>
+                    <div id="vehicleUpcomingBox" class="space-y-2 mb-4"></div>
+                    <div id="vehicleEditPanel" class="hidden border-t border-slate-100 pt-4 space-y-3">
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase">Araç adı</label>
+                            <input type="text" id="vehicleNameInput" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase">Güncel KM (elle düzeltilebilir)</label>
+                            <input type="number" id="vehicleKmInput" inputmode="numeric" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase">Son bakım tarihi</label>
+                                <input type="date" id="vehicleMaintDate" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase">Bakım KM</label>
+                                <input type="number" id="vehicleMaintKm" inputmode="numeric" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase">Bakım notları</label>
+                            <textarea id="vehicleMaintNotes" rows="2" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-medium outline-none ring-1 ring-slate-200" placeholder="Yapılan işlemler…"></textarea>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase">Son muayene tarihi</label>
+                            <input type="date" id="vehicleInspectionDate" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            <p class="text-[10px] text-slate-400 font-semibold mt-1">2 yılda bir · 1 ay kala hatırlatma</p>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase">Sigorta / kasko tarihi</label>
+                            <input type="date" id="vehicleInsuranceDate" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            <p class="text-[10px] text-slate-400 font-semibold mt-1">Yılda bir · 1 ay kala hatırlatma</p>
+                        </div>
+                        <button type="button" onclick="saveVehicleProfile()" class="w-full py-3 rounded-xl bg-indigo-600 text-white font-bold">Kaydet</button>
+                    </div>
+                    <div id="vehicleDetailCards" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2"></div>
                 </div>
 
-                <div id="vehicleFuelPanel" class="space-y-6">
+                <div class="space-y-3">
+                    <button type="button" id="vehicleTabFuelBtn" onclick="toggleVehicleAccordion('fuel')" class="w-full flex items-center justify-between gap-3 bg-white rounded-2xl p-4 card-shadow border border-slate-200 hover:border-indigo-300 text-left transition">
+                        <span class="font-black text-slate-800">⛽ Yakıt grafikleri &amp; liste</span>
+                        <span id="vehicleAccFuelChevron" class="text-slate-400 font-bold text-sm">▼</span>
+                    </button>
+                    <div id="vehicleFuelPanel" class="hidden space-y-6">
                     <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
                         <div class="bg-white p-4 rounded-2xl card-shadow border border-slate-100">
                             <p class="text-[10px] font-black text-slate-400 uppercase">Toplam harcama</p>
@@ -646,7 +688,11 @@
                     </div>
                 </div>
 
-                <div id="vehicleMaintPanel" class="hidden space-y-6">
+                    <button type="button" id="vehicleTabMaintBtn" onclick="toggleVehicleAccordion('maint')" class="w-full flex items-center justify-between gap-3 bg-white rounded-2xl p-4 card-shadow border border-slate-200 hover:border-indigo-300 text-left transition">
+                        <span class="font-black text-slate-800">🔧 Vergi &amp; bakım grafikleri</span>
+                        <span id="vehicleAccMaintChevron" class="text-slate-400 font-bold text-sm">▼</span>
+                    </button>
+                    <div id="vehicleMaintPanel" class="hidden space-y-6">
                     <div class="chart-block">
                         <h2 class="chart-title">Vergi &amp; Bakım — Aylık Grafik</h2>
                         <p class="chart-sub">Aylık toplam</p>
@@ -656,6 +702,7 @@
                         <h2 class="text-xl font-black mb-4">Vergi &amp; Bakım Harcamaları</h2>
                         <div id="vehicleMaintList"></div>
                     </div>
+                </div>
                 </div>
             </div>
 
@@ -1273,6 +1320,21 @@
     </div>
 
     <!-- MODALLAR -->
+
+    <div id="siteSearchModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-start sm:items-center justify-center z-[130] p-4 pt-16 sm:pt-4">
+        <div class="bg-white w-full max-w-lg rounded-[1.75rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+            <div class="p-4 border-b border-slate-100 flex gap-2 items-center">
+                <input type="search" id="siteSearchInput" placeholder="Ara… (örn. Corolla, sigorta, market)"
+                    class="flex-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-sky-500"
+                    oninput="runSiteSearch(this.value)">
+                <button type="button" onclick="closeSiteSearch()" class="w-10 h-10 rounded-xl bg-slate-100 font-bold text-slate-500">&times;</button>
+            </div>
+            <div id="siteSearchResults" class="p-3 overflow-y-auto space-y-2 flex-1">
+                <p class="text-xs text-slate-400 font-semibold text-center py-6">Kelime yazın…</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Harcama Modalı -->
     <div id="expenseModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-end sm:items-center justify-center z-[110] p-0 sm:p-4">
         <div class="expense-modal-sheet bg-white w-full max-w-lg rounded-t-[1.75rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden slide-in flex flex-col max-h-[92vh] sm:max-h-[90vh]">
@@ -1523,8 +1585,50 @@
         </div>
     </div>
 
+    
+    <!-- Mobil Hızlı Ekle -->
+    <div id="quickAddFabWrap" class="quick-add-fab-wrap">
+        <div id="quickAddMenu" class="quick-add-menu hidden">
+            <button type="button" onclick="quickAddAction('expense')">💰 Harcama</button>
+            <button type="button" onclick="quickAddAction('task')">✅ Görev</button>
+            <button type="button" onclick="quickAddAction('calendar')">📅 Takvim</button>
+            <button type="button" onclick="quickAddAction('shopping')">🛒 Alışveriş</button>
+            <button type="button" onclick="quickAddAction('note')">📝 Not</button>
+            <button type="button" onclick="quickAddAction('bill')">📄 Fatura</button>
+        </div>
+        <button type="button" id="quickAddFab" class="quick-add-fab" onclick="toggleQuickAddMenu()" aria-label="Hızlı ekle">＋</button>
+    </div>
+
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    
+    <!-- Mobil Hızlı Ekle -->
+    <div id="quickAddFabWrap" class="quick-add-fab-wrap">
+        <div id="quickAddMenu" class="quick-add-menu hidden">
+            <button type="button" onclick="quickAddAction('expense')">💰 Harcama</button>
+            <button type="button" onclick="quickAddAction('task')">✅ Görev</button>
+            <button type="button" onclick="quickAddAction('calendar')">📅 Takvim</button>
+            <button type="button" onclick="quickAddAction('shopping')">🛒 Alışveriş</button>
+            <button type="button" onclick="quickAddAction('note')">📝 Not</button>
+            <button type="button" onclick="quickAddAction('bill')">📄 Fatura</button>
+        </div>
+        <button type="button" id="quickAddFab" class="quick-add-fab" onclick="toggleQuickAddMenu()" aria-label="Hızlı ekle">＋</button>
+    </div>
+
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Mobil Hızlı Ekle -->
+    <div id="quickAddFabWrap" class="quick-add-fab-wrap">
+        <div id="quickAddMenu" class="quick-add-menu hidden">
+            <button type="button" onclick="quickAddAction('expense')">💰 Harcama</button>
+            <button type="button" onclick="quickAddAction('task')">✅ Görev</button>
+            <button type="button" onclick="quickAddAction('calendar')">📅 Takvim</button>
+            <button type="button" onclick="quickAddAction('shopping')">🛒 Alışveriş</button>
+            <button type="button" onclick="quickAddAction('note')">📝 Not</button>
+            <button type="button" onclick="quickAddAction('bill')">📄 Fatura</button>
+        </div>
+        <button type="button" id="quickAddFab" class="quick-add-fab" onclick="toggleQuickAddMenu()" aria-label="Hızlı ekle">＋</button>
+    </div>
+
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
     <script src="app.js"></script>
 
