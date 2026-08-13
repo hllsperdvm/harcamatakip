@@ -3,6 +3,7 @@
             alert('Firebase yüklenemedi. İnternet bağlantınızı kontrol edin ve sayfayı yenileyin.');
             throw new Error('Firebase SDK yüklenmedi');
         }
+        // Firebase web apiKey kasıtlı olarak istemcidedir; koruma Firestore Rules + Auth ile sağlanır.
         const firebaseConfig = {
             apiKey: "AIzaSyDFTQa5FV8kKBqICWAg_vst8AnLdIrfBVw",
             authDomain: "harcama-takibi-1c48b.firebaseapp.com",
@@ -612,6 +613,7 @@
             currentUser = null;
             try { sessionStorage.removeItem('yuvam_user'); } catch (_) {}
             try { auth.signOut(); } catch (_) {}
+            try { openrouterApiKey = ''; } catch (_) {}
             // realtime flag
             try { syncInitialized = false; } catch (_) {}
             const appEl = document.getElementById('appContainer') || document.getElementById('app');
@@ -2673,13 +2675,23 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
                 }
             }, err => console.warn('uiPrefs', err));
             db.collection("settings").doc("apiKeys").onSnapshot(d => {
-                if (d.exists && d.data()) {
-                    const k = d.data();
-                    // openrouter öncelikli; eski gemini alanı yok sayılır
-                    if (k.openrouter) openrouterApiKey = String(k.openrouter).trim();
-                    else if (k.gemini) openrouterApiKey = String(k.gemini).trim(); // yanlışlıkla eski alan
+                // Anahtar sadece oturum açıkken bellekte tutulur; localStorage'a yazılmaz
+                if (!auth.currentUser) {
+                    openrouterApiKey = '';
+                    return;
                 }
-            }, err => console.warn('apiKeys:', err));
+                if (d.exists && d.data()) {
+                    const k = d.data() || {};
+                    if (k.openrouter) openrouterApiKey = String(k.openrouter).trim();
+                    else if (k.gemini) openrouterApiKey = String(k.gemini).trim();
+                    else openrouterApiKey = '';
+                } else {
+                    openrouterApiKey = '';
+                }
+            }, err => {
+                openrouterApiKey = '';
+                console.warn('apiKeys okunamadı (rules?)');
+            });
             db.collection("settings").doc("tabs").onSnapshot(d => {
                 if (d.exists && d.data()) {
                     const data = d.data();
@@ -4731,210 +4743,411 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
         }
 
 
+
         window.askYuvamPreset = function(q) {
             const inp = document.getElementById('yuvamAskInput');
             if (inp) inp.value = q;
             askYuvam();
         };
 
-        function answerYuvamLocal(question) {
-            const q = String(question || '').toLowerCase().trim();
-            const lines = [];
+        /** Sorudan istenen ay sayısı (varsayılan yok = null) */
+        function parseAskedMonths(q) {
+            const s = String(q || '').toLowerCase();
+            const m = s.match(/(?:son\s*)?(\d+)\s*ay/);
+            if (m) return Math.min(24, Math.max(1, parseInt(m[1], 10)));
+            if (/üç ay|3 ay/.test(s)) return 3;
+            if (/iki ay|2 ay/.test(s)) return 2;
+            if (/bir ay|1 ay|bu ay|geçen ay/.test(s) && !/son\s*\d/.test(s)) {
+                if (/geçen ay/.test(s)) return 1;
+                if (/bu ay/.test(s)) return 1;
+            }
+            return null;
+        }
+
+        function lastNMonthKeys(n) {
+            n = Math.max(1, n || 1);
+            const now = new Date();
+            const keys = [];
+            for (let i = 0; i < n; i++) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                keys.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'));
+            }
+            return keys;
+        }
+
+        function monthOfExpense(e) {
+            return String(e.effectiveMonth || e.expenseMonth || (e.date || '').slice(0, 7));
+        }
+
+        function expenseAmount(e) {
+            return Number(e.displayAmount != null ? e.displayAmount : e.amount) || 0;
+        }
+
+
+        /** AI için kapsamlı harcama/fatura veri özeti */
+        function buildYuvamDataContext(question) {
+            const q = String(question || '').toLowerCase();
             const list = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : (expenses || []);
             const period = (typeof getCurrentStatementPeriod === 'function') ? getCurrentStatementPeriod() : null;
-            const inPeriod = function(e) {
-                if (!period || !period.startDate || !period.endDate) return true;
+            const periodStart = period && period.startDate ? formatYMD(period.startDate) : '';
+            const periodEnd = period && period.endDate ? formatYMD(period.endDate) : '';
+            const askedMonths = parseAskedMonths(q);
+            const nMonths = askedMonths != null ? askedMonths : 3;
+            const monthKeys = lastNMonthKeys(nMonths);
+            const lines = [];
+            const today = (typeof todayDateStr === 'function') ? todayDateStr() : '';
+            const income = (typeof HOUSEHOLD_MONTHLY_INCOME === 'number') ? HOUSEHOLD_MONTHLY_INCOME : 110000;
+
+            lines.push('BUGUN: ' + today);
+            lines.push('SABIT_AYLIK_GELIR_TL: ' + income);
+            if (periodStart) lines.push('AKTIF_EKSTRE_DONEMI: ' + periodStart + ' .. ' + periodEnd + ' (29-28)');
+            lines.push('ISTENEN_AY_SAYISI: ' + (askedMonths != null ? askedMonths : 'belirtilmedi(varsayilan_baglam=' + nMonths + ')'));
+            lines.push('AY_ANAHTARLARI: ' + monthKeys.join(', '));
+
+            const inPeriod = list.filter(function(e) {
+                if (!periodStart) return true;
                 const d = String(e.date || '').slice(0, 10);
-                return d >= formatYMD(period.startDate) && d <= formatYMD(period.endDate);
+                return d >= periodStart && d <= periodEnd;
+            });
+            const periodTotal = inPeriod.reduce(function(s, e) { return s + expenseAmount(e); }, 0);
+            lines.push('DONEM_TOPLAM_HARCAMA_TL: ' + Math.round(periodTotal));
+            lines.push('DONEM_KAYIT_SAYISI: ' + inPeriod.length);
+
+            // Dönem kategori sıralaması (en çok → en az)
+            const byCat = {};
+            inPeriod.forEach(function(e) {
+                const c = e.category || 'Diğer';
+                byCat[c] = (byCat[c] || 0) + expenseAmount(e);
+            });
+            const catRank = Object.keys(byCat).sort(function(a, b) { return byCat[b] - byCat[a]; });
+            lines.push('DONEM_KATEGORI_SIRALAMA (en cokdan):');
+            catRank.forEach(function(c, i) {
+                lines.push('  ' + (i + 1) + '. ' + c + ' = ' + Math.round(byCat[c]) + ' TL');
+            });
+            if (catRank.length) {
+                lines.push('DONEM_EN_COK_KATEGORI: ' + catRank[0] + ' (' + Math.round(byCat[catRank[0]]) + ' TL)');
+            }
+
+            // Kişi kırılımı (dönem)
+            const byPerson = {};
+            inPeriod.forEach(function(e) {
+                const p = e.person || 'Belirsiz';
+                byPerson[p] = (byPerson[p] || 0) + expenseAmount(e);
+            });
+            lines.push('DONEM_KISI: ' + Object.keys(byPerson).map(function(p) {
+                return p + '=' + Math.round(byPerson[p]);
+            }).join('; '));
+
+            // Ödeme tipi
+            const byPay = {};
+            inPeriod.forEach(function(e) {
+                const p = e.paymentType || e.payment || 'Belirsiz';
+                byPay[p] = (byPay[p] || 0) + expenseAmount(e);
+            });
+            lines.push('DONEM_ODEME_TIPI: ' + Object.keys(byPay).map(function(p) {
+                return p + '=' + Math.round(byPay[p]);
+            }).join('; '));
+
+            // --- FATURALAR: her zaman alt tür sıralaması (dönem + son N ay) ---
+            const billSubtypes = ['Elektrik', 'Su', 'Doğalgaz', 'Telefon', 'İnternet', 'Abonelik'];
+            function isBillType(e, subtype) {
+                if (e.category !== 'Faturalar') return false;
+                const st = (e.billSubtype || '').toLowerCase();
+                const desc = (e.description || '').toLowerCase();
+                const sub = subtype.toLowerCase();
+                return st === sub || desc.indexOf(sub) >= 0;
+            }
+            // Dönem fatura alt tür
+            const periodBillByType = {};
+            billSubtypes.forEach(function(t) { periodBillByType[t] = 0; });
+            inPeriod.forEach(function(e) {
+                if (e.category !== 'Faturalar') return;
+                const st = e.billSubtype || 'Diğer';
+                periodBillByType[st] = (periodBillByType[st] || 0) + expenseAmount(e);
+            });
+            const billRankPeriod = Object.keys(periodBillByType).filter(function(t) {
+                return periodBillByType[t] > 0;
+            }).sort(function(a, b) { return periodBillByType[b] - periodBillByType[a]; });
+            lines.push('DONEM_FATURA_TUR_SIRALAMA (en cokdan):');
+            billRankPeriod.forEach(function(t, i) {
+                lines.push('  ' + (i + 1) + '. ' + t + ' = ' + Math.round(periodBillByType[t]) + ' TL');
+            });
+            if (billRankPeriod.length) {
+                lines.push('DONEM_EN_COK_FATURA_TURU: ' + billRankPeriod[0] + ' (' + Math.round(periodBillByType[billRankPeriod[0]]) + ' TL)');
+            } else {
+                lines.push('DONEM_EN_COK_FATURA_TURU: kayit yok');
+            }
+            const periodBillTotal = billRankPeriod.reduce(function(s, t) { return s + periodBillByType[t]; }, 0);
+            lines.push('DONEM_FATURA_TOPLAM_TL: ' + Math.round(periodBillTotal));
+
+            // Son N ay — her fatura türü aylık + toplam + ortalama
+            lines.push('SON_' + nMonths + '_AY_FATURA_DETAY:');
+            const nMonthBillTotals = {};
+            billSubtypes.forEach(function(t) { nMonthBillTotals[t] = 0; });
+            monthKeys.forEach(function(mk) {
+                billSubtypes.forEach(function(t) {
+                    const tSum = list.filter(function(e) {
+                        return monthOfExpense(e) === mk && isBillType(e, t);
+                    }).reduce(function(s, e) { return s + expenseAmount(e); }, 0);
+                    nMonthBillTotals[t] += tSum;
+                    if (tSum > 0) lines.push('  ' + mk + ' ' + t + ' = ' + Math.round(tSum) + ' TL');
+                });
+                const monthAllBills = list.filter(function(e) {
+                    return e.category === 'Faturalar' && monthOfExpense(e) === mk;
+                }).reduce(function(s, e) { return s + expenseAmount(e); }, 0);
+                lines.push('  ' + mk + ' FATURA_TOPLAM = ' + Math.round(monthAllBills) + ' TL');
+            });
+            lines.push('SON_' + nMonths + '_AY_FATURA_TUR_TOPLAM_VE_ORTALAMA:');
+            const billRankN = billSubtypes.slice().sort(function(a, b) {
+                return nMonthBillTotals[b] - nMonthBillTotals[a];
+            });
+            billRankN.forEach(function(t) {
+                if (nMonthBillTotals[t] <= 0) return;
+                lines.push('  ' + t + ' toplam=' + Math.round(nMonthBillTotals[t]) +
+                    ' TL ortalama=' + Math.round(nMonthBillTotals[t] / nMonths) + ' TL');
+            });
+            if (billRankN.length && nMonthBillTotals[billRankN[0]] > 0) {
+                lines.push('SON_' + nMonths + '_AY_EN_COK_FATURA_TURU: ' + billRankN[0] +
+                    ' (toplam ' + Math.round(nMonthBillTotals[billRankN[0]]) + ' TL)');
+            }
+
+            // Aylık genel toplamlar
+            monthKeys.forEach(function(mk) {
+                const monthItems = list.filter(function(e) { return monthOfExpense(e) === mk; });
+                const total = monthItems.reduce(function(s, e) { return s + expenseAmount(e); }, 0);
+                lines.push('AY_' + mk + '_TOPLAM_TL: ' + Math.round(total));
+            });
+
+            // Yakıt / araç (her zaman kısa özet)
+            monthKeys.forEach(function(mk) {
+                const fuel = list.filter(function(e) {
+                    return isVehicleExpense(e) && monthOfExpense(e) === mk
+                        && (e.vehicleSubtype === 'Yakıt' || e.vehicleSubtype === 'Yakit');
+                });
+                const fuelSum = fuel.reduce(function(s, e) { return s + expenseAmount(e); }, 0);
+                if (fuelSum > 0) lines.push('AY_' + mk + '_YAKIT_TL: ' + Math.round(fuelSum));
+            });
+            try {
+                const v = vehicleProfile || {};
+                lines.push('ARAC: ' + (v.name || '') + ' | km=' + (v.totalKm || 0));
+            } catch (_) {}
+
+            // En yüksek tekil harcamalar (dönem)
+            const topExp = inPeriod.slice().sort(function(a, b) {
+                return expenseAmount(b) - expenseAmount(a);
+            }).slice(0, 8);
+            lines.push('DONEM_EN_YUKSEK_HARCAMA:');
+            topExp.forEach(function(e, i) {
+                lines.push('  ' + (i + 1) + '. ' + Math.round(expenseAmount(e)) + ' TL | ' +
+                    (e.category || '') + (e.billSubtype ? ('/' + e.billSubtype) : '') +
+                    (e.vehicleSubtype ? ('/' + e.vehicleSubtype) : '') +
+                    ' | ' + (e.description || '-') + ' | ' + String(e.date || '').slice(0, 10));
+            });
+
+            // Gıda kıyas
+            const m0 = lastNMonthKeys(1)[0];
+            const m1 = lastNMonthKeys(2)[1];
+            const food = function(m) {
+                return list.filter(function(e) {
+                    return monthOfExpense(e) === m && (e.category === 'Gıda' || /market/i.test(e.description || ''));
+                }).reduce(function(s, e) { return s + expenseAmount(e); }, 0);
             };
-            const sum = function(arr) {
-                return arr.reduce(function(s, e) {
-                    return s + (Number(e.displayAmount != null ? e.displayAmount : e.amount) || 0);
-                }, 0);
-            };
-            const thisMonth = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
-            const monthOf = function(e) { return String(e.effectiveMonth || e.expenseMonth || (e.date || '').slice(0, 7)); };
+            lines.push('GIDA_BU_AY_TL: ' + Math.round(food(m0)));
+            lines.push('GIDA_GECEN_AY_TL: ' + Math.round(food(m1)));
+
+            // Yaklaşan ödemeler
+            const week = list.filter(function(e) {
+                const days = daysUntilYMD(String(e.date || '').slice(0, 10));
+                return days != null && days >= 0 && days <= 14;
+            }).sort(function(a, b) { return String(a.date).localeCompare(String(b.date)); }).slice(0, 12);
+            if (week.length) {
+                lines.push('YAKLASAN_14_GUN:');
+                week.forEach(function(e) {
+                    lines.push(' - ' + String(e.date).slice(0, 10) + ' | ' + (e.description || e.category) + ' | ' + Math.round(expenseAmount(e)) + ' TL');
+                });
+            }
+
+            lines.push('KURALLAR: En cok / en az sorularinda SIRALAMA satirlarni kullan. Ortalama = ilgili toplam / ay sayisi. Uydurma rakam yazma.');
+            lines.push('KULLANICI_SORUSU: ' + String(question || ''));
+            return lines.join('\n');
+        }
+
+        /** Yerel yedek cevap — sadece AI yoksa veya hata olursa */
+
+        function answerYuvamLocal(question) {
+            const q = String(question || '').toLowerCase().trim();
+            const list = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : (expenses || []);
+            const lines = [];
+            const askedMonths = parseAskedMonths(q);
+            const nMonths = askedMonths != null ? askedMonths : 1;
+            const monthKeys = lastNMonthKeys(nMonths);
+            const sum = function(arr) { return arr.reduce(function(s, e) { return s + expenseAmount(e); }, 0); };
+            const period = (typeof getCurrentStatementPeriod === 'function') ? getCurrentStatementPeriod() : null;
+            const periodStart = period && period.startDate ? formatYMD(period.startDate) : '';
+            const periodEnd = period && period.endDate ? formatYMD(period.endDate) : '';
+            const inPeriod = list.filter(function(e) {
+                if (!periodStart) return true;
+                const d = String(e.date || '').slice(0, 10);
+                return d >= periodStart && d <= periodEnd;
+            });
+
+            // En çok fatura türü
+            if (/en çok|en cok|hangi fatura|fatura tür|fatura tur/.test(q) && /fatura/.test(q)) {
+                const by = {};
+                const pool = (/son\s*\d|ay/.test(q) ? list.filter(function(e) {
+                    return e.category === 'Faturalar' && monthKeys.indexOf(monthOfExpense(e)) >= 0;
+                }) : inPeriod.filter(function(e) { return e.category === 'Faturalar'; }));
+                pool.forEach(function(e) {
+                    const t = e.billSubtype || 'Diğer';
+                    by[t] = (by[t] || 0) + expenseAmount(e);
+                });
+                const rank = Object.keys(by).sort(function(a, b) { return by[b] - by[a]; });
+                if (!rank.length) {
+                    lines.push('Bu aralıkta fatura kaydı yok.');
+                    return lines;
+                }
+                lines.push('En yüksek fatura türü: **' + rank[0] + '** → ' + Math.round(by[rank[0]]).toLocaleString('tr-TR') + ' TL');
+                rank.forEach(function(t, i) {
+                    lines.push((i + 1) + '. ' + t + ': ' + Math.round(by[t]).toLocaleString('tr-TR') + ' TL');
+                });
+                return lines;
+            }
+
+            // En çok kategori
+            if (/en çok|en cok|hangi kategori/.test(q)) {
+                const by = {};
+                inPeriod.forEach(function(e) {
+                    const c = e.category || 'Diğer';
+                    by[c] = (by[c] || 0) + expenseAmount(e);
+                });
+                const rank = Object.keys(by).sort(function(a, b) { return by[b] - by[a]; });
+                if (!rank.length) { lines.push('Kayıt yok.'); return lines; }
+                lines.push('Dönemde en çok: **' + rank[0] + '** → ' + Math.round(by[rank[0]]).toLocaleString('tr-TR') + ' TL');
+                rank.slice(0, 6).forEach(function(c, i) {
+                    lines.push((i + 1) + '. ' + c + ': ' + Math.round(by[c]).toLocaleString('tr-TR') + ' TL');
+                });
+                return lines;
+            }
+
+            if (/yakıt|yakit/.test(q)) {
+                const fuel = list.filter(function(e) {
+                    return isVehicleExpense(e) && monthKeys.indexOf(monthOfExpense(e)) >= 0
+                        && (e.vehicleSubtype === 'Yakıt' || e.vehicleSubtype === 'Yakit');
+                });
+                const total = sum(fuel);
+                lines.push('Son ' + nMonths + ' ay yakıt toplamı: **' + Math.round(total).toLocaleString('tr-TR') + ' TL**');
+                lines.push('Aylık ortalama: **' + Math.round(total / nMonths).toLocaleString('tr-TR') + ' TL**');
+                monthKeys.forEach(function(mk) {
+                    lines.push('· ' + mk + ': ' + Math.round(sum(fuel.filter(function(e) { return monthOfExpense(e) === mk; }))).toLocaleString('tr-TR') + ' TL');
+                });
+                return lines;
+            }
+
+            if (/fatura|elektrik|su|do[ğg]algaz|telefon|internet|abonelik/.test(q)) {
+                let wantSubtype = null;
+                if (/elektrik/.test(q)) wantSubtype = 'Elektrik';
+                else if (/\bsu\b/.test(q)) wantSubtype = 'Su';
+                else if (/do[ğg]algaz/.test(q)) wantSubtype = 'Doğalgaz';
+                else if (/telefon/.test(q)) wantSubtype = 'Telefon';
+                else if (/internet/.test(q)) wantSubtype = 'İnternet';
+                else if (/abonelik/.test(q)) wantSubtype = 'Abonelik';
+                const bills = list.filter(function(e) {
+                    if (e.category !== 'Faturalar') return false;
+                    if (monthKeys.indexOf(monthOfExpense(e)) < 0) return false;
+                    if (!wantSubtype) return true;
+                    const st = (e.billSubtype || '').toLowerCase();
+                    return st === wantSubtype.toLowerCase() || (e.description || '').toLowerCase().indexOf(wantSubtype.toLowerCase()) >= 0;
+                });
+                const total = sum(bills);
+                const label = wantSubtype || 'Fatura';
+                lines.push('Son ' + nMonths + ' ay ' + label + ' toplamı: **' + Math.round(total).toLocaleString('tr-TR') + ' TL**');
+                if (/ortalama/.test(q)) {
+                    lines.push('Aylık ortalama: **' + Math.round(total / nMonths).toLocaleString('tr-TR') + ' TL**');
+                }
+                monthKeys.forEach(function(mk) {
+                    lines.push('· ' + mk + ': ' + Math.round(sum(bills.filter(function(e) { return monthOfExpense(e) === mk; }))).toLocaleString('tr-TR') + ' TL');
+                });
+                return lines;
+            }
 
             if (/ne kadar harcad|bu ay.*harca|dönem.*harca|toplam harcama/.test(q)) {
-                const cur = list.filter(inPeriod);
-                lines.push('Bu ekstre döneminde toplam harcama: **' + sum(cur).toLocaleString('tr-TR') + ' TL** (' + cur.length + ' kayıt).');
-                const byCat = {};
-                cur.forEach(function(e) {
-                    const c = e.category || 'Diğer';
-                    byCat[c] = (byCat[c] || 0) + (Number(e.displayAmount != null ? e.displayAmount : e.amount) || 0);
-                });
-                Object.keys(byCat).sort(function(a, b) { return byCat[b] - byCat[a]; }).slice(0, 5).forEach(function(c) {
-                    lines.push('· ' + c + ': ' + byCat[c].toLocaleString('tr-TR') + ' TL');
-                });
+                lines.push('Bu ekstre döneminde toplam: **' + Math.round(sum(inPeriod)).toLocaleString('tr-TR') + ' TL** (' + inPeriod.length + ' kayıt)');
                 return lines;
             }
-            if (/araç|corolla|yakıt|bakım|masraf/.test(q) && /3 ay|üç ay|son/.test(q)) {
-                const now = new Date();
-                const months = [];
-                for (let i = 0; i < 3; i++) {
-                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-                    months.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'));
-                }
+
+            if (/araç|corolla|bakım|masraf/.test(q)) {
                 const veh = list.filter(function(e) {
-                    return isVehicleExpense(e) && months.indexOf(monthOf(e)) >= 0;
+                    return isVehicleExpense(e) && monthKeys.indexOf(monthOfExpense(e)) >= 0;
                 });
-                lines.push('Son 3 ay araç masrafı: **' + sum(veh).toLocaleString('tr-TR') + ' TL**');
-                ['Yakıt', 'Bakım', 'Vergi'].forEach(function(st) {
-                    const sub = veh.filter(function(e) { return (e.vehicleSubtype || '') === st; });
-                    if (sub.length) lines.push('· ' + st + ': ' + sum(sub).toLocaleString('tr-TR') + ' TL');
-                });
+                lines.push('Son ' + nMonths + ' ay araç toplamı: **' + Math.round(sum(veh)).toLocaleString('tr-TR') + ' TL**');
                 return lines;
             }
-            if (/neden fazla|neden çok|analiz/.test(q)) {
-                try {
-                    if (typeof buildLocalAdvisorTips === 'function') {
-                        const tips = buildLocalAdvisorTips();
-                        return tips.slice(0, 8);
-                    }
-                } catch (_) {}
-                lines.push('Dönem harcamalarını kategorilere göre Raporlar sekmesinden inceleyebilirsiniz.');
-                return lines;
-            }
-            if (/önümüzdeki hafta|yaklaşan ödeme|hangi ödeme/.test(q)) {
-                const today = todayDateStr();
-                const week = list.filter(function(e) {
-                    const d = String(e.date || '').slice(0, 10);
-                    const days = daysUntilYMD(d);
-                    return days != null && days >= 0 && days <= 7;
-                }).sort(function(a, b) { return String(a.date).localeCompare(String(b.date)); });
-                if (!week.length) lines.push('Önümüzdeki 7 günde planlı harcama/ödeme kaydı yok.');
-                else {
-                    lines.push('Önümüzdeki 7 gün:');
-                    week.slice(0, 12).forEach(function(e) {
-                        lines.push('· ' + formatDateTR(e.date) + ' — ' + (e.description || e.category) + ' · ' +
-                            (Number(e.displayAmount != null ? e.displayAmount : e.amount) || 0).toLocaleString('tr-TR') + ' TL');
-                    });
-                }
-                return lines;
-            }
-            if (/fatura/.test(q)) {
-                const bills = list.filter(function(e) {
-                    return e.category === 'Faturalar' && inPeriod(e);
-                });
-                lines.push('Bu dönem fatura toplamı: **' + sum(bills).toLocaleString('tr-TR') + ' TL**');
-                const by = {};
-                bills.forEach(function(e) {
-                    const s = e.billSubtype || 'Diğer';
-                    by[s] = (by[s] || 0) + (Number(e.displayAmount != null ? e.displayAmount : e.amount) || 0);
-                });
-                Object.keys(by).forEach(function(s) {
-                    lines.push('· ' + s + ': ' + by[s].toLocaleString('tr-TR') + ' TL');
-                });
-                return lines;
-            }
-            if (/market|gıda/.test(q) && /geçen|arttı|kıyas|karşılaştır/.test(q)) {
-                const now = new Date();
-                const m0 = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-                const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-                const m1 = prev.getFullYear() + '-' + String(prev.getMonth() + 1).padStart(2, '0');
-                const food = function(m) {
-                    return sum(list.filter(function(e) {
-                        return (e.category === 'Gıda' || /market/i.test(e.description || '')) && monthOf(e) === m;
-                    }));
-                };
-                const a = food(m0), b = food(m1);
-                const diff = a - b;
-                lines.push('Bu ay Gıda/Market: **' + a.toLocaleString('tr-TR') + ' TL**');
-                lines.push('Geçen ay: **' + b.toLocaleString('tr-TR') + ' TL**');
-                lines.push(diff > 0 ? ('Artış: ' + diff.toLocaleString('tr-TR') + ' TL') :
-                    (diff < 0 ? ('Azalış: ' + Math.abs(diff).toLocaleString('tr-TR') + ' TL') : 'Aynı seviyede'));
-                return lines;
-            }
-            if (/corolla|araç km|kilometre/.test(q)) {
-                const v = vehicleProfile || {};
-                lines.push((v.name || 'Araç') + ': **' + (Number(v.totalKm) || 0).toLocaleString('tr-TR') + ' km**');
-                getVehicleUpcomingItems().forEach(function(it) {
-                    lines.push(it.icon + ' ' + it.title + ': ' + it.detail);
-                });
-                return lines;
-            }
-            // fallback: short local tips
-            try {
-                if (typeof buildLocalAdvisorTips === 'function') {
-                    lines.push('Soruya özel eşleşme bulunamadı. Genel özet:');
-                    return lines.concat(buildLocalAdvisorTips().slice(0, 6));
-                }
-            } catch (_) {}
-            lines.push('Bu soruyu AI ile de sorabilirsiniz; «Sor» tekrar veya daha net yazın.');
+
+            lines.push('Yerel özet sınırlı. AI için OpenRouter anahtarını kontrol edin.');
             return lines;
         }
 
         window.askYuvam = async function() {
             const inp = document.getElementById('yuvamAskInput');
             const box = document.getElementById('yuvamAskResult');
+            const btn = document.getElementById('yuvamAskBtn');
             const q = inp ? String(inp.value || '').trim() : '';
             if (!q) {
                 showToast('Bir soru yazın', 'info');
                 return;
             }
-            const localLines = answerYuvamLocal(q);
-            if (box) {
-                box.innerHTML = '<p class="text-[10px] font-black text-slate-400 uppercase mb-2">Yanıt</p>' +
-                    localLines.map(function(l) {
-                        return '<p class="text-sm text-slate-700 font-medium leading-relaxed mb-1">' +
-                            String(l).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') + '</p>';
-                    }).join('');
-            }
-            // AI zenginleştirme (opsiyonel)
-            if (openrouterApiKey) {
-                try {
-                    const btn = document.getElementById('yuvamAskBtn');
-                    if (btn) btn.disabled = true;
-                    const wrap = document.getElementById('aiAdvisorProgressWrap');
-                    if (wrap) wrap.classList.remove('hidden');
-                    // reuse runAiAdvisor style prompt with question
-                    const ctx = localLines.join('\n');
-                    const prompt = 'Sen YUVAM aile bütçe asistanısın. Kullanıcı sorusu: "' + q +
-                        '". Aşağıdaki yerel veri özetine dayanarak kısa, net Türkçe cevap ver (3-8 madde). Uydurma rakam yazma.\n\n' + ctx;
-                    // light progress
-                    const bar = document.getElementById('aiAdvisorProgressBar');
-                    const pct = document.getElementById('aiAdvisorProgressPct');
-                    let p = 10;
-                    const t = setInterval(function() {
-                        p = Math.min(90, p + 8);
-                        if (bar) bar.style.width = p + '%';
-                        if (pct) pct.textContent = p + '%';
-                    }, 200);
-                    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': 'Bearer ' + openrouterApiKey,
-                            'Content-Type': 'application/json',
-                            'HTTP-Referer': (typeof location !== 'undefined' ? location.origin : ''),
-                            'X-Title': 'YUVAM'
-                        },
-                        body: JSON.stringify({
-                            model: 'openrouter/auto',
-                            messages: [
-                                { role: 'system', content: 'YUVAM bütçe asistanı. Kısa Türkçe yanıt. Sadece verilen rakamlara dayan.' },
-                                { role: 'user', content: prompt }
-                            ]
-                        })
-                    });
-                    clearInterval(t);
-                    if (bar) bar.style.width = '100%';
-                    if (pct) pct.textContent = '100%';
-                    const data = await resp.json();
-                    const text = data && data.choices && data.choices[0] && data.choices[0].message
-                        ? data.choices[0].message.content : '';
-                    if (text && box) {
-                        box.innerHTML += '<div class="mt-3 pt-3 border-t border-slate-100"><p class="text-[10px] font-black text-violet-500 uppercase mb-2">AI tamamlayıcı</p>' +
-                            '<p class="text-sm text-slate-700 font-medium whitespace-pre-wrap">' + escapeHtml(text) + '</p></div>';
-                    }
-                    if (wrap) setTimeout(function() { wrap.classList.add('hidden'); }, 400);
-                    if (btn) btn.disabled = false;
-                } catch (err) {
-                    console.warn('askYuvam AI', err);
-                    const btn = document.getElementById('yuvamAskBtn');
-                    if (btn) btn.disabled = false;
-                    const wrap = document.getElementById('aiAdvisorProgressWrap');
-                    if (wrap) wrap.classList.add('hidden');
+            if (btn) btn.disabled = true;
+            const wrap = document.getElementById('aiAdvisorProgressWrap');
+            const bar = document.getElementById('aiAdvisorProgressBar');
+            const pct = document.getElementById('aiAdvisorProgressPct');
+            if (wrap) wrap.classList.remove('hidden');
+            if (box) box.innerHTML = '<p class="text-sm text-slate-500 font-semibold">Yanıt hazırlanıyor…</p>';
+            let p = 8;
+            const timer = setInterval(function() {
+                p = Math.min(88, p + 6);
+                if (bar) bar.style.width = p + '%';
+                if (pct) pct.textContent = p + '%';
+            }, 180);
+
+            try {
+                if (!openrouterApiKey) {
+                    throw new Error('NO_KEY');
                 }
+                const dataCtx = buildYuvamDataContext(q);
+                const system = [
+                    'Sen YUVAM aile bütçe asistanısın. Sadece VERİ bloğunu kullan; uydurma.',
+                    '"En çok / en az / hangi" sorularında SIRALAMA satırlarını oku; 1. sıradakini söyle.',
+                    'DONEM_EN_COK_FATURA_TURU ve DONEM_FATURA_TUR_SIRALAMA satırları fatura türü sıralamasıdır.',
+                    'Ortalama = ilgili toplam / ay sayısı. Tek ayı bölme.',
+                    'Son N ay istendiyse N aya uy. Kısa Türkçe cevap (2-8 madde). TL kullan.'
+                ].join(' ');
+                const user = 'VERİ:\n' + dataCtx + '\n\nSORU: ' + q + '\n\nYanıt:';
+                const text = await callOpenRouter(user, system, 900);
+                clearInterval(timer);
+                if (bar) bar.style.width = '100%';
+                if (pct) pct.textContent = '100%';
+                if (box) {
+                    box.innerHTML = '<p class="text-[10px] font-black text-violet-600 uppercase mb-2">Yuvam yanıtı</p>' +
+                        '<div class="text-sm text-slate-800 font-medium leading-relaxed whitespace-pre-wrap">' +
+                        escapeHtml(String(text || '').trim()) + '</div>';
+                }
+            } catch (err) {
+                clearInterval(timer);
+                console.warn('askYuvam', err);
+                const localLines = answerYuvamLocal(q);
+                const errMsg = (err && err.message === 'NO_KEY')
+                    ? 'AI anahtarı yok — yerel özet gösteriliyor. Firebase settings/apiKeys → openrouter alanına anahtar ekleyin.'
+                    : ('AI yanıt veremedi (' + (err.message || err) + ') — yerel özet:');
+                if (box) {
+                    box.innerHTML = '<p class="text-[10px] font-black text-amber-600 uppercase mb-2">' + escapeHtml(errMsg) + '</p>' +
+                        localLines.map(function(l) {
+                            return '<p class="text-sm text-slate-700 font-medium leading-relaxed mb-1">' +
+                                String(l).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') + '</p>';
+                        }).join('');
+                }
+            } finally {
+                if (wrap) setTimeout(function() { wrap.classList.add('hidden'); }, 350);
+                if (btn) btn.disabled = false;
             }
         };
 
@@ -5072,12 +5285,13 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
             const ratio = income > 0 && !isNaN(pSum) ? (pSum / income * 100) : 0;
             const left = income - (isNaN(pSum) ? 0 : pSum);
             const lines = [];
-            lines.push('• Dönem harcama: <b>' + Math.round(isNaN(pSum) ? 0 : pSum).toLocaleString('tr-TR') + ' TL</b> · gelire oran ~%' + ratio.toFixed(0) + ' · kalan nefes ~' + Math.round(left).toLocaleString('tr-TR') + ' TL');
-            if (!isNaN(tSum) && tSum > 0) lines.push('• Bugün harcama: <b>' + Math.round(tSum).toLocaleString('tr-TR') + ' TL</b>');
-            lines.push('• Görevler: <b>' + openTasks + '</b> açık' + (dueToday ? (' · <b>' + dueToday + '</b> bugün') : ''));
-            lines.push('• Takvim: <b>' + calSoon + '</b> etkinlik (7 gün) · Alışveriş: <b>' + shopOpen + '</b> ürün');
-            if (ratio >= 70) lines.push('• Uyarı: dönem harcaması gelirin %70+ — kart ve nakit akışına dikkat');
-            else if (ratio <= 40 && pSum > 0) lines.push('• Dönem harcaması gelirin altında — tasarruf fırsatı var');
+            lines.push('• Dönem harcama: <b>' + Math.round(isNaN(pSum) ? 0 : pSum).toLocaleString('tr-TR') + ' TL</b> (gelirin ~%' + ratio.toFixed(0) + ') · kalan ~' + Math.round(left).toLocaleString('tr-TR') + ' TL');
+            if (!isNaN(tSum) && tSum > 0) lines.push('• Bugün: <b>' + Math.round(tSum).toLocaleString('tr-TR') + ' TL</b> harcandı');
+            lines.push('• Görev: <b>' + openTasks + '</b> açık' + (dueToday ? (', <b>' + dueToday + '</b> bugün bitmeli') : ''));
+            lines.push('• 7 gün içinde <b>' + calSoon + '</b> takvim · alışveriş listesinde <b>' + shopOpen + '</b> ürün');
+            if (ratio >= 70) lines.push('• Dikkat: dönem harcaması gelirin %70 üzeri — büyük kart harcamalarını erteleyin');
+            else if (ratio <= 40 && pSum > 0) lines.push('• Dönem sakin — küçük bir birikim/ekstra borç ödemesi yapılabilir');
+            else lines.push('• Bütçe dengede görünüyor; fatura ve tekrarlayan ödemeleri kontrol edin');
             box.innerHTML = lines.map(function(l) { return '<p>' + l + '</p>'; }).join('');
         };
 
@@ -5107,15 +5321,31 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
                     return (ev.title || '') + ' ' + eventEffectiveDate(ev);
                 }).join('; ') || 'yok';
                 const shopN = (familyShopping || []).filter(function(x) { return !x.bought; }).length;
+                // Kategori kırılımı (dönem)
+                const byCat = {};
+                getProcessedExpenses().forEach(function(e) {
+                    if (!e || e.effectiveMonth !== pk || e.installmentLabel === 'Gelir') return;
+                    const c = e.category || 'Diğer';
+                    byCat[c] = (byCat[c] || 0) + (Number(e.displayAmount) || 0);
+                });
+                const topCats = Object.keys(byCat).sort(function(a, b) { return byCat[b] - byCat[a]; }).slice(0, 5)
+                    .map(function(c) { return c + ' ' + Math.round(byCat[c]) + ' TL'; }).join(', ');
+                let vehKm = '';
+                try { if (vehicleProfile) vehKm = (vehicleProfile.name || 'Araç') + ' ' + (vehicleProfile.totalKm || 0) + ' km'; } catch (_) {}
+                const system = 'Sen YUVAM aile asistanısın. Sadece verilen rakamlara dayan. Uydurma sayı yazma. Türkçe, sıcak, net. 3-5 kısa cümle. Emoji/markdown başlık kullanma.';
                 const prompt = [
-                    'Hane aylik geliri: ' + income + ' TL.',
-                    'Aktif ekstre donemi harcama: ' + Math.round(periodSum) + ' TL (oran %' + (income ? (periodSum / income * 100).toFixed(1) : 0) + ').',
-                    'Acik gorevler: ' + openTasks.length + ' → ' + taskTxt,
-                    'Yakin etkinlikler: ' + calTxt,
-                    'Alisveris bekleyen: ' + shopN + ' urun.',
-                    'Gorev: 3-4 cumlelik Turkce gunluk aile brifingi yaz. Bugun neye odaklanmali, butce durumu (gelire gore), bir pratik oneri. Markdown/emoji yok. Kisa tut.'
-                ].join('\n');
-                const text = await callOpenRouter(prompt, 'Sen aile ev asistaniisin. Kisa, sicak, net yaz.', 600);
+                    'VERİ:',
+                    '- Bugün tarihi ve hane aylık gelir: ' + income + ' TL',
+                    '- Aktif dönem (29-28) harcama: ' + Math.round(periodSum) + ' TL (%' + (income ? (periodSum / income * 100).toFixed(1) : 0) + ' gelire oran)',
+                    '- En çok harcanan kategoriler: ' + (topCats || 'yok'),
+                    '- Açık görev: ' + openTasks.length + ' → ' + taskTxt,
+                    '- Yakın etkinlik: ' + calTxt,
+                    '- Alışveriş bekleyen: ' + shopN,
+                    vehKm ? ('- Araç: ' + vehKm) : '',
+                    '',
+                    'GÖREV: Günlük aile brifingi yaz. (1) Bütçe durumu tek cümle, (2) Bugün dikkat edilecek 1 şey, (3) Pratik 1 öneri. Veride olmayan konu uydurma.'
+                ].filter(Boolean).join('\n');
+                const text = await callOpenRouter(prompt, system, 700);
                 if (out) out.innerHTML = '<p>' + escapeHtml(String(text || '').trim()).replace(/\n/g, '<br>') + '</p>';
                 if (st) st.textContent = 'AI özet · ' + new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
                 logActivity('Diğer', 'Günlük AI brifing', '');
@@ -6571,9 +6801,10 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
             const models = [
                 'openrouter/free',
                 'meta-llama/llama-3.3-70b-instruct:free',
+                'openai/gpt-oss-20b:free',
                 'meta-llama/llama-3.2-3b-instruct:free',
-                'google/gemma-3-12b-it:free',
-                'qwen/qwen-2.5-7b-instruct:free'
+                'qwen/qwen-2.5-7b-instruct',
+                'google/gemma-2-9b-it:free'
             ];
             let lastErr = '';
             for (let i = 0; i < models.length; i++) {
