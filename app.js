@@ -87,9 +87,14 @@
         let openrouterApiKey = ''; // Firestore settings/apiKeys.openrouter — koda yazılmaz
         let collectApiKey = ''; // Firestore settings/apiKeys.collectapi — CollectAPI spor
         let superLigFixturesCache = []; // bellek önbelleği
+        let publicHolidaysCache = [];
+        let publicHolidaysAt = 0;
+        let _weatherDailyCache = null;
+        let _weatherDailyAt = 0;
+
         let superLigStandingsCache = [];
         let superLigLastFetch = 0;
-        let superLigPanelState = { fixtures: true, table: false }; // bağımsız aç/kapa
+        let superLigPanelState = { fixtures: false, table: false }; // bağımsız aç/kapa · varsayılan kapalı
 
         let currentUser = null; // { name, role }
         let onboardingPending = false;
@@ -286,6 +291,11 @@
                             Promise.resolve(refreshSuperLigFixtures(false)).catch(function() {});
                         }
                     } catch (_) {}
+                    try {
+                        if (typeof refreshPublicHolidays === 'function') {
+                            Promise.resolve(refreshPublicHolidays(false)).catch(function() {});
+                        }
+                    } catch (_) {}
                 }, 400);
             }, 0);
             if (!opts || !opts.silent) {
@@ -478,6 +488,21 @@
                 });
             } catch (_) {}
 
+
+
+            // Resmi tatiller (14 gün)
+            try {
+                (publicHolidaysCache || []).forEach(function(h) {
+                    if (!h || !h.date) return;
+                    const days = daysUntilYMD(h.date);
+                    if (days == null || days < 0 || days > 14) return;
+                    const title = h.localName || h.name || 'Resmi tatil';
+                    const key = 'hol-' + h.date;
+                    if (days === 0) pushNotif(key, 'info', '🇹🇷', 'Bugün resmi tatil: ' + title, formatDateTR(h.date));
+                    else if (days <= 3) pushNotif(key, 'info', '🇹🇷', days + ' gün: ' + title, formatDateTR(h.date));
+                    else pushNotif(key, 'info', '🇹🇷', days + ' gün: ' + title, formatDateTR(h.date));
+                });
+            } catch (_) {}
 
             // Aile görevleri
             try {
@@ -1479,6 +1504,8 @@
         }
 
         function updateGoldPriceUI() {
+            try { saveGoldPriceSnapshot(goldQuotes.sell24, goldQuotes.sell22); } catch (_) {}
+
             const fmt = function(v) { return v != null && isFinite(v) ? formatGoldTL(v) : '—'; };
             const elB24 = document.getElementById('goldBuy24');
             const elS24 = document.getElementById('goldSell24');
@@ -1617,11 +1644,145 @@
             updateHomeGoldCard();
         };
 
+
+        // ——— Altın geçmiş fiyat anlık görüntüleri (local) ———
+        function loadGoldPriceHistory() {
+            try {
+                const raw = localStorage.getItem('yuvam_gold_history');
+                const list = raw ? JSON.parse(raw) : [];
+                return Array.isArray(list) ? list : [];
+            } catch (_) { return []; }
+        }
+
+        function saveGoldPriceSnapshot(sell24, sell22) {
+            if (sell24 == null && sell22 == null) return;
+            const today = todayDateStr();
+            let list = loadGoldPriceHistory();
+            // aynı gün güncelle
+            list = list.filter(function(r) { return r && r.date !== today; });
+            list.push({
+                date: today,
+                sell24: sell24 != null ? Number(sell24) : null,
+                sell22: sell22 != null ? Number(sell22) : null,
+                at: new Date().toISOString()
+            });
+            // son 45 gün
+            list.sort(function(a, b) { return String(a.date).localeCompare(String(b.date)); });
+            if (list.length > 45) list = list.slice(list.length - 45);
+            try { localStorage.setItem('yuvam_gold_history', JSON.stringify(list)); } catch (_) {}
+        }
+
+        function portfolioPnlAtPrice(sell24, sell22) {
+            let cost = 0, value = 0, grams = 0;
+            (goldHoldings || []).forEach(function(h) {
+                const g = Number(h.grams) || 0;
+                const bp = Number(h.buyPrice) || 0;
+                const k = Number(h.karat) || 24;
+                cost += g * bp;
+                grams += g;
+                const px = (k === 22) ? sell22 : sell24;
+                if (px != null) value += g * Number(px);
+            });
+            return { cost: cost, value: value, pnl: value - cost, grams: grams };
+        }
+
+        window.openGoldHistoryModal = function() {
+            const modal = document.getElementById('goldHistoryModal');
+            const body = document.getElementById('goldHistoryModalBody');
+            if (!modal || !body) return;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            // Bugünkü fiyatı da kayda ekle
+            try {
+                if (goldQuotes && (goldQuotes.sell24 != null || goldQuotes.sell22 != null)) {
+                    saveGoldPriceSnapshot(goldQuotes.sell24, goldQuotes.sell22);
+                }
+            } catch (_) {}
+
+            let hist = loadGoldPriceHistory();
+            // Holding alış tarihlerini de satır olarak ekle (fiyat = alış)
+            const fromHoldings = [];
+            (goldHoldings || []).forEach(function(h) {
+                const d = String(h.buyDate || '').slice(0, 10);
+                if (!d) return;
+                const k = Number(h.karat) || 24;
+                const bp = Number(h.buyPrice) || 0;
+                fromHoldings.push({
+                    date: d,
+                    sell24: k === 24 ? bp : null,
+                    sell22: k === 22 ? bp : null,
+                    fromHolding: true,
+                    note: (k + ' ayar alış · ' + (Number(h.grams) || 0) + ' g')
+                });
+            });
+
+            // son 30 gün filtresi
+            const cutoff = addDaysYMD(todayDateStr(), -30);
+            hist = hist.filter(function(r) { return r.date >= cutoff; });
+
+            // birleştir: günlük snapshot öncelikli
+            const byDate = {};
+            fromHoldings.forEach(function(r) {
+                if (r.date >= cutoff) {
+                    if (!byDate[r.date]) byDate[r.date] = r;
+                }
+            });
+            hist.forEach(function(r) { byDate[r.date] = r; });
+
+            const dates = Object.keys(byDate).sort().reverse();
+            if (!dates.length) {
+                body.innerHTML = '<p class="text-slate-400 font-semibold text-center py-6">Henüz geçmiş fiyat yok.<br><span class="text-xs">Siteyi açtıkça günlük fiyat kaydı birikir.</span></p>';
+                return;
+            }
+
+            let html = '<div class="space-y-2">';
+            dates.forEach(function(d) {
+                const r = byDate[d];
+                const s24 = r.sell24;
+                const s22 = r.sell22;
+                // P&L: eldeki fiyatlardan hesapla (eksik ayarı mevcut anlık fiyatla doldur)
+                const use24 = s24 != null ? s24 : (goldQuotes && goldQuotes.sell24);
+                const use22 = s22 != null ? s22 : (goldQuotes && goldQuotes.sell22);
+                const p = portfolioPnlAtPrice(use24, use22);
+                const hasHold = (goldHoldings || []).length > 0;
+                const pnlTxt = hasHold && (use24 != null || use22 != null)
+                    ? ((p.pnl >= 0 ? '+' : '') + Math.round(p.pnl).toLocaleString('tr-TR') + ' TL')
+                    : '—';
+                const pnlCls = !hasHold ? 'text-slate-400' : (p.pnl >= 0 ? 'text-emerald-600' : 'text-rose-600');
+                const priceTxt = (s24 != null ? ('24ayar ' + formatGoldTL(s24) + '/g') : '') +
+                    (s24 != null && s22 != null ? ' · ' : '') +
+                    (s22 != null ? ('22ayar ' + formatGoldTL(s22) + '/g') : '');
+                html += '<div class="p-3 rounded-xl border border-slate-100 bg-slate-50">' +
+                    '<div class="flex justify-between gap-2 items-start">' +
+                    '<div class="min-w-0">' +
+                    '<p class="text-sm font-black text-slate-800">' + formatDateTR(d) +
+                    (r.fromHolding ? ' <span class="text-[10px] font-bold text-amber-700">alış</span>' : '') + '</p>' +
+                    '<p class="text-[11px] text-slate-500 font-semibold mt-0.5">' + (priceTxt || (r.note || 'Fiyat yok')) + '</p>' +
+                    (r.note && !r.fromHolding ? '<p class="text-[10px] text-slate-400">' + escapeHtml(r.note) + '</p>' : '') +
+                    '</div>' +
+                    '<div class="text-right shrink-0">' +
+                    '<p class="text-[10px] font-bold text-slate-400 uppercase">Kâr/Zarar</p>' +
+                    '<p class="text-sm font-black ' + pnlCls + '">' + pnlTxt + '</p>' +
+                    '</div></div></div>';
+            });
+            html += '</div>';
+            html += '<p class="text-[10px] text-slate-400 font-semibold mt-3 text-center">Kâr/zarar, o günkü (veya en yakın) gram satış fiyatı ile mevcut portföye göre hesaplanır.</p>';
+            body.innerHTML = html;
+        };
+
+        window.closeGoldHistoryModal = function() {
+            const modal = document.getElementById('goldHistoryModal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+
         window.refreshGoldPrice = async function(force) {
             const elMeta = document.getElementById('goldPriceMeta');
             try {
                 if (!force && goldQuotes.sell24 != null) {
-                    updateGoldPriceUI();
+                    updateGoldPriceUI(); try { saveGoldPriceSnapshot(goldQuotes.sell24, goldQuotes.sell22); } catch (_) {}
                     renderGoldHoldings();
                     return;
                 }
@@ -2411,28 +2572,10 @@
                         renderHomeTab();
                     }
                 } catch (_) {}
-                // aile listesini yenile
-                const listEl = document.getElementById('familyCalendarList');
-                if (listEl) {
-                    const sorted = (familyCalendar || []).slice().sort(function(a, b) {
-                        return eventEffectiveDate(a).localeCompare(eventEffectiveDate(b));
-                    });
-                    if (!sorted.length) {
-                        listEl.innerHTML = yuvamEmptyState('📅', 'Takvim boş', 'Randevu, doğum günü veya hatırlatma ekleyin', null, null);
-                    } else {
-                        listEl.innerHTML = sorted.map(function(ev) {
-                            const eff = eventEffectiveDate(ev);
-                            const days = daysUntilYMD(eff);
-                            const badge = days == null ? '' : (days < 0 ? 'geçti' : (days === 0 ? 'bugün' : days + ' gün'));
-                            const typeLab = calTypeLabel(ev.type);
-                            const rep = (ev.repeat === 'yearly' || ev.type === 'birthday' || ev.type === 'anniversary') ? ' · her yıl' : '';
-                            const sub = calTypeIcon(ev.type) + ' ' + typeLab + ' · ' + formatDateTR(eff) + (badge ? ' · ' + badge : '') + rep + (ev.by ? ' · ' + ev.by : '');
-                            const editBtn = '<button type="button" onclick="familyEditCalendar(\'' + escapeHtml(ev.id) + '\')" class="text-xs font-bold text-sky-600 px-2 py-1 rounded-lg hover:bg-sky-50">Düzenle</button>';
-                            const delBtn = '<button type="button" onclick="familyDelete(\'familyCalendar\',\'' + escapeHtml(ev.id) + '\')" class="text-xs font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50">Sil</button>';
-                            return familyRow(escapeHtml(ev.title || '-'), escapeHtml(sub), editBtn + delBtn);
-                        }).join('');
-                    }
-                }
+                // aile listesini yenile (açılır liste — renderFamilyCalendarList)
+                try {
+                    if (typeof renderFamilyCalendarList === 'function') renderFamilyCalendarList();
+                } catch (_) {}
             } catch (err) {
                 if (st) st.textContent = err.message || String(err);
                 const box = document.getElementById('superLigFixtureList');
@@ -2440,32 +2583,154 @@
             }
         };
 
-        window.renderCalendarTab = function() {
+
+        // ——— Resmi tatiller (Nager.Date · Türkiye) ———
+        async function loadPublicHolidays(force) {
+            const CACHE_MS = 24 * 60 * 60 * 1000;
+            if (!force && publicHolidaysCache.length && (Date.now() - publicHolidaysAt) < CACHE_MS) {
+                return publicHolidaysCache;
+            }
+            if (!force) {
+                try {
+                    const raw = localStorage.getItem('yuvam_tr_holidays');
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        if (parsed && parsed.at && (Date.now() - parsed.at) < CACHE_MS && Array.isArray(parsed.list)) {
+                            publicHolidaysCache = parsed.list;
+                            publicHolidaysAt = parsed.at;
+                            return publicHolidaysCache;
+                        }
+                    }
+                } catch (_) {}
+            }
+            const y = new Date().getFullYear();
+            const years = [y, y + 1];
+            let all = [];
+            for (let i = 0; i < years.length; i++) {
+                try {
+                    const res = await fetch('https://date.nager.at/api/v3/PublicHolidays/' + years[i] + '/TR');
+                    if (!res.ok) continue;
+                    const data = await res.json();
+                    if (Array.isArray(data)) all = all.concat(data);
+                } catch (_) {}
+            }
+            // tekilleştir
+            const seen = {};
+            all = all.filter(function(h) {
+                if (!h || !h.date) return false;
+                if (seen[h.date]) return false;
+                seen[h.date] = true;
+                return true;
+            }).sort(function(a, b) { return String(a.date).localeCompare(String(b.date)); });
+            publicHolidaysCache = all;
+            publicHolidaysAt = Date.now();
+            try { localStorage.setItem('yuvam_tr_holidays', JSON.stringify({ at: publicHolidaysAt, list: all })); } catch (_) {}
+            return all;
+        }
+
+        function renderPublicHolidaysList() {
+            const box = document.getElementById('publicHolidaysList');
+            if (!box) return;
+            const today = todayDateStr();
+            const upcoming = (publicHolidaysCache || []).filter(function(h) { return h.date && h.date >= today; }).slice(0, 12);
+            const past = (publicHolidaysCache || []).filter(function(h) { return h.date && h.date < today; }).slice(-3);
+            const show = upcoming.length ? upcoming : past.reverse();
+            if (!show.length) {
+                box.innerHTML = '<p class="text-xs text-slate-400 font-semibold text-center py-3">Tatil listesi yok</p>';
+                return;
+            }
+            box.innerHTML = show.map(function(h) {
+                const days = daysUntilYMD(h.date);
+                const dayLab = days == null ? '' : (days < 0 ? 'geçti' : (days === 0 ? 'bugün' : days + ' gün'));
+                const name = h.localName || h.name || 'Tatil';
+                const cls = (days != null && days >= 0 && days <= 7) ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-100';
+                return '<div class="flex gap-2 items-start p-2.5 rounded-xl border ' + cls + '">' +
+                    '<span class="text-base shrink-0">🇹🇷</span>' +
+                    '<div class="min-w-0 flex-1">' +
+                    '<p class="text-sm font-bold text-slate-800">' + escapeHtml(name) + '</p>' +
+                    '<p class="text-[11px] text-slate-500 font-semibold">' + formatDateTR(h.date) + (dayLab ? ' · ' + dayLab : '') + '</p>' +
+                    '</div></div>';
+            }).join('');
+        }
+
+        window.refreshPublicHolidays = async function(force) {
+            const box = document.getElementById('publicHolidaysList');
+            if (box) box.innerHTML = '<p class="text-xs text-slate-400 font-semibold text-center py-3">Yükleniyor…</p>';
+            try {
+                await loadPublicHolidays(!!force);
+                renderPublicHolidaysList();
+                try { if (typeof refreshAppNotifications === 'function') refreshAppNotifications(); } catch (_) {}
+            } catch (err) {
+                if (box) box.innerHTML = '<p class="text-xs text-rose-600 font-semibold p-2">' + escapeHtml(err.message || String(err)) + '</p>';
+            }
+        };
+
+
+        window._familyCalPanelOpen = false;
+
+        window.toggleFamilyCalPanel = function(forceOpen) {
+            if (forceOpen === true) window._familyCalPanelOpen = true;
+            else if (forceOpen === false) window._familyCalPanelOpen = false;
+            else window._familyCalPanelOpen = !window._familyCalPanelOpen;
+            const body = document.getElementById('familyCalPanelBody');
+            const chev = document.getElementById('familyCalPanelChevron');
+            const open = !!window._familyCalPanelOpen;
+            if (body) body.classList.toggle('hidden', !open);
+            if (chev) chev.textContent = open ? '▾' : '▸';
+            if (open) {
+                try { renderFamilyCalendarList(); } catch (_) {}
+            }
+        };
+
+        window._familyCalOpen = window._familyCalOpen || {};
+
+        window.toggleFamilyCalItem = function(id) {
+            if (!id) return;
+            window._familyCalOpen[id] = !window._familyCalOpen[id];
+            // Listeyi yeniden çiz (buton metni Detayları gör / Gizle güncellensin)
+            try { renderFamilyCalendarList(); } catch (_) {}
+        };
+
+        function renderFamilyCalendarList() {
             const list = document.getElementById('familyCalendarList');
             if (!list) return;
             const sorted = (familyCalendar || []).slice().sort(function(a, b) {
                 return eventEffectiveDate(a).localeCompare(eventEffectiveDate(b));
             });
             if (!sorted.length) {
-                list.innerHTML = yuvamEmptyState('📅', 'Takvim boş', 'Randevu, doğum günü veya hatırlatma ekleyin', null, null);
-            } else {
-                list.innerHTML = sorted.map(function(ev) {
-                    const eff = eventEffectiveDate(ev);
-                    const days = daysUntilYMD(eff);
-                    const badge = days == null ? '' : (days < 0 ? 'geçti' : (days === 0 ? 'bugün' : days + ' gün'));
-                    const typeLab = calTypeLabel(ev.type);
-                    const rep = (ev.repeat === 'yearly' || ev.type === 'birthday' || ev.type === 'anniversary') ? ' · her yıl' : '';
-                    const sub = calTypeIcon(ev.type) + ' ' + typeLab + ' · ' + formatDateTR(eff) + (badge ? ' · ' + badge : '') + rep + (ev.by ? ' · ' + ev.by : '');
-                    const editBtn = '<button type="button" onclick="familyEditCalendar(\'' + escapeHtml(ev.id) + '\')" class="text-xs font-bold text-sky-600 px-2 py-1 rounded-lg hover:bg-sky-50">Düzenle</button>';
-                    const delBtn = '<button type="button" onclick="familyDelete(\'familyCalendar\',\'' + escapeHtml(ev.id) + '\')" class="text-xs font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50">Sil</button>';
-                    return familyRow(escapeHtml(ev.title || '-'), escapeHtml(sub), editBtn + delBtn);
-                }).join('');
+                list.innerHTML = '<p class="text-xs text-slate-400 font-semibold text-center py-3">Henüz kayıt yok</p>';
+                return;
             }
+            list.className = 'space-y-2';
+            list.innerHTML = sorted.map(function(ev) {
+                const id = String(ev.id || '');
+                const eff = eventEffectiveDate(ev);
+                const days = daysUntilYMD(eff);
+                const badge = days == null ? '' : (days < 0 ? 'geçti' : (days === 0 ? 'bugün' : days + ' gün'));
+                const typeLab = calTypeLabel(ev.type);
+                const rep = (ev.repeat === 'yearly' || ev.type === 'birthday' || ev.type === 'anniversary') ? ' · her yıl' : '';
+                return '<div class="p-3 rounded-xl bg-slate-50 border border-slate-100">' +
+                    '<div class="flex items-start justify-between gap-2">' +
+                    '<div class="min-w-0">' +
+                    '<p class="text-sm font-black text-slate-800">' + escapeHtml(ev.title || '-') + '</p>' +
+                    '<p class="text-[11px] text-slate-500 font-semibold mt-0.5">' + calTypeIcon(ev.type) + ' ' + escapeHtml(typeLab) +
+                    ' · ' + formatDateTR(eff) + (badge ? ' · ' + badge : '') + rep +
+                    (ev.by ? (' · ' + escapeHtml(ev.by)) : '') + '</p>' +
+                    '</div>' +
+                    '<div class="flex gap-1 shrink-0">' +
+                    '<button type="button" onclick="familyEditCalendar(\'' + escapeHtml(id) + '\')" class="text-[11px] font-bold text-sky-600 px-2 py-1 rounded-lg hover:bg-sky-50">Düzenle</button>' +
+                    '<button type="button" onclick="familyDelete(\'familyCalendar\',\'' + escapeHtml(id) + '\')" class="text-[11px] font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50">Sil</button>' +
+                    '</div></div></div>';
+            }).join('');
+        }
+
+        window.renderCalendarTab = function() {
+            renderFamilyCalendarList();
             const dInp = document.getElementById('famCalDate');
             if (dInp && !dInp.value) dInp.value = todayDateStr();
-            // Fikstürü arka planda yükle
             try { refreshSuperLigFixtures(false); } catch (_) {}
         };
+
 
         window.familyEditCalendar = function(id) {
             const ev = (familyCalendar || []).find(function(x) { return x.id === id; });
@@ -4072,6 +4337,74 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
             // Eski kayıtlarda subtype yoksa açıklamadan tahmin etme — genel araç
             return 'other';
         }
+
+
+
+        // ——— Akaryakıt fiyatları (kendi dolum kayıtları) ———
+        window.openFuelPriceModal = function() {
+            const modal = document.getElementById('fuelPriceModal');
+            const body = document.getElementById('fuelPriceModalBody');
+            if (!modal || !body) return;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            try {
+                const list = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : (expenses || []);
+                const fuelRows = list.filter(function(e) {
+                    if (!e) return false;
+                    const st = String(e.vehicleSubtype || '').toLowerCase();
+                    const hasPrice = Number(e.fuelPricePerLt) > 0;
+                    return hasPrice && (st === 'yakıt' || st === 'yakit' || st.indexOf('yak') >= 0 ||
+                        String(e.category || '').toLowerCase().indexOf('araç') >= 0 ||
+                        String(e.category || '').toLowerCase().indexOf('arac') >= 0);
+                });
+                fuelRows.sort(function(a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
+                if (!fuelRows.length) {
+                    body.innerHTML = '<p class="text-slate-500 font-semibold text-center py-6 text-xs leading-relaxed">Henüz litre fiyatı girilmiş yakıt kaydı yok.<br><br>Harcama eklerken Araç → Yakıt seçip LT fiyatı girin; burada listelenir.</p>';
+                    return;
+                }
+                // İstatistik
+                const prices = fuelRows.map(function(e) { return Number(e.fuelPricePerLt); }).filter(function(n) { return n > 0; });
+                const avg = prices.reduce(function(a, b) { return a + b; }, 0) / prices.length;
+                const min = Math.min.apply(null, prices);
+                const max = Math.max.apply(null, prices);
+                const last = prices[0];
+                let html = '<div class="grid grid-cols-3 gap-2 mb-3">' +
+                    '<div class="rounded-xl bg-amber-50 border border-amber-100 p-2 text-center"><p class="text-[9px] font-bold text-amber-700 uppercase">Son</p><p class="text-sm font-black text-amber-900">' + last.toLocaleString('tr-TR', { maximumFractionDigits: 2 }) + '</p></div>' +
+                    '<div class="rounded-xl bg-slate-50 border border-slate-100 p-2 text-center"><p class="text-[9px] font-bold text-slate-500 uppercase">Ort</p><p class="text-sm font-black text-slate-800">' + avg.toLocaleString('tr-TR', { maximumFractionDigits: 2 }) + '</p></div>' +
+                    '<div class="rounded-xl bg-slate-50 border border-slate-100 p-2 text-center"><p class="text-[9px] font-bold text-slate-500 uppercase">Min–Max</p><p class="text-[11px] font-black text-slate-800">' + min.toLocaleString('tr-TR', { maximumFractionDigits: 1 }) + '–' + max.toLocaleString('tr-TR', { maximumFractionDigits: 1 }) + '</p></div>' +
+                    '</div>';
+                html += '<p class="text-[10px] text-slate-400 font-semibold mb-2">Son ' + Math.min(fuelRows.length, 20) + ' dolum</p>';
+                html += fuelRows.slice(0, 20).map(function(e) {
+                    const px = Number(e.fuelPricePerLt);
+                    const lt = e.fuelLiters != null ? Number(e.fuelLiters) : null;
+                    const km = e.fuelKm != null ? Number(e.fuelKm) : null;
+                    const extra = [
+                        lt ? (lt + ' L') : '',
+                        km ? (km + ' km') : ''
+                    ].filter(Boolean).join(' · ');
+                    return '<div class="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100">' +
+                        '<span class="text-base">⛽</span>' +
+                        '<div class="min-w-0 flex-1">' +
+                        '<p class="text-sm font-black text-slate-800">' + escapeHtml(e.description || e.note || 'Yakıt') + '</p>' +
+                        '<p class="text-[11px] text-slate-500 font-semibold">' + formatDateTR(String(e.date || '').slice(0, 10)) +
+                        (extra ? (' · ' + extra) : '') + '</p>' +
+                        '</div>' +
+                        '<p class="text-sm font-black text-amber-700 shrink-0">' + px.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL</p>' +
+                        '</div>';
+                }).join('');
+                body.innerHTML = html;
+            } catch (err) {
+                body.innerHTML = '<p class="text-rose-600 font-semibold text-center py-4">' + escapeHtml(err.message || String(err)) + '</p>';
+            }
+        };
+
+        window.closeFuelPriceModal = function() {
+            const modal = document.getElementById('fuelPriceModal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+
 
         window.renderVehicleTab = function() {
             try { renderVehicleProfileUI(); } catch (_) {}
@@ -6845,7 +7178,8 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
                 return;
             }
             try {
-                const url = 'https://api.open-meteo.com/v1/forecast?latitude=39.9334&longitude=32.8597&current=temperature_2m,weather_code&timezone=Europe%2FIstanbul';
+                // Keçiören, Ankara
+                const url = 'https://api.open-meteo.com/v1/forecast?latitude=39.9767&longitude=32.8639&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Europe%2FIstanbul&forecast_days=7';
                 const res = await fetch(url);
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 const data = await res.json();
@@ -6853,15 +7187,72 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
                 const temp = cur.temperature_2m;
                 const meta = weatherCodeTr(cur.weather_code);
                 const t = (temp != null && isFinite(Number(temp))) ? Math.round(Number(temp)) : '—';
-                const line = meta.icon + ' Ankara ' + t + '° · ' + meta.text;
+                const line = meta.icon + ' Ankara / Keçiören ' + t + '° · ' + meta.text;
                 _homeWeatherCache = line;
                 _homeWeatherAt = Date.now();
                 el.textContent = line;
+                // 7 günlük önbellek
+                if (data.daily && Array.isArray(data.daily.time)) {
+                    _weatherDailyCache = data.daily;
+                    _weatherDailyAt = Date.now();
+                }
             } catch (err) {
                 console.warn('weather', err);
-                if (!_homeWeatherCache) el.textContent = 'Ankara hava durumu alınamadı';
+                if (!_homeWeatherCache) el.textContent = 'Ankara / Keçiören hava alınamadı';
             }
         };
+
+        window.openWeatherModal = async function() {
+            const modal = document.getElementById('weatherModal');
+            const body = document.getElementById('weatherModalBody');
+            if (!modal || !body) return;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            body.innerHTML = '<p class="text-slate-400 font-semibold text-center py-4">Yükleniyor…</p>';
+            try {
+                const CACHE_MS = 30 * 60 * 1000;
+                if (!_weatherDailyCache || (Date.now() - _weatherDailyAt) > CACHE_MS) {
+                    await loadHomeWeather(true);
+                }
+                const daily = _weatherDailyCache;
+                if (!daily || !daily.time || !daily.time.length) {
+                    body.innerHTML = '<p class="text-rose-600 font-semibold text-center py-4">Tahmin alınamadı</p>';
+                    return;
+                }
+                const today = todayDateStr();
+                let html = '';
+                for (let i = 0; i < daily.time.length; i++) {
+                    const d = daily.time[i];
+                    const code = (daily.weather_code || [])[i];
+                    const tmax = (daily.temperature_2m_max || [])[i];
+                    const tmin = (daily.temperature_2m_min || [])[i];
+                    const meta = weatherCodeTr(code);
+                    const isToday = d === today;
+                    const dayName = new Date(d + 'T12:00:00').toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'short' });
+                    html += '<div class="flex items-center gap-3 p-3 rounded-xl border ' + (isToday ? 'bg-sky-50 border-sky-200' : 'bg-slate-50 border-slate-100') + '">' +
+                        '<span class="text-2xl shrink-0">' + meta.icon + '</span>' +
+                        '<div class="min-w-0 flex-1">' +
+                        '<p class="text-sm font-black text-slate-800">' + (isToday ? 'Bugün · ' : '') + dayName + '</p>' +
+                        '<p class="text-[11px] text-slate-500 font-semibold">' + meta.text + '</p>' +
+                        '</div>' +
+                        '<div class="text-right shrink-0">' +
+                        '<p class="text-sm font-black text-slate-800">' + Math.round(tmax) + '°</p>' +
+                        '<p class="text-[11px] text-slate-400 font-semibold">' + Math.round(tmin) + '°</p>' +
+                        '</div></div>';
+                }
+                body.innerHTML = html;
+            } catch (err) {
+                body.innerHTML = '<p class="text-rose-600 font-semibold text-center py-4">' + escapeHtml(err.message || String(err)) + '</p>';
+            }
+        };
+
+        window.closeWeatherModal = function() {
+            const modal = document.getElementById('weatherModal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+
 
         // IBAN YÖNETIMI
         window.openIbanModal = () => {
