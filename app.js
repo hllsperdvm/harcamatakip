@@ -1147,6 +1147,7 @@
                         weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
                     });
                 }
+                try { if (typeof loadHomeWeather === 'function') loadHomeWeather(false); } catch (_) {}
 
                 const period = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
                 const badge = document.getElementById('homePeriodBadge');
@@ -2997,7 +2998,7 @@
 
         window.updateAdminLayoutButtons = function() {
             const admin = typeof isAdmin === 'function' && isAdmin();
-            ['layoutEditBtn', 'homeLayoutEditBtn'].forEach(function(id) {
+            ['layoutEditBtn'].forEach(function(id) {
                 const b = document.getElementById(id);
                 if (!b) return;
                 if (admin) b.classList.remove('hidden');
@@ -6814,6 +6815,54 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
             }
         };
 
+
+        // ——— Anasayfa hava durumu (Ankara · Open-Meteo) ———
+        let _homeWeatherCache = null;
+        let _homeWeatherAt = 0;
+
+        function weatherCodeTr(code) {
+            const c = Number(code);
+            if (c === 0) return { text: 'Güneşli', icon: '☀️' };
+            if (c === 1) return { text: 'Çoğunlukla açık', icon: '🌤️' };
+            if (c === 2) return { text: 'Parçalı bulutlu', icon: '⛅' };
+            if (c === 3) return { text: 'Bulutlu', icon: '☁️' };
+            if (c === 45 || c === 48) return { text: 'Sisli', icon: '🌫️' };
+            if (c >= 51 && c <= 57) return { text: 'Çisenti', icon: '🌦️' };
+            if (c >= 61 && c <= 67) return { text: 'Yağmurlu', icon: '🌧️' };
+            if (c >= 71 && c <= 77) return { text: 'Karlı', icon: '❄️' };
+            if (c >= 80 && c <= 82) return { text: 'Sağanak', icon: '🌧️' };
+            if (c >= 85 && c <= 86) return { text: 'Kar sağanağı', icon: '🌨️' };
+            if (c >= 95 && c <= 99) return { text: 'Fırtınalı', icon: '⛈️' };
+            return { text: 'Değişken', icon: '🌡️' };
+        }
+
+        window.loadHomeWeather = async function(force) {
+            const el = document.getElementById('homeWeather');
+            if (!el) return;
+            const CACHE_MS = 30 * 60 * 1000;
+            if (!force && _homeWeatherCache && (Date.now() - _homeWeatherAt) < CACHE_MS) {
+                el.textContent = _homeWeatherCache;
+                return;
+            }
+            try {
+                const url = 'https://api.open-meteo.com/v1/forecast?latitude=39.9334&longitude=32.8597&current=temperature_2m,weather_code&timezone=Europe%2FIstanbul';
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                const cur = data.current || {};
+                const temp = cur.temperature_2m;
+                const meta = weatherCodeTr(cur.weather_code);
+                const t = (temp != null && isFinite(Number(temp))) ? Math.round(Number(temp)) : '—';
+                const line = meta.icon + ' Ankara ' + t + '° · ' + meta.text;
+                _homeWeatherCache = line;
+                _homeWeatherAt = Date.now();
+                el.textContent = line;
+            } catch (err) {
+                console.warn('weather', err);
+                if (!_homeWeatherCache) el.textContent = 'Ankara hava durumu alınamadı';
+            }
+        };
+
         // IBAN YÖNETIMI
         window.openIbanModal = () => {
             document.getElementById('editIbanId').value = '';
@@ -6919,6 +6968,18 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
             }
         };
 
+        window._ibanOwnerOpen = window._ibanOwnerOpen || {};
+
+        window.toggleIbanOwnerGroup = function(key) {
+            if (!key) return;
+            window._ibanOwnerOpen[key] = !window._ibanOwnerOpen[key];
+            const body = document.querySelector('[data-iban-owner-body="' + key + '"]');
+            const chev = document.querySelector('[data-iban-owner-chevron="' + key + '"]');
+            const open = !!window._ibanOwnerOpen[key];
+            if (body) body.classList.toggle('hidden', !open);
+            if (chev) chev.textContent = open ? '▾' : '▸';
+        };
+
         window.renderIbans = function() {
             const box = document.getElementById('ibanListContainer');
             if (!box) return;
@@ -6928,23 +6989,44 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
                 box.innerHTML = '<div class="col-span-full">' + yuvamEmptyState('💳', 'Henüz IBAN yok', 'Banka hesaplarınızı güvenle saklayın', '+ IBAN Ekle', 'openIbanModal()') + '</div>';
                 return;
             }
-            box.innerHTML = list.map(function(item) {
-                const full = getIbanFull(item);
-                const masked = maskIban(full);
-                const safeId = String(item.id || '');
-                window._ibanSecrets[safeId] = full;
-                const owner = escapeHtml(item.ownerName || item.name || '-');
-                const bank = escapeHtml(item.bank || item.bankName || '');
-                // Ekranda SADECE maskeli metin
-                return '<div class="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2" data-iban-wrap data-iban-id="' + escapeHtml(safeId) + '" data-revealed="0">' +
-                    '<div class="flex justify-between items-start gap-2">' +
-                    '<div class="min-w-0"><p class="font-black text-slate-800">' + owner + '</p>' +
-                    '<p class="text-xs font-semibold text-slate-400">' + bank + '</p></div>' +
-                    '<div class="flex gap-1 shrink-0">' +
-                    '<button type="button" onclick="event.preventDefault();event.stopPropagation();toggleIbanReveal(this)" class="w-9 h-9 rounded-xl bg-white border border-slate-200 text-sm flex items-center justify-center" title="Göster">👁️</button>' +
-                    '<button type="button" onclick="event.preventDefault();event.stopPropagation();deleteIban(\'' + escapeHtml(safeId) + '\')" class="w-9 h-9 rounded-xl bg-white border border-slate-200 text-xs text-rose-600 flex items-center justify-center" title="Sil">🗑️</button>' +
-                    '</div></div>' +
-                    '<p data-iban-value class="font-mono text-sm font-bold text-slate-700 tracking-wide">' + escapeHtml(masked) + '</p>' +
+            const groups = {};
+            list.forEach(function(item) {
+                const owner = String(item.ownerName || item.name || 'Diğer').trim() || 'Diğer';
+                if (!groups[owner]) groups[owner] = [];
+                groups[owner].push(item);
+            });
+            const owners = Object.keys(groups).sort(function(a, b) {
+                return a.localeCompare(b, 'tr');
+            });
+            box.className = 'space-y-3';
+            box.innerHTML = owners.map(function(owner, idx) {
+                const items = groups[owner];
+                const safeKey = 'o' + idx + '_' + owner.toLowerCase().replace(/[^a-z0-9ğüşıöç]+/gi, '_').slice(0, 40);
+                const open = !!window._ibanOwnerOpen[safeKey];
+                const rows = items.map(function(item) {
+                    const full = getIbanFull(item);
+                    const masked = maskIban(full);
+                    const safeId = String(item.id || '');
+                    window._ibanSecrets[safeId] = full;
+                    const bank = escapeHtml(item.bank || item.bankName || '');
+                    return '<div class="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1.5" data-iban-wrap data-iban-id="' + escapeHtml(safeId) + '" data-revealed="0">' +
+                        '<div class="flex justify-between items-start gap-2">' +
+                        '<p class="text-xs font-bold text-slate-500">' + bank + '</p>' +
+                        '<div class="flex gap-1 shrink-0">' +
+                        '<button type="button" onclick="event.preventDefault();event.stopPropagation();copyIbanById(\'' + escapeHtml(safeId) + '\')" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-sm flex items-center justify-center" title="Kopyala">📋</button>' +
+                        '<button type="button" onclick="event.preventDefault();event.stopPropagation();toggleIbanReveal(this)" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-sm flex items-center justify-center" title="Göster">👁️</button>' +
+                        '<button type="button" onclick="event.preventDefault();event.stopPropagation();editIban(\'' + escapeHtml(safeId) + '\')" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-sm flex items-center justify-center" title="Düzenle">✏️</button>' +
+                        '<button type="button" onclick="event.preventDefault();event.stopPropagation();deleteIban(\'' + escapeHtml(safeId) + '\')" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-xs text-rose-600 flex items-center justify-center" title="Sil">🗑️</button>' +
+                        '</div></div>' +
+                        '<p data-iban-value class="font-mono text-sm font-bold text-slate-700 tracking-wide">' + escapeHtml(masked) + '</p>' +
+                        '</div>';
+                }).join('');
+                return '<div class="rounded-2xl border border-slate-100 overflow-hidden bg-white">' +
+                    '<button type="button" onclick="toggleIbanOwnerGroup(\'' + safeKey + '\')" class="w-full flex items-center justify-between gap-2 px-4 py-3 bg-slate-50 hover:bg-slate-100 text-left">' +
+                    '<span class="text-sm font-black text-slate-800">👤 ' + escapeHtml(owner) + ' <span class="text-xs font-bold text-slate-400">(' + items.length + ')</span></span>' +
+                    '<span data-iban-owner-chevron="' + safeKey + '" class="text-slate-400 font-bold text-lg leading-none">' + (open ? '▾' : '▸') + '</span>' +
+                    '</button>' +
+                    '<div data-iban-owner-body="' + safeKey + '" class="' + (open ? '' : 'hidden') + ' border-t border-slate-100 p-3 space-y-2">' + rows + '</div>' +
                     '</div>';
             }).join('');
         };
@@ -8383,47 +8465,81 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
         };
 
         // IBAN İŞLEMLERİ
-        window.copyIban = (ibanNumber) => {
-            navigator.clipboard.writeText(ibanNumber).then(() => {
-                alert('IBAN kopyalandı!');
-            }).catch(() => {
-                alert('Kopyalama başarısız oldu');
-            });
-        };
-
-        window.editIban = (id) => {
-            const iban = ibans.find(i => i.id === id);
-            if (!iban) return;
-            document.getElementById('editIbanId').value = id;
-            document.getElementById('ibanOwnerName').value = iban.ownerName;
-            document.getElementById('ibanNumber').value = iban.ibanNumber;
-            document.getElementById('ibanBank').value = iban.bank;
-            document.getElementById('ibanModal').classList.remove('hidden');
-            document.getElementById('ibanModal').classList.add('flex');
-        };
-
-        window.renderIbans = () => {
-            const container = document.getElementById('ibanListContainer');
-            if (!container) return;
-            if (ibans.length === 0) {
-                container.innerHTML = `<div class="text-center text-slate-400 py-8 col-span-full"><p class="text-sm">Henüz IBAN kaydı yok</p></div>`;
+        window.copyIban = function(ibanNumber) {
+            const text = String(ibanNumber || '').replace(/\s/g, '').toUpperCase();
+            if (!text) {
+                if (typeof showToast === 'function') showToast('Kopyalanacak IBAN yok', 'error');
+                else alert('Kopyalanacak IBAN yok');
                 return;
             }
-            container.innerHTML = ibans.map(i => `
-                <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex justify-between items-center group">
-                    <div class="flex-1">
-                        <p class="font-black text-slate-900">${escapeHtml(i.ownerName)}</p>
-                        <p class="text-xs text-indigo-600 font-bold mt-1">${escapeHtml(i.bank)}</p>
-                        <p class="text-xs font-mono text-slate-500 mt-2 break-all">${escapeHtml(i.ibanNumber)}</p>
-                    </div>
-                    <div class="flex gap-2 ml-4">
-                        <button onclick="copyIban('${escapeHtml(i.ibanNumber)}')" class="text-slate-400 hover:text-indigo-600 transition text-lg" title="Kopyala">📋</button>
-                        <button onclick="editIban('${escapeHtml(i.id)}')" class="text-slate-400 hover:text-blue-600 transition text-lg" title="Düzenle">✏️</button>
-                        <button onclick="deleteIban('${escapeHtml(i.id)}')" class="text-slate-400 hover:text-rose-600 transition text-lg" title="Sil">🗑️</button>
-                    </div>
-                </div>
-            `).join('');
+            const done = function() {
+                if (typeof showToast === 'function') showToast('IBAN kopyalandı', 'success');
+                else alert('IBAN kopyalandı!');
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(done).catch(function() {
+                    try {
+                        const ta = document.createElement('textarea');
+                        ta.value = text;
+                        document.body.appendChild(ta);
+                        ta.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(ta);
+                        done();
+                    } catch (_) {
+                        if (typeof showToast === 'function') showToast('Kopyalama başarısız', 'error');
+                        else alert('Kopyalama başarısız oldu');
+                    }
+                });
+            } else {
+                try {
+                    const ta = document.createElement('textarea');
+                    ta.value = text;
+                    document.body.appendChild(ta);
+                    ta.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    done();
+                } catch (_) {
+                    if (typeof showToast === 'function') showToast('Kopyalama başarısız', 'error');
+                    else alert('Kopyalama başarısız oldu');
+                }
+            }
         };
+
+        window.copyIbanById = function(id) {
+            const full = (window._ibanSecrets && window._ibanSecrets[id]) || '';
+            if (full) {
+                copyIban(full);
+                return;
+            }
+            const item = (ibans || []).find(function(i) { return i && i.id === id; });
+            if (!item) {
+                if (typeof showToast === 'function') showToast('IBAN bulunamadı', 'error');
+                return;
+            }
+            copyIban(typeof getIbanFull === 'function' ? getIbanFull(item) : (item.ibanNumber || ''));
+        };
+
+        window.editIban = function(id) {
+            const iban = (ibans || []).find(function(i) { return i && i.id === id; });
+            if (!iban) return;
+            const eid = document.getElementById('editIbanId');
+            if (eid) eid.value = id;
+            const owner = document.getElementById('ibanOwnerName');
+            if (owner) owner.value = iban.ownerName || iban.name || '';
+            const num = document.getElementById('ibanNumber');
+            if (num) num.value = (typeof getIbanFull === 'function' ? getIbanFull(iban) : (iban.ibanNumber || '')) || '';
+            const bank = document.getElementById('ibanBank');
+            if (bank) bank.value = iban.bank || iban.bankName || '';
+            const modal = document.getElementById('ibanModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+        };
+
+        // renderIbans yukarıda tanımlı (kişi gruplu)
 
         // NOT YÖNETIMI
         window.handleNoteSubmit = async (e) => {
