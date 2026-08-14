@@ -288,19 +288,31 @@
                 } catch (_) {}
                 if (typeof maybeShowOnboarding === 'function') maybeShowOnboarding();
                 if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
-                // GS fikstür — erken yükle ki anasayfa yaklaşanlarda görünsün
+                // Ağır API'ler (fikstür / tatil / altın) girişte değil — boşta gecikmeli
                 setTimeout(function() {
-                    try {
-                        if (typeof refreshSuperLigFixtures === 'function') {
-                            Promise.resolve(refreshSuperLigFixtures(false)).catch(function() {});
-                        }
-                    } catch (_) {}
+                    if (!currentUser || currentUser.uid !== uidEnter) return;
                     try {
                         if (typeof refreshPublicHolidays === 'function') {
                             Promise.resolve(refreshPublicHolidays(false)).catch(function() {});
                         }
                     } catch (_) {}
-                }, 400);
+                }, 8000);
+                setTimeout(function() {
+                    if (!currentUser || currentUser.uid !== uidEnter) return;
+                    try {
+                        if (typeof refreshSuperLigFixtures === 'function') {
+                            Promise.resolve(refreshSuperLigFixtures(false)).catch(function() {});
+                        }
+                    } catch (_) {}
+                }, 10000);
+                setTimeout(function() {
+                    if (!currentUser || currentUser.uid !== uidEnter) return;
+                    try {
+                        if (typeof refreshGoldPrice === 'function') {
+                            Promise.resolve(refreshGoldPrice(false)).catch(function() {});
+                        }
+                    } catch (_) {}
+                }, 5000);
             }, 0);
             if (!opts || !opts.silent) {
                 showToast('Hoş geldin, ' + currentUser.name, 'success');
@@ -1147,11 +1159,15 @@
             } else if (tabName === 'tasks') {
                 if (typeof renderTasksTab === 'function') renderTasksTab();
             } else if (tabName === 'shopping') {
+                try { if (typeof ensureLazyCollection === 'function') ensureLazyCollection('familyShopping'); } catch (_) {}
                 if (typeof renderShoppingTab === 'function') renderShoppingTab();
             } else if (tabName === 'trash') {
                 renderTrash();
             } else if (tabName === 'notes') {
-                renderIbans();
+                try { if (typeof ensureLazyCollection === 'function') ensureLazyCollection('notes'); } catch (_) {}
+                try { if (typeof ensureLazyCollection === 'function') ensureLazyCollection('ibans'); } catch (_) {}
+                if (typeof renderNotesList === 'function') renderNotesList();
+                if (typeof renderIbans === 'function') renderIbans();
             } else if (tabName === 'settings') {
                 renderCategoriesList();
                 renderTabsList();

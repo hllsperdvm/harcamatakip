@@ -580,10 +580,7 @@
             }
         };
 
-        // Sayfa açılışında fiyatı arka planda dene
-        setTimeout(function() {
-            try { if (currentUser && typeof refreshGoldPrice === 'function') refreshGoldPrice(true); } catch (_) {}
-        }, 2000);
+        // Altın fiyatı: girişte force yenileme yok (enterAppAsUser gecikmeli çağırır)
 
         function isGalatasarayName(name) {
             const s = String(name || '').toLowerCase()
@@ -1312,6 +1309,7 @@
             renderFamilyCalendarList();
             const dInp = document.getElementById('famCalDate');
             if (dInp && !dInp.value) dInp.value = todayDateStr();
+            // Fikstür sadece takvim açılınca (girişte yüklenmez)
             try { refreshSuperLigFixtures(false); } catch (_) {}
         };
 
@@ -2042,10 +2040,7 @@
                 });
                 scheduleRenderApp();
             });
-            db.collection("notes").onSnapshot(snap => {
-                notes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                renderNotesList();
-            });
+            // notes / ibans / familyShopping: lazy (ensureLazyCollection)
             db.collection("settings").doc("bekirDebt").onSnapshot(d => {
                 if (d.exists) bekirDebt = d.data();
                 renderCardDebtUI('bekir');
@@ -2155,10 +2150,7 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
                 familyTasks = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
                 refreshFamilyViews();
             }, function(e) { console.warn('familyTasks', e); });
-            db.collection('familyShopping').onSnapshot(function(snap) {
-                familyShopping = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
-                refreshFamilyViews();
-            }, function(e) { console.warn('familyShopping', e); });
+            // familyShopping: lazy
             db.collection("settings").doc("uiPrefs").onSnapshot(d => {
                 if (d.exists && d.data()) {
                     const u = d.data();
@@ -2219,10 +2211,7 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
                     renderCardStatements('duygu');
                 }
             }, err => console.error("Cardstatements yüklemesinde hata:", err));
-            db.collection("ibans").onSnapshot(snap => {
-                ibans = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-                renderIbans();
-            }, err => console.error("IBAN yüklemesinde hata:", err));
+            // ibans: lazy
 
             // activityLog: lazy — sadece panel açılınca (ensureActivityLogListener)
 
@@ -2230,4 +2219,35 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
             updatePaymentSelects();
             renderCategoriesList();
         }
+
+        // İkincil koleksiyonlar — ilgili sekme açılınca dinle
+        window._lazyUnsub = window._lazyUnsub || {};
+        window.ensureLazyCollection = function(name) {
+            if (!db || !currentUser) return;
+            if (window._lazyUnsub[name]) return;
+            try {
+                if (name === 'notes') {
+                    window._lazyUnsub.notes = db.collection('notes').onSnapshot(function(snap) {
+                        notes = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+                        if (typeof renderNotesList === 'function') renderNotesList();
+                    }, function(e) { console.warn('notes', e); });
+                } else if (name === 'ibans') {
+                    window._lazyUnsub.ibans = db.collection('ibans').onSnapshot(function(snap) {
+                        ibans = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+                        if (typeof renderIbans === 'function') renderIbans();
+                    }, function(e) { console.warn('ibans', e); });
+                } else if (name === 'familyShopping') {
+                    window._lazyUnsub.familyShopping = db.collection('familyShopping').onSnapshot(function(snap) {
+                        familyShopping = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+                        if (typeof renderShoppingTab === 'function') {
+                            const sh = document.getElementById('tabContentShopping');
+                            if (sh && !sh.classList.contains('hidden')) renderShoppingTab();
+                        }
+                        if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
+                    }, function(e) { console.warn('familyShopping', e); });
+                }
+            } catch (err) {
+                console.warn('ensureLazyCollection', name, err);
+            }
+        };
 
