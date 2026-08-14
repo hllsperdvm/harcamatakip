@@ -790,8 +790,8 @@
         // Ana sayfa / özet kart görünürlüğü
         let dashboardCards = {
             total: true, bekir: true, duygu: true, debt: true,
-            homeToday: true, homePeriod: true, homeNotif: true, homeGold: true, homeQuickAdd: true, homeUpcoming: true,
-            homeBudget: true, homeTasks: true, homeBriefing: true
+            homeToday: true, homePeriod: true, homeGold: true, homeQuickAdd: true,
+            homeBudget: true, homeAgenda: true
         };
         let appTheme = 'light';
         let monthCompareChart = null, categoryTrendChart = null;
@@ -1152,13 +1152,6 @@
                 const elTodayN = document.getElementById('homeTodayCount');
                 if (elTodayN) elTodayN.textContent = todayCount + ' kayıt';
 
-                let notifCount = 0;
-                try {
-                    notifCount = (typeof collectAppNotifications === 'function') ? collectAppNotifications().length : 0;
-                } catch (_) {}
-                const elN = document.getElementById('homeNotifCount');
-                if (elN) elN.textContent = String(notifCount);
-
                 // Bütçe hedefi kartı
                 try {
                     const target = Number(monthlyBudgetTarget) || 0;
@@ -1179,17 +1172,13 @@
                     }
                 } catch (_) {}
 
-                try { if (typeof renderHomeLocalBriefing === 'function') renderHomeLocalBriefing(periodSum, todaySum); } catch (_) {}
-
-                // Ana sayfa görev listesi (sadece görüntüleme)
+                // Görevler + Yaklaşanlar (tek kutu)
                 try {
-                    const htList = document.getElementById('homeTasksList');
-                    if (htList) {
-                        const open = (familyTasks || []).filter(function(t) { return !t.done; });
-                        const done = (familyTasks || []).filter(function(t) { return t.done; }).slice(0, 3);
-                        const show = open.concat(done).slice(0, 8);
+                    const agendaEl = document.getElementById('homeAgendaList');
+                    if (agendaEl) {
                         const allT = familyTasks || [];
-                        const openN = allT.filter(function(t) { return !t.done; }).length;
+                        const openTasks = allT.filter(function(t) { return !t.done; });
+                        const openN = openTasks.length;
                         const doneN = allT.filter(function(t) { return t.done; }).length;
                         const totalN = openN + doneN;
                         const progWrap = document.getElementById('homeTasksProgress');
@@ -1203,19 +1192,43 @@
                         } else if (progWrap) {
                             progWrap.classList.add('hidden');
                         }
-                        if (!show.length) {
-                            htList.innerHTML = yuvamEmptyState('✅', 'Açık görev yok', 'Eklemek için Görevler sekmesine gidin', 'Görevler', "switchTab('tasks')");
-                        } else {
-                            htList.innerHTML = show.map(function(t) {
+
+                        let html = '';
+                        const taskShow = openTasks.slice(0, 5);
+                        if (taskShow.length) {
+                            html += '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5">Görevler</p>';
+                            html += taskShow.map(function(t) {
                                 const due = t.due ? formatDateTR(t.due) : '';
                                 const who = t.assignee && t.assignee !== 'Herkes' ? t.assignee : '';
                                 const sub = [due, who].filter(Boolean).join(' · ');
                                 return '<div class="flex gap-2 items-start p-2.5 rounded-xl bg-slate-50 border border-slate-100">' +
-                                    '<span class="text-sm shrink-0">' + (t.done ? '☑️' : '⬜') + '</span>' +
-                                    '<div class="min-w-0"><p class="text-sm font-bold text-slate-800 ' + (t.done ? 'line-through opacity-60' : '') + '">' + escapeHtml(t.text || '-') + '</p>' +
+                                    '<span class="text-sm shrink-0">⬜</span>' +
+                                    '<div class="min-w-0"><p class="text-sm font-bold text-slate-800">' + escapeHtml(t.text || '-') + '</p>' +
                                     (sub ? '<p class="text-[10px] text-slate-400 font-semibold">' + escapeHtml(sub) + '</p>' : '') +
                                     '</div></div>';
                             }).join('');
+                        }
+
+                        let upcoming = [];
+                        try {
+                            upcoming = (typeof collectAppNotifications === 'function')
+                                ? collectAppNotifications().filter(function(n) { return n && n.category !== 'activity'; }).slice(0, 5)
+                                : [];
+                        } catch (_) {}
+                        if (upcoming.length) {
+                            html += '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mt-3 mb-1.5">Yaklaşanlar</p>';
+                            html += upcoming.map(function(n) {
+                                return '<div class="flex gap-2 items-start p-2.5 rounded-xl bg-amber-50/80 border border-amber-100">' +
+                                    '<span class="text-base shrink-0">' + (n.icon || '🔔') + '</span>' +
+                                    '<div class="min-w-0"><p class="text-sm font-bold text-slate-800 truncate">' + escapeHtml(n.title || '') + '</p>' +
+                                    '<p class="text-[11px] text-slate-500 font-semibold">' + escapeHtml(n.message || '') + '</p></div></div>';
+                            }).join('');
+                        }
+
+                        if (!html) {
+                            agendaEl.innerHTML = yuvamEmptyState('✅', 'Görev veya yaklaşan yok', 'Görev eklemek için Görevler sekmesine gidin', 'Görevler', "switchTab('tasks')");
+                        } else {
+                            agendaEl.innerHTML = html;
                         }
                     }
                 } catch (_) {}
@@ -1228,27 +1241,6 @@
                     else if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
                 } catch (_) {}
                 try { if (typeof applyPageLayout === 'function') applyPageLayout('home'); } catch (_) {}
-
-                // Yaklaşan bildirim özeti (max 4)
-                const listEl = document.getElementById('homeUpcomingList');
-                if (listEl) {
-                    let items = [];
-                    try {
-                        items = (typeof collectAppNotifications === 'function')
-                            ? collectAppNotifications().filter(function(n) { return n && n.category !== 'activity'; }).slice(0, 4)
-                            : [];
-                    } catch (_) {}
-                    if (!items.length) {
-                        listEl.innerHTML = yuvamEmptyState('👍', 'Yakın uyarı yok', 'Takvim ve ödemeler burada görünür', null, null);
-                    } else {
-                        listEl.innerHTML = items.map(function(n) {
-                            return '<div class="flex gap-2 items-start p-3 rounded-xl bg-slate-50 border border-slate-100">' +
-                                '<span class="text-lg shrink-0">' + (n.icon || '🔔') + '</span>' +
-                                '<div class="min-w-0"><p class="text-sm font-bold text-slate-800 truncate">' + escapeHtml(n.title || '') + '</p>' +
-                                '<p class="text-[11px] text-slate-500 font-semibold">' + escapeHtml(n.message || '') + '</p></div></div>';
-                        }).join('');
-                    }
-                }
 
             } catch (err) {
                 console.warn('renderHomeTab', err);
@@ -2104,7 +2096,7 @@
         // Ana sayfa + finans kart görünürlüğü (Ayarlar)
         const DASH_CARD_KEYS = [
             'total', 'bekir', 'duygu', 'debt',
-            'homeToday', 'homePeriod', 'homeNotif', 'homeGold', 'homeQuickAdd', 'homeUpcoming', 'homeBudget', 'homeTasks', 'homeBriefing'
+            'homeToday', 'homePeriod', 'homeGold', 'homeQuickAdd', 'homeBudget', 'homeAgenda'
         ];
 
 
@@ -5260,98 +5252,6 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
                 console.error(err);
                 const box = document.getElementById('localAdvisorResult');
                 if (box) box.innerHTML = '<p class="text-sm text-rose-600 font-semibold">' + escapeHtml(err.message || String(err)) + '</p>';
-            } finally {
-                if (btn) btn.disabled = false;
-            }
-        };
-
-        /** Ana sayfa yerel günlük brifing (AI olmadan) */
-        window.renderHomeLocalBriefing = function(periodSum, todaySum) {
-            const box = document.getElementById('homeBriefingLocal');
-            if (!box) return;
-            const income = (typeof HOUSEHOLD_MONTHLY_INCOME === 'number') ? HOUSEHOLD_MONTHLY_INCOME : 110000;
-            const pSum = Number(periodSum);
-            const tSum = Number(todaySum);
-            const openTasks = (familyTasks || []).filter(function(t) { return !t.done; }).length;
-            const dueToday = (familyTasks || []).filter(function(t) {
-                return !t.done && t.due && String(t.due).slice(0, 10) === todayDateStr();
-            }).length;
-            const calSoon = (familyCalendar || []).filter(function(ev) {
-                const d = eventEffectiveDate(ev);
-                const days = daysUntilYMD(d);
-                return days != null && days >= 0 && days <= 7;
-            }).length;
-            const shopOpen = (familyShopping || []).filter(function(x) { return !x.bought; }).length;
-            const ratio = income > 0 && !isNaN(pSum) ? (pSum / income * 100) : 0;
-            const left = income - (isNaN(pSum) ? 0 : pSum);
-            const lines = [];
-            lines.push('• Dönem harcama: <b>' + Math.round(isNaN(pSum) ? 0 : pSum).toLocaleString('tr-TR') + ' TL</b> (gelirin ~%' + ratio.toFixed(0) + ') · kalan ~' + Math.round(left).toLocaleString('tr-TR') + ' TL');
-            if (!isNaN(tSum) && tSum > 0) lines.push('• Bugün: <b>' + Math.round(tSum).toLocaleString('tr-TR') + ' TL</b> harcandı');
-            lines.push('• Görev: <b>' + openTasks + '</b> açık' + (dueToday ? (', <b>' + dueToday + '</b> bugün bitmeli') : ''));
-            lines.push('• 7 gün içinde <b>' + calSoon + '</b> takvim · alışveriş listesinde <b>' + shopOpen + '</b> ürün');
-            if (ratio >= 70) lines.push('• Dikkat: dönem harcaması gelirin %70 üzeri — büyük kart harcamalarını erteleyin');
-            else if (ratio <= 40 && pSum > 0) lines.push('• Dönem sakin — küçük bir birikim/ekstra borç ödemesi yapılabilir');
-            else lines.push('• Bütçe dengede görünüyor; fatura ve tekrarlayan ödemeleri kontrol edin');
-            box.innerHTML = lines.map(function(l) { return '<p>' + l + '</p>'; }).join('');
-        };
-
-        window.runHomeAiBriefing = async function() {
-            const btn = document.getElementById('homeBriefingAiBtn');
-            const out = document.getElementById('homeBriefingAi');
-            const st = document.getElementById('homeBriefingStatus');
-            if (btn) btn.disabled = true;
-            if (st) st.textContent = 'AI özet hazırlanıyor…';
-            if (out) {
-                out.classList.remove('hidden');
-                out.innerHTML = '<p class="text-slate-400 font-semibold">…</p>';
-            }
-            try {
-                if (!openrouterApiKey) throw new Error('OpenRouter anahtarı yok (settings/apiKeys)');
-                const income = HOUSEHOLD_MONTHLY_INCOME || 110000;
-                let periodSum = 0;
-                const pk = getCurrentPeriod();
-                getProcessedExpenses().forEach(function(e) {
-                    if (e && e.effectiveMonth === pk && e.installmentLabel !== 'Gelir') periodSum += Number(e.displayAmount) || 0;
-                });
-                const openTasks = (familyTasks || []).filter(function(t) { return !t.done; });
-                const taskTxt = openTasks.slice(0, 6).map(function(t) {
-                    return (t.text || '') + (t.due ? ' (son: ' + t.due + ')' : '');
-                }).join('; ') || 'yok';
-                const calTxt = (familyCalendar || []).slice(0, 5).map(function(ev) {
-                    return (ev.title || '') + ' ' + eventEffectiveDate(ev);
-                }).join('; ') || 'yok';
-                const shopN = (familyShopping || []).filter(function(x) { return !x.bought; }).length;
-                // Kategori kırılımı (dönem)
-                const byCat = {};
-                getProcessedExpenses().forEach(function(e) {
-                    if (!e || e.effectiveMonth !== pk || e.installmentLabel === 'Gelir') return;
-                    const c = e.category || 'Diğer';
-                    byCat[c] = (byCat[c] || 0) + (Number(e.displayAmount) || 0);
-                });
-                const topCats = Object.keys(byCat).sort(function(a, b) { return byCat[b] - byCat[a]; }).slice(0, 5)
-                    .map(function(c) { return c + ' ' + Math.round(byCat[c]) + ' TL'; }).join(', ');
-                let vehKm = '';
-                try { if (vehicleProfile) vehKm = (vehicleProfile.name || 'Araç') + ' ' + (vehicleProfile.totalKm || 0) + ' km'; } catch (_) {}
-                const system = 'Sen YUVAM aile asistanısın. Sadece verilen rakamlara dayan. Uydurma sayı yazma. Türkçe, sıcak, net. 3-5 kısa cümle. Emoji/markdown başlık kullanma.';
-                const prompt = [
-                    'VERİ:',
-                    '- Bugün tarihi ve hane aylık gelir: ' + income + ' TL',
-                    '- Aktif dönem (29-28) harcama: ' + Math.round(periodSum) + ' TL (%' + (income ? (periodSum / income * 100).toFixed(1) : 0) + ' gelire oran)',
-                    '- En çok harcanan kategoriler: ' + (topCats || 'yok'),
-                    '- Açık görev: ' + openTasks.length + ' → ' + taskTxt,
-                    '- Yakın etkinlik: ' + calTxt,
-                    '- Alışveriş bekleyen: ' + shopN,
-                    vehKm ? ('- Araç: ' + vehKm) : '',
-                    '',
-                    'GÖREV: Günlük aile brifingi yaz. (1) Bütçe durumu tek cümle, (2) Bugün dikkat edilecek 1 şey, (3) Pratik 1 öneri. Veride olmayan konu uydurma.'
-                ].filter(Boolean).join('\n');
-                const text = await callOpenRouter(prompt, system, 700);
-                if (out) out.innerHTML = '<p>' + escapeHtml(String(text || '').trim()).replace(/\n/g, '<br>') + '</p>';
-                if (st) st.textContent = 'AI özet · ' + new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-                logActivity('Diğer', 'Günlük AI brifing', '');
-            } catch (err) {
-                if (out) out.innerHTML = '<p class="text-rose-600 font-semibold">' + escapeHtml(err.message || String(err)) + '</p>';
-                if (st) st.textContent = 'AI kullanılamadı — yerel özet geçerli';
             } finally {
                 if (btn) btn.disabled = false;
             }

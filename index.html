@@ -128,22 +128,22 @@
                     </div>
                 </div>
 
-                <div data-layout-block="homeTasks" data-home-card="homeTasks" class="yuvam-card stripe-tasks bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
+                <div data-layout-block="homeAgenda" data-home-card="homeAgenda" class="yuvam-card stripe-tasks bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
                     <div class="flex items-center justify-between mb-2 gap-2">
                         <div class="flex items-center gap-2 min-w-0">
                             <span class="icon-ring icon-ring-emerald">✅</span>
-                            <h2 class="text-base font-black text-slate-800">Görevler</h2>
+                            <h2 class="text-base font-black text-slate-800">Görevler &amp; Yaklaşanlar</h2>
                         </div>
                         <div class="flex items-center gap-2 shrink-0">
                             <div id="homeTasksProgress" class="task-progress hidden" title="Tamamlanan">
                                 <svg viewBox="0 0 36 36" class="task-progress-svg"><path class="tp-bg" d="M18 2.5a15.5 15.5 0 1 1 0 31 15.5 15.5 0 1 1 0-31"/><path id="homeTasksProgressArc" class="tp-fg" stroke-dasharray="0, 100" d="M18 2.5a15.5 15.5 0 1 1 0 31 15.5 15.5 0 1 1 0-31"/></svg>
                                 <span id="homeTasksProgressLabel" class="task-progress-lbl">0</span>
                             </div>
-                            <button type="button" onclick="switchTab('tasks')" class="text-xs font-bold text-emerald-600">Aç</button>
+                            <button type="button" onclick="switchTab('tasks')" class="text-xs font-bold text-emerald-600">Görevler</button>
                         </div>
                     </div>
-                    <p class="text-[11px] text-slate-400 font-semibold mb-3">Sadece Liste · Ekleme Görevler Sekmesinden</p>
-                    <div id="homeTasksList" class="space-y-2"></div>
+                    <p class="text-[11px] text-slate-400 font-semibold mb-3">Açık görevler ve yaklaşan ödemeler / hatırlatmalar</p>
+                    <div id="homeAgendaList" class="space-y-2"></div>
                 </div>
 
                 <button type="button" data-layout-block="homeQuickAdd" data-home-card="homeQuickAdd" onclick="switchTab('expense'); openExpenseModal();"
@@ -183,36 +183,6 @@
                             <div id="homeBudgetBar" class="h-full rounded-full bg-sky-500 transition-all duration-500" style="width:0%"></div>
                         </div>
                     </div>
-                </div>
-
-                <button type="button" data-layout-block="homeNotif" data-home-card="homeNotif" onclick="openNotifAllModal()" class="yuvam-card stripe-notif bg-white rounded-2xl p-4 card-shadow border border-slate-100 text-left w-full">
-                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Bildirimler</p>
-                    <p class="text-lg font-black text-amber-600 mt-1"><span id="homeNotifCount">0</span> açık</p>
-                    <p class="text-[11px] text-slate-400 font-semibold">Detay için dokunun</p>
-                </button>
-
-                <div data-layout-block="homeBriefing" data-home-card="homeBriefing" class="yuvam-card stripe-briefing bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
-                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-                        <div class="flex items-center gap-2">
-                            <span class="icon-ring icon-ring-violet">☀️</span>
-                            <h2 class="text-base font-black text-slate-800">Günlük Brifing</h2>
-                        </div>
-                        <button type="button" id="homeBriefingAiBtn" onclick="runHomeAiBriefing()" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-violet-50 text-violet-700 border border-violet-100">AI özet</button>
-                    </div>
-                    <div id="homeBriefingLocal" class="text-sm text-slate-600 font-semibold leading-relaxed space-y-1"></div>
-                    <div id="homeBriefingAi" class="hidden mt-3 pt-3 border-t border-slate-100 text-sm text-slate-700 font-medium leading-relaxed"></div>
-                    <p id="homeBriefingStatus" class="text-[11px] text-slate-400 font-semibold mt-2"></p>
-                </div>
-
-                <div data-layout-block="homeUpcoming" data-home-card="homeUpcoming" class="yuvam-card stripe-upcoming bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
-                    <div class="flex items-center justify-between mb-3">
-                        <div class="flex items-center gap-2">
-                            <span class="icon-ring icon-ring-amber">🔔</span>
-                            <h2 class="text-base font-black text-slate-800">Yaklaşanlar</h2>
-                        </div>
-                        <button type="button" onclick="openHomeAllNotifs()" class="text-xs font-bold text-sky-600">Tümü</button>
-                    </div>
-                    <div id="homeUpcomingList" class="space-y-2"></div>
                 </div>
 
             </div>
@@ -1005,10 +975,6 @@
                                 <input type="checkbox" id="cardVis_homePeriod" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
                             </label>
                             <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
-                                <span class="text-sm font-bold text-slate-800">Bildirimler Özeti</span>
-                                <input type="checkbox" id="cardVis_homeNotif" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
-                            </label>
-                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
                                 <span class="text-sm font-bold text-slate-800">Altın Yatırımı (kâr/zarar)</span>
                                 <input type="checkbox" id="cardVis_homeGold" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
                             </label>
@@ -1017,20 +983,12 @@
                                 <input type="checkbox" id="cardVis_homeQuickAdd" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
                             </label>
                             <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
-                                <span class="text-sm font-bold text-slate-800">Yaklaşanlar Listesi</span>
-                                <input type="checkbox" id="cardVis_homeUpcoming" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
-                            </label>
-                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
                                 <span class="text-sm font-bold text-slate-800">Bütçe Hedefi (İlerleme)</span>
                                 <input type="checkbox" id="cardVis_homeBudget" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
                             </label>
                             <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
-                                <span class="text-sm font-bold text-slate-800">Görevler Listesi</span>
-                                <input type="checkbox" id="cardVis_homeTasks" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
-                            </label>
-                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
-                                <span class="text-sm font-bold text-slate-800">Günlük Brifing</span>
-                                <input type="checkbox" id="cardVis_homeBriefing" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                                <span class="text-sm font-bold text-slate-800">Görevler &amp; Yaklaşanlar</span>
+                                <input type="checkbox" id="cardVis_homeAgenda" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
                             </label>
 
                             <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider pt-2">Bütçe Takip özeti</p>
