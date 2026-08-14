@@ -202,6 +202,7 @@
                                 <option value="birthday">Doğum günü</option>
                                 <option value="anniversary">Yıldönümü</option>
                                 <option value="appointment">Randevu</option>
+                                <option value="match">Maç</option>
                                 <option value="other">Diğer</option>
                             </select>
                             <select id="famCalRepeat" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
@@ -213,6 +214,38 @@
                         <button type="button" id="famCalCancelEdit" onclick="familyCancelCalEdit()" class="hidden text-xs font-bold text-slate-500">Düzenlemeyi iptal</button>
                     </form>
                     <div id="familyCalendarList" class="space-y-2"></div>
+                </div>
+
+                <div class="bg-white p-5 rounded-[1.75rem] card-shadow border border-amber-100">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div>
+                            <h2 class="text-lg font-black mb-0.5">🦁 Süper Lig</h2>
+                            <p class="text-[11px] text-slate-400 font-semibold">GS yaklaşan 10 maç · Puan durumu · 7 gün kala takvime eklenir</p>
+                        </div>
+                        <button type="button" onclick="refreshSuperLigFixtures(true)" class="text-xs font-bold px-3 py-2 rounded-xl bg-amber-50 text-amber-800 border border-amber-100 hover:bg-amber-100">Yenile</button>
+                    </div>
+                    <p id="superLigStatus" class="text-[11px] text-slate-400 font-semibold mb-3"></p>
+
+                    <div class="space-y-2">
+                        <div class="rounded-2xl border border-slate-100 overflow-hidden">
+                            <button type="button" id="superLigFixToggle" onclick="toggleSuperLigPanel('fixtures')" class="w-full flex items-center justify-between gap-2 px-4 py-3 bg-slate-50 hover:bg-slate-100 text-left">
+                                <span class="text-sm font-black text-slate-800">📅 Galatasaray Fikstürü</span>
+                                <span id="superLigFixChevron" class="text-slate-400 font-bold text-lg leading-none">▾</span>
+                            </button>
+                            <div id="superLigFixBody" class="hidden border-t border-slate-100 p-3">
+                                <div id="superLigFixtureList" class="space-y-2 max-h-[40rem] overflow-y-auto"></div>
+                            </div>
+                        </div>
+                        <div class="rounded-2xl border border-slate-100 overflow-hidden">
+                            <button type="button" id="superLigTableToggle" onclick="toggleSuperLigPanel('table')" class="w-full flex items-center justify-between gap-2 px-4 py-3 bg-slate-50 hover:bg-slate-100 text-left">
+                                <span class="text-sm font-black text-slate-800">📊 Puan Durumu</span>
+                                <span id="superLigTableChevron" class="text-slate-400 font-bold text-lg leading-none">▸</span>
+                            </button>
+                            <div id="superLigTableBody" class="hidden border-t border-slate-100 p-3">
+                                <div id="superLigTableList" class="overflow-x-auto"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1186,7 +1219,7 @@
                                     <button type="button" onclick="clearActivityLog()" class="bg-rose-50 text-rose-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-rose-100 ml-auto">Kaydı temizle</button>
                                 </div>
                                 <p id="activityCountLabel" class="text-[11px] text-slate-400 font-semibold"></p>
-                                <div class="overflow-x-auto rounded-2xl border border-slate-100 max-h-[28rem] overflow-y-auto">
+                                <div class="overflow-x-auto rounded-2xl border border-slate-100 max-h-[40rem] overflow-y-auto">
                                     <table class="w-full text-left text-sm">
                                         <thead class="bg-slate-50 sticky top-0 z-10">
                                             <tr class="text-[10px] font-black text-slate-400 uppercase tracking-wider">
