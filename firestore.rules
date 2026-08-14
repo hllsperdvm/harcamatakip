@@ -1,0 +1,89 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+
+    function email() {
+      return request.auth.token.email;
+    }
+
+    function isKnownEmail() {
+      return signedIn() && email() in [
+        'bekir@yuvam.app',
+        'duygu@yuvam.app'
+      ];
+    }
+
+    function isAdmin() {
+      return signedIn() && email() == 'bekir@yuvam.app';
+    }
+
+    // Ortak aile verileri — sadece Bekir & Duygu
+    match /expenses/{id} {
+      allow read, write: if isKnownEmail();
+    }
+    match /notes/{id} {
+      allow read, write: if isKnownEmail();
+    }
+    match /cardStatements/{id} {
+      allow read, write: if isKnownEmail();
+    }
+    match /currentStatements/{id} {
+      allow read, write: if isKnownEmail();
+    }
+    match /activityLog/{id} {
+      allow read, write: if isKnownEmail();
+    }
+    match /ibans/{id} {
+      allow read, write: if isKnownEmail();
+    }
+    match /tabTodos/{id} {
+      allow read, write: if isKnownEmail();
+    }
+    match /familyCalendar/{id} {
+      allow read, write: if isKnownEmail();
+    }
+    match /familyTasks/{id} {
+      allow read, write: if isKnownEmail();
+    }
+    match /shoppingList/{id} {
+      allow read, write: if isKnownEmail();
+    }
+    match /familyShopping/{id} {
+      allow read, write: if isKnownEmail();
+    }
+    match /aquariumLogs/{id} {
+      allow read, write: if isKnownEmail();
+    }
+    match /assets/{id} {
+      allow read, write: if isKnownEmail();
+    }
+    match /goldHoldings/{id} {
+      allow read, write: if isKnownEmail();
+    }
+
+    // Kullanıcı profil tercihleri — herkes kendi uid belgesini yazar
+    match /users/{userId} {
+      allow read: if isKnownEmail();
+      allow write: if isKnownEmail() && request.auth.uid == userId;
+    }
+
+    // Ayarlar: çoğu ortak; API anahtarları özel
+    match /settings/{docId} {
+      // API anahtarları: okuma sadece giriş yapmış hane üyeleri (AI için gerekli)
+      // yazma sadece admin (Bekir)
+      allow read: if isKnownEmail();
+      allow write: if isKnownEmail() && (
+        docId != 'apiKeys' || isAdmin()
+      );
+    }
+
+    // Bilinmeyen koleksiyonlara varsayılan: kapalı
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

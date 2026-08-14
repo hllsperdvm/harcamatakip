@@ -120,10 +120,10 @@
                     <div class="relative z-[1]">
                         <p id="homeGreeting" class="text-2xl sm:text-3xl font-black tracking-tight order-first">Merhaba</p>
                         <p id="homeTodayDate" class="text-sm font-semibold text-white/80 mt-2">—</p>
+                        <p id="homeWeather" onclick="openWeatherModal()" title="7 günlük tahmin" class="text-sm font-semibold text-white/85 mt-1 cursor-pointer hover:text-white underline decoration-white/30 underline-offset-2">Ankara / Keçiören hava durumu yükleniyor…</p>
                         <p id="homeDailyAyah" onclick="loadDailyAyah(true)" title="Yeni ayet için dokunun" class="text-sm sm:text-[0.95rem] font-semibold text-white/95 mt-3 leading-snug cursor-pointer hover:text-white">Günün ayeti yükleniyor…</p>
                         <div class="flex flex-wrap items-center gap-2 mt-3">
                         <p id="homePeriodBadge" class="inline-flex text-[11px] font-bold bg-white/15 px-3 py-1 rounded-full backdrop-blur-sm">Dönem: —</p>
-                        <button type="button" id="homeLayoutEditBtn" onclick="toggleLayoutEdit('home')" class="hidden text-[11px] font-bold bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full backdrop-blur-sm">Sayfa Düzeni</button>
                     </div>
                     </div>
                 </div>
@@ -189,31 +189,36 @@
 
             <!-- TAKVİM -->
             <div id="tabContentCalendar" class="hidden space-y-4 fade-in max-w-2xl mx-auto">
-                <div class="bg-white p-5 rounded-[1.75rem] card-shadow border border-slate-100">
-                    <h2 class="text-lg font-black mb-1">📅 Aile Takvimi</h2>
-                    <p class="text-[11px] text-slate-400 font-semibold mb-4">Randevu · Doğum Günü · Yıldönümü · Hatırlatma</p>
-                    <form onsubmit="familyAddCalendar(event)" class="space-y-2 mb-4">
-                        <input type="hidden" id="famCalEditId" value="">
-                        <input type="text" id="famCalTitle" required placeholder="Başlık (örn. Duygu doğum günü)" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                            <input type="date" id="famCalDate" required class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
-                            <select id="famCalType" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
-                                <option value="event">Etkinlik</option>
-                                <option value="birthday">Doğum günü</option>
-                                <option value="anniversary">Yıldönümü</option>
-                                <option value="appointment">Randevu</option>
-                                <option value="match">Maç</option>
-                                <option value="other">Diğer</option>
-                            </select>
-                            <select id="famCalRepeat" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
-                                <option value="none">Tek sefer</option>
-                                <option value="yearly">Her yıl</option>
-                            </select>
-                            <button type="submit" id="famCalSubmitBtn" class="bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl py-3 text-sm">Ekle</button>
-                        </div>
-                        <button type="button" id="famCalCancelEdit" onclick="familyCancelCalEdit()" class="hidden text-xs font-bold text-slate-500">Düzenlemeyi iptal</button>
-                    </form>
-                    <div id="familyCalendarList" class="space-y-2"></div>
+                <div class="bg-white rounded-[1.75rem] card-shadow border border-slate-100 overflow-hidden">
+                    <button type="button" id="familyCalPanelToggle" onclick="toggleFamilyCalPanel()" class="w-full flex items-center justify-between gap-3 p-4 text-left hover:bg-slate-50 transition">
+                        <span class="text-lg font-black text-slate-800">📅 Aile Takvimi</span>
+                        <span id="familyCalPanelChevron" class="text-slate-400 font-bold text-lg leading-none">▸</span>
+                    </button>
+                    <div id="familyCalPanelBody" class="hidden border-t border-slate-100 p-4 space-y-4">
+                        <p class="text-[11px] text-slate-400 font-semibold">Randevu · Doğum Günü · Yıldönümü · Hatırlatma</p>
+                        <form onsubmit="familyAddCalendar(event)" class="space-y-2">
+                            <input type="hidden" id="famCalEditId" value="">
+                            <input type="text" id="famCalTitle" required placeholder="Başlık (örn. Duygu doğum günü)" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                <input type="date" id="famCalDate" required class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                                <select id="famCalType" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                                    <option value="event">Etkinlik</option>
+                                    <option value="birthday">Doğum günü</option>
+                                    <option value="anniversary">Yıldönümü</option>
+                                    <option value="appointment">Randevu</option>
+                                    <option value="match">Maç</option>
+                                    <option value="other">Diğer</option>
+                                </select>
+                                <select id="famCalRepeat" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                                    <option value="none">Tek sefer</option>
+                                    <option value="yearly">Her yıl</option>
+                                </select>
+                                <button type="submit" id="famCalSubmitBtn" class="bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl py-3 text-sm">Ekle</button>
+                            </div>
+                            <button type="button" id="famCalCancelEdit" onclick="familyCancelCalEdit()" class="hidden text-xs font-bold text-slate-500">Düzenlemeyi iptal</button>
+                        </form>
+                        <div id="familyCalendarList" class="space-y-2"></div>
+                    </div>
                 </div>
 
                 <div class="bg-white p-5 rounded-[1.75rem] card-shadow border border-amber-100">
@@ -409,6 +414,7 @@
                         <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl py-2.5 text-xs">Ekle</button>
                     </form>
                     <div id="goldHoldingsList" class="space-y-1.5 max-h-48 overflow-y-auto"></div>
+                    <button type="button" onclick="openGoldHistoryModal()" class="mt-3 w-full text-xs font-bold py-2.5 rounded-xl bg-amber-50 text-amber-900 border border-amber-100 hover:bg-amber-100">📈 Geçmiş Fiyatlar</button>
                     <div class="mt-2 flex gap-2 items-center">
                         <input type="number" id="goldManualPrice" step="0.01" min="0" placeholder="Elle ₺/g" class="flex-1 bg-slate-50 rounded-lg p-1.5 text-[11px] font-bold outline-none ring-1 ring-slate-200" inputmode="decimal" enterkeyhint="done">
                         <button type="button" onclick="applyManualGoldPrice()" class="text-[11px] font-bold px-2 py-1.5 rounded-lg bg-slate-100 text-slate-700">Uygula</button>
@@ -680,8 +686,13 @@
                             <div class="chart-wrap chart-box h-80 sm:h-80 md:h-96"><canvas id="vehicleFuelConsChart"></canvas></div>
                         </div>
                         <div class="chart-block lg:col-span-2">
-                            <h2 class="chart-title">Yakıt LT Fiyatı (TL)</h2>
-                            <p class="chart-sub">Dolum bazlı · girilen litre fiyatı</p>
+                            <div class="flex items-start justify-between gap-2 mb-1">
+                                <div class="min-w-0">
+                                    <h2 class="chart-title mb-0">Yakıt LT Fiyatı (TL)</h2>
+                                    <p class="chart-sub">Dolum bazlı · girilen litre fiyatı</p>
+                                </div>
+                                <button type="button" onclick="openFuelPriceModal()" class="shrink-0 text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-100 hover:bg-amber-100" title="Güncel akaryakıt">⛽ Fiyatlar</button>
+                            </div>
                             <div class="chart-wrap chart-box h-72 sm:h-80"><canvas id="vehicleFuelPriceChart"></canvas></div>
                         </div>
                     </div>
@@ -1593,13 +1604,62 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
-    <script src="app.js"></script>
+    <!-- app.js parçaları (sıra önemli) -->
+    <script src="js/01-core.js"></script>
+    <script src="js/02-family-gold-calendar.js"></script>
+    <script src="js/03-sync-vehicle.js"></script>
+    <script src="js/04-expenses-ai.js"></script>
+    <script src="js/05-settings-boot.js"></script>
 
     <!-- EYVAH easter egg -->
     <div id="eyvahOverlay" class="eyvah-overlay hidden" aria-hidden="true">
         <div class="eyvah-card">
             <p class="eyvah-title">EYVAH !!</p>
             <img src="eyvah-maymun.png" alt="" class="eyvah-img" draggable="false">
+        </div>
+    </div>
+
+
+    <!-- 7 günlük hava (Ankara/Keçiören) -->
+    <div id="weatherModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4" onclick="if(event.target===this)closeWeatherModal()">
+        <div class="bg-white w-full max-w-md rounded-[1.75rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between p-4 border-b border-slate-100">
+                <div>
+                    <h2 class="text-lg font-black text-slate-800">🌤️ 7 Günlük Hava</h2>
+                    <p class="text-[11px] text-slate-400 font-semibold">Ankara / Keçiören</p>
+                </div>
+                <button type="button" onclick="closeWeatherModal()" class="w-9 h-9 rounded-xl bg-slate-100 font-bold text-slate-600">✕</button>
+            </div>
+            <div id="weatherModalBody" class="p-4 overflow-y-auto space-y-2 text-sm">Yükleniyor…</div>
+        </div>
+    </div>
+
+    <!-- Altın geçmiş fiyatlar -->
+    <div id="goldHistoryModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4" onclick="if(event.target===this)closeGoldHistoryModal()">
+        <div class="bg-white w-full max-w-lg rounded-[1.75rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between p-4 border-b border-slate-100">
+                <div>
+                    <h2 class="text-lg font-black text-slate-800">📈 Geçmiş Fiyatlar</h2>
+                    <p class="text-[11px] text-slate-400 font-semibold">Son 30 gün · portföy kâr/zarar</p>
+                </div>
+                <button type="button" onclick="closeGoldHistoryModal()" class="w-9 h-9 rounded-xl bg-slate-100 font-bold text-slate-600">✕</button>
+            </div>
+            <div id="goldHistoryModalBody" class="p-4 overflow-y-auto text-sm">Yükleniyor…</div>
+        </div>
+    </div>
+
+
+    <!-- Güncel akaryakıt fiyatları -->
+    <div id="fuelPriceModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4" onclick="if(event.target===this)closeFuelPriceModal()">
+        <div class="bg-white w-full max-w-md rounded-[1.75rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between p-4 border-b border-slate-100">
+                <div>
+                    <h2 class="text-lg font-black text-slate-800">⛽ Güncel Akaryakıt</h2>
+                    <p class="text-[11px] text-slate-400 font-semibold">Son dolumlarınızdaki litre fiyatları</p>
+                </div>
+                <button type="button" onclick="closeFuelPriceModal()" class="w-9 h-9 rounded-xl bg-slate-100 font-bold text-slate-600">✕</button>
+            </div>
+            <div id="fuelPriceModalBody" class="p-4 overflow-y-auto text-sm space-y-2">Yükleniyor…</div>
         </div>
     </div>
 

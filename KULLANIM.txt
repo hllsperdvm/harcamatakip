@@ -1,0 +1,99 @@
+YUVAM — Ortak Bütçe
+
+=== GİRİŞ (ŞİFRELER KODDA YOK) ===
+Şifreler app.js içinde değil. Firebase Firestore'da tutulur.
+
+Firebase Console → Firestore Database → + Start collection (yoksa)
+Koleksiyon: settings
+Doküman ID: appUsers
+
+Alanlar (her kullanıcı bir map):
+  Bekir
+    password  (string)  → admin şifreniz
+    role      (string)  → admin
+  Duygu
+    password  (string)  → kullanıcı şifreniz
+    role      (string)  → user
+
+Örnek (JSON görünümü):
+{
+  "Bekir": { "password": "SIFRE1", "role": "admin" },
+  "Duygu": { "password": "SIFRE2", "role": "user" }
+}
+
+Not: Site istemci taraflı olduğu için Firestore kurallarınız okumaya açıksa
+şifreler teorik olarak yine okunabilir. Tam güvenlik için Firebase Authentication gerekir.
+Kurallar en azından yazmayı kısıtlayın.
+
+=== DOSYALAR ===
+index.html, style.css, app.js aynı klasörde olmalı.
+
+=== ÖZELLİKLER ===
+- 29–28 ekstre dönemi
+- Araç sekmesi (Yakıt / Vergi&Bakım + grafikler)
+- Admin: Ayarlar, Çöp, sekme yönetimi
+- Normal kullanıcı: ayarlar ve çöp gizli
+
+=== YAYIN ===
+GitHub Pages / Netlify / Vercel / Firebase Hosting
+
+
+=== GEMINI API ANAHTARI (AI danışman) ===
+Koda yazmayın. Firebase Firestore:
+  Koleksiyon: settings
+  Doküman: apiKeys
+  Alan: openrouter (string) = API anahtarınız
+
+GitHub Secrets sunucu build olmadan tarayıcıya aktarılmaz; bu yüzden
+statik sitede anahtar istemciye gelir. En azından repoda görünmez.
+Tam gizlilik için Cloud Functions gerekir.
+
+
+=== OPENROUTER API (AI danışman) ===
+Firestore: settings
+Doküman: apiKeys
+Alan: openrouter (string) = sk-or-v1-...
+
+Anahtarı app.js veya GitHub'a yazmayın.
+
+
+## appUsers temizliği
+- Giriş artık Firebase Auth; settings/appUsers şifre alanları kullanılmıyor.
+- Console → Firestore → settings → appUsers dokümanını silebilir veya password alanlarını kaldırabilirsiniz.
+- Rol kaynağı: users/{uid}
+
+========== GÜVENLİK (Firebase Rules + API) ==========
+1) Firebase Console → Firestore → Rules
+   - yuvam/firestore.rules dosyasındaki kuralları yapıştırın → Publish
+
+2) OpenRouter API anahtarı
+   - Koda YAZMAYIN
+   - Firestore → settings → apiKeys belgesi:
+     alan: openrouter
+     değer: sk-or-v1-...
+   - Sadece Bekir (admin) bu belgeyi değiştirebilir (rules)
+
+3) OpenRouter paneli (https://openrouter.ai)
+   - Key için HTTP-Referer / site kısıtı: vercel adresiniz
+   - Aylık harcama limiti koyun (ör. $1–5)
+   - Eski sızmış anahtarı iptal edip yenisini oluşturun
+
+4) Firebase Authentication
+   - Yalnızca bekir@yuvam.app ve duygu@yuvam.app kullanıcıları olsun
+   - Bilinmeyen hesapları silin
+
+5) Firebase web apiKey (AIza...) istemcide görünür — bu normaldir.
+   Asıl kapı: Auth + Firestore Rules.
+
+
+=== COLLECTAPI (Süper Lig fikstür) ===
+Firestore: settings → apiKeys
+Alan: collectapi (string) = CollectAPI key
+https://collectapi.com → Spor API
+Takvim sekmesinde fikstür; GS maçları ≤7 gün kala aile takvimine + anasayfa yaklaşanlara eklenir.
+
+---
+MODÜL YAPISI (2026-08)
+Kod js/ klasörüne bölündü. GitHub/Vercel’e yüklerken js/ klasörünü de yükleyin.
+Dosyalar: 01-core.js, 02-family-gold-calendar.js, 03-sync-vehicle.js, 04-expenses-ai.js, 05-settings-boot.js
+Sıra index.html içinde sabittir; karıştırmayın.
