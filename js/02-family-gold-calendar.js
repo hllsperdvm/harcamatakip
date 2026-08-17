@@ -1821,9 +1821,30 @@
             if (!col || !id) return;
             if (!confirm('Silinsin mi?')) return;
             try {
+                // Önce yerel listeden çıkar → UI anında güncellenir
+                if (col === 'familyTasks') {
+                    familyTasks = (familyTasks || []).filter(function(t) { return t && t.id !== id; });
+                } else if (col === 'familyCalendar') {
+                    familyCalendar = (familyCalendar || []).filter(function(t) { return t && t.id !== id; });
+                } else if (col === 'familyShopping') {
+                    familyShopping = (familyShopping || []).filter(function(t) { return t && t.id !== id; });
+                }
+                try {
+                    if (col === 'familyTasks' || col === 'familyCalendar') {
+                        if (typeof renderPlanTab === 'function') renderPlanTab();
+                    }
+                    if (col === 'familyShopping' && typeof renderShoppingTab === 'function') renderShoppingTab();
+                    if (typeof renderHomeTab === 'function') {
+                        const home = document.getElementById('tabContentHome');
+                        if (home && !home.classList.contains('hidden')) renderHomeTab();
+                    }
+                } catch (_) {}
                 await db.collection(col).doc(id).delete();
                 showToast('Silindi', 'info');
-            } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
+            } catch (err) {
+                showToast(friendlyFirebaseError(err), 'error');
+                // Hata olursa snapshot zaten eski hali getirir
+            }
         };
 
         window.familyClearBoughtShop = async function() {

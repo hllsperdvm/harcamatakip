@@ -1903,9 +1903,20 @@
                 }
             });
 
-            const inPeriod = (exp) => exp.effectiveMonth === periodKey && exp.paymentType === 'Kredi Kartı';
-            const bekirCreditExpenses = allWithInstallments.filter(exp => exp.person === 'Bekir' && inPeriod(exp));
-            const duyguCreditExpenses = allWithInstallments.filter(exp => exp.person === 'Duygu' && inPeriod(exp));
+            const isCc = function(exp) {
+                if (typeof isCreditPayment === 'function') return isCreditPayment(exp.paymentType);
+                const p = String(exp.paymentType || '').toLocaleLowerCase('tr-TR');
+                return p.indexOf('kredi') >= 0 || p.indexOf('kart') >= 0;
+            };
+            const inPeriod = function(exp) {
+                return exp.effectiveMonth === periodKey && isCc(exp);
+            };
+            const bekirCreditExpenses = allWithInstallments.filter(function(exp) {
+                return exp.person === 'Bekir' && inPeriod(exp);
+            });
+            const duyguCreditExpenses = allWithInstallments.filter(function(exp) {
+                return exp.person === 'Duygu' && inPeriod(exp);
+            });
 
             currentStatements = [
                 {
@@ -2022,39 +2033,54 @@
         };
 
         function renderCurrentStatements() {
-            calculateCurrentCardStatements();
+            try { calculateCurrentCardStatements(); } catch (err) { console.warn('calc statements', err); }
             const container = document.getElementById('currentStatementsContainer');
-            
-            const statementsWithAmount = currentStatements.filter(s => s.amount > 0);
-            
-            if (statementsWithAmount.length === 0) {
-                container.innerHTML = '<div class="text-center text-slate-400 py-8"><p class="text-sm">Bu dönem kredi kartı harcaması yapılmamış</p></div>';
-                return;
-            }
-            
-            container.innerHTML = statementsWithAmount.map(stmt => `
-                <div class="bg-gradient-to-br ${stmt.color === 'blue' ? 'from-blue-50 to-blue-100 border-blue-200' : 'from-pink-50 to-pink-100 border-pink-200'} p-6 rounded-2xl border cursor-pointer hover:shadow-lg transition"
-                     onclick="openStatementDetails('${stmt.person}')">
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                            <p class="text-sm font-bold text-slate-600 uppercase tracking-wider">${stmt.person}</p>
-                            <p class="text-4xl font-black ${stmt.color === 'blue' ? 'text-blue-600' : 'text-pink-600'} mt-2">${stmt.amount.toLocaleString('tr-TR')}</p>
-                            <p class="text-[11px] text-slate-500 mt-3">TL</p>
-                        </div>
-                        <div>
-                            <p class="text-xs text-slate-600 mb-3 font-semibold">${stmt.period.label}</p>
-                            <p class="text-3xl">💳</p>
-                        </div>
-                    </div>
-                    <div class="mt-4 pt-4 border-t border-opacity-30 ${stmt.color === 'blue' ? 'border-blue-300' : 'border-pink-300'}">
-                        <p class="text-xs text-slate-600 mb-2">${stmt.expenses.length} harcama</p>
-                        <button onclick="event.stopPropagation(); openStatementDetails('${stmt.person}')" 
-                                class="w-full py-2 bg-white/70 hover:bg-white text-slate-700 font-bold text-xs rounded-lg transition">
-                            Detayları Gör →
-                        </button>
-                    </div>
-                </div>
-            `).join('');
+            if (!container) return;
+
+            // Her zaman Bekir + Duygu kartlarını göster (0 olsa bile)
+            const list = (currentStatements && currentStatements.length)
+                ? currentStatements
+                : [
+                    { person: 'Bekir', amount: 0, expenses: [], period: { label: '-' }, color: 'blue' },
+                    { person: 'Duygu', amount: 0, expenses: [], period: { label: '-' }, color: 'pink' }
+                ];
+
+            container.innerHTML = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">' + list.map(function(stmt) {
+                const amt = Number(stmt.amount) || 0;
+                const blue = stmt.color === 'blue' || stmt.person === 'Bekir';
+                const bg = blue ? 'from-blue-50 to-blue-100 border-blue-200' : 'from-pink-50 to-pink-100 border-pink-200';
+                const tc = blue ? 'text-blue-600' : 'text-pink-600';
+                const border = blue ? 'border-blue-300' : 'border-pink-300';
+                const periodLab = (stmt.period && stmt.period.label) ? stmt.period.label : '-';
+                const n = (stmt.expenses && stmt.expenses.length) ? stmt.expenses.length : 0;
+                const clickable = amt > 0
+                    ? 'cursor-pointer hover:shadow-lg'
+                    : 'opacity-90';
+                const onclick = amt > 0
+                    ? 'onclick="openStatementDetails(\'' + stmt.person + '\')"'
+                    : '';
+                return (
+                    '<div class="bg-gradient-to-br ' + bg + ' p-6 rounded-2xl border ' + clickable + ' transition" ' + onclick + '>' +
+                      '<div class="flex justify-between items-start">' +
+                        '<div class="flex-1">' +
+                          '<p class="text-sm font-bold text-slate-600 uppercase tracking-wider">' + stmt.person + '</p>' +
+                          '<p class="text-4xl font-black ' + tc + ' mt-2">' + amt.toLocaleString('tr-TR') + '</p>' +
+                          '<p class="text-[11px] text-slate-500 mt-3">TL</p>' +
+                        '</div>' +
+                        '<div>' +
+                          '<p class="text-xs text-slate-600 mb-3 font-semibold">' + periodLab + '</p>' +
+                          '<p class="text-3xl">💳</p>' +
+                        '</div>' +
+                      '</div>' +
+                      '<div class="mt-4 pt-4 border-t border-opacity-30 ' + border + '">' +
+                        '<p class="text-xs text-slate-600 mb-2">' + n + ' harcama</p>' +
+                        (amt > 0
+                          ? '<button type="button" onclick="event.stopPropagation(); openStatementDetails(\'' + stmt.person + '\')" class="w-full py-2 bg-white/70 hover:bg-white text-slate-700 font-bold text-xs rounded-lg transition">Detayları Gör →</button>'
+                          : '<p class="text-[11px] text-slate-400 font-semibold">Bu dönem KK harcaması yok</p>') +
+                      '</div>' +
+                    '</div>'
+                );
+            }).join('') + '</div>';
         }
 
         // Çöp Kutusu

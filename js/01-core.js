@@ -1233,6 +1233,7 @@
                 if (typeof applyPageLayout === 'function') applyPageLayout('expense');
             }
             if (tabName === 'stats') {
+                try { if (typeof renderCurrentStatements === 'function') renderCurrentStatements(); } catch (_) {}
                 if (typeof renderCardStatements === 'function') {
                     renderCardStatements('bekir');
                     renderCardStatements('duygu');
