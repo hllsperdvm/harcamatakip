@@ -1653,9 +1653,10 @@
         <button type="button" id="quickAddFab" class="quick-add-fab" onclick="toggleQuickAddMenu()" aria-label="Hızlı ekle">＋</button>
     </div>
 
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <!-- Yerel Firebase SDK — çevrimdışı açılış için -->
+    <script src="vendor/firebase-app-compat.js"></script>
+    <script src="vendor/firebase-firestore-compat.js"></script>
+    <script src="vendor/firebase-auth-compat.js"></script>
     <!-- sıra önemli; defer = HTML parse bitince yükle -->
     <script defer src="js/01-core.js"></script>
     <script defer src="js/02-family-gold-calendar.js"></script>
