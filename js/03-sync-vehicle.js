@@ -426,7 +426,7 @@
                 if (isBill && typeof fillSubtypeSelects === 'function') fillSubtypeSelects();
             }
             if (typeof onVehicleSubtypeChange === 'function') onVehicleSubtypeChange();
-            // Gıda → Multinet ödeme seçeneği
+            // Alışveriş → Multinet ödeme seçeneği
             try { if (typeof refreshExpensePaymentOptions === 'function') refreshExpensePaymentOptions(); } catch (_) {}
         };
 

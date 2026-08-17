@@ -825,7 +825,7 @@
 
         // State ve Değişkenler
         let expenses = [], notes = [], deletedExpenses = [];
-        let categories = ["Gıda", "Araç", "Faturalar", "Eğlence", "Sağlık", "Eğitim", "Diğer", "Kredi Kartı Borcu"];
+        let categories = ["Gıda", "Alışveriş", "Araç", "Faturalar", "Eğlence", "Sağlık", "Eğitim", "Diğer", "Kredi Kartı Borcu"];
         let categorySubtypes = {
             'Faturalar': ['Elektrik', 'Su', 'Doğalgaz', 'Telefon', 'İnternet', 'Abonelik'],
             'Araç': ['Yakıt', 'Vergi', 'Bakım']

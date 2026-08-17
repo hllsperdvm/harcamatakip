@@ -2008,19 +2008,29 @@
             const select = document.getElementById('category');
             const filterSelect = document.getElementById('filterCategory');
             if(select) {
+                const prev = select.value;
                 select.innerHTML = categories.map(c => `<option value="${c}">${c}</option>`).join('');
+                if (prev && categories.indexOf(prev) >= 0) select.value = prev;
             }
             if(filterSelect) {
                 filterSelect.innerHTML = `<option value="Tümü">Tümü</option>` + categories.map(c => `<option value="${c}">${c}</option>`).join('');
             }
+            try { if (typeof refreshExpensePaymentOptions === 'function') refreshExpensePaymentOptions(); } catch (_) {}
         }
 
-        function isGidaCategory(cat) {
-            const s = String(cat || '').toLocaleLowerCase('tr-TR');
-            return s === 'gıda' || s === 'gida' || s.indexOf('gıda') >= 0 || s.indexOf('gida') >= 0;
+        function normCatKey(cat) {
+            return String(cat || '').toLocaleLowerCase('tr-TR')
+                .replace(/ı/g, 'i').replace(/İ/g, 'i')
+                .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's')
+                .replace(/ö/g, 'o').replace(/ç/g, 'c').replace(/\s+/g, '');
         }
 
-        /** Harcama formu ödeme tipi: Gıda seçiliyken Multinet eklenir */
+        function isAlisverisCategory(cat) {
+            const s = normCatKey(cat);
+            return s.indexOf('alisveris') >= 0 || s === 'market' || s === 'shopping';
+        }
+
+        /** Harcama formu ödeme tipi: Alışveriş seçiliyken Multinet eklenir */
         window.refreshExpensePaymentOptions = function() {
             const select = document.getElementById('paymentType');
             if (!select) return;
@@ -2029,12 +2039,12 @@
             let opts = Array.isArray(paymentTypes) && paymentTypes.length
                 ? paymentTypes.slice()
                 : ['Nakit', 'Kredi Kartı'];
-            // Multinet yalnızca Gıda'da
+            // Multinet yalnızca Alışveriş'te
             opts = opts.filter(function(p) {
                 const s = String(p || '').toLocaleLowerCase('tr-TR');
                 return s.indexOf('multinet') < 0;
             });
-            if (isGidaCategory(cat)) opts.push('Multinet');
+            if (isAlisverisCategory(cat)) opts.push('Multinet');
             const prev = select.value;
             select.innerHTML = opts.map(function(p) {
                 return '<option value="' + String(p).replace(/"/g, '&quot;') + '">' + String(p) + '</option>';
@@ -2091,6 +2101,12 @@
                     categories = d.data().list.map(c => c === 'Ulaşım' ? 'Araç' : c);
                     categories = [...new Set(categories)];
                     if (!categories.includes('Araç')) categories.splice(1, 0, 'Araç');
+                    if (!categories.some(function(c) { return isAlisverisCategory(c); })) {
+                        // Multinet için Alışveriş kategorisi
+                        const gidaIdx = categories.findIndex(function(c) { return normCatKey(c).indexOf('gida') >= 0; });
+                        if (gidaIdx >= 0) categories.splice(gidaIdx + 1, 0, 'Alışveriş');
+                        else categories.push('Alışveriş');
+                    }
                 }
                 updateCategorySelects();
                 renderCategoriesList();
