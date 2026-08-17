@@ -286,7 +286,7 @@
             const result = [];
             const seen = new Set();
 
-            const LEGACY_TABS = new Set(['calculator', 'reports', 'alisveris', 'alışveriş', 'deneme', 'homeHub', 'homehub']);
+            const LEGACY_TABS = new Set(['calculator', 'reports', 'alisveris', 'alışveriş', 'deneme', 'homeHub', 'homehub', 'tasks', 'calendar']);
             (saved || []).forEach(s => {
                 if (!s || !s.id) return;
                 if (LEGACY_TABS.has(s.id)) return;
@@ -328,7 +328,7 @@
                 result.push({ ...t, content: '', widgetType: null });
             });
 
-            // Ana Sayfa her zaman en başta
+            // Ana Sayfa her zaman en başta — diğer sıra kullanıcının kaydettiği gibi kalsın
             const homeIdx = result.findIndex(t => t && t.id === 'home');
             if (homeIdx > 0) {
                 const homeTab = result.splice(homeIdx, 1)[0];
@@ -336,6 +336,17 @@
             } else if (homeIdx < 0 && !removedTabIds.includes('home')) {
                 const defHome = DEFAULT_TABS.find(t => t.id === 'home');
                 if (defHome) result.unshift(Object.assign({}, defHome, { content: '', widgetType: null }));
+            }
+            // Plan yoksa Raporlar'dan hemen sonra ekle (sadece ilk kurulum)
+            const hasPlan = result.some(function(t) { return t && t.id === 'plan'; });
+            if (!hasPlan && !removedTabIds.includes('plan')) {
+                const defPlan = DEFAULT_TABS.find(function(t) { return t.id === 'plan'; });
+                if (defPlan) {
+                    const statsIdx = result.findIndex(function(t) { return t && t.id === 'stats'; });
+                    const planTab = Object.assign({}, defPlan, { content: '', widgetType: null });
+                    if (statsIdx >= 0) result.splice(statsIdx + 1, 0, planTab);
+                    else result.push(planTab);
+                }
             }
             return result;
         }
@@ -898,19 +909,40 @@
         };
 
         window.moveTabUp = async (index) => {
-            if (!isAdmin() || index === 0) return;
+            if (!isAdmin()) {
+                showToast('Sekme sırası için admin girişi gerekli', 'error');
+                return;
+            }
+            if (index <= 0) return;
+            // Ana sayfa her zaman en üstte kalsın
+            if (tabsConfig[index - 1] && tabsConfig[index - 1].id === 'home') return;
             [tabsConfig[index], tabsConfig[index - 1]] = [tabsConfig[index - 1], tabsConfig[index]];
-            await saveTabsConfig();
-            applyRoleAndTabs();
-            renderTabsList();
+            try {
+                await saveTabsConfig();
+                applyRoleAndTabs();
+                renderTabsList();
+                showToast('Sıra güncellendi', 'success');
+            } catch (err) {
+                showToast(friendlyFirebaseError(err), 'error');
+            }
         };
 
         window.moveTabDown = async (index) => {
-            if (!isAdmin() || index === tabsConfig.length - 1) return;
+            if (!isAdmin()) {
+                showToast('Sekme sırası için admin girişi gerekli', 'error');
+                return;
+            }
+            if (index < 0 || index >= tabsConfig.length - 1) return;
+            if (tabsConfig[index] && tabsConfig[index].id === 'home') return;
             [tabsConfig[index], tabsConfig[index + 1]] = [tabsConfig[index + 1], tabsConfig[index]];
-            await saveTabsConfig();
-            applyRoleAndTabs();
-            renderTabsList();
+            try {
+                await saveTabsConfig();
+                applyRoleAndTabs();
+                renderTabsList();
+                showToast('Sıra güncellendi', 'success');
+            } catch (err) {
+                showToast(friendlyFirebaseError(err), 'error');
+            }
         };
 
         window.removeTab = async (index) => {

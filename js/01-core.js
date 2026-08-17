@@ -167,19 +167,18 @@
 
         const DEFAULT_TABS = [
             { id: 'home', emoji: '🏠', label: 'Ana Sayfa', visible: true, core: true, adminOnly: false },
-            { id: 'calendar', emoji: '📅', label: 'Takvim', visible: true, core: true, adminOnly: false },
-            { id: 'tasks', emoji: '✅', label: 'Görevler', visible: true, core: true, adminOnly: false },
-            { id: 'shopping', emoji: '🛒', label: 'Alışveriş', visible: true, core: true, adminOnly: false },
             { id: 'expense', emoji: '💰', label: 'Bütçe Takip', visible: true, core: true, adminOnly: false },
+            { id: 'shopping', emoji: '🛒', label: 'Alışveriş', visible: true, core: true, adminOnly: false },
             { id: 'vehicle', emoji: '🚗', label: 'Araç', visible: true, core: true, adminOnly: false },
             { id: 'stats', emoji: '📊', label: 'Raporlar', visible: true, core: true, adminOnly: false },
+            { id: 'plan', emoji: '📋', label: 'Plan', visible: true, core: true, adminOnly: false },
             { id: 'notes', emoji: '📝', label: 'Notlar', visible: true, core: true, adminOnly: false },
             { id: 'settings', emoji: '⚙️', label: 'Ayarlar', visible: true, core: true, adminOnly: true },
             { id: 'trash', emoji: '🗑️', label: 'Çöp Kutusu', visible: true, core: true, adminOnly: true }
         ];
 
-        // Mobil alt menü: Ana · Bütçe · Görevler · Takvim · Daha
-        const MOBILE_NAV_PRIMARY = ['home', 'expense', 'tasks', 'calendar'];
+        // Mobil: Ana · Bütçe · Raporlar · Plan · Daha
+        const MOBILE_NAV_PRIMARY = ['home', 'expense', 'stats', 'plan'];
 
         let familyCalendar = [];
         let familyTasks = [];
@@ -846,7 +845,7 @@
                     : 'tab-inactive yuvam-tab-btn hover:bg-white/80';
                 const lab = t.label || t.id;
                 let badge = '';
-                if (t.id === 'tasks' && openTaskN > 0) {
+                if ((t.id === 'tasks' || t.id === 'plan') && openTaskN > 0) {
                     badge = '<span class="tab-count-badge">' + (openTaskN > 9 ? '9+' : openTaskN) + '</span>';
                 }
                 return `<button type="button" data-tab-id="${escapeHtml(t.id)}" title="${escapeHtml(lab)}" onclick="switchTab('${escapeHtml(t.id)}')" class="${cls}"><span class="yuvam-tab-emoji relative">${escapeHtml(t.emoji || '📌')}${badge}</span><span class="yuvam-tab-text">${escapeHtml(lab)}</span></button>`;
@@ -860,7 +859,7 @@
 
         window.updateTaskNavBadges = function() {
             const n = countOpenFamilyTasks();
-            const m = document.getElementById('mnavTasksBadge');
+            const m = document.getElementById('mnavPlanBadge');
             if (m) {
                 if (n > 0) {
                     m.textContent = n > 9 ? '9+' : String(n);
@@ -1175,8 +1174,9 @@
 
         // Sekme Değiştirme
         window.switchTab = function(tabName) {
+            if (tabName === 'tasks' || tabName === 'calendar') tabName = 'plan';
             lastActiveTabId = tabName;
-            const coreIds = ["home", "calendar", "tasks", "shopping", "expense", "vehicle", "stats", "notes", "settings", "trash"];
+            const coreIds = ["home", "plan", "calendar", "tasks", "shopping", "expense", "vehicle", "stats", "notes", "settings", "trash"];
             const isCustom = String(tabName).startsWith('custom_');
 
             // Hide all core contents + custom
@@ -1233,6 +1233,7 @@
                 if (typeof applyPageLayout === 'function') applyPageLayout('expense');
             }
             if (tabName === 'stats') {
+                try { if (typeof renderCurrentStatements === 'function') renderCurrentStatements(); } catch (_) {}
                 if (typeof renderCardStatements === 'function') {
                     renderCardStatements('bekir');
                     renderCardStatements('duygu');
@@ -1248,10 +1249,16 @@
                 });
             } else if (tabName === 'home') {
                 if (typeof renderHomeTab === 'function') renderHomeTab();
-            } else if (tabName === 'calendar') {
-                if (typeof renderCalendarTab === 'function') renderCalendarTab();
-            } else if (tabName === 'tasks') {
-                if (typeof renderTasksTab === 'function') renderTasksTab();
+            } else if (tabName === 'plan' || tabName === 'calendar' || tabName === 'tasks') {
+                if (tabName === 'calendar' || tabName === 'tasks') {
+                    // eski linkler → plan
+                    try { history.replaceState(null, '', '#plan'); } catch (_) {}
+                }
+                if (typeof renderPlanTab === 'function') renderPlanTab();
+                else {
+                    if (typeof renderTasksTab === 'function') renderTasksTab();
+                    if (typeof renderCalendarTab === 'function') renderCalendarTab();
+                }
             } else if (tabName === 'shopping') {
                 try { if (typeof ensureLazyCollection === 'function') ensureLazyCollection('familyShopping'); } catch (_) {}
                 if (typeof renderShoppingTab === 'function') renderShoppingTab();
