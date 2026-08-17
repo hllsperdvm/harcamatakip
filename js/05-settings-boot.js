@@ -1231,6 +1231,7 @@
         function fillSubtypeSelects() {
             const bill = document.getElementById('billSubtype');
             const veh = document.getElementById('vehicleSubtype');
+            const shop = document.getElementById('shopSubtype');
             if (bill) {
                 const opts = getSubtypesForCategory('Faturalar');
                 const cur = bill.value;
@@ -1246,6 +1247,14 @@
                     return '<option value="' + o.replace(/"/g, '&quot;') + '">' + o + '</option>';
                 }).join('') || '<option value="">—</option>';
                 if (cur && opts.indexOf(cur) >= 0) veh.value = cur;
+            }
+            if (shop) {
+                const opts = getSubtypesForCategory('Alışveriş');
+                const cur = shop.value;
+                shop.innerHTML = '<option value="">Seçin…</option>' + opts.map(function(o) {
+                    return '<option value="' + o.replace(/"/g, '&quot;') + '">' + o + '</option>';
+                }).join('');
+                if (cur && opts.indexOf(cur) >= 0) shop.value = cur;
             }
         }
 
@@ -1925,11 +1934,16 @@
         window.toggleFilterPanel = () => document.getElementById('filterPanel').classList.toggle('hidden');
         window.resetFilters = () => {
             currentPersonFilter = 'Tümü'; currentCategoryFilter = 'Tümü'; currentPaymentFilter = 'Tümü';
+            currentShopSubtypeFilter = 'Tümü'; currentEcommerceFilter = 'Tümü';
             currentStartDateFilter = ''; currentEndDateFilter = ''; currentShowInstallments = false;
             currentSearchFilter = '';
             document.getElementById('filterPerson').value = 'Tümü';
             document.getElementById('filterCategory').value = 'Tümü';
             document.getElementById('filterPayment').value = 'Tümü';
+            const fss = document.getElementById('filterShopSubtype');
+            if (fss) fss.value = 'Tümü';
+            const fec = document.getElementById('filterEcommerce');
+            if (fec) fec.value = 'Tümü';
             const fs = document.getElementById('filterSearch');
             if (fs) fs.value = '';
             document.getElementById('filterStartDate').value = '';
@@ -1943,6 +1957,10 @@
             const fse = document.getElementById('filterSearch');
             currentSearchFilter = fse ? fse.value.trim() : '';
             currentPaymentFilter = document.getElementById('filterPayment').value;
+            const fss = document.getElementById('filterShopSubtype');
+            currentShopSubtypeFilter = fss ? fss.value : 'Tümü';
+            const fec = document.getElementById('filterEcommerce');
+            currentEcommerceFilter = fec ? fec.value : 'Tümü';
             currentStartDateFilter = document.getElementById('filterStartDate').value;
             currentEndDateFilter = document.getElementById('filterEndDate').value;
             currentShowInstallments = document.getElementById('filterShowInstallments').checked;

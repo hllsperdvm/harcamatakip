@@ -825,15 +825,18 @@
 
         // State ve Değişkenler
         let expenses = [], notes = [], deletedExpenses = [];
-        let categories = ["Gıda", "Alışveriş", "Araç", "Faturalar", "Eğlence", "Sağlık", "Eğitim", "Diğer", "Kredi Kartı Borcu"];
+        let categories = ["Alışveriş", "Araç", "Faturalar", "Eğlence", "Sağlık", "Eğitim", "Diğer", "Kredi Kartı Borcu"];
         let categorySubtypes = {
+            'Alışveriş': ['Market', 'Gıda/Yemek', 'Giyim', 'Elektronik', 'Ev & Yaşam', 'Kişisel Bakım'],
             'Faturalar': ['Elektrik', 'Su', 'Doğalgaz', 'Telefon', 'İnternet', 'Abonelik'],
             'Araç': ['Yakıt', 'Vergi', 'Bakım']
         };
         const DEFAULT_CATEGORY_SUBTYPES = {
+            'Alışveriş': ['Market', 'Gıda/Yemek', 'Giyim', 'Elektronik', 'Ev & Yaşam', 'Kişisel Bakım'],
             'Faturalar': ['Elektrik', 'Su', 'Doğalgaz', 'Telefon', 'İnternet', 'Abonelik'],
             'Araç': ['Yakıt', 'Vergi', 'Bakım']
         };
+        const LEGACY_SHOP_CATEGORIES = ['Gıda', 'Gida', 'Giyim', 'E-ticaret', 'Eticaret', 'E-Ticaret'];
         let paymentTypes = ["Nakit", "Kredi Kartı"];
         let bekirDebt = { amount: 0, paid: false, dueDate: '' };
         let vehicleProfile = {
@@ -857,6 +860,7 @@
         
         let sortColumn = 'date', sortDirection = 'desc';
         let currentPersonFilter = 'Tümü', currentCategoryFilter = 'Tümü', currentPaymentFilter = 'Tümü';
+        let currentShopSubtypeFilter = 'Tümü', currentEcommerceFilter = 'Tümü';
         let currentSearchFilter = '';
         let currentStartDateFilter = '', currentEndDateFilter = '';
         let currentShowInstallments = false;

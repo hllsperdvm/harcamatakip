@@ -2030,6 +2030,13 @@
             return s.indexOf('alisveris') >= 0 || s === 'market' || s === 'shopping';
         }
 
+        function isLegacyShopCategory(cat) {
+            const s = normCatKey(cat);
+            return s === 'gida' || s.indexOf('gida') === 0 || s === 'giyim' || s.indexOf('eticaret') >= 0 || s === 'e-ticaret';
+        }
+
+        window.isLegacyShopCategory = isLegacyShopCategory;
+
         /** Harcama formu ödeme tipi: Alışveriş seçiliyken Multinet eklenir */
         window.refreshExpensePaymentOptions = function() {
             const select = document.getElementById('paymentType');
@@ -2081,9 +2088,18 @@
                 expenses = snap.docs.map(function(d) {
                     const row = Object.assign({ id: d.id }, d.data());
                     if (row.billSubtype === 'Platform') row.billSubtype = 'Abonelik';
+                    // Eski Gıda/Giyim/E-ticaret → Alışveriş (alt tür boş; kullanıcı düzeltir)
+                    if (typeof isLegacyShopCategory === 'function' && isLegacyShopCategory(row.category)) {
+                        if (normCatKey(row.category).indexOf('eticaret') >= 0 || row.category === 'E-ticaret') {
+                            row.isEcommerce = true;
+                        }
+                        row.category = 'Alışveriş';
+                        if (row.shopSubtype == null) row.shopSubtype = '';
+                    }
                     return row;
                 });
                 scheduleRenderApp();
+                try { migrateLegacyShopCategoriesToFirestore(); } catch (_) {}
             });
             // notes / ibans / familyShopping: lazy (ensureLazyCollection)
             db.collection("settings").doc("bekirDebt").onSnapshot(d => {
@@ -2098,14 +2114,17 @@
             });
             db.collection("settings").doc("categories").onSnapshot(d => {
                 if (d.exists && d.data() && Array.isArray(d.data().list)) {
-                    categories = d.data().list.map(c => c === 'Ulaşım' ? 'Araç' : c);
+                    categories = d.data().list.map(function(c) { return c === 'Ulaşım' ? 'Araç' : c; });
+                    // Gıda / Giyim / E-ticaret üst kategoriden kaldır → Alışveriş
+                    categories = categories.filter(function(c) { return !isLegacyShopCategory(c); });
                     categories = [...new Set(categories)];
-                    if (!categories.includes('Araç')) categories.splice(1, 0, 'Araç');
+                    if (!categories.includes('Araç')) categories.splice(Math.min(1, categories.length), 0, 'Araç');
                     if (!categories.some(function(c) { return isAlisverisCategory(c); })) {
-                        // Multinet için Alışveriş kategorisi
-                        const gidaIdx = categories.findIndex(function(c) { return normCatKey(c).indexOf('gida') >= 0; });
-                        if (gidaIdx >= 0) categories.splice(gidaIdx + 1, 0, 'Alışveriş');
-                        else categories.push('Alışveriş');
+                        categories.unshift('Alışveriş');
+                    }
+                    // Alışveriş alt türlerini garanti et
+                    if (!categorySubtypes['Alışveriş'] || !categorySubtypes['Alışveriş'].length) {
+                        categorySubtypes['Alışveriş'] = (DEFAULT_CATEGORY_SUBTYPES['Alışveriş'] || []).slice();
                     }
                 }
                 updateCategorySelects();

@@ -1,3 +1,16 @@
+
+        /** Rapor/grafik kategori etiketi: E-ticaret ayrı, eski Gıda/Giyim → Alışveriş */
+        function expenseReportCategory(e) {
+            if (!e) return 'Diğer';
+            if (e.isEcommerce || e.category === 'E-ticaret') return 'E-ticaret';
+            if (typeof isLegacyShopCategory === 'function' && isLegacyShopCategory(e.category)) return 'Alışveriş';
+            if ((typeof isAlisverisCategory === 'function' && isAlisverisCategory(e.category)) || e.category === 'Alışveriş') {
+                if (e.shopSubtype) return 'Alışveriş · ' + e.shopSubtype;
+                return 'Alışveriş';
+            }
+            return e.category || 'Diğer';
+        }
+
 /* YUVAM modül parçası — sırayla yüklenir (ES module değil, ortak global scope)
  * Harcama işleme, grafikler, Yuvam AI, istatistik
  * GitHub: js/ klasörünün tamamını yükleyin.
@@ -126,6 +139,22 @@
                 if (currentCategoryFilter !== 'Tümü' && item.category !== currentCategoryFilter) return false;
                 if (currentPaymentFilter !== 'Tümü' && item.paymentType !== currentPaymentFilter) return false;
 
+                // Alışveriş alt türü
+                if (typeof currentShopSubtypeFilter !== 'undefined' && currentShopSubtypeFilter && currentShopSubtypeFilter !== 'Tümü') {
+                    const st = String(item.shopSubtype || '').trim();
+                    if (currentShopSubtypeFilter === '__empty__') {
+                        if (st) return false;
+                    } else if (st !== currentShopSubtypeFilter) {
+                        return false;
+                    }
+                }
+                // E-ticaret
+                if (typeof currentEcommerceFilter !== 'undefined' && currentEcommerceFilter && currentEcommerceFilter !== 'Tümü') {
+                    const isEc = !!(item.isEcommerce);
+                    if (currentEcommerceFilter === 'Evet' && !isEc) return false;
+                    if (currentEcommerceFilter === 'Hayır' && isEc) return false;
+                }
+
                 if (currentStartDateFilter && item.date < currentStartDateFilter) return false;
                 if (currentEndDateFilter && item.date > currentEndDateFilter) return false;
 
@@ -133,7 +162,8 @@
                     const q = currentSearchFilter.toLocaleLowerCase('tr-TR');
                     const blob = [
                         item.category, item.description, item.person, item.paymentType,
-                        item.vehicleSubtype, item.billSubtype, item.installmentLabel, item.fuelNote
+                        item.vehicleSubtype, item.billSubtype, item.shopSubtype,
+                        item.isEcommerce ? 'e-ticaret' : '', item.installmentLabel, item.fuelNote
                     ].map(x => String(x || '')).join(' ').toLocaleLowerCase('tr-TR');
                     if (!blob.includes(q)) return false;
                 }
@@ -189,7 +219,7 @@
                                 ${escapeHtml((item.person || '').toUpperCase())}
                             </span>
                         </td>
-                        <td class="px-6 py-5"><span class="bg-slate-100 px-2 py-1 rounded text-[10px]">${escapeHtml(item.category)}${item.billSubtype ? ' · ' + escapeHtml(item.billSubtype) : ''}${item.vehicleSubtype ? ' · ' + escapeHtml(item.vehicleSubtype) : ''}</span></td>
+                        <td class="px-6 py-5"><span class="bg-slate-100 px-2 py-1 rounded text-[10px]">${escapeHtml(item.category)}${item.shopSubtype ? ' · ' + escapeHtml(item.shopSubtype) : ''}${item.isEcommerce ? ' · E-ticaret' : ''}${item.billSubtype ? ' · ' + escapeHtml(item.billSubtype) : ''}${item.vehicleSubtype ? ' · ' + escapeHtml(item.vehicleSubtype) : ''}</span></td>
                         <td class="px-6 py-5 opacity-60">${escapeHtml(item.paymentType || '-')}</td>
                         <td class="px-6 py-5">
                             <div class="flex flex-col">
@@ -439,7 +469,7 @@
             processed.forEach(e => {
                 const pk = e.effectiveMonth || getPeriodKeyForDateStr(e.date);
                 if (!byPeriod[pk]) return;
-                const cat = e.category || 'Diğer';
+                const cat = (typeof expenseReportCategory === 'function') ? expenseReportCategory(e) : (e.category || 'Diğer');
                 const sub = e.billSubtype || e.vehicleSubtype || '';
                 const label = sub ? (cat + '/' + sub) : cat;
                 const amt = Number(e.displayAmount);
@@ -550,7 +580,7 @@
                 // Kategori / gelir
                 const cats = {};
                 curItems.forEach(function(e) {
-                    const c = e.category || 'Diğer';
+                    const c = (typeof expenseReportCategory === 'function') ? expenseReportCategory(e) : (e.category || 'Diğer');
                     cats[c] = (cats[c] || 0) + (e.displayAmount || 0);
                 });
                 Object.entries(cats).sort(function(a,b){return b[1]-a[1];}).slice(0, 4).forEach(function(kv) {
@@ -738,7 +768,7 @@
             // Dönem kategori sıralaması (en çok → en az)
             const byCat = {};
             inPeriod.forEach(function(e) {
-                const c = e.category || 'Diğer';
+                const c = (typeof expenseReportCategory === 'function') ? expenseReportCategory(e) : (e.category || 'Diğer');
                 byCat[c] = (byCat[c] || 0) + expenseAmount(e);
             });
             const catRank = Object.keys(byCat).sort(function(a, b) { return byCat[b] - byCat[a]; });
@@ -939,7 +969,7 @@
             if (/en çok|en cok|hangi kategori/.test(q)) {
                 const by = {};
                 inPeriod.forEach(function(e) {
-                    const c = e.category || 'Diğer';
+                    const c = (typeof expenseReportCategory === 'function') ? expenseReportCategory(e) : (e.category || 'Diğer');
                     by[c] = (by[c] || 0) + expenseAmount(e);
                 });
                 const rank = Object.keys(by).sort(function(a, b) { return by[b] - by[a]; });
@@ -1344,227 +1374,215 @@
 
         function updateStatsPanel() {
             const period = getCurrentPeriod();
-            const processedExpenses = getProcessedExpenses().filter(e => e.effectiveMonth === period && (typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e)));
-            
+            const processedExpenses = getProcessedExpenses().filter(function(e) {
+                return e.effectiveMonth === period && (typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e));
+            });
+            const total = processedExpenses.reduce(function(s, e) { return s + (e.displayAmount || 0); }, 0);
+
+            // --- Kategori pasta ---
             const categoryData = {};
-            processedExpenses.forEach(e => {
-                categoryData[e.category] = (categoryData[e.category] || 0) + e.displayAmount;
+            const shopSubTotals = {};
+            let shopEcommerceTotal = 0;
+            processedExpenses.forEach(function(e) {
+                let cat = e.category || 'Diğer';
+                if (typeof isLegacyShopCategory === 'function' && isLegacyShopCategory(cat)) cat = 'Alışveriş';
+                if (cat === 'E-ticaret') cat = 'Alışveriş';
+                if (e.isEcommerce) {
+                    // E-ticaret pasta diliminde ayrı
+                    categoryData['E-ticaret'] = (categoryData['E-ticaret'] || 0) + (e.displayAmount || 0);
+                } else {
+                    categoryData[cat] = (categoryData[cat] || 0) + (e.displayAmount || 0);
+                }
+                const isShop = (typeof isAlisverisCategory === 'function' && isAlisverisCategory(cat)) || cat === 'Alışveriş';
+                if (isShop || e.isEcommerce) {
+                    const st = String(e.shopSubtype || '').trim() || 'Belirtilmedi';
+                    shopSubTotals[st] = (shopSubTotals[st] || 0) + (e.displayAmount || 0);
+                    if (e.isEcommerce) shopEcommerceTotal += (e.displayAmount || 0);
+                }
             });
 
             const ctx1 = document.getElementById('expenseChart');
-            if (ctx1 && expenseChart) {
-                expenseChart.destroy();
-            }
             if (ctx1) {
-                const catLabels = Object.keys(categoryData);
+                if (expenseChart) { try { expenseChart.destroy(); } catch (_) {} }
+                const labels = Object.keys(categoryData);
+                const data = labels.map(function(k) { return categoryData[k]; });
+                const colors = ['#6366f1','#f59e0b','#10b981','#ef4444','#8b5cf6','#06b6d4','#ec4899','#14b8a6','#a855f7','#f97316','#64748b'];
                 expenseChart = new Chart(ctx1, {
                     type: 'doughnut',
                     data: {
-                        labels: catLabels,
-                        datasets: [{
-                            data: Object.values(categoryData),
-                            backgroundColor: ['#3b82f6', '#ec4899', '#f59e0b', '#10b981', '#f87171', '#8b5cf6', '#06b6d4', '#6366f1'],
-                            borderColor: '#ffffff',
-                            borderWidth: 3
-                        }]
+                        labels: labels,
+                        datasets: [{ data: data, backgroundColor: labels.map(function(_, i) { return colors[i % colors.length]; }), borderWidth: 0 }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        layout: { padding: { top: 4, bottom: 4 } },
-                        onClick: (evt, elements) => {
-                            if (!elements || !elements.length) return;
-                            const idx = elements[0].index;
-                            const cat = catLabels[idx];
-                            if (cat) showCategoryExpenses(cat);
-                        },
                         plugins: {
-                            legend: {
-                                position: (typeof window !== 'undefined' && window.innerWidth >= 768) ? 'right' : 'bottom',
-                                align: 'center',
-                                labels: {
-                                    boxWidth: 14,
-                                    padding: 14,
-                                    font: { size: 12, weight: '600' },
-                                    usePointStyle: true,
-                                    pointStyle: 'rectRounded'
-                                },
-                                onClick: (e, legendItem, legend) => {
-                                    const cat = legendItem.text;
-                                    if (cat) showCategoryExpenses(cat);
-                                }
-                            },
-                            title: {
-                                display: true,
-                                text: 'Kategoriye tıklayın → harcamaları görün',
-                                font: { size: 11, weight: '600' },
-                                color: '#94a3b8'
-                            }
+                            legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 }, padding: 10 } }
+                        },
+                        onClick: function(evt, els) {
+                            if (!els || !els.length) return;
+                            const i = els[0].index;
+                            const lab = labels[i];
+                            if (lab && typeof showCategoryExpenses === 'function') showCategoryExpenses(lab === 'E-ticaret' ? 'Alışveriş' : lab);
                         }
                     }
                 });
             }
 
-            // Son 7 takvim günü (sadece bu günlere düşen harcamalar)
-            const weekData = {};
-            const last7Keys = [];
-            for (let i = 6; i >= 0; i--) {
-                const d = new Date();
-                d.setHours(0, 0, 0, 0);
-                d.setDate(d.getDate() - i);
-                const ymd = formatYMD(d);
-                const label = d.toLocaleDateString('tr-TR', { weekday: 'short', day: 'numeric', month: 'short' });
-                last7Keys.push({ ymd, label });
-                weekData[label] = 0;
-            }
-            const allForWeek = getProcessedExpenses().filter(e => {
-                const s = String(e.date || '').slice(0, 10);
-                return last7Keys.some(k => k.ymd === s);
-            });
-            allForWeek.forEach(e => {
-                const s = String(e.date || '').slice(0, 10);
-                const hit = last7Keys.find(k => k.ymd === s);
-                if (hit) weekData[hit.label] += e.displayAmount;
-            });
-
-            const ctx2 = document.getElementById('weeklyTrendChart');
-            if (ctx2 && weeklyTrendChart) {
-                weeklyTrendChart.destroy();
-            }
-            if (ctx2) {
-                const weekLabels = last7Keys.map(k => k.label);
-                const weekValues = last7Keys.map(k => weekData[k.label] || 0);
-                weeklyTrendChart = new Chart(ctx2, {
-                    type: 'line',
-                    data: {
-                        labels: weekLabels,
-                        datasets: [{
-                            label: 'Harcama',
-                            data: weekValues,
-                            borderColor: '#4f46e5',
-                            backgroundColor: 'rgba(79, 70, 229, 0.12)',
-                            borderWidth: 2,
-                            fill: true,
-                            tension: 0.35,
-                            pointRadius: 10, pointHoverRadius: 14, pointHitRadius: 30,
-                            pointHoverRadius: 14,
-                            pointHitRadius: 30,
-                            pointBackgroundColor: '#4f46e5'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        interaction: { mode: 'index', intersect: false },
-                        onClick: function(evt, elements, chart) {
-                            var idx = null;
-                            if (elements && elements.length) idx = elements[0].index;
-                            if (idx == null && chart && chart.getElementsAtEventForMode) {
-                                var pts = chart.getElementsAtEventForMode(evt, 'index', { intersect: false }, true);
-                                if (pts && pts.length) idx = pts[0].index;
-                            }
-                            if (idx == null) return;
-                            var key = last7Keys[idx];
-                            if (key && typeof showDayExpenses === 'function') showDayExpenses(key.ymd, key.label);
-                        },
-                        plugins: {
-                            legend: { display: false },
-                            title: {
-                                display: true,
-                                text: 'Güne veya noktaya tıklayın → harcamalar',
-                                font: { size: 11, weight: '600' },
-                                color: '#94a3b8'
-                            }
-                        },
-                        scales: {
-                            x: { ticks: { font: { size: 10 } } },
-                            y: { beginAtZero: true, ticks: { font: { size: 10 } } }
-                        }
-                    }
+            // --- Kategori özeti (Alışveriş alt kırılım) ---
+            const detailedReport = document.getElementById('detailedMonthlyReport');
+            if (detailedReport) {
+                // Özet için E-ticaret'i Alışveriş altında göster
+                const summaryCats = {};
+                processedExpenses.forEach(function(e) {
+                    let cat = e.category || 'Diğer';
+                    if (typeof isLegacyShopCategory === 'function' && isLegacyShopCategory(cat)) cat = 'Alışveriş';
+                    if (cat === 'E-ticaret') cat = 'Alışveriş';
+                    summaryCats[cat] = (summaryCats[cat] || 0) + (e.displayAmount || 0);
                 });
-            }
-
-            const periodKeys = getPreviousPeriodKeys(6);
-            const monthData = {};
-            const allForTrend = [];
-            expenses.forEach(item => {
-                const count = item.installmentCount || 1;
-                const perAmount = item.amountPerInstallment || (item.amount / count);
-                if (count <= 1) {
-                    allForTrend.push({ displayAmount: item.amount, effectiveMonth: getPeriodKeyForDateStr(item.date) });
+                const entries = Object.entries(summaryCats).sort(function(a, b) { return b[1] - a[1]; });
+                if (!entries.length) {
+                    detailedReport.innerHTML = '<p class="text-sm text-slate-400 col-span-full text-center py-2">Bu dönemde kategori yok</p>';
                 } else {
-                    for (let i = 0; i < count; i++) {
-                        const dateStr = shiftDateByMonths(item.date, i);
-                        allForTrend.push({ displayAmount: perAmount, effectiveMonth: getPeriodKeyForDateStr(dateStr) });
-                    }
-                }
-            });
-            periodKeys.forEach(pk => {
-                const label = formatPeriodLabel(pk);
-                monthData[label] = allForTrend
-                    .filter(e => e.effectiveMonth === pk)
-                    .reduce((sum, e) => sum + e.displayAmount, 0);
-            });
-
-            const ctx3 = document.getElementById('monthlyTrendChart');
-            if (ctx3 && monthlyTrendChart) {
-                monthlyTrendChart.destroy();
-            }
-            if (ctx3) {
-                monthlyTrendChart = new Chart(ctx3, {
-                    type: 'bar',
-                    data: {
-                        labels: Object.keys(monthData),
-                        datasets: [{
-                            label: 'Dönem',
-                            data: Object.values(monthData),
-                            backgroundColor: '#4f46e5',
-                            borderRadius: 6,
-                            maxBarThickness: 28
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: {
-                            x: { ticks: { font: { size: 9 }, maxRotation: 45 } },
-                            y: { beginAtZero: true, ticks: { font: { size: 10 } } }
+                    detailedReport.innerHTML = entries.map(function(pair) {
+                        const cat = pair[0];
+                        const amt = pair[1];
+                        const share = total > 0 ? Math.round(amt / total * 100) : 0;
+                        const safe = String(cat).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                        let html = '<div class="rounded-xl bg-slate-50 border border-transparent hover:border-indigo-100 transition overflow-hidden">' +
+                            '<button type="button" onclick="showCategoryExpenses(\'' + safe + '\')" class="flex items-center justify-between gap-2 px-3 py-2 text-left w-full hover:bg-indigo-50">' +
+                            '<span class="text-xs font-bold text-slate-700 truncate">' + escapeHtml(cat) + '</span>' +
+                            '<span class="text-xs font-black text-slate-800 whitespace-nowrap">' + amt.toLocaleString('tr-TR') + ' TL <span class="text-slate-400 font-bold">%' + share + '</span></span>' +
+                            '</button>';
+                        const isShop = (typeof isAlisverisCategory === 'function' && isAlisverisCategory(cat)) || cat === 'Alışveriş';
+                        if (isShop && Object.keys(shopSubTotals).length) {
+                            const subEntries = Object.entries(shopSubTotals).sort(function(a, b) { return b[1] - a[1]; });
+                            html += '<div class="px-3 pb-2 space-y-0.5 border-t border-slate-100/80">';
+                            subEntries.forEach(function(sp) {
+                                const sn = sp[0], sa = sp[1];
+                                const ss = amt > 0 ? Math.round(sa / amt * 100) : 0;
+                                html += '<div class="flex items-center justify-between gap-2 pl-2 py-0.5">' +
+                                    '<span class="text-[10px] font-semibold text-slate-500">↳ ' + escapeHtml(sn) + '</span>' +
+                                    '<span class="text-[10px] font-bold text-slate-600 whitespace-nowrap">' + sa.toLocaleString('tr-TR') + ' TL <span class="text-slate-400">%' + ss + '</span></span></div>';
+                            });
+                            if (shopEcommerceTotal > 0) {
+                                const es = amt > 0 ? Math.round(shopEcommerceTotal / amt * 100) : 0;
+                                html += '<div class="flex items-center justify-between gap-2 pl-2 py-0.5 mt-0.5 border-t border-dashed border-slate-200">' +
+                                    '<span class="text-[10px] font-semibold text-violet-600">↳ E-ticaret (toplam)</span>' +
+                                    '<span class="text-[10px] font-bold text-violet-700 whitespace-nowrap">' + shopEcommerceTotal.toLocaleString('tr-TR') + ' TL <span class="text-violet-400">%' + es + '</span></span></div>';
+                            }
+                            html += '</div>';
                         }
-                    }
-                });
+                        html += '</div>';
+                        return html;
+                    }).join('');
+                }
             }
 
-            // Bu dönem vs önceki dönem
+            // --- Haftalık trend ---
             try {
-                const keys2 = getPreviousPeriodKeys(2);
-                const prevKey = keys2[0];
-                const curKey = keys2[1] || getCurrentPeriod();
-                const allProc = getProcessedExpenses();
-                const sumPeriod = function(pk) {
-                    return allProc.filter(function(e) { return e.effectiveMonth === pk; })
-                        .reduce(function(s, e) { return s + (Number(e.displayAmount) || 0); }, 0);
-                };
-                const prevTotal = sumPeriod(prevKey);
-                const curTotal = sumPeriod(curKey);
-                const diff = curTotal - prevTotal;
-                const sumEl = document.getElementById('monthCompareSummary');
-                if (sumEl) {
-                    if (diff < 0) sumEl.textContent = Math.round(-diff).toLocaleString('tr-TR') + ' TL tasarruf (önceki döneme göre)';
-                    else if (diff > 0) sumEl.textContent = Math.round(diff).toLocaleString('tr-TR') + ' TL artış (önceki döneme göre)';
-                    else sumEl.textContent = 'Önceki dönemle aynı seviye';
+                const ctxW = document.getElementById('weeklyTrendChart');
+                if (ctxW) {
+                    const days = [];
+                    const daySums = [];
+                    const today = new Date();
+                    for (let i = 6; i >= 0; i--) {
+                        const d = new Date(today);
+                        d.setDate(today.getDate() - i);
+                        const ymd = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                        const lab = String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0');
+                        days.push(lab);
+                        const sum = getProcessedExpenses().filter(function(e) {
+                            if (typeof countsInPeriodTotals === 'function' && !countsInPeriodTotals(e)) return false;
+                            return String(e.date || '').slice(0, 10) === ymd;
+                        }).reduce(function(s, e) { return s + (e.displayAmount || 0); }, 0);
+                        daySums.push(sum);
+                    }
+                    if (weeklyTrendChart) { try { weeklyTrendChart.destroy(); } catch (_) {} }
+                    weeklyTrendChart = new Chart(ctxW, {
+                        type: 'bar',
+                        data: { labels: days, datasets: [{ label: 'Harcama', data: daySums, backgroundColor: '#6366f1', borderRadius: 6, maxBarThickness: 28 }] },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+                    });
                 }
-                const ctxCmp = document.getElementById('monthCompareChart');
-                if (ctxCmp) {
+            } catch (errW) { console.warn('weeklyTrend', errW); }
+
+            // --- Dönem trendi ---
+            try {
+                const ctxM = document.getElementById('monthlyTrendChart');
+                if (ctxM) {
+                    const all = getProcessedExpenses().filter(function(e) {
+                        return typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e);
+                    });
+                    const byP = {};
+                    all.forEach(function(e) {
+                        const k = e.effectiveMonth || '';
+                        if (!k) return;
+                        byP[k] = (byP[k] || 0) + (e.displayAmount || 0);
+                    });
+                    const keys = Object.keys(byP).sort().slice(-8);
+                    if (monthlyTrendChart) { try { monthlyTrendChart.destroy(); } catch (_) {} }
+                    monthlyTrendChart = new Chart(ctxM, {
+                        type: 'line',
+                        data: {
+                            labels: keys,
+                            datasets: [{
+                                label: 'Dönem toplam',
+                                data: keys.map(function(k) { return byP[k]; }),
+                                borderColor: '#0ea5e9',
+                                backgroundColor: 'rgba(14,165,233,0.12)',
+                                fill: true,
+                                tension: 0.3,
+                                pointRadius: 5,
+                                pointHoverRadius: 8
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+                    });
+                }
+            } catch (errM) { console.warn('monthlyTrend', errM); }
+
+            // --- Bu dönem vs önceki ---
+            try {
+                const ctxC = document.getElementById('monthCompareChart');
+                const sumEl = document.getElementById('monthCompareSummary');
+                if (ctxC) {
+                    const keys2 = (typeof getPreviousPeriodKeys === 'function') ? getPreviousPeriodKeys(2) : [period];
+                    const prevKey = keys2.length >= 2 ? keys2[0] : '';
+                    const curKey = keys2.length >= 2 ? keys2[1] : period;
+                    const allP = getProcessedExpenses().filter(function(e) {
+                        return typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e);
+                    });
+                    const sumFor = function(pk) {
+                        return allP.filter(function(e) { return e.effectiveMonth === pk; })
+                            .reduce(function(s, e) { return s + (e.displayAmount || 0); }, 0);
+                    };
+                    const prevSum = prevKey ? sumFor(prevKey) : 0;
+                    const curSum = sumFor(curKey);
+                    const delta = curSum - prevSum;
+                    const pct = prevSum > 0 ? Math.round((delta / prevSum) * 100) : (curSum > 0 ? 100 : 0);
+                    if (sumEl) {
+                        const labPrev = (typeof formatPeriodLabel === 'function') ? formatPeriodLabel(prevKey) : prevKey;
+                        const labCur = (typeof formatPeriodLabel === 'function') ? formatPeriodLabel(curKey) : curKey;
+                        const arrow = delta > 0 ? '▲' : (delta < 0 ? '▼' : '●');
+                        const col = delta > 0 ? 'text-rose-600' : (delta < 0 ? 'text-emerald-600' : 'text-slate-500');
+                        sumEl.innerHTML = '<span class="' + col + ' font-bold">' + arrow + ' ' +
+                            (delta >= 0 ? '+' : '') + Math.round(delta).toLocaleString('tr-TR') + ' TL (%' + pct + ')</span>' +
+                            ' · Önceki: ' + Math.round(prevSum).toLocaleString('tr-TR') + ' · Bu dönem: ' + Math.round(curSum).toLocaleString('tr-TR');
+                        sumEl.title = (labPrev || prevKey) + ' vs ' + (labCur || curKey);
+                    }
                     if (monthCompareChart) { try { monthCompareChart.destroy(); } catch (_) {} }
-                    monthCompareChart = new Chart(ctxCmp, {
+                    monthCompareChart = new Chart(ctxC, {
                         type: 'bar',
                         data: {
-                            labels: [formatPeriodLabel(prevKey) || 'Önceki', formatPeriodLabel(curKey) || 'Bu dönem'],
+                            labels: [
+                                (typeof formatPeriodLabel === 'function' ? formatPeriodLabel(prevKey) : prevKey) || 'Önceki',
+                                (typeof formatPeriodLabel === 'function' ? formatPeriodLabel(curKey) : curKey) || 'Bu dönem'
+                            ],
                             datasets: [{
-                                label: 'Harcama (TL)',
-                                data: [prevTotal, curTotal],
-                                backgroundColor: ['#94a3b8', '#0284c7'],
+                                label: 'Toplam harcama',
+                                data: [prevSum, curSum],
+                                backgroundColor: ['#94a3b8', '#6366f1'],
                                 borderRadius: 8,
                                 maxBarThickness: 48
                             }]
@@ -1577,172 +1595,73 @@
                         }
                     });
                 }
-            } catch (err) { console.warn('monthCompare', err); }
+            } catch (errC) { console.warn('monthCompare', errC); }
 
-            // Kategori trendi son 3 dönem
+            // --- Kategori trendi (3 dönem, en yüksek 5) ---
             try {
-                const keys3 = getPreviousPeriodKeys(3);
-                const allProc2 = getProcessedExpenses();
-                const catTotals = {};
-                allProc2.forEach(function(e) {
-                    if (keys3.indexOf(e.effectiveMonth) < 0) return;
-                    const c = e.category || 'Diğer';
-                    catTotals[c] = (catTotals[c] || 0) + (Number(e.displayAmount) || 0);
-                });
-                const topCats = Object.entries(catTotals).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 5).map(function(x) { return x[0]; });
-                const palette = ['#0284c7', '#ec4899', '#f59e0b', '#10b981', '#8b5cf6'];
-                const datasets = topCats.map(function(cat, i) {
-                    return {
-                        label: cat,
-                        data: keys3.map(function(pk) {
-                            return allProc2.filter(function(e) { return e.effectiveMonth === pk && e.category === cat; })
-                                .reduce(function(s, e) { return s + (Number(e.displayAmount) || 0); }, 0);
-                        }),
-                        borderColor: palette[i % palette.length],
-                        backgroundColor: palette[i % palette.length] + '33',
-                        tension: 0.3,
-                        fill: false,
-                        pointRadius: 8, pointHoverRadius: 12, pointHitRadius: 28
-                    };
-                });
-                const ctxTr = document.getElementById('categoryTrendChart');
-                if (ctxTr) {
+                const ctxT = document.getElementById('categoryTrendChart');
+                if (ctxT) {
+                    const pkeys = (typeof getPreviousPeriodKeys === 'function') ? getPreviousPeriodKeys(3) : [period];
+                    const allT = getProcessedExpenses().filter(function(e) {
+                        return typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e);
+                    });
+                    // kategori toplamları (3 dönem birleşik) — E-ticaret ayrı
+                    const catGrand = {};
+                    pkeys.forEach(function(pk) {
+                        allT.filter(function(e) { return e.effectiveMonth === pk; }).forEach(function(e) {
+                            let cat = e.category || 'Diğer';
+                            if (e.isEcommerce) cat = 'E-ticaret';
+                            else if (typeof isLegacyShopCategory === 'function' && isLegacyShopCategory(cat)) cat = 'Alışveriş';
+                            else if (cat === 'E-ticaret') cat = 'E-ticaret';
+                            catGrand[cat] = (catGrand[cat] || 0) + (e.displayAmount || 0);
+                        });
+                    });
+                    const top5 = Object.entries(catGrand).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 5).map(function(x) { return x[0]; });
+                    const palette = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'];
+                    const datasets = top5.map(function(cat, i) {
+                        return {
+                            label: cat,
+                            data: pkeys.map(function(pk) {
+                                return allT.filter(function(e) {
+                                    if (e.effectiveMonth !== pk) return false;
+                                    let c = e.category || 'Diğer';
+                                    if (e.isEcommerce) c = 'E-ticaret';
+                                    else if (typeof isLegacyShopCategory === 'function' && isLegacyShopCategory(c)) c = 'Alışveriş';
+                                    return c === cat;
+                                }).reduce(function(s, e) { return s + (e.displayAmount || 0); }, 0);
+                            }),
+                            backgroundColor: palette[i % palette.length],
+                            borderRadius: 4,
+                            maxBarThickness: 18
+                        };
+                    });
+                    const labelsT = pkeys.map(function(pk) {
+                        return (typeof formatPeriodLabel === 'function') ? formatPeriodLabel(pk) : pk;
+                    });
                     if (categoryTrendChart) { try { categoryTrendChart.destroy(); } catch (_) {} }
-                    categoryTrendChart = new Chart(ctxTr, {
-                        type: 'line',
-                        data: {
-                            labels: keys3.map(function(k) { return formatPeriodLabel(k); }),
-                            datasets: datasets.length ? datasets : [{ label: 'Veri yok', data: [0, 0, 0], borderColor: '#cbd5e1' }]
-                        },
+                    categoryTrendChart = new Chart(ctxT, {
+                        type: 'bar',
+                        data: { labels: labelsT, datasets: datasets },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
-                            interaction: { mode: 'index', intersect: false },
-                            plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
-                            scales: { y: { beginAtZero: true } }
+                            plugins: {
+                                legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 }, padding: 8 } }
+                            },
+                            scales: {
+                                x: { stacked: false },
+                                y: { beginAtZero: true }
+                            }
                         }
                     });
                 }
-            } catch (err) { console.warn('catTrend', err); }
+            } catch (errT) { console.warn('categoryTrend', errT); }
         }
 
-        function csvEscape(val) {
-            const s = String(val == null ? '' : val);
-            if (/[;"\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
-            return s;
-        }
-
-        function buildExpensesCsv(rows) {
-            const header = ['Tip', 'Tarih', 'Kişi', 'Kategori', 'Alt', 'Ödeme', 'Açıklama', 'Tutar', 'Taksit', 'Dönem', 'Not'];
-            const lines = [header.join(';')];
-            (rows || []).forEach(function(e) {
-                lines.push([
-                    'Harcama',
-                    e.date || '',
-                    e.person || '',
-                    e.category || '',
-                    e.billSubtype || e.vehicleSubtype || '',
-                    e.paymentType || '',
-                    e.description || '',
-                    String(e.displayAmount != null ? e.displayAmount : (e.amount || '')).replace('.', ','),
-                    e.installmentLabel || (e.installmentCount > 1 ? e.installmentCount : 'Peşin'),
-                    e.effectiveMonth || '',
-                    e.fuelNote || ''
-                ].map(csvEscape).join(';'));
-            });
-            return '\uFEFF' + lines.join('\r\n');
-        }
-
-        function triggerCsvDownload(filename, csvText) {
-            const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(function() {
-                URL.revokeObjectURL(url);
-                a.remove();
-            }, 500);
-        }
-
-        window.downloadExcel = function() {
-            try {
-                const rows = getProcessedExpenses().slice().sort(function(a, b) {
-                    return String(b.date || '').localeCompare(String(a.date || ''));
-                });
-                if (!rows.length) {
-                    showToast('İndirilecek harcama yok', 'error');
-                    return;
-                }
-                const csv = buildExpensesCsv(rows);
-                const stamp = new Date().toISOString().slice(0, 10);
-                triggerCsvDownload('yuvam-tum-harcamalar-' + stamp + '.csv', csv);
-                showToast(rows.length + ' satır indirildi (Excel ile açın)', 'success');
-                logActivity('Diğer', 'CSV yedek indirildi', rows.length + ' satır');
-            } catch (err) {
-                console.error(err);
-                showToast('İndirme hatası: ' + (err.message || err), 'error');
-            }
+        window.renderMonthlyReports = function() {
+            // Kategori özeti updateStatsPanel içinde
+            try { updateStatsPanel(); } catch (_) {}
         };
-
-        window.downloadPeriodExcel = function() {
-            try {
-                const pk = getCurrentPeriod();
-                const rows = getProcessedExpenses().filter(function(e) { return e.effectiveMonth === pk; })
-                    .sort(function(a, b) { return String(b.date || '').localeCompare(String(a.date || '')); });
-                if (!rows.length) {
-                    showToast('Bu dönemde harcama yok', 'error');
-                    return;
-                }
-                const csv = buildExpensesCsv(rows);
-                triggerCsvDownload('yuvam-donem-' + pk + '.csv', csv);
-                showToast('Dönem ' + pk + ': ' + rows.length + ' satır', 'success');
-            } catch (err) {
-                showToast('İndirme hatası', 'error');
-            }
-        };
-
-        // Raporlar
-        function renderMonthlyReports() {
-            const period = getCurrentPeriod();
-            const processedExpenses = getProcessedExpenses().filter(e => e.effectiveMonth === period && (typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e)));
-            const total = processedExpenses.reduce((s, e) => s + (e.displayAmount || 0), 0);
-
-            const monthlySummary = document.getElementById('monthlySummaryReport');
-            const personSummary = document.getElementById('personSummaryReport');
-            if (monthlySummary) {
-                monthlySummary.innerHTML = '';
-                monthlySummary.classList.add('hidden');
-            }
-            if (personSummary) {
-                personSummary.innerHTML = '';
-                personSummary.classList.add('hidden');
-            }
-
-            const categoryData = {};
-            processedExpenses.forEach(e => {
-                categoryData[e.category] = (categoryData[e.category] || 0) + (e.displayAmount || 0);
-            });
-            const detailedReport = document.getElementById('detailedMonthlyReport');
-            if (!detailedReport) return;
-            const entries = Object.entries(categoryData).sort((a, b) => b[1] - a[1]);
-            if (!entries.length) {
-                detailedReport.innerHTML = '<p class="text-sm text-slate-400 col-span-full text-center py-2">Bu dönemde kategori yok</p>';
-            } else {
-                detailedReport.innerHTML = entries.map(([cat, amt]) => {
-                    const share = total > 0 ? Math.round(amt / total * 100) : 0;
-                    const safe = String(cat).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                    return '<button type="button" onclick="showCategoryExpenses(\'' + safe + '\')" class="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 transition text-left w-full">' +
-                        '<span class="text-xs font-bold text-slate-700 truncate">' + cat + '</span>' +
-                        '<span class="text-xs font-black text-slate-800 whitespace-nowrap">' + amt.toLocaleString('tr-TR') + ' TL <span class="text-slate-400 font-bold">%' + share + '</span></span>' +
-                        '</button>';
-                }).join('');
-            }
-        }
-
-        //
 
         window.markCardStatementUnpaid = async function(statementId) {
             const stmt = (cardStatements || []).find(s => s.id === statementId);

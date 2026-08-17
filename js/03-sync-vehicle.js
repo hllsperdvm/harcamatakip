@@ -413,9 +413,11 @@
             const cat = document.getElementById('category');
             const wrap = document.getElementById('vehicleSubtypeWrap');
             const billWrap = document.getElementById('billSubtypeWrap');
+            const shopWrap = document.getElementById('shopSubtypeWrap');
             if (!cat) return;
             const isVehicle = cat.value === 'Araç' || cat.value === 'Ulaşım';
             const isBill = cat.value === 'Faturalar';
+            const isShop = (typeof isAlisverisCategory === 'function') ? isAlisverisCategory(cat.value) : (cat.value === 'Alışveriş');
             if (wrap) {
                 wrap.classList.toggle('hidden', !isVehicle);
                 const sel = document.getElementById('vehicleSubtype');
@@ -424,6 +426,10 @@
             if (billWrap) {
                 billWrap.classList.toggle('hidden', !isBill);
                 if (isBill && typeof fillSubtypeSelects === 'function') fillSubtypeSelects();
+            }
+            if (shopWrap) {
+                shopWrap.classList.toggle('hidden', !isShop);
+                if (isShop && typeof fillSubtypeSelects === 'function') fillSubtypeSelects();
             }
             if (typeof onVehicleSubtypeChange === 'function') onVehicleSubtypeChange();
             // Alışveriş → Multinet ödeme seçeneği
@@ -1200,8 +1206,11 @@
             const category = document.getElementById('category').value;
             let vehicleSubtype = '';
             let billSubtype = '';
+            let shopSubtype = '';
+            let isEcommerce = false;
             let fuelKm = null, fuelLiters = null, fuelPricePerLt = null;
             let fuelNote = '';
+            const isShopCat = (typeof isAlisverisCategory === 'function') ? isAlisverisCategory(category) : (category === 'Alışveriş');
             if (category === 'Faturalar') {
                 const bs = document.getElementById('billSubtype');
                 billSubtype = bs ? bs.value : '';
@@ -1209,6 +1218,12 @@
                     alert('Fatura türü seçin: Elektrik, Su, Doğalgaz, Telefon, İnternet veya Abonelik');
                     return;
                 }
+            }
+            if (isShopCat) {
+                const ss = document.getElementById('shopSubtype');
+                shopSubtype = ss ? String(ss.value || '').trim() : '';
+                const ec = document.getElementById('isEcommerce');
+                isEcommerce = !!(ec && ec.checked);
             }
             if (category === 'Araç' || category === 'Ulaşım') {
                 const vs = document.getElementById('vehicleSubtype');
@@ -1263,6 +1278,8 @@
                 statementPeriod: getPeriodKeyForDateStr(date),
                 vehicleSubtype: (category === 'Araç' || category === 'Ulaşım') ? vehicleSubtype : '',
                 billSubtype: category === 'Faturalar' ? billSubtype : '',
+                shopSubtype: isShopCat ? shopSubtype : '',
+                isEcommerce: isShopCat ? !!isEcommerce : false,
                 fuelKm: fuelKm,
                 fuelLiters: fuelLiters,
                 fuelPricePerLt: fuelPricePerLt,
@@ -1387,7 +1404,9 @@
                 document.getElementById('installmentCount').value = e.installmentCount || 1;
             }
             document.getElementById('person').value = e.person;
-            const catVal = e.category === 'Ulaşım' ? 'Araç' : e.category;
+            let catVal = e.category === 'Ulaşım' ? 'Araç' : e.category;
+            // Eski Gıda/Giyim/E-ticaret → Alışveriş
+            if (typeof isLegacyShopCategory === 'function' && isLegacyShopCategory(catVal)) catVal = 'Alışveriş';
             document.getElementById('category').value = catVal;
             document.getElementById('paymentType').value = e.paymentType;
             document.getElementById('date').value = e.date;
@@ -1398,6 +1417,10 @@
             if (vs && e.vehicleSubtype) vs.value = e.vehicleSubtype;
             const bs = document.getElementById('billSubtype');
             if (bs && e.billSubtype) bs.value = e.billSubtype;
+            const ss = document.getElementById('shopSubtype');
+            if (ss) ss.value = e.shopSubtype || '';
+            const ec = document.getElementById('isEcommerce');
+            if (ec) ec.checked = !!(e.isEcommerce || e.category === 'E-ticaret');
             if (typeof onVehicleSubtypeChange === 'function') onVehicleSubtypeChange();
             const fk = document.getElementById('fuelKm');
             const fl = document.getElementById('fuelLiters');
