@@ -286,7 +286,7 @@
             const result = [];
             const seen = new Set();
 
-            const LEGACY_TABS = new Set(['calculator', 'reports', 'alisveris', 'alışveriş', 'deneme', 'homeHub', 'homehub', 'tasks', 'calendar']);
+            const LEGACY_TABS = new Set(['calculator', 'reports', 'alisveris', 'alışveriş', 'deneme', 'homeHub', 'homehub', 'tasks', 'calendar', 'notes']);
             (saved || []).forEach(s => {
                 if (!s || !s.id) return;
                 if (LEGACY_TABS.has(s.id)) return;
@@ -921,7 +921,8 @@
                 await saveTabsConfig();
                 applyRoleAndTabs();
                 renderTabsList();
-                showToast('Sıra güncellendi', 'success');
+                try { if (typeof saveMobileNavOrderFromTabs === 'function') saveMobileNavOrderFromTabs(); } catch (_) {}
+                showToast('Sıra güncellendi' + (window.matchMedia && window.matchMedia('(max-width: 640px)').matches ? ' · mobil menü de güncellendi' : ''), 'success');
             } catch (err) {
                 showToast(friendlyFirebaseError(err), 'error');
             }
@@ -939,7 +940,8 @@
                 await saveTabsConfig();
                 applyRoleAndTabs();
                 renderTabsList();
-                showToast('Sıra güncellendi', 'success');
+                try { if (typeof saveMobileNavOrderFromTabs === 'function') saveMobileNavOrderFromTabs(); } catch (_) {}
+                showToast('Sıra güncellendi' + (window.matchMedia && window.matchMedia('(max-width: 640px)').matches ? ' · mobil menü de güncellendi' : ''), 'success');
             } catch (err) {
                 showToast(friendlyFirebaseError(err), 'error');
             }
