@@ -366,31 +366,50 @@
         // Raporlar paneli
         window.showCategoryExpenses = function(category) {
             const period = getCurrentPeriod();
-            const items = getProcessedExpenses().filter(e =>
-                e.effectiveMonth === period && e.category === category
-            );
+            const cat = String(category || '');
+            const isEcom = cat === 'E-ticaret' || cat === 'Eticaret';
+            const isShop = !isEcom && ((typeof isAlisverisCategory === 'function' && isAlisverisCategory(cat)) || cat === 'Alışveriş');
+            const items = getProcessedExpenses().filter(function(e) {
+                if (!e || e.effectiveMonth !== period) return false;
+                if (typeof countsInPeriodTotals === 'function' && !countsInPeriodTotals(e)) return false;
+                if (isEcom) {
+                    return !!(e.isEcommerce) || e.category === 'E-ticaret';
+                }
+                if (isShop) {
+                    // Pasta dilimindeki Alışveriş = e-ticaret olmayan alışveriş
+                    if (e.isEcommerce) return false;
+                    let c = e.category || '';
+                    if (typeof isLegacyShopCategory === 'function' && isLegacyShopCategory(c)) c = 'Alışveriş';
+                    return (typeof isAlisverisCategory === 'function' && isAlisverisCategory(c)) || c === 'Alışveriş';
+                }
+                return e.category === cat;
+            });
             const modal = document.getElementById('categoryDetailModal');
             const title = document.getElementById('categoryDetailTitle');
             const body = document.getElementById('categoryDetailBody');
             const totalEl = document.getElementById('categoryDetailTotal');
             if (!modal || !body) return;
-            if (title) title.textContent = category + ' — dönem harcamaları';
-            const total = items.reduce((s, e) => s + (e.displayAmount || 0), 0);
+            if (title) title.textContent = cat + ' — dönem harcamaları';
+            const total = items.reduce(function(s, e) { return s + (e.displayAmount || 0); }, 0);
             if (totalEl) totalEl.textContent = total.toLocaleString('tr-TR') + ' TL';
             if (!items.length) {
                 body.innerHTML = '<p class="text-sm text-slate-400 font-medium text-center py-6">Bu kategoride dönem harcaması yok</p>';
             } else {
                 body.innerHTML = items
                     .slice()
-                    .sort((a, b) => String(b.date).localeCompare(String(a.date)))
-                    .map(e => `
-                    <div class="flex justify-between gap-3 items-start py-3 border-b border-slate-100 last:border-0">
-                        <div class="min-w-0">
-                            <p class="text-sm font-bold text-slate-800 truncate">${escapeHtml(e.description || '-')}</p>
-                            <p class="text-[11px] text-slate-400 font-semibold mt-0.5">${escapeHtml(e.date || '')} · ${escapeHtml(e.person || '')} · ${escapeHtml(e.installmentLabel || '')}</p>
-                        </div>
-                        <p class="text-sm font-black text-rose-600 whitespace-nowrap">${(e.displayAmount || 0).toLocaleString('tr-TR')} TL</p>
-                    </div>`).join('');
+                    .sort(function(a, b) { return String(b.date).localeCompare(String(a.date)); })
+                    .map(function(e) {
+                        const sub = e.shopSubtype ? (' · ' + e.shopSubtype) : '';
+                        const ec = e.isEcommerce ? ' · E-ticaret' : '';
+                        return '<div class="flex justify-between gap-3 items-start py-3 border-b border-slate-100 last:border-0">' +
+                            '<div class="min-w-0">' +
+                            '<p class="text-sm font-bold text-slate-800 truncate">' + escapeHtml(e.description || '-') + '</p>' +
+                            '<p class="text-[11px] text-slate-400 font-semibold mt-0.5">' + escapeHtml(e.date || '') + ' · ' +
+                            escapeHtml(e.person || '') + escapeHtml(sub) + escapeHtml(ec) + ' · ' + escapeHtml(e.installmentLabel || '') + '</p>' +
+                            '</div>' +
+                            '<p class="text-sm font-black text-rose-600 whitespace-nowrap">' + (e.displayAmount || 0).toLocaleString('tr-TR') + ' TL</p>' +
+                            '</div>';
+                    }).join('');
             }
             modal.classList.remove('hidden');
             modal.classList.add('flex');
@@ -1423,7 +1442,7 @@
                             if (!els || !els.length) return;
                             const i = els[0].index;
                             const lab = labels[i];
-                            if (lab && typeof showCategoryExpenses === 'function') showCategoryExpenses(lab === 'E-ticaret' ? 'Alışveriş' : lab);
+                            if (lab && typeof showCategoryExpenses === 'function') showCategoryExpenses(lab);
                         }
                     }
                 });
