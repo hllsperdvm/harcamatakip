@@ -1648,12 +1648,6 @@
             }
             const f = window._planFilter || 'all';
 
-            // Süper Lig: Tümü + Takvim'de göster, Görevler filtresinde gizle
-            const superWrap = document.querySelector('#tabContentPlan .border-amber-100');
-            if (superWrap) {
-                superWrap.classList.toggle('hidden', f === 'task');
-            }
-
             const items = [];
             if (f === 'all' || f === 'task') {
                 (familyTasks || []).forEach(function(t) {
@@ -1724,9 +1718,10 @@
             const dInp = document.getElementById('famPlanDate');
             if (dInp && !dInp.value) dInp.value = todayDateStr();
             try { onPlanKindChange(); } catch (_) {}
-            if (f !== 'task') {
-                try { refreshSuperLigFixtures(false); } catch (_) {}
-            }
+            // Notlar + IBAN (plan altında)
+            try { if (typeof ensureLazyCollection === 'function') { ensureLazyCollection('notes'); ensureLazyCollection('ibans'); } } catch (_) {}
+            try { if (typeof renderNotesList === 'function') renderNotesList(); } catch (_) {}
+            try { if (typeof renderIbans === 'function') renderIbans(); } catch (_) {}
         };
 
         // Eski isimler → plan

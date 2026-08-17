@@ -172,13 +172,12 @@
             { id: 'vehicle', emoji: '🚗', label: 'Araç', visible: true, core: true, adminOnly: false },
             { id: 'stats', emoji: '📊', label: 'Raporlar', visible: true, core: true, adminOnly: false },
             { id: 'plan', emoji: '📋', label: 'Plan', visible: true, core: true, adminOnly: false },
-            { id: 'notes', emoji: '📝', label: 'Notlar', visible: true, core: true, adminOnly: false },
             { id: 'settings', emoji: '⚙️', label: 'Ayarlar', visible: true, core: true, adminOnly: true },
             { id: 'trash', emoji: '🗑️', label: 'Çöp Kutusu', visible: true, core: true, adminOnly: true }
         ];
 
         // Mobil: Ana · Bütçe · Raporlar · Plan · Daha
-        const MOBILE_NAV_PRIMARY = ['home', 'expense', 'stats', 'plan'];
+        const MOBILE_NAV_PRIMARY_DEFAULT = ['home', 'expense', 'stats', 'plan'];
 
         let familyCalendar = [];
         let familyTasks = [];
@@ -810,14 +809,13 @@
                 el.classList.toggle('hidden', !isAdmin());
             });
             const visible = getVisibleTabs();
-            // Mümkünse Ana Sayfa ile aç
-            const homeTab = visible.find(t => t.id === 'home');
-            if (lastActiveTabId && visible.some(t => t.id === lastActiveTabId)) {
-                renderTabBar();
+            const homeTab = visible.find(function(t) { return t.id === 'home'; });
+            renderTabBar();
+            try { if (typeof rebuildMobileNav === 'function') rebuildMobileNav(); } catch (_) {}
+            if (lastActiveTabId && visible.some(function(t) { return t.id === lastActiveTabId; })) {
                 if (typeof updateMobileBottomNav === 'function') updateMobileBottomNav(lastActiveTabId);
                 return;
             }
-            renderTabBar();
             if (homeTab) switchTab('home');
             else if (visible.length) switchTab(visible[0].id);
         }
@@ -1174,9 +1172,9 @@
 
         // Sekme Değiştirme
         window.switchTab = function(tabName) {
-            if (tabName === 'tasks' || tabName === 'calendar') tabName = 'plan';
+            if (tabName === 'tasks' || tabName === 'calendar' || tabName === 'notes') tabName = 'plan';
             lastActiveTabId = tabName;
-            const coreIds = ["home", "plan", "calendar", "tasks", "shopping", "expense", "vehicle", "stats", "notes", "settings", "trash"];
+            const coreIds = ["home", "plan", "calendar", "tasks", "shopping", "expense", "vehicle", "stats", "settings", "trash"];
             const isCustom = String(tabName).startsWith('custom_');
 
             // Hide all core contents + custom
@@ -1249,26 +1247,17 @@
                 });
             } else if (tabName === 'home') {
                 if (typeof renderHomeTab === 'function') renderHomeTab();
-            } else if (tabName === 'plan' || tabName === 'calendar' || tabName === 'tasks') {
-                if (tabName === 'calendar' || tabName === 'tasks') {
-                    // eski linkler → plan
-                    try { history.replaceState(null, '', '#plan'); } catch (_) {}
-                }
+            } else if (tabName === 'plan' || tabName === 'calendar' || tabName === 'tasks' || tabName === 'notes') {
                 if (typeof renderPlanTab === 'function') renderPlanTab();
-                else {
-                    if (typeof renderTasksTab === 'function') renderTasksTab();
-                    if (typeof renderCalendarTab === 'function') renderCalendarTab();
-                }
+                try { if (typeof ensureLazyCollection === 'function') ensureLazyCollection('notes'); } catch (_) {}
+                try { if (typeof ensureLazyCollection === 'function') ensureLazyCollection('ibans'); } catch (_) {}
+                try { if (typeof renderNotesList === 'function') renderNotesList(); } catch (_) {}
+                try { if (typeof renderIbans === 'function') renderIbans(); } catch (_) {}
             } else if (tabName === 'shopping') {
                 try { if (typeof ensureLazyCollection === 'function') ensureLazyCollection('familyShopping'); } catch (_) {}
                 if (typeof renderShoppingTab === 'function') renderShoppingTab();
             } else if (tabName === 'trash') {
                 renderTrash();
-            } else if (tabName === 'notes') {
-                try { if (typeof ensureLazyCollection === 'function') ensureLazyCollection('notes'); } catch (_) {}
-                try { if (typeof ensureLazyCollection === 'function') ensureLazyCollection('ibans'); } catch (_) {}
-                if (typeof renderNotesList === 'function') renderNotesList();
-                if (typeof renderIbans === 'function') renderIbans();
             } else if (tabName === 'settings') {
                 renderCategoriesList();
                 renderTabsList();
@@ -1451,10 +1440,133 @@
             }
         };
 
+        function mobileNavStorageKey() {
+            const n = (currentUser && currentUser.name) ? currentUser.name : 'anon';
+            return 'yuvam_mnav_order_' + n;
+        }
+
+        function getDefaultMobileNavOrder() {
+            const fromTabs = (tabsConfig || [])
+                .filter(function(t) { return t && t.visible !== false && t.id !== 'trash'; })
+                .map(function(t) { return t.id; });
+            const base = (typeof MOBILE_NAV_PRIMARY_DEFAULT !== 'undefined' ? MOBILE_NAV_PRIMARY_DEFAULT.slice() : ['home', 'expense', 'stats', 'plan']);
+            const ordered = [];
+            base.forEach(function(id) {
+                if (fromTabs.indexOf(id) >= 0 && ordered.indexOf(id) < 0) ordered.push(id);
+            });
+            fromTabs.forEach(function(id) {
+                if (ordered.indexOf(id) < 0) ordered.push(id);
+            });
+            if (ordered.indexOf('home') < 0) ordered.unshift('home');
+            return ordered;
+        }
+
+        window.getMobileNavOrder = function() {
+            try {
+                const raw = localStorage.getItem(mobileNavStorageKey());
+                if (raw) {
+                    const arr = JSON.parse(raw);
+                    if (Array.isArray(arr) && arr.length) {
+                        // notes → plan
+                        return arr.map(function(id) {
+                            return (id === 'notes' || id === 'tasks' || id === 'calendar') ? 'plan' : id;
+                        }).filter(function(id, i, a) { return a.indexOf(id) === i; });
+                    }
+                }
+            } catch (_) {}
+            return getDefaultMobileNavOrder();
+        };
+
+        /** Kullanıcıya özel mobil sıra — sadece localStorage (cihaz + kullanıcı) */
+        window.saveMobileNavOrderFromTabs = function() {
+            if (!currentUser) return;
+            const order = (tabsConfig || [])
+                .filter(function(t) { return t && t.visible !== false && t.id !== 'trash'; })
+                .map(function(t) { return t.id; });
+            if (!order.length) return;
+            if (order.indexOf('home') < 0) order.unshift('home');
+            try { localStorage.setItem(mobileNavStorageKey(), JSON.stringify(order)); } catch (_) {}
+            try { rebuildMobileNav(); } catch (_) {}
+        };
+
+        function tabMeta(id) {
+            const t = (tabsConfig || []).find(function(x) { return x && x.id === id; });
+            if (t) return { id: t.id, emoji: t.emoji || '📌', label: t.label || id, adminOnly: !!t.adminOnly };
+            const fallback = {
+                home: { emoji: '🏠', label: 'Ana' },
+                expense: { emoji: '💰', label: 'Bütçe' },
+                stats: { emoji: '📊', label: 'Raporlar' },
+                plan: { emoji: '📋', label: 'Plan' },
+                shopping: { emoji: '🛒', label: 'Alışveriş' },
+                vehicle: { emoji: '🚗', label: 'Araç' },
+                settings: { emoji: '⚙️', label: 'Ayarlar', adminOnly: true },
+                trash: { emoji: '🗑️', label: 'Çöp', adminOnly: true }
+            };
+            const f = fallback[id] || { emoji: '📌', label: id };
+            return { id: id, emoji: f.emoji, label: f.label, adminOnly: !!f.adminOnly };
+        }
+
+        window.rebuildMobileNav = function() {
+            const nav = document.getElementById('mobileBottomNav');
+            const moreBody = document.getElementById('mobileMoreSheetBody');
+            if (!nav) return;
+            let order = getMobileNavOrder();
+            // Görünür + yetkili sekmeler
+            order = order.filter(function(id) {
+                if (id === 'more') return false;
+                const meta = tabMeta(id);
+                if (meta.adminOnly && typeof isAdmin === 'function' && !isAdmin()) return false;
+                const cfg = (tabsConfig || []).find(function(t) { return t && t.id === id; });
+                if (cfg && cfg.visible === false) return false;
+                return true;
+            });
+            // primary: en fazla 4 (more hariç)
+            const primary = order.slice(0, 4);
+            const rest = order.slice(4);
+            // settings/trash always reachable in more for admin
+            ['settings', 'trash'].forEach(function(id) {
+                if (typeof isAdmin === 'function' && isAdmin() && rest.indexOf(id) < 0 && primary.indexOf(id) < 0) rest.push(id);
+            });
+
+            function primaryBtn(id) {
+                const m = tabMeta(id);
+                const badge = (id === 'plan')
+                    ? '<span id="mnavPlanBadge" class="tab-count-badge hidden">0</span>'
+                    : '';
+                return '<button type="button" data-mnav="' + m.id + '" onclick="mobileNavGo(\'' + m.id + '\')" class="mnav-item relative">' +
+                    '<span class="mnav-ico relative inline-block">' + m.emoji + badge + '</span>' +
+                    '<span class="mnav-lbl">' + m.label + '</span></button>';
+            }
+            let html = primary.map(primaryBtn).join('');
+            html += '<button type="button" data-mnav="more" onclick="mobileNavGo(\'more\')" class="mnav-item">' +
+                '<span class="mnav-ico">☰</span><span class="mnav-lbl">Daha</span></button>';
+            nav.innerHTML = html;
+
+            if (moreBody) {
+                moreBody.innerHTML = rest.map(function(id) {
+                    const m = tabMeta(id);
+                    const adminCls = m.adminOnly ? ' admin-only-btn' : '';
+                    return '<button type="button" onclick="mobileNavGo(\'' + m.id + '\')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800' + adminCls + '">' +
+                        m.emoji + ' ' + m.label + '</button>';
+                }).join('');
+            }
+            try { updateMobileBottomNav(lastActiveTabId || 'home'); } catch (_) {}
+            try { if (typeof updateTaskNavBadges === 'function') updateTaskNavBadges(); } catch (_) {}
+        };
+
         window.updateMobileBottomNav = function(activeId) {
             const nav = document.getElementById('mobileBottomNav');
             if (!nav) return;
-            const moreIds = ['shopping', 'stats', 'settings', 'trash', 'vehicle', 'notes'];
+            if (!nav.querySelector('[data-mnav]')) {
+                try { rebuildMobileNav(); } catch (_) {}
+            }
+            const moreBody = document.getElementById('mobileMoreSheetBody');
+            const moreIds = moreBody
+                ? Array.prototype.map.call(moreBody.querySelectorAll('button[onclick]'), function(b) {
+                    const m = String(b.getAttribute('onclick') || '').match(/mobileNavGo\('([^']+)'\)/);
+                    return m ? m[1] : '';
+                }).filter(Boolean)
+                : [];
             nav.querySelectorAll('[data-mnav]').forEach(function(btn) {
                 const id = btn.getAttribute('data-mnav');
                 const on = id === activeId || (id === 'more' && moreIds.indexOf(activeId) >= 0);

@@ -194,38 +194,7 @@
 
             <!-- TAKVİM -->
             <!-- PLAN: Görev + Takvim birleşik -->
-            <div id="tabContentPlan" class="hidden space-y-4 fade-in max-w-2xl mx-auto">
-<div class="bg-white p-5 rounded-[1.75rem] card-shadow border border-amber-100">
-                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-                        <div>
-                            <h2 class="text-lg font-black mb-0.5">🦁 Süper Lig</h2>
-                            <p class="text-[11px] text-slate-400 font-semibold">GS yaklaşan maçlar · Puan durumu</p>
-                        </div>
-                        <button type="button" onclick="refreshSuperLigFixtures(true)" class="text-xs font-bold px-3 py-2 rounded-xl bg-amber-50 text-amber-800 border border-amber-100 hover:bg-amber-100">Yenile</button>
-                    </div>
-                    <p id="superLigStatus" class="text-[11px] text-slate-400 font-semibold mb-3"></p>
-                    <div class="space-y-2">
-                        <div class="rounded-2xl border border-slate-100 overflow-hidden">
-                            <button type="button" id="superLigFixToggle" onclick="toggleSuperLigPanel('fixtures')" class="w-full flex items-center justify-between gap-2 px-4 py-3 bg-slate-50 hover:bg-slate-100 text-left">
-                                <span class="text-sm font-black text-slate-800">📅 Galatasaray Fikstürü</span>
-                                <span id="superLigFixChevron" class="text-slate-400 font-bold text-lg leading-none">▸</span>
-                            </button>
-                            <div id="superLigFixBody" class="hidden border-t border-slate-100 p-3">
-                                <div id="superLigFixtureList" class="space-y-2 max-h-[40rem] overflow-y-auto"></div>
-                            </div>
-                        </div>
-                        <div class="rounded-2xl border border-slate-100 overflow-hidden">
-                            <button type="button" id="superLigTableToggle" onclick="toggleSuperLigPanel('table')" class="w-full flex items-center justify-between gap-2 px-4 py-3 bg-slate-50 hover:bg-slate-100 text-left">
-                                <span class="text-sm font-black text-slate-800">📊 Puan Durumu</span>
-                                <span id="superLigTableChevron" class="text-slate-400 font-bold text-lg leading-none">▸</span>
-                            </button>
-                            <div id="superLigTableBody" class="hidden border-t border-slate-100 p-3">
-                                <div id="superLigTableList" class="overflow-x-auto"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
+                        <div id="tabContentPlan" class="hidden space-y-4 fade-in max-w-2xl mx-auto">
                 <div class="bg-white p-5 rounded-[1.75rem] card-shadow border border-slate-100">
                     <h2 class="text-lg font-black mb-0.5">📋 Plan</h2>
                     <p class="text-[11px] text-slate-400 font-semibold mb-4">Görev · Etkinlik · Randevu · tek formda</p>
@@ -264,15 +233,41 @@
                         <button type="button" onclick="setPlanFilter('cal')" id="planFilterCal" class="text-[11px] font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-600">Takvim</button>
                     </div>
                     <div id="familyPlanList" class="space-y-2"></div>
-                    <!-- Eski id'ler (uyumluluk) -->
                     <div id="familyTasksList" class="hidden"></div>
                     <div id="familyCalendarList" class="hidden"></div>
                 </div>
 
-                
+                <!-- Notlar + IBAN (Plan altına taşındı) -->
+                <div class="bg-white p-5 sm:p-8 rounded-[1.75rem] sm:rounded-[2.5rem] card-shadow border border-slate-100">
+                    <h2 id="noteFormTitle" class="text-xl font-black mb-2">📝 Notlar</h2>
+                    <p class="text-[11px] text-slate-400 font-semibold mb-4">Unutmamak için kısa notlar · yapılacak listesi gibi kullanın</p>
+                    <form onsubmit="handleNoteSubmit(event)" class="space-y-3">
+                        <input type="hidden" id="editNoteId">
+                        <select id="notePerson" required class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="Bekir">Bekir</option>
+                            <option value="Duygu">Duygu</option>
+                        </select>
+                        <textarea id="noteContent" rows="3" required placeholder="Notunuzu buraya yazın..." class="w-full bg-slate-50 border-none rounded-2xl p-4 font-medium outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                        <button type="submit" id="noteSubmitBtn" class="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition">Kaydet</button>
+                    </form>
+                </div>
+                <div id="notesContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+
+                <div class="bg-white p-5 sm:p-8 rounded-[1.75rem] sm:rounded-[2.5rem] card-shadow border border-slate-100">
+                    <div class="flex justify-between items-center mb-4 gap-2">
+                        <h2 class="text-xl font-black">💳 IBAN Numaraları</h2>
+                        <button type="button" onclick="openIbanModal()" class="bg-indigo-600 text-white px-4 sm:px-6 py-2 rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition">+ IBAN Ekle</button>
+                    </div>
+                    <div id="ibanListContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="text-center text-slate-400 py-8 col-span-full">
+                            <p class="text-sm">Henüz IBAN kaydı yok</p>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
-            <!-- ALIŞVERİŞ -->
+<!-- ALIŞVERİŞ -->
             <div id="tabContentShopping" class="hidden space-y-4 fade-in max-w-2xl mx-auto">
                 <div class="bg-white p-5 rounded-[1.75rem] card-shadow border border-slate-100">
                     <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
@@ -809,70 +804,7 @@
                 </div>
             </div>
 
-<div id="tabContentNotes" class="hidden fade-in">
-                <div class="max-w-4xl mx-auto space-y-8">
-                    <!-- Notlar Bölümü -->
-                    <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
-                        <h2 id="noteFormTitle" class="text-xl font-black mb-2">📝 Notlar</h2>
-                        <p class="text-[11px] text-slate-400 font-semibold mb-6">Unutmamak için kısa notlar · yapılacak listesi gibi kullanın</p>
-                        <form onsubmit="handleNoteSubmit(event)" class="space-y-4">
-                            <input type="hidden" id="editNoteId">
-                            <select id="notePerson" required class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold outline-none focus:ring-2 focus:ring-indigo-500">
-                                <option value="Bekir">Bekir</option>
-                                <option value="Duygu">Duygu</option>
-                            </select>
-                            <textarea id="noteContent" rows="3" required placeholder="Notunuzu buraya yazın..." class="w-full bg-slate-50 border-none rounded-2xl p-4 font-medium outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
-                            <button type="submit" id="noteSubmitBtn" class="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition">Kaydet</button>
-                        </form>
-                    </div>
-                    <div id="notesContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
-
-                    <!-- IBAN en altta -->
-                    <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
-                        <div class="flex justify-between items-center mb-6">
-                            <h2 class="text-xl font-black">💳 IBAN Numaraları</h2>
-                            <button onclick="openIbanModal()" class="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition">+ IBAN Ekle</button>
-                        </div>
-                        <div id="ibanListContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="text-center text-slate-400 py-8 col-span-full">
-                                <p class="text-sm">Henüz IBAN kaydı yok</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="ibanModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[110] p-4">
-                        <div class="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden slide-in">
-                            <div class="bg-indigo-600 p-6 text-white flex justify-between items-center">
-                                <h2 class="text-2xl font-black">IBAN Ekle</h2>
-                                <button onclick="closeIbanModal()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition text-2xl font-light">&times;</button>
-                            </div>
-                            <form onsubmit="handleIbanSubmit(event)" class="p-8 space-y-4">
-                                <input type="hidden" id="editIbanId">
-                                <div>
-                                    <label class="block text-sm font-bold text-slate-600 mb-2">Adı Soyadı</label>
-                                    <input type="text" id="ibanOwnerName" required placeholder="Ad ve Soyad" class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold outline-none focus:ring-2 focus:ring-indigo-500">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-bold text-slate-600 mb-2">İBAN No</label>
-                                    <input type="text" id="ibanNumber" required placeholder="TR00 0000 0000..." class="w-full bg-slate-50 border-none rounded-2xl p-4 font-mono text-sm outline-none focus:ring-2 focus:ring-indigo-500 uppercase">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-bold text-slate-600 mb-2">Banka</label>
-                                    <input type="text" id="ibanBank" required placeholder="Banka adı" class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold outline-none focus:ring-2 focus:ring-indigo-500">
-                                </div>
-                                <div class="flex gap-3 pt-4">
-                                    <button type="button" onclick="closeIbanModal()" class="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition">Vazgeç</button>
-                                    <button type="submit" class="flex-1 py-3 rounded-2xl bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition">Kaydet</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-
-            
-            <div id="tabContentSettings" class="hidden fade-in">
+<div id="tabContentSettings" class="hidden fade-in">
                 <div class="max-w-2xl mx-auto space-y-6">
                     <div class="text-center mb-2">
                         <h2 class="text-2xl font-black text-slate-900">Ayarlar</h2>
@@ -1306,24 +1238,7 @@
     </div>
 
     <!-- Mobil alt navigasyon (YUVAM 2.0 iskelet) -->
-    <nav id="mobileBottomNav" class="mobile-bottom-nav sm:hidden" aria-label="Ana menü">
-        <button type="button" data-mnav="home" onclick="mobileNavGo('home')" class="mnav-item">
-            <span class="mnav-ico">🏠</span><span class="mnav-lbl">Ana</span>
-        </button>
-        <button type="button" data-mnav="expense" onclick="mobileNavGo('expense')" class="mnav-item">
-            <span class="mnav-ico">💰</span><span class="mnav-lbl">Bütçe</span>
-        </button>
-        <button type="button" data-mnav="stats" onclick="mobileNavGo('stats')" class="mnav-item">
-            <span class="mnav-ico">📊</span><span class="mnav-lbl">Raporlar</span>
-        </button>
-        <button type="button" data-mnav="plan" onclick="mobileNavGo('plan')" class="mnav-item relative">
-            <span class="mnav-ico relative inline-block">📋<span id="mnavPlanBadge" class="tab-count-badge hidden">0</span></span>
-            <span class="mnav-lbl">Plan</span>
-        </button>
-        <button type="button" data-mnav="more" onclick="mobileNavGo('more')" class="mnav-item">
-            <span class="mnav-ico">☰</span><span class="mnav-lbl">Daha</span>
-        </button>
-    </nav>
+    <nav id="mobileBottomNav" class="mobile-bottom-nav sm:hidden" aria-label="Ana menü"></nav>
 
     <div id="mobileMoreSheet" class="fixed inset-0 z-[200] hidden items-end justify-center bg-slate-900/50 backdrop-blur-sm" style="display:none" onclick="if(event.target===this)closeMobileMoreSheet()">
         <div class="w-full max-w-lg bg-white rounded-t-[1.75rem] p-5 pb-8 shadow-2xl space-y-2 max-h-[80vh] overflow-y-auto" onclick="event.stopPropagation()">
@@ -1331,17 +1246,42 @@
                 <p class="text-sm font-black text-slate-800">Daha fazla</p>
                 <button type="button" onclick="closeMobileMoreSheet()" class="text-slate-400 font-bold text-xl leading-none px-2">&times;</button>
             </div>
-            <button type="button" onclick="mobileNavGo('shopping')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800">🛒 Alışveriş</button>
-            <button type="button" onclick="mobileNavGo('vehicle')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800">🚗 Araç</button>
-            <button type="button" onclick="mobileNavGo('notes')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800">📝 Notlar</button>
-            <button type="button" onclick="mobileNavGo('stats')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800">📊 Raporlar</button>
-            <button type="button" onclick="mobileNavGo('settings')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800 admin-only-btn">⚙️ Ayarlar</button>
-            <button type="button" onclick="mobileNavGo('trash')" class="w-full text-left px-4 py-3.5 rounded-xl bg-slate-50 font-bold text-slate-800 admin-only-btn">🗑️ Çöp Kutusu</button>
+            <div id="mobileMoreSheetBody" class="space-y-2"></div>
             <button type="button" onclick="closeMobileMoreSheet(); logout();" class="w-full text-left px-4 py-3.5 rounded-xl bg-rose-50 font-bold text-rose-600">Çıkış</button>
         </div>
     </div>
 
     <!-- MODALLAR -->
+
+    <div id="ibanModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[110] p-4">
+        <div class="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden slide-in">
+            <div class="bg-indigo-600 p-6 text-white flex justify-between items-center">
+                <h2 class="text-2xl font-black">IBAN Ekle</h2>
+                <button type="button" onclick="closeIbanModal()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition text-2xl font-light">&times;</button>
+            </div>
+            <form onsubmit="handleIbanSubmit(event)" class="p-8 space-y-4">
+                <input type="hidden" id="editIbanId">
+                <div>
+                    <label class="block text-sm font-bold text-slate-600 mb-2">Adı Soyadı</label>
+                    <input type="text" id="ibanOwnerName" required placeholder="Ad ve Soyad" class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-600 mb-2">İBAN No</label>
+                    <input type="text" id="ibanNumber" required placeholder="TR00 0000 0000..." class="w-full bg-slate-50 border-none rounded-2xl p-4 font-mono text-sm outline-none focus:ring-2 focus:ring-indigo-500 uppercase">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-600 mb-2">Banka</label>
+                    <input type="text" id="ibanBank" required placeholder="Banka adı" class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="closeIbanModal()" class="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition">Vazgeç</button>
+                    <button type="submit" class="flex-1 py-3 rounded-2xl bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
 
     <div id="siteSearchModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-start sm:items-center justify-center z-[130] p-4 pt-16 sm:pt-4">
         <div class="bg-white w-full max-w-lg rounded-[1.75rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
