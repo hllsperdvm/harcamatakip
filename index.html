@@ -50,7 +50,7 @@
                         <input type="password" id="sifreInput" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="current-password" placeholder="••••••" class="w-full rounded-2xl border-none bg-slate-50 p-4 text-center text-2xl tracking-[0.35em] font-bold ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" onkeypress="handlePasswordKeyPress(event)">
                     </div>
                     <p class="text-[10px] text-slate-400 font-semibold text-center">Sayısal şifre (Firebase Authentication · en az 6 rakam önerilir)</p>
-                    <button onclick="checkPassword()" class="w-full rounded-2xl bg-indigo-600 py-4 font-bold text-white shadow-lg shadow-indigo-100 transition hover:bg-indigo-700 active:scale-[0.98] mt-2">Giriş Yap</button>
+                    <button type="button" id="loginBtn" onclick="checkPassword()" class="w-full rounded-2xl bg-indigo-600 py-4 font-bold text-white shadow-lg shadow-indigo-100 transition hover:bg-indigo-700 active:scale-[0.98] mt-2">Giriş Yap</button>
                 </div>
             </div>
         </div>
@@ -1653,66 +1653,15 @@
         <button type="button" id="quickAddFab" class="quick-add-fab" onclick="toggleQuickAddMenu()" aria-label="Hızlı ekle">＋</button>
     </div>
 
-    <!-- Firebase + uygulama: yerel önce, olmazsa CDN; sonra app js -->
-    <script>
-    (function () {
-      function loadScript(src) {
-        return new Promise(function (resolve, reject) {
-          var s = document.createElement('script');
-          s.src = src;
-          s.async = false;
-          s.onload = function () { resolve(src); };
-          s.onerror = function () { reject(new Error('load failed: ' + src)); };
-          document.head.appendChild(s);
-        });
-      }
-      function loadSeq(urls) {
-        var p = Promise.resolve();
-        urls.forEach(function (u) {
-          p = p.then(function () { return loadScript(u); });
-        });
-        return p;
-      }
-      var localFb = [
-        'vendor/firebase-app-compat.js',
-        'vendor/firebase-firestore-compat.js',
-        'vendor/firebase-auth-compat.js'
-      ];
-      var cdnFb = [
-        'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js',
-        'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js',
-        'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js'
-      ];
-      var appJs = [
-        'js/01-core.js',
-        'js/02-family-gold-calendar.js',
-        'js/03-sync-vehicle.js',
-        'js/04-expenses-ai.js',
-        'js/05-settings-boot.js'
-      ];
-      loadSeq(localFb)
-        .catch(function () {
-          console.warn('Yerel Firebase yok, CDN deneniyor…');
-          return loadSeq(cdnFb);
-        })
-        .then(function () {
-          if (typeof firebase === 'undefined') {
-            throw new Error('firebase global yok');
-          }
-          return loadSeq(appJs);
-        })
-        .catch(function (err) {
-          console.error(err);
-          var online = typeof navigator !== 'undefined' && navigator.onLine;
-          alert(
-            'Firebase yüklenemedi.\\n\\n' +
-            (online
-              ? 'İnternet var ama dosyalar yüklenemedi. Sayfayı Ctrl+F5 ile yenileyin.\\nGitHub/Vercel\\'e vendor/ klasörünün yüklendiğinden emin olun.'
-              : 'Çevrimdışısınız. İlk kurulum için bir kez internete bağlanıp siteyi açın.')
-          );
-        });
-    })();
-    </script>
+    <!-- Firebase: yerel → hata olursa CDN -->
+    <script src="vendor/firebase-app-compat.js" onerror="this.onerror=null;this.src='https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js'"></script>
+    <script src="vendor/firebase-firestore-compat.js" onerror="this.onerror=null;this.src='https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js'"></script>
+    <script src="vendor/firebase-auth-compat.js" onerror="this.onerror=null;this.src='https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js'"></script>
+    <script src="js/01-core.js"></script>
+    <script src="js/02-family-gold-calendar.js"></script>
+    <script src="js/03-sync-vehicle.js"></script>
+    <script src="js/04-expenses-ai.js"></script>
+    <script src="js/05-settings-boot.js"></script>
 
     <!-- EYVAH easter egg -->
     <div id="eyvahOverlay" class="eyvah-overlay hidden" aria-hidden="true">

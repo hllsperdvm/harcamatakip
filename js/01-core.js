@@ -204,7 +204,18 @@
         };
 
         window.checkPassword = async function() {
+            const btn = document.getElementById('loginBtn');
+            const setBusy = function(busy) {
+                if (!btn) return;
+                btn.disabled = !!busy;
+                btn.textContent = busy ? 'Giriş yapılıyor…' : 'Giriş Yap';
+                btn.style.opacity = busy ? '0.7' : '';
+            };
             try {
+                if (typeof firebase === 'undefined' || !auth) {
+                    alert('Firebase henüz yüklenmedi. Birkaç saniye bekleyip tekrar deneyin veya Ctrl+F5 yapın.');
+                    return;
+                }
                 const userName = (document.getElementById('loginUser') || {}).value;
                 const input = (document.getElementById('sifreInput') || {}).value;
                 if (!userName) {
@@ -221,11 +232,22 @@
                     return;
                 }
 
+                setBusy(true);
                 let cred;
                 try {
-                    cred = await auth.signInWithEmailAndPassword(email, input);
+                    const signInPromise = auth.signInWithEmailAndPassword(email, input);
+                    const timeoutPromise = new Promise(function(_, reject) {
+                        setTimeout(function() {
+                            reject(Object.assign(new Error('Zaman aşımı: Firebase yanıt vermedi. İnternet bağlantınızı kontrol edin.'), { code: 'timeout' }));
+                        }, 20000);
+                    });
+                    cred = await Promise.race([signInPromise, timeoutPromise]);
                 } catch (authErr) {
                     const code = (authErr && authErr.code) || '';
+                    if (code === 'timeout') {
+                        alert(authErr.message || 'Giriş zaman aşımına uğradı.');
+                        return;
+                    }
                     if (code === 'auth/wrong-password' || code === 'auth/invalid-credential' || code === 'auth/invalid-login-credentials') {
                         alert('Şifre hatalı. Firebase Console → Authentication → Users içindeki şifreyi kullanın.');
                         return;
@@ -238,7 +260,11 @@
                         alert('Çok fazla deneme. Bir süre sonra tekrar deneyin.');
                         return;
                     }
-                    alert('Giriş hatası: ' + (authErr.message || authErr));
+                    if (code === 'auth/network-request-failed') {
+                        alert('Ağ hatası. İnternet bağlantınızı kontrol edin.');
+                        return;
+                    }
+                    alert('Giriş hatası: ' + ((authErr && authErr.message) || authErr));
                     return;
                 }
 
@@ -248,6 +274,8 @@
             } catch (err) {
                 console.error(err);
                 alert('Giriş hatası: ' + (err && err.message ? err.message : err));
+            } finally {
+                setBusy(false);
             }
         };
 
