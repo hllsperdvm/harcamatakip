@@ -1275,6 +1275,12 @@
         function renderFamilyCalendarList() {
             const list = document.getElementById('familyCalendarList');
             if (!list) return;
+            // Plan sekmesi birleşik liste kullanıyor — eski listeyi gösterme
+            if (document.getElementById('familyPlanList')) {
+                list.classList.add('hidden');
+                list.innerHTML = '';
+                return;
+            }
             const sorted = (familyCalendar || []).slice().sort(function(a, b) {
                 return eventEffectiveDate(a).localeCompare(eventEffectiveDate(b));
             });
@@ -1493,6 +1499,270 @@
                     await db.collection('familyTasks').doc(id).update({ done: !!done });
                 }
             } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
+        };
+
+
+        // ===== Birleşik Plan (görev + takvim) =====
+        window._planFilter = 'all';
+
+        window.onPlanKindChange = function() {
+            const kind = (document.getElementById('famPlanKind') || {}).value || 'task';
+            const asg = document.getElementById('famPlanAssignee');
+            if (asg) {
+                asg.disabled = (kind !== 'task');
+                asg.style.opacity = kind === 'task' ? '1' : '0.5';
+            }
+            const rep = document.getElementById('famPlanRepeat');
+            if (rep && (kind === 'birthday' || kind === 'anniversary')) {
+                rep.value = 'yearly';
+            }
+        };
+
+        window.setPlanFilter = function(f) {
+            window._planFilter = f || 'all';
+            ['all', 'task', 'cal'].forEach(function(k) {
+                const el = document.getElementById('planFilter' + (k === 'all' ? 'All' : (k === 'task' ? 'Task' : 'Cal')));
+                if (!el) return;
+                const on = window._planFilter === k;
+                el.className = 'text-[11px] font-bold px-3 py-1.5 rounded-full ' + (on ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600');
+            });
+            try { renderPlanTab(); } catch (_) {}
+        };
+
+        window.familyCancelPlanEdit = function() {
+            const eid = document.getElementById('famPlanEditId');
+            if (eid) eid.value = '';
+            const src = document.getElementById('famPlanEditSource');
+            if (src) src.value = '';
+            const tx = document.getElementById('famPlanText');
+            if (tx) tx.value = '';
+            const btn = document.getElementById('famPlanSubmitBtn');
+            if (btn) btn.textContent = 'Ekle';
+            const c = document.getElementById('famPlanCancelEdit');
+            if (c) c.classList.add('hidden');
+        };
+
+        window.familyEditPlan = function(source, id) {
+            if (source === 'task') {
+                const t = (familyTasks || []).find(function(x) { return x.id === id; });
+                if (!t) return;
+                document.getElementById('famPlanEditId').value = id;
+                document.getElementById('famPlanEditSource').value = 'task';
+                document.getElementById('famPlanText').value = t.text || '';
+                document.getElementById('famPlanKind').value = 'task';
+                document.getElementById('famPlanDate').value = t.due ? String(t.due).slice(0, 10) : '';
+                document.getElementById('famPlanAssignee').value = t.assignee || 'Herkes';
+                document.getElementById('famPlanRepeat').value = t.repeat || 'none';
+            } else {
+                const ev = (familyCalendar || []).find(function(x) { return x.id === id; });
+                if (!ev) return;
+                document.getElementById('famPlanEditId').value = id;
+                document.getElementById('famPlanEditSource').value = 'cal';
+                document.getElementById('famPlanText').value = ev.title || '';
+                const kind = ['event', 'appointment', 'birthday', 'anniversary', 'other', 'match'].indexOf(ev.type) >= 0 ? (ev.type === 'match' ? 'event' : ev.type) : 'event';
+                document.getElementById('famPlanKind').value = kind;
+                document.getElementById('famPlanDate').value = String(ev.date || '').slice(0, 10);
+                document.getElementById('famPlanRepeat').value = ev.repeat || 'none';
+            }
+            onPlanKindChange();
+            const btn = document.getElementById('famPlanSubmitBtn');
+            if (btn) btn.textContent = 'Güncelle';
+            const c = document.getElementById('famPlanCancelEdit');
+            if (c) c.classList.remove('hidden');
+            const tx = document.getElementById('famPlanText');
+            if (tx) tx.focus();
+        };
+
+        window._planSaving = false;
+        window.familyAddPlan = async function(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            if (window._planSaving) return;
+            const text = ((document.getElementById('famPlanText') || {}).value || '').trim();
+            if (!text) return;
+            const kind = (document.getElementById('famPlanKind') || {}).value || 'task';
+            const date = (document.getElementById('famPlanDate') || {}).value || '';
+            const assignee = (document.getElementById('famPlanAssignee') || {}).value || 'Herkes';
+            let repeat = (document.getElementById('famPlanRepeat') || {}).value || 'none';
+            if (kind === 'birthday' || kind === 'anniversary') repeat = 'yearly';
+            const editId = ((document.getElementById('famPlanEditId') || {}).value || '').trim();
+            const editSrc = ((document.getElementById('famPlanEditSource') || {}).value || '').trim();
+            const btn = document.getElementById('famPlanSubmitBtn');
+            window._planSaving = true;
+            if (btn) { btn.disabled = true; btn.textContent = 'Kaydediliyor…'; }
+            try {
+                // Tek kayıt: görev → familyTasks, diğerleri → familyCalendar (bir kez)
+                if (kind === 'task') {
+                    if (editId && editSrc === 'task') {
+                        await db.collection('familyTasks').doc(editId).update({
+                            text: text, due: date, assignee: assignee, repeat: repeat === 'yearly' ? 'none' : repeat,
+                            updatedAt: new Date().toISOString(), updatedBy: (currentUser && currentUser.name) || ''
+                        });
+                        showToast('Görev güncellendi', 'success');
+                    } else {
+                        if (editId && editSrc === 'cal') {
+                            try { await db.collection('familyCalendar').doc(editId).delete(); } catch (_) {}
+                        }
+                        await db.collection('familyTasks').add({
+                            text: text, due: date, assignee: assignee, repeat: (repeat === 'yearly' ? 'none' : repeat),
+                            done: false, by: (currentUser && currentUser.name) || '', createdAt: new Date().toISOString()
+                        });
+                        showToast('Görev eklendi', 'success');
+                    }
+                } else {
+                    const type = kind === 'event' ? 'event' : kind;
+                    if (editId && editSrc === 'cal') {
+                        await db.collection('familyCalendar').doc(editId).update({
+                            title: text, date: date || todayDateStr(), type: type, repeat: repeat,
+                            updatedAt: new Date().toISOString(), updatedBy: (currentUser && currentUser.name) || ''
+                        });
+                        showToast('Güncellendi', 'success');
+                    } else {
+                        if (editId && editSrc === 'task') {
+                            try { await db.collection('familyTasks').doc(editId).delete(); } catch (_) {}
+                        }
+                        await db.collection('familyCalendar').add({
+                            title: text, date: date || todayDateStr(), type: type, repeat: repeat,
+                            by: (currentUser && currentUser.name) || '', createdAt: new Date().toISOString()
+                        });
+                        showToast('Eklendi', 'success');
+                    }
+                }
+                familyCancelPlanEdit();
+                const tx = document.getElementById('famPlanText');
+                if (tx) tx.value = '';
+                // Anında listeyi yenile (snapshot beklemeden)
+                try { renderPlanTab(); } catch (_) {}
+            } catch (err) { showToast(friendlyFirebaseError(err), 'error'); }
+            finally {
+                window._planSaving = false;
+                if (btn) { btn.disabled = false; btn.textContent = 'Ekle'; }
+            }
+        };
+
+        window.renderPlanTab = function() {
+            const list = document.getElementById('familyPlanList');
+            if (!list) {
+                try { if (typeof renderTasksTab === 'function') renderTasksTab(); } catch (_) {}
+                try { if (typeof renderCalendarTab === 'function') renderCalendarTab(); } catch (_) {}
+                return;
+            }
+            const f = window._planFilter || 'all';
+
+            // Süper Lig: Tümü + Takvim'de göster, Görevler filtresinde gizle
+            const superWrap = document.querySelector('#tabContentPlan .border-amber-100');
+            if (superWrap) {
+                superWrap.classList.toggle('hidden', f === 'task');
+            }
+
+            const items = [];
+            if (f === 'all' || f === 'task') {
+                (familyTasks || []).forEach(function(t) {
+                    items.push({
+                        source: 'task',
+                        id: t.id,
+                        title: t.text || '-',
+                        date: t.due || '',
+                        done: !!t.done,
+                        meta: (t.assignee && t.assignee !== 'Herkes' ? t.assignee : 'Herkes') +
+                            (t.repeat && t.repeat !== 'none' ? ' · 🔁 ' + taskRepeatLabel(t.repeat) : ''),
+                        sort: t.due || '9999-12-31'
+                    });
+                });
+            }
+            if (f === 'all' || f === 'cal') {
+                // Fikstür/maç kayıtları Super Lig kutusunda — listede tekrarlama
+                const seenCal = new Set();
+                (familyCalendar || []).forEach(function(ev) {
+                    if (!ev) return;
+                    if (ev.type === 'match' || ev.source === 'espn-gs' || ev.gsMatchKey) return;
+                    const tit = String(ev.title || '');
+                    if (/^🦁/.test(tit) || (/\b(galatasaray|gs)\b/i.test(tit) && /[–—-]/.test(tit))) return;
+                    const dedupe = String(ev.date || '') + '|' + tit.toLowerCase();
+                    if (seenCal.has(dedupe)) return;
+                    seenCal.add(dedupe);
+                    const eff = (typeof eventEffectiveDate === 'function') ? eventEffectiveDate(ev) : String(ev.date || '');
+                    items.push({
+                        source: 'cal',
+                        id: ev.id,
+                        title: ev.title || '-',
+                        date: eff,
+                        done: false,
+                        meta: (typeof calTypeIcon === 'function' ? calTypeIcon(ev.type) + ' ' : '') +
+                            (typeof calTypeLabel === 'function' ? calTypeLabel(ev.type) : (ev.type || 'Etkinlik')) +
+                            (ev.repeat === 'yearly' ? ' · her yıl' : ''),
+                        sort: eff || '9999-12-31'
+                    });
+                });
+            }
+            items.sort(function(a, b) {
+                if (a.done !== b.done) return a.done ? 1 : -1;
+                return String(a.sort).localeCompare(String(b.sort));
+            });
+            if (!items.length) {
+                list.innerHTML = f === 'task'
+                    ? yuvamEmptyState('✅', 'Görev yok', 'Yeni görev ekleyin', null, null)
+                    : (f === 'cal'
+                        ? yuvamEmptyState('📅', 'Takvim boş', 'Etkinlik veya randevu ekleyin', null, null)
+                        : yuvamEmptyState('📋', 'Plan boş', 'Görev veya etkinlik ekleyin', null, null));
+            } else {
+                list.innerHTML = items.map(function(it) {
+                    const due = it.date ? formatDateTR(it.date) : 'Tarihsiz';
+                    const days = it.date && typeof daysUntilYMD === 'function' ? daysUntilYMD(it.date) : null;
+                    const badge = days == null ? '' : (days < 0 ? ' · geçti' : (days === 0 ? ' · bugün' : ' · ' + days + ' gün'));
+                    const title = (it.done ? '<span class="line-through opacity-60">' : '') + escapeHtml(it.title) + (it.done ? '</span>' : '');
+                    const sub = (it.source === 'task' ? '✅ Görev' : '📅 Takvim') + ' · ' + due + badge + (it.meta ? ' · ' + escapeHtml(it.meta) : '');
+                    const editB = '<button type="button" onclick="familyEditPlan(\'' + it.source + '\',\'' + escapeHtml(it.id) + '\')" class="text-xs font-bold text-sky-600 px-2 py-1 rounded-lg hover:bg-sky-50">Düzenle</button>';
+                    const tog = it.source === 'task'
+                        ? '<button type="button" onclick="familyToggleTask(\'' + escapeHtml(it.id) + '\',' + (it.done ? 'false' : 'true') + ')" class="text-xs font-bold px-2 py-1 rounded-lg ' +
+                          (it.done ? 'text-slate-500 bg-slate-100' : 'text-emerald-700 bg-emerald-50') + '">' + (it.done ? 'Geri al' : 'Tamam') + '</button>'
+                        : '';
+                    const col = it.source === 'task' ? 'familyTasks' : 'familyCalendar';
+                    const del = '<button type="button" onclick="familyDelete(\'' + col + '\',\'' + escapeHtml(it.id) + '\')" class="text-xs font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50">Sil</button>';
+                    return familyRow(title, sub, editB + tog + del);
+                }).join('');
+            }
+            const dInp = document.getElementById('famPlanDate');
+            if (dInp && !dInp.value) dInp.value = todayDateStr();
+            try { onPlanKindChange(); } catch (_) {}
+            if (f !== 'task') {
+                try { refreshSuperLigFixtures(false); } catch (_) {}
+            }
+        };
+
+        // Eski isimler → plan
+        window.renderTasksTab = function() {
+            const list = document.getElementById('familyTasksList');
+            if (document.getElementById('familyPlanList')) {
+                if (list) { list.classList.add('hidden'); list.innerHTML = ''; }
+                return;
+            }
+            if (!list) return;
+            const open = (familyTasks || []).filter(function(t) { return !t.done; });
+            const done = (familyTasks || []).filter(function(t) { return t.done; });
+            const sorted = open.concat(done).sort(function(a, b) {
+                return String(a.due || '9999').localeCompare(String(b.due || '9999'));
+            });
+            if (!sorted.length) {
+                list.innerHTML = yuvamEmptyState('✅', 'Görev yok', 'Aile görevlerini ekleyin; ana sayfada da görünür', null, null);
+                return;
+            }
+            list.innerHTML = sorted.map(function(t) {
+                const due = t.due ? formatDateTR(t.due) : 'Tarihsiz';
+                const who = t.assignee && t.assignee !== 'Herkes' ? t.assignee : 'Herkes';
+                const rep = taskRepeatLabel(t.repeat);
+                const main = (t.done ? '<span class="line-through opacity-60">' : '') + escapeHtml(t.text || '-') + (t.done ? '</span>' : '');
+                const sub = due + ' · ' + who + (rep ? ' · 🔁 ' + rep : '') + (t.by ? ' · ekleyen: ' + t.by : '');
+                const editB = '<button type="button" onclick="familyEditPlan(\'task\',\'' + escapeHtml(t.id) + '\')" class="text-xs font-bold text-sky-600 px-2 py-1 rounded-lg hover:bg-sky-50">Düzenle</button>';
+                const tog = '<button type="button" onclick="familyToggleTask(\'' + escapeHtml(t.id) + '\',' + (t.done ? 'false' : 'true') + ')" class="text-xs font-bold px-2 py-1 rounded-lg ' +
+                    (t.done ? 'text-slate-500 bg-slate-100' : 'text-emerald-700 bg-emerald-50') + '">' + (t.done ? 'Geri al' : 'Tamam') + '</button>';
+                const del = '<button type="button" onclick="familyDelete(\'familyTasks\',\'' + escapeHtml(t.id) + '\')" class="text-xs font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50">Sil</button>';
+                return familyRow(main, escapeHtml(sub), editB + tog + del);
+            }).join('');
+        };
+
+        window.renderCalendarTab = function() {
+            try { renderFamilyCalendarList(); } catch (_) {}
+            try { refreshSuperLigFixtures(false); } catch (_) {}
         };
 
         window.renderShoppingTab = function() {

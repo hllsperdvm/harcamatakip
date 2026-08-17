@@ -144,7 +144,7 @@
                                 <svg viewBox="0 0 36 36" class="task-progress-svg"><path class="tp-bg" d="M18 2.5a15.5 15.5 0 1 1 0 31 15.5 15.5 0 1 1 0-31"/><path id="homeTasksProgressArc" class="tp-fg" stroke-dasharray="0, 100" d="M18 2.5a15.5 15.5 0 1 1 0 31 15.5 15.5 0 1 1 0-31"/></svg>
                                 <span id="homeTasksProgressLabel" class="task-progress-lbl">0</span>
                             </div>
-                            <button type="button" onclick="switchTab('tasks')" class="text-xs font-bold text-emerald-600">Görevler</button>
+                            <button type="button" onclick="switchTab('plan')" class="text-xs font-bold text-emerald-600">Görevler</button>
                         </div>
                     </div>
                     <p class="text-[11px] text-slate-400 font-semibold mb-3">Açık görevler ve yaklaşan ödemeler / hatırlatmalar</p>
@@ -193,54 +193,22 @@
             </div>
 
             <!-- TAKVİM -->
-            <div id="tabContentCalendar" class="hidden space-y-4 fade-in max-w-2xl mx-auto">
-                <div class="bg-white rounded-[1.75rem] card-shadow border border-slate-100 overflow-hidden">
-                    <button type="button" id="familyCalPanelToggle" onclick="toggleFamilyCalPanel()" class="w-full flex items-center justify-between gap-3 p-4 text-left hover:bg-slate-50 transition">
-                        <span class="text-lg font-black text-slate-800">📅 Aile Takvimi</span>
-                        <span id="familyCalPanelChevron" class="text-slate-400 font-bold text-lg leading-none">▸</span>
-                    </button>
-                    <div id="familyCalPanelBody" class="hidden border-t border-slate-100 p-4 space-y-4">
-                        <p class="text-[11px] text-slate-400 font-semibold">Randevu · Doğum Günü · Yıldönümü · Hatırlatma</p>
-                        <form onsubmit="familyAddCalendar(event)" class="space-y-2">
-                            <input type="hidden" id="famCalEditId" value="">
-                            <input type="text" id="famCalTitle" required placeholder="Başlık (örn. Duygu doğum günü)" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
-                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                <input type="date" id="famCalDate" required class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
-                                <select id="famCalType" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
-                                    <option value="event">Etkinlik</option>
-                                    <option value="birthday">Doğum günü</option>
-                                    <option value="anniversary">Yıldönümü</option>
-                                    <option value="appointment">Randevu</option>
-                                    <option value="match">Maç</option>
-                                    <option value="other">Diğer</option>
-                                </select>
-                                <select id="famCalRepeat" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
-                                    <option value="none">Tek sefer</option>
-                                    <option value="yearly">Her yıl</option>
-                                </select>
-                                <button type="submit" id="famCalSubmitBtn" class="bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl py-3 text-sm">Ekle</button>
-                            </div>
-                            <button type="button" id="famCalCancelEdit" onclick="familyCancelCalEdit()" class="hidden text-xs font-bold text-slate-500">Düzenlemeyi iptal</button>
-                        </form>
-                        <div id="familyCalendarList" class="space-y-2"></div>
-                    </div>
-                </div>
-
-                <div class="bg-white p-5 rounded-[1.75rem] card-shadow border border-amber-100">
+            <!-- PLAN: Görev + Takvim birleşik -->
+            <div id="tabContentPlan" class="hidden space-y-4 fade-in max-w-2xl mx-auto">
+<div class="bg-white p-5 rounded-[1.75rem] card-shadow border border-amber-100">
                     <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
                         <div>
                             <h2 class="text-lg font-black mb-0.5">🦁 Süper Lig</h2>
-                            <p class="text-[11px] text-slate-400 font-semibold">GS yaklaşan 10 maç · Puan durumu · 7 gün kala takvime eklenir</p>
+                            <p class="text-[11px] text-slate-400 font-semibold">GS yaklaşan maçlar · Puan durumu</p>
                         </div>
                         <button type="button" onclick="refreshSuperLigFixtures(true)" class="text-xs font-bold px-3 py-2 rounded-xl bg-amber-50 text-amber-800 border border-amber-100 hover:bg-amber-100">Yenile</button>
                     </div>
                     <p id="superLigStatus" class="text-[11px] text-slate-400 font-semibold mb-3"></p>
-
                     <div class="space-y-2">
                         <div class="rounded-2xl border border-slate-100 overflow-hidden">
                             <button type="button" id="superLigFixToggle" onclick="toggleSuperLigPanel('fixtures')" class="w-full flex items-center justify-between gap-2 px-4 py-3 bg-slate-50 hover:bg-slate-100 text-left">
                                 <span class="text-sm font-black text-slate-800">📅 Galatasaray Fikstürü</span>
-                                <span id="superLigFixChevron" class="text-slate-400 font-bold text-lg leading-none">▾</span>
+                                <span id="superLigFixChevron" class="text-slate-400 font-bold text-lg leading-none">▸</span>
                             </button>
                             <div id="superLigFixBody" class="hidden border-t border-slate-100 p-3">
                                 <div id="superLigFixtureList" class="space-y-2 max-h-[40rem] overflow-y-auto"></div>
@@ -257,34 +225,51 @@
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- GÖREVLER -->
-            <div id="tabContentTasks" class="hidden space-y-4 fade-in max-w-2xl mx-auto">
                 <div class="bg-white p-5 rounded-[1.75rem] card-shadow border border-slate-100">
-                    <h2 class="text-lg font-black mb-1">✅ Ev / Aile Görevleri</h2>
-                    <p class="text-[11px] text-slate-400 font-semibold mb-4">Atama · Son Tarih · Tekrar (Haftalık/Aylık)</p>
-                    <form onsubmit="familyAddTask(event)" class="space-y-2 mb-4">
-                        <input type="hidden" id="famTaskEditId" value="">
-                        <input type="text" id="famTaskText" required placeholder="Görev (örn. Akvaryum temizliği)" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                            <input type="date" id="famTaskDue" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
-                            <select id="famTaskAssignee" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                    <h2 class="text-lg font-black mb-0.5">📋 Plan</h2>
+                    <p class="text-[11px] text-slate-400 font-semibold mb-4">Görev · Etkinlik · Randevu · tek formda</p>
+                    <form onsubmit="familyAddPlan(event)" class="space-y-2 mb-4">
+                        <input type="hidden" id="famPlanEditId" value="">
+                        <input type="hidden" id="famPlanEditSource" value="">
+                        <input type="text" id="famPlanText" required placeholder="Ne yapılacak? (örn. Fatura öde / Duygu randevu)" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            <select id="famPlanKind" onchange="onPlanKindChange()" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                                <option value="task">✅ Görev</option>
+                                <option value="event">📅 Etkinlik</option>
+                                <option value="appointment">🏥 Randevu</option>
+                                <option value="birthday">🎂 Doğum günü</option>
+                                <option value="anniversary">💍 Yıldönümü</option>
+                                <option value="other">📌 Diğer</option>
+                            </select>
+                            <input type="date" id="famPlanDate" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            <select id="famPlanAssignee" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
                                 <option value="Herkes">Herkes</option>
                                 <option value="Bekir">Bekir</option>
                                 <option value="Duygu">Duygu</option>
                             </select>
-                            <select id="famTaskRepeat" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            <select id="famPlanRepeat" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
                                 <option value="none">Tek sefer</option>
                                 <option value="weekly">Her hafta</option>
                                 <option value="monthly">Her ay</option>
+                                <option value="yearly">Her yıl</option>
                             </select>
-                            <button type="submit" id="famTaskSubmitBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl py-3 text-sm">Ekle</button>
+                            <button type="submit" id="famPlanSubmitBtn" class="sm:col-span-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl py-3 text-sm">Ekle</button>
                         </div>
-                        <button type="button" id="famTaskCancelEdit" onclick="familyCancelTaskEdit()" class="hidden text-xs font-bold text-slate-500">Düzenlemeyi iptal</button>
+                        <button type="button" id="famPlanCancelEdit" onclick="familyCancelPlanEdit()" class="hidden text-xs font-bold text-slate-500">Düzenlemeyi iptal</button>
                     </form>
-                    <div id="familyTasksList" class="space-y-2"></div>
+                    <div class="flex flex-wrap gap-2 mb-3">
+                        <button type="button" onclick="setPlanFilter('all')" id="planFilterAll" class="text-[11px] font-bold px-3 py-1.5 rounded-full bg-indigo-600 text-white">Tümü</button>
+                        <button type="button" onclick="setPlanFilter('task')" id="planFilterTask" class="text-[11px] font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-600">Görevler</button>
+                        <button type="button" onclick="setPlanFilter('cal')" id="planFilterCal" class="text-[11px] font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-600">Takvim</button>
+                    </div>
+                    <div id="familyPlanList" class="space-y-2"></div>
+                    <!-- Eski id'ler (uyumluluk) -->
+                    <div id="familyTasksList" class="hidden"></div>
+                    <div id="familyCalendarList" class="hidden"></div>
                 </div>
+
+                
             </div>
 
             <!-- ALIŞVERİŞ -->
@@ -828,7 +813,8 @@
                 <div class="max-w-4xl mx-auto space-y-8">
                     <!-- Notlar Bölümü -->
                     <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
-                        <h2 id="noteFormTitle" class="text-xl font-black mb-6">Not Paylaş</h2>
+                        <h2 id="noteFormTitle" class="text-xl font-black mb-2">📝 Notlar</h2>
+                        <p class="text-[11px] text-slate-400 font-semibold mb-6">Unutmamak için kısa notlar · yapılacak listesi gibi kullanın</p>
                         <form onsubmit="handleNoteSubmit(event)" class="space-y-4">
                             <input type="hidden" id="editNoteId">
                             <select id="notePerson" required class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold outline-none focus:ring-2 focus:ring-indigo-500">
@@ -1327,12 +1313,12 @@
         <button type="button" data-mnav="expense" onclick="mobileNavGo('expense')" class="mnav-item">
             <span class="mnav-ico">💰</span><span class="mnav-lbl">Bütçe</span>
         </button>
-        <button type="button" data-mnav="tasks" onclick="mobileNavGo('tasks')" class="mnav-item relative">
-            <span class="mnav-ico relative inline-block">✅<span id="mnavTasksBadge" class="tab-count-badge hidden">0</span></span>
-            <span class="mnav-lbl">Görevler</span>
+        <button type="button" data-mnav="stats" onclick="mobileNavGo('stats')" class="mnav-item">
+            <span class="mnav-ico">📊</span><span class="mnav-lbl">Raporlar</span>
         </button>
-        <button type="button" data-mnav="calendar" onclick="mobileNavGo('calendar')" class="mnav-item">
-            <span class="mnav-ico">📅</span><span class="mnav-lbl">Takvim</span>
+        <button type="button" data-mnav="plan" onclick="mobileNavGo('plan')" class="mnav-item relative">
+            <span class="mnav-ico relative inline-block">📋<span id="mnavPlanBadge" class="tab-count-badge hidden">0</span></span>
+            <span class="mnav-lbl">Plan</span>
         </button>
         <button type="button" data-mnav="more" onclick="mobileNavGo('more')" class="mnav-item">
             <span class="mnav-ico">☰</span><span class="mnav-lbl">Daha</span>
@@ -1644,8 +1630,8 @@
     <div id="quickAddFabWrap" class="quick-add-fab-wrap">
         <div id="quickAddMenu" class="quick-add-menu hidden">
             <button type="button" onclick="quickAddAction('expense')">💰 Harcama</button>
-            <button type="button" onclick="quickAddAction('task')">✅ Görev</button>
-            <button type="button" onclick="quickAddAction('calendar')">📅 Takvim</button>
+            <button type="button" onclick="quickAddAction('plan')">✅ Görev</button>
+            <button type="button" onclick="quickAddAction('plan')">📋 Plan</button>
             <button type="button" onclick="quickAddAction('shopping')">🛒 Alışveriş</button>
             <button type="button" onclick="quickAddAction('note')">📝 Not</button>
             <button type="button" onclick="quickAddAction('bill')">📄 Fatura</button>
