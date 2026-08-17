@@ -4,7 +4,7 @@
  */
         // Firebase Compat (yerel file:// ile çalışır; modül gerekmez)
         if (typeof firebase === 'undefined') {
-            alert('Firebase yüklenemedi. İnternet bağlantınızı kontrol edin ve sayfayı yenileyin.');
+            console.error('Firebase SDK henüz yok — bootstrap beklenmeli');
             throw new Error('Firebase SDK yüklenmedi');
         }
         // Firebase web apiKey kasıtlı olarak istemcidedir; koruma Firestore Rules + Auth ile sağlanır.
