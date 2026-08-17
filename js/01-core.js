@@ -1206,6 +1206,8 @@
                     const list = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : [];
                     list.forEach(function(e) {
                         if (!e || e.installmentLabel === 'Gelir') return;
+                        // Multinet dönem toplamlarına dahil değil
+                        if (typeof isMultinetPayment === 'function' && isMultinetPayment(e.paymentType)) return;
                         const amt = Number(e.displayAmount) || 0;
                         if (e.effectiveMonth === period) {
                             periodSum += amt;
@@ -1235,21 +1237,21 @@
                 const elTodayN = document.getElementById('homeTodayCount');
                 if (elTodayN) elTodayN.textContent = todayCount + ' kayıt';
 
-                // Bütçe hedefi kartı
+                // Bütçe hedefi kartı — yalnızca kredi kartı
                 try {
                     const target = Number(monthlyBudgetTarget) || 0;
                     const lab = document.getElementById('homeBudgetLabel');
                     const bar = document.getElementById('homeBudgetBar');
                     if (lab) {
                         if (target > 0) {
-                            const pct = Math.min(999, Math.round(periodSum / target * 100));
-                            lab.textContent = Math.round(periodSum).toLocaleString('tr-TR') + ' / ' + target.toLocaleString('tr-TR') + ' TL · %' + pct;
+                            const pct = Math.min(999, Math.round(periodCard / target * 100));
+                            lab.textContent = 'KK ' + Math.round(periodCard).toLocaleString('tr-TR') + ' / ' + target.toLocaleString('tr-TR') + ' TL · %' + pct;
                         } else {
                             lab.textContent = 'Hedef tanımlı değil (Ayarlar)';
                         }
                     }
                     if (bar) {
-                        const pctW = target > 0 ? Math.min(100, (periodSum / target) * 100) : 0;
+                        const pctW = target > 0 ? Math.min(100, (periodCard / target) * 100) : 0;
                         bar.style.width = pctW + '%';
                         bar.className = 'h-full rounded-full transition-all ' + (pctW >= 100 ? 'bg-rose-500' : pctW >= 80 ? 'bg-amber-500' : 'bg-sky-500');
                     }

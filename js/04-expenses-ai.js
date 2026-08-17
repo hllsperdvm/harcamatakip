@@ -525,7 +525,7 @@
             const prevCats = prev ? (summary.byMonth[prev] || {}) : {};
             const curLabel = (summary.labels && summary.labels[cur]) || formatPeriodLabel(cur);
             const prevLabel = prev ? ((summary.labels && summary.labels[prev]) || formatPeriodLabel(prev)) : '';
-            const curItems = processed.filter(function(e) { return e.effectiveMonth === cur; });
+            const curItems = processed.filter(function(e) { return e.effectiveMonth === cur && (typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e)); });
             const curTotal = (summary.period === cur && summary.currentTotal != null)
                 ? summary.currentTotal
                 : Object.values(curCats).reduce(function(a, b) { return a + b; }, 0);
@@ -1344,7 +1344,7 @@
 
         function updateStatsPanel() {
             const period = getCurrentPeriod();
-            const processedExpenses = getProcessedExpenses().filter(e => e.effectiveMonth === period);
+            const processedExpenses = getProcessedExpenses().filter(e => e.effectiveMonth === period && (typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e)));
             
             const categoryData = {};
             processedExpenses.forEach(e => {
@@ -1707,7 +1707,7 @@
         // Raporlar
         function renderMonthlyReports() {
             const period = getCurrentPeriod();
-            const processedExpenses = getProcessedExpenses().filter(e => e.effectiveMonth === period);
+            const processedExpenses = getProcessedExpenses().filter(e => e.effectiveMonth === period && (typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e)));
             const total = processedExpenses.reduce((s, e) => s + (e.displayAmount || 0), 0);
 
             const monthlySummary = document.getElementById('monthlySummaryReport');
@@ -1802,6 +1802,45 @@
             }
         };
 
+        window.renderMultinetReport = function() {
+            const box = document.getElementById('multinetStatements');
+            const totalEl = document.getElementById('multinetPeriodTotal');
+            if (!box) return;
+            const period = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
+            let list = [];
+            try {
+                list = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : [];
+            } catch (_) { list = []; }
+            const rows = list.filter(function(e) {
+                if (!e) return false;
+                if (typeof isMultinetPayment === 'function') return isMultinetPayment(e.paymentType);
+                return String(e.paymentType || '').toLocaleLowerCase('tr-TR').indexOf('multinet') >= 0;
+            }).filter(function(e) {
+                return !period || e.effectiveMonth === period;
+            }).sort(function(a, b) {
+                return String(b.date || '').localeCompare(String(a.date || ''));
+            });
+            const sum = rows.reduce(function(s, e) { return s + (Number(e.displayAmount) || 0); }, 0);
+            if (totalEl) totalEl.textContent = Math.round(sum).toLocaleString('tr-TR') + ' TL';
+            if (!rows.length) {
+                box.innerHTML = '<p class="text-xs text-slate-400 font-semibold text-center py-4">Bu dönemde Multinet harcaması yok</p>';
+                return;
+            }
+            box.innerHTML = rows.map(function(e) {
+                const amt = (Number(e.displayAmount) || 0).toLocaleString('tr-TR');
+                const d = (typeof formatDateTR === 'function') ? formatDateTR(String(e.date || '').slice(0, 10)) : String(e.date || '').slice(0, 10);
+                return '<div class="flex items-center justify-between gap-2 p-3 rounded-xl bg-emerald-50/80 border border-emerald-100">' +
+                    '<div class="min-w-0">' +
+                    '<p class="text-sm font-black text-slate-800 truncate">' + escapeHtml(e.description || e.category || 'Gıda') + '</p>' +
+                    '<p class="text-[11px] text-slate-500 font-semibold">' + escapeHtml(d) +
+                    (e.person ? (' · ' + escapeHtml(e.person)) : '') +
+                    (e.category ? (' · ' + escapeHtml(e.category)) : '') + '</p>' +
+                    '</div>' +
+                    '<p class="text-sm font-black text-emerald-700 shrink-0">' + amt + ' TL</p>' +
+                    '</div>';
+            }).join('');
+        };
+
         function renderCardStatements(person) {
             const key = (person || '').toLowerCase();
             const sortedStatements = cardStatements
@@ -1810,6 +1849,7 @@
 
             const container = document.getElementById(person === 'bekir' ? 'bekirCardStatements' : 'duyguCardStatements');
             if (!container) return;
+            try { if (typeof renderMultinetReport === 'function') renderMultinetReport(); } catch (_) {}
             if (sortedStatements.length === 0) {
                 container.innerHTML = '<div class="col-span-full text-center py-8 text-slate-400"><p class="text-sm">Henüz ekstre kaydı yok</p></div>';
                 return;

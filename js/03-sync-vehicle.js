@@ -3,14 +3,29 @@
  * GitHub: js/ klasörünün tamamını yükleyin.
  */
         // Bütçe Hesaplama
+        function isMultinetPayment(pt) {
+            const s = String(pt || '').toLocaleLowerCase('tr-TR');
+            return s.indexOf('multinet') >= 0;
+        }
+
         function isCreditPayment(pt) {
+            if (isMultinetPayment(pt)) return false;
             const s = String(pt || '').toLocaleLowerCase('tr-TR');
             return s.indexOf('kredi') >= 0 || s.indexOf('kart') >= 0;
         }
 
         function isCashPayment(pt) {
+            if (isMultinetPayment(pt)) return false;
             const s = String(pt || '').toLocaleLowerCase('tr-TR');
             return s.indexOf('nakit') >= 0 || s === 'cash';
+        }
+
+        /** Multinet dönem harcaması / bütçe toplamlarına dahil edilmez */
+        function countsInPeriodTotals(e) {
+            if (!e) return false;
+            if (e.installmentLabel === 'Gelir') return false;
+            if (isMultinetPayment(e.paymentType)) return false;
+            return true;
         }
 
         function sumByPay(list, pred) {
@@ -25,8 +40,11 @@
             const period = getCurrentPeriod();
             const periodInfo = getCurrentStatementPeriod();
 
-            const processedExpenses = getProcessedExpenses().filter(e => e.effectiveMonth === period);
+            const processedExpenses = getProcessedExpenses().filter(function(e) {
+                return e.effectiveMonth === period && countsInPeriodTotals(e);
+            });
             const totalSpent = processedExpenses.reduce((sum, e) => sum + e.displayAmount, 0);
+            const cardSpent = sumByPay(processedExpenses, function(e) { return isCreditPayment(e.paymentType); });
 
             const elTotal = document.getElementById('totalExpense');
             if (elTotal) elTotal.innerText = totalSpent.toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
@@ -60,7 +78,9 @@
 
             const badge = document.getElementById('activePeriodBadge');
             if (badge && periodInfo) badge.textContent = 'Aktif dönem: ' + periodInfo.label;
-            renderBudgetTargetUI(totalSpent, periodInfo);
+            // Bütçe hedefi yalnızca kredi kartı harcamasına endeksli
+            renderBudgetTargetUI(cardSpent, periodInfo);
+            if (typeof renderMultinetReport === 'function') renderMultinetReport();
             if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
         }
 
@@ -76,13 +96,13 @@
                 if (label) label.textContent = 'Hedef belirlenmedi';
                 if (pctEl) pctEl.textContent = '—';
                 if (bar) { bar.style.width = '0%'; bar.className = 'h-full rounded-full transition-all duration-700 bg-slate-300'; }
-                if (detail) detail.textContent = 'Ayarlar → Bütçe hedefi ile dönem limiti koyun';
+                if (detail) detail.textContent = 'Ayarlar → Bütçe hedefi (kredi kartı limiti)';
                 return;
             }
             const spent = Number(totalSpent) || 0;
             const pct = Math.min(999, (spent / target) * 100);
             const remain = target - spent;
-            if (label) label.textContent = 'Hedef ' + target.toLocaleString('tr-TR') + ' TL';
+            if (label) label.textContent = 'KK hedef ' + target.toLocaleString('tr-TR') + ' TL';
             if (pctEl) {
                 pctEl.textContent = '%' + pct.toFixed(0);
                 pctEl.className = 'text-lg font-black ' + (pct >= 100 ? 'text-rose-600' : pct >= 80 ? 'text-amber-600' : 'text-emerald-600');
@@ -93,7 +113,7 @@
             }
             if (detail) {
                 const pl = periodInfo && periodInfo.label ? periodInfo.label + ' · ' : '';
-                detail.textContent = pl + 'Harcama ' + Math.round(spent).toLocaleString('tr-TR') + ' TL · ' +
+                detail.textContent = pl + 'Kredi kartı ' + Math.round(spent).toLocaleString('tr-TR') + ' TL · ' +
                     (remain >= 0 ? ('kalan ' + Math.round(remain).toLocaleString('tr-TR') + ' TL') : ('aşım ' + Math.round(-remain).toLocaleString('tr-TR') + ' TL'));
             }
         }
@@ -406,6 +426,8 @@
                 if (isBill && typeof fillSubtypeSelects === 'function') fillSubtypeSelects();
             }
             if (typeof onVehicleSubtypeChange === 'function') onVehicleSubtypeChange();
+            // Gıda → Multinet ödeme seçeneği
+            try { if (typeof refreshExpensePaymentOptions === 'function') refreshExpensePaymentOptions(); } catch (_) {}
         };
 
         window.onVehicleSubtypeChange = function() {

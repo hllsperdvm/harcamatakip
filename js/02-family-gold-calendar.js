@@ -2015,15 +2015,50 @@
             }
         }
 
-        function updatePaymentSelects() {
+        function isGidaCategory(cat) {
+            const s = String(cat || '').toLocaleLowerCase('tr-TR');
+            return s === 'gıda' || s === 'gida' || s.indexOf('gıda') >= 0 || s.indexOf('gida') >= 0;
+        }
+
+        /** Harcama formu ödeme tipi: Gıda seçiliyken Multinet eklenir */
+        window.refreshExpensePaymentOptions = function() {
             const select = document.getElementById('paymentType');
+            if (!select) return;
+            const catEl = document.getElementById('category');
+            const cat = catEl ? catEl.value : '';
+            let opts = Array.isArray(paymentTypes) && paymentTypes.length
+                ? paymentTypes.slice()
+                : ['Nakit', 'Kredi Kartı'];
+            // Multinet yalnızca Gıda'da
+            opts = opts.filter(function(p) {
+                const s = String(p || '').toLocaleLowerCase('tr-TR');
+                return s.indexOf('multinet') < 0;
+            });
+            if (isGidaCategory(cat)) opts.push('Multinet');
+            const prev = select.value;
+            select.innerHTML = opts.map(function(p) {
+                return '<option value="' + String(p).replace(/"/g, '&quot;') + '">' + String(p) + '</option>';
+            }).join('');
+            if (opts.indexOf(prev) >= 0) select.value = prev;
+            else if (opts.length) select.value = opts[0];
+        };
+
+        function updatePaymentSelects() {
             const filterSelect = document.getElementById('filterPayment');
-            if(select) {
-                select.innerHTML = paymentTypes.map(p => `<option value="${p}">${p}</option>`).join('');
+            let base = Array.isArray(paymentTypes) && paymentTypes.length
+                ? paymentTypes.slice()
+                : ['Nakit', 'Kredi Kartı'];
+            // Filtrede Multinet her zaman görünsün
+            const hasMn = base.some(function(p) {
+                return String(p || '').toLocaleLowerCase('tr-TR').indexOf('multinet') >= 0;
+            });
+            if (!hasMn) base = base.concat(['Multinet']);
+            if (filterSelect) {
+                filterSelect.innerHTML = '<option value="Tümü">Tümü</option>' + base.map(function(p) {
+                    return '<option value="' + String(p).replace(/"/g, '&quot;') + '">' + String(p) + '</option>';
+                }).join('');
             }
-            if(filterSelect) {
-                filterSelect.innerHTML = `<option value="Tümü">Tümü</option>` + paymentTypes.map(p => `<option value="${p}">${p}</option>`).join('');
-            }
+            try { refreshExpensePaymentOptions(); } catch (_) {}
         }
 
         // Realtime Sync (Firebase)
