@@ -4,7 +4,7 @@
  */
         // Firebase Compat (yerel file:// ile çalışır; modül gerekmez)
         if (typeof firebase === 'undefined') {
-            alert('Firebase yüklenemedi. İnternet bağlantınızı kontrol edin ve sayfayı yenileyin.');
+            console.error('Firebase SDK henüz yok — bootstrap beklenmeli');
             throw new Error('Firebase SDK yüklenmedi');
         }
         // Firebase web apiKey kasıtlı olarak istemcidedir; koruma Firestore Rules + Auth ile sağlanır.
@@ -21,6 +21,52 @@
         const db = firebase.firestore();
         const auth = firebase.auth();
         try { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch (_) {}
+        // Çevrimdışı önbellek: veri ekle/düzenle internet yokken de çalışır, sonra senkron
+        try {
+            db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
+                if (err && err.code === 'failed-precondition') {
+                    console.warn('Firestore persistence: birden fazla sekme açık');
+                } else if (err && err.code === 'unimplemented') {
+                    console.warn('Firestore persistence bu tarayıcıda yok');
+                } else {
+                    console.warn('Firestore persistence', err);
+                }
+            });
+        } catch (e) { console.warn('enablePersistence', e); }
+
+        window._yuvamOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+        window.updateOnlineStatus = function() {
+            const online = typeof navigator !== 'undefined' ? navigator.onLine : true;
+            window._yuvamOnline = online;
+            const ban = document.getElementById('offlineBanner');
+            if (ban) {
+                if (online) ban.classList.add('hidden');
+                else ban.classList.remove('hidden');
+            }
+            try {
+                document.body.classList.toggle('yuvam-offline', !online);
+            } catch (_) {}
+            return online;
+        };
+        window.addEventListener('online', function() {
+            updateOnlineStatus();
+            try { showToast('İnternet geldi — veriler senkronlanıyor', 'success'); } catch (_) {}
+            try { if (typeof refreshAppNotifications === 'function') refreshAppNotifications(); } catch (_) {}
+        });
+        window.addEventListener('offline', function() {
+            updateOnlineStatus();
+            try { showToast('Çevrimdışısınız — kayıtlar cihazda saklanır', 'info'); } catch (_) {}
+        });
+        try { updateOnlineStatus(); } catch (_) {}
+
+        // PWA / offline kabuk
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('./sw.js').catch(function(e) {
+                    console.warn('SW kayıt', e);
+                });
+            });
+        }
 
 
         // Auth e-posta eşlemesi (Console'da oluşturulan kullanıcılar)
@@ -158,7 +204,18 @@
         };
 
         window.checkPassword = async function() {
+            const btn = document.getElementById('loginBtn');
+            const setBusy = function(busy) {
+                if (!btn) return;
+                btn.disabled = !!busy;
+                btn.textContent = busy ? 'Giriş yapılıyor…' : 'Giriş Yap';
+                btn.style.opacity = busy ? '0.7' : '';
+            };
             try {
+                if (typeof firebase === 'undefined' || !auth) {
+                    alert('Firebase henüz yüklenmedi. Birkaç saniye bekleyip tekrar deneyin veya Ctrl+F5 yapın.');
+                    return;
+                }
                 const userName = (document.getElementById('loginUser') || {}).value;
                 const input = (document.getElementById('sifreInput') || {}).value;
                 if (!userName) {
@@ -175,11 +232,22 @@
                     return;
                 }
 
+                setBusy(true);
                 let cred;
                 try {
-                    cred = await auth.signInWithEmailAndPassword(email, input);
+                    const signInPromise = auth.signInWithEmailAndPassword(email, input);
+                    const timeoutPromise = new Promise(function(_, reject) {
+                        setTimeout(function() {
+                            reject(Object.assign(new Error('Zaman aşımı: Firebase yanıt vermedi. İnternet bağlantınızı kontrol edin.'), { code: 'timeout' }));
+                        }, 20000);
+                    });
+                    cred = await Promise.race([signInPromise, timeoutPromise]);
                 } catch (authErr) {
                     const code = (authErr && authErr.code) || '';
+                    if (code === 'timeout') {
+                        alert(authErr.message || 'Giriş zaman aşımına uğradı.');
+                        return;
+                    }
                     if (code === 'auth/wrong-password' || code === 'auth/invalid-credential' || code === 'auth/invalid-login-credentials') {
                         alert('Şifre hatalı. Firebase Console → Authentication → Users içindeki şifreyi kullanın.');
                         return;
@@ -192,7 +260,11 @@
                         alert('Çok fazla deneme. Bir süre sonra tekrar deneyin.');
                         return;
                     }
-                    alert('Giriş hatası: ' + (authErr.message || authErr));
+                    if (code === 'auth/network-request-failed') {
+                        alert('Ağ hatası. İnternet bağlantınızı kontrol edin.');
+                        return;
+                    }
+                    alert('Giriş hatası: ' + ((authErr && authErr.message) || authErr));
                     return;
                 }
 
@@ -202,6 +274,8 @@
             } catch (err) {
                 console.error(err);
                 alert('Giriş hatası: ' + (err && err.message ? err.message : err));
+            } finally {
+                setBusy(false);
             }
         };
 
@@ -280,39 +354,20 @@
             var uidEnter = currentUser && currentUser.uid;
             setTimeout(function() {
                 if (!currentUser || currentUser.uid !== uidEnter) return;
+                try { _bootRenderQuietUntil = Date.now() + 1500; } catch (_) {}
                 try { initRealtimeSync(); } catch (e) { console.error('sync', e); showToast('Veri bağlantısı kurulamadı', 'error'); }
                 try {
                     if (!opts.silent) {
                         logActivity('Giriş', 'Oturum açıldı', currentUser.role === 'admin' ? 'Admin girişi' : 'Kullanıcı girişi');
                     }
                 } catch (_) {}
-                if (typeof maybeShowOnboarding === 'function') maybeShowOnboarding();
-                if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
-                // Ağır API'ler (fikstür / tatil / altın) girişte değil — boşta gecikmeli
+                // Bildirim / onboarding: biraz sonra (ilk boyamayı engellemesin)
                 setTimeout(function() {
                     if (!currentUser || currentUser.uid !== uidEnter) return;
-                    try {
-                        if (typeof refreshPublicHolidays === 'function') {
-                            Promise.resolve(refreshPublicHolidays(false)).catch(function() {});
-                        }
-                    } catch (_) {}
-                }, 8000);
-                setTimeout(function() {
-                    if (!currentUser || currentUser.uid !== uidEnter) return;
-                    try {
-                        if (typeof refreshSuperLigFixtures === 'function') {
-                            Promise.resolve(refreshSuperLigFixtures(false)).catch(function() {});
-                        }
-                    } catch (_) {}
-                }, 10000);
-                setTimeout(function() {
-                    if (!currentUser || currentUser.uid !== uidEnter) return;
-                    try {
-                        if (typeof refreshGoldPrice === 'function') {
-                            Promise.resolve(refreshGoldPrice(false)).catch(function() {});
-                        }
-                    } catch (_) {}
-                }, 5000);
+                    try { if (typeof maybeShowOnboarding === 'function') maybeShowOnboarding(); } catch (_) {}
+                    try { if (typeof refreshAppNotifications === 'function') refreshAppNotifications(); } catch (_) {}
+                }, 1200);
+                // Fikstür / tatil / altın: girişte ASLA — ilgili sekme veya boşta çok geç
             }, 0);
             if (!opts || !opts.silent) {
                 showToast('Hoş geldin, ' + currentUser.name, 'success');
@@ -1056,25 +1111,58 @@
             }, 280);
         };
 
+        let _bootRenderQuietUntil = 0;
         function scheduleRenderApp() {
             clearTimeout(renderTimeout);
             try { bumpGateProgress(_gateProgress + 12, 10); } catch (_) {}
-            renderTimeout = setTimeout(() => {
+            // İlk Firestore dalgasında tek render (mobil CPU)
+            const delay = (Date.now() < _bootRenderQuietUntil) ? 280 : 120;
+            renderTimeout = setTimeout(function() {
                 renderApp();
-                if (isStatsTabActive()) updateStatsPanel();
                 try { hideAppSkeleton(); } catch (_) {}
-            }, 80);
+            }, delay);
         }
 
         function renderApp() {
-            renderBudgetInfo();
-            renderTable();
-            renderCurrentStatements();
-            const vt = document.getElementById('tabContentVehicle');
-            if (vt && !vt.classList.contains('hidden') && typeof renderVehicleTab === 'function') {
-                renderVehicleTab();
-            }
+            try { renderBudgetInfo(); } catch (_) {}
+            // İşlem geçmişi sadece Bütçe sekmesi açıksa
+            try {
+                const exp = document.getElementById('tabContentExpense');
+                if (exp && !exp.classList.contains('hidden') && typeof renderTable === 'function') renderTable();
+            } catch (_) {}
+            try {
+                const exp2 = document.getElementById('tabContentExpense');
+                if (exp2 && !exp2.classList.contains('hidden') && typeof renderCurrentStatements === 'function') renderCurrentStatements();
+            } catch (_) {}
+            try {
+                const vt = document.getElementById('tabContentVehicle');
+                if (vt && !vt.classList.contains('hidden') && typeof renderVehicleTab === 'function') renderVehicleTab();
+            } catch (_) {}
+            try {
+                const home = document.getElementById('tabContentHome');
+                if (home && !home.classList.contains('hidden') && typeof renderHomeTab === 'function') renderHomeTab();
+            } catch (_) {}
         }
+
+        /** Chart.js yalnızca Raporlar / Araç açılınca */
+        window.ensureChartJs = function() {
+            return new Promise(function(resolve) {
+                if (typeof Chart !== 'undefined') { resolve(); return; }
+                if (window._chartJsLoading) {
+                    window._chartJsLoading.then(resolve);
+                    return;
+                }
+                window._chartJsLoading = new Promise(function(res) {
+                    const s = document.createElement('script');
+                    s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+                    s.async = true;
+                    s.onload = function() { res(); };
+                    s.onerror = function() { console.warn('Chart.js yüklenemedi'); res(); };
+                    document.head.appendChild(s);
+                });
+                window._chartJsLoading.then(resolve);
+            });
+        };
 
         function loadDeletedExpenses() {
             try {
@@ -1140,22 +1228,24 @@
             try { if (typeof applyPageLayout === 'function') applyPageLayout(String(tabName || '').toLowerCase()); } catch (_l) {}
 
             if (tabName === 'expense') {
-                if (typeof refreshGoldPrice === 'function') refreshGoldPrice(false);
-                if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
+                try { if (typeof renderGoldHoldings === 'function') renderGoldHoldings(); } catch (_) {}
+                try { if (typeof renderTable === 'function') renderTable(); } catch (_) {}
                 if (typeof applyPageLayout === 'function') applyPageLayout('expense');
             }
             if (tabName === 'stats') {
-                try { if (typeof renderVehicleTab === 'function') renderVehicleTab(); } catch (_) {}
-                updateStatsPanel();
-                renderMonthlyReports();
-                if (typeof renderBillsChart === 'function') renderBillsChart();
                 if (typeof renderCardStatements === 'function') {
                     renderCardStatements('bekir');
                     renderCardStatements('duygu');
                 }
-                if (expenseChart) expenseChart.resize();
+                Promise.resolve(typeof ensureChartJs === 'function' ? ensureChartJs() : null).then(function() {
+                    try { updateStatsPanel(); } catch (_) {}
+                    try { if (typeof renderMonthlyReports === 'function') renderMonthlyReports(); } catch (_) {}
+                    try { if (typeof renderBillsChart === 'function') renderBillsChart(); } catch (_) {}
+                });
             } else if (tabName === 'vehicle') {
-                renderVehicleTab();
+                Promise.resolve(typeof ensureChartJs === 'function' ? ensureChartJs() : null).then(function() {
+                    try { if (typeof renderVehicleTab === 'function') renderVehicleTab(); } catch (_) {}
+                });
             } else if (tabName === 'home') {
                 if (typeof renderHomeTab === 'function') renderHomeTab();
             } else if (tabName === 'calendar') {
@@ -1198,7 +1288,9 @@
                         weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
                     });
                 }
-                try { if (typeof loadHomeWeather === 'function') loadHomeWeather(false); } catch (_) {}
+                setTimeout(function() {
+                    try { if (typeof loadHomeWeather === 'function') loadHomeWeather(false); } catch (_) {}
+                }, 2000);
 
                 const period = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
                 const badge = document.getElementById('homePeriodBadge');

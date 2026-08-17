@@ -2156,6 +2156,9 @@
                 renderCategoriesList();
             }, err => console.warn('categorySubtypes:', err));
             
+            // İkincil dinleyiciler — ilk boyamadan sonra
+            setTimeout(function() {
+                if (!currentUser) return;
             db.collection("settings").doc("vehicleProfile").onSnapshot(d => {
                 if (d.exists && d.data()) {
                     vehicleProfile = Object.assign({}, vehicleProfile, d.data());
@@ -2282,6 +2285,8 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
                 }
             }, err => console.error("Cardstatements yüklemesinde hata:", err));
             // ibans: lazy
+
+            }, 450);
 
             // activityLog: lazy — sadece panel açılınca (ensureActivityLogListener)
 

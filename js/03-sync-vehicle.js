@@ -1299,10 +1299,21 @@
                 resetForm();
                 closeExpenseModal();
                 await new Promise(resolve => setTimeout(resolve, 300));
-                renderApp();
-                updateStatsPanel();
+                try { renderApp(); } catch (_) {}
+                try {
+                    if (typeof ensureChartJs === 'function') {
+                        /* stats açık değilse chart yükleme */
+                    } else if (typeof updateStatsPanel === 'function' && typeof isStatsTabActive === 'function' && isStatsTabActive()) {
+                        updateStatsPanel();
+                    }
+                } catch (_) {}
                 logActivity('Harcama', id ? 'Harcama güncellendi' : 'Harcama eklendi',
                     (person || '') + ' · ' + (category || '') + ' · ' + amount + ' TL' + (description && description !== '-' ? ' · ' + description : ''));
+                if (typeof window._yuvamOnline !== 'undefined' && !window._yuvamOnline) {
+                    showToast('Çevrimdışı kaydedildi — internet gelince senkronlanır', 'info');
+                } else {
+                    showToast(id ? 'Harcama güncellendi' : 'Harcama eklendi', 'success');
+                }
                 if (!id) {
                     setTimeout(function() {
                         try { if (typeof showEyvahPopup === 'function') showEyvahPopup(); } catch (_) {}
