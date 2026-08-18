@@ -1221,13 +1221,33 @@
                 switchTab('expense');
                 return;
             }
-            if (tabName === 'settings' && !isAdmin()) {
-                switchTab('expense');
-                return;
-            }
-            if (tabName === 'trash' && !isAdmin()) {
-                switchTab('expense');
-                return;
+            // Sekme erişimi: adminOnly / visibleTo config'e göre (Ayarlar artık sadece admin kilidi değil)
+            if (tabName === 'settings' || tabName === 'trash') {
+                const tabCfg = (typeof tabsConfig !== 'undefined' && tabsConfig)
+                    ? tabsConfig.find(function(x) { return x && x.id === tabName; })
+                    : null;
+                let allowed = true;
+                if (tabCfg) {
+                    if (tabCfg.adminOnly && !isAdmin()) allowed = false;
+                    if (Array.isArray(tabCfg.visibleTo) && tabCfg.visibleTo.length) {
+                        if (!currentUser || tabCfg.visibleTo.indexOf(currentUser.name) < 0) {
+                            // Admin Ayarlar'a her zaman girebilsin
+                            if (!(tabName === 'settings' && isAdmin())) allowed = false;
+                        }
+                    }
+                    if (tabCfg.visible === false && !(tabName === 'settings' && isAdmin())) {
+                        allowed = false;
+                    }
+                } else if (!isAdmin()) {
+                    allowed = false;
+                }
+                if (!allowed) {
+                    if (typeof showToast === 'function') {
+                        showToast((tabName === 'settings' ? 'Ayarlar' : 'Çöp Kutusu') + ' bu kullanıcı için kapalı', 'error');
+                    }
+                    switchTab('expense');
+                    return;
+                }
             }
 
             const content = document.getElementById(`tabContent${capitalizeTab(tabName)}`);
