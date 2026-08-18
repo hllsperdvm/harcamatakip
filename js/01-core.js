@@ -800,8 +800,8 @@
 
         function getVisibleTabs() {
             return tabsConfig.filter(t => {
-                // Admin: Ayarlar / Çöp asla menüden düşmesin (yanlışlıkla gizleme kurtarması)
-                if (t && (t.id === 'settings' || t.id === 'trash') && typeof isAdmin === 'function' && isAdmin()) {
+                // Admin kilitlenmesin: Ayarlar her zaman admin menüsünde (gizli olsa bile)
+                if (t && t.id === 'settings' && typeof isAdmin === 'function' && isAdmin()) {
                     return true;
                 }
                 if (!t.visible) return false;

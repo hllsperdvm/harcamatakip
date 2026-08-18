@@ -833,9 +833,11 @@
             if (!isAdmin()) return;
             const tab = tabsConfig[index];
             if (!tab) return;
-            // Sistem admin sekmeleri gizlenemesin
-            if ((tab.id === 'settings' || tab.id === 'trash') && tab.visible) {
-                if (typeof showToast === 'function') showToast('Ayarlar / Çöp Kutusu gizlenemez', 'error');
+            // Sadece Ayarlar gizlenemesin (admin kilitlenmesi önlemi). Çöp gizlenebilir.
+            if (tab.id === 'settings' && tab.visible) {
+                if (typeof showToast === 'function') {
+                    showToast('Ayarlar gizlenemez. Kimlerin göreceğini Düzenle → Kimler görsün ile değiştirin.', 'error');
+                }
                 return;
             }
             tab.visible = !tab.visible;
@@ -844,7 +846,7 @@
             renderTabsList();
         };
 
-        /** Konsoldan veya acil kurtarma: Ayarlar sekmesini tekrar görünür yap */
+        /** Konsoldan: Ayarlar sekmesini görünür yap */
         window.restoreSettingsTab = async function() {
             if (!isAdmin()) {
                 alert('Sadece admin (Bekir) yapabilir');
@@ -852,13 +854,13 @@
             }
             let found = false;
             tabsConfig.forEach(function(t) {
-                if (t && (t.id === 'settings' || t.id === 'trash')) {
+                if (t && t.id === 'settings') {
                     t.visible = true;
                     found = true;
                 }
             });
             if (!found) {
-                tabsConfig.push({ id: 'settings', emoji: '⚙️', label: 'Ayarlar', visible: true, core: true, adminOnly: true });
+                tabsConfig.push({ id: 'settings', emoji: '⚙️', label: 'Ayarlar', visible: true, core: true, adminOnly: true, visibleTo: ['Bekir'] });
             }
             try { await saveTabsConfig(); } catch (e) { console.warn(e); }
             try { applyRoleAndTabs(); } catch (_) {}
@@ -926,9 +928,8 @@
             tabsConfig[index].label = label;
             tabsConfig[index].content = content;
             tabsConfig[index].visibleTo = vis.visibleTo;
-            if (!tabsConfig[index].core || (tabsConfig[index].id !== 'settings' && tabsConfig[index].id !== 'trash')) {
-                tabsConfig[index].adminOnly = vis.adminOnly;
-            }
+            // Kimler görsün (Herkes / Bekir / Duygu / Admin) — Ayarlar ve Çöp dahil uygulanır
+            tabsConfig[index].adminOnly = !!vis.adminOnly;
             if (content) tabsConfig[index].widgetType = detectWidgetType(content);
             else tabsConfig[index].widgetType = tabsConfig[index].widgetType || null;
 
@@ -936,6 +937,9 @@
             applyRoleAndTabs();
             renderTabsList();
             closeTabEditModal();
+            if (typeof showToast === 'function') {
+                showToast('Sekme güncellendi' + (tabsConfig[index].id === 'settings' ? ' · kimler görecek kaydedildi' : ''), 'success');
+            }
         };
 
         window.moveTabUp = async (index) => {
