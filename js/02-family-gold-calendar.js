@@ -728,195 +728,6 @@
         }
 
 
-        function renderSuperLigList(fixtures) {
-            const box = document.getElementById('superLigFixtureList');
-            const st = document.getElementById('superLigStatus');
-            if (!box) return;
-            const today = todayDateStr();
-            // Sadece GS, yaklaşan (+ bugün) max 10
-            const upcoming = (fixtures || [])
-                .filter(function(f) { return f && f.isGs && f.date && f.date >= today; })
-                .sort(function(a, b) { return String(a.date).localeCompare(String(b.date)); })
-                .slice(0, 10);
-            if (!upcoming.length) {
-                box.innerHTML = '<p class="text-xs text-slate-400 font-semibold text-center py-4">Yaklaşan Galatasaray maçı yok</p>';
-            } else {
-                box.innerHTML = upcoming.map(function(f) {
-                    const days = daysUntilYMD(f.date);
-                    const dayLab = days == null ? '' : (days === 0 ? 'bugün' : days + ' gün');
-                    const scoreLab = f.score ? (' · ' + f.score) : (f.time ? (' · ' + f.time) : '');
-                    const league = f.league ? (' · ' + f.league) : '';
-                    return '<div class="flex gap-2 items-start p-2.5 rounded-xl border bg-amber-50 border-amber-200">' +
-                        '<span class="text-base shrink-0">⚽</span>' +
-                        '<div class="min-w-0 flex-1">' +
-                        '<p class="text-sm font-bold text-slate-800">🦁 ' + escapeHtml(f.home) + ' – ' + escapeHtml(f.away) + '</p>' +
-                        '<p class="text-[11px] text-slate-500 font-semibold">' + formatDateTR(f.date) + scoreLab + (dayLab ? ' · ' + dayLab : '') + league +
-                        (f.status ? ' · ' + escapeHtml(f.status) : '') + '</p>' +
-                        '</div></div>';
-                }).join('');
-            }
-            if (st) {
-                st.textContent = upcoming.length + ' yaklaşan GS maçı (max 10)' +
-                    (superLigLastFetch ? (' · ' + new Date(superLigLastFetch).toLocaleString('tr-TR')) : '');
-            }
-        }
-
-        function renderSuperLigTable(rows) {
-            const box = document.getElementById('superLigTableList');
-            if (!box) return;
-            const list = (rows || []).slice().sort(function(a, b) {
-                return (Number(a.rank) || 99) - (Number(b.rank) || 99);
-            });
-            if (!list.length) {
-                box.innerHTML = '<p class="text-xs text-slate-400 font-semibold text-center py-4">Puan durumu henüz yok</p>';
-                return;
-            }
-            let html = '<table class="w-full text-xs sm:text-sm border-collapse">' +
-                '<thead><tr class="text-left text-slate-400 font-bold border-b border-slate-100">' +
-                '<th class="py-2 pr-1">#</th><th class="py-2">Takım</th>' +
-                '<th class="py-2 text-center">O</th><th class="py-2 text-center">G</th><th class="py-2 text-center">B</th><th class="py-2 text-center">M</th>' +
-                '<th class="py-2 text-center">Av</th><th class="py-2 text-center font-black">P</th></tr></thead><tbody>';
-            list.forEach(function(r) {
-                const gs = isGalatasarayName(r.team);
-                const trCls = gs ? 'bg-amber-50 font-bold' : '';
-                const name = (gs ? '🦁 ' : '') + escapeHtml(r.team || '-');
-                html += '<tr class="border-b border-slate-50 ' + trCls + '">' +
-                    '<td class="py-1.5 pr-1 text-slate-500">' + escapeHtml(String(r.rank || '')) + '</td>' +
-                    '<td class="py-1.5 text-slate-800">' + name + '</td>' +
-                    '<td class="py-1.5 text-center">' + (r.played != null ? r.played : '-') + '</td>' +
-                    '<td class="py-1.5 text-center">' + (r.win != null ? r.win : '-') + '</td>' +
-                    '<td class="py-1.5 text-center">' + (r.draw != null ? r.draw : '-') + '</td>' +
-                    '<td class="py-1.5 text-center">' + (r.loss != null ? r.loss : '-') + '</td>' +
-                    '<td class="py-1.5 text-center">' + (r.gd != null ? r.gd : '-') + '</td>' +
-                    '<td class="py-1.5 text-center font-black">' + (r.points != null ? r.points : '-') + '</td>' +
-                    '</tr>';
-            });
-            html += '</tbody></table>';
-            box.innerHTML = html;
-        }
-
-
-        async function loadSuperLigStandings(force) {
-            const CACHE_MS = 3 * 60 * 60 * 1000;
-            if (!force && superLigStandingsCache.length >= 10) return superLigStandingsCache;
-            if (!force) {
-                try {
-                    const raw = localStorage.getItem('yuvam_superlig_table');
-                    if (raw) {
-                        const parsed = JSON.parse(raw);
-                        if (parsed && parsed.at && (Date.now() - parsed.at) < CACHE_MS && Array.isArray(parsed.list) && parsed.list.length >= 10) {
-                            superLigStandingsCache = parsed.list;
-                            return superLigStandingsCache;
-                        }
-                    }
-                } catch (_) {}
-            }
-            let rows = [];
-            // ESPN full table
-            try {
-                const res = await fetch('https://site.api.espn.com/apis/v2/sports/soccer/tur.1/standings');
-                if (res.ok) {
-                    const data = await res.json();
-                    const children = (data && data.children) ? data.children : [];
-                    const entries = (children[0] && children[0].standings && children[0].standings.entries)
-                        ? children[0].standings.entries : [];
-                    rows = entries.map(function(e) {
-                        const team = (e.team && (e.team.displayName || e.team.shortDisplayName)) || '';
-                        const stats = {};
-                        (e.stats || []).forEach(function(s) {
-                            if (s && s.name) stats[s.name] = s.displayValue != null ? s.displayValue : s.value;
-                        });
-                        return {
-                            rank: Number(stats.rank) || 0,
-                            team: team,
-                            played: stats.gamesPlayed != null ? Number(stats.gamesPlayed) : null,
-                            win: stats.wins != null ? Number(stats.wins) : null,
-                            draw: stats.ties != null ? Number(stats.ties) : null,
-                            loss: stats.losses != null ? Number(stats.losses) : null,
-                            gf: stats.pointsFor != null ? Number(stats.pointsFor) : null,
-                            ga: stats.pointsAgainst != null ? Number(stats.pointsAgainst) : null,
-                            gd: stats.pointDifferential != null ? Number(stats.pointDifferential) : null,
-                            points: stats.points != null ? Number(stats.points) : null
-                        };
-                    }).filter(function(r) { return r.team; });
-                }
-            } catch (e) {
-                console.warn('ESPN standings', e);
-            }
-            // TheSportsDB yedek
-            if (rows.length < 10) {
-                try {
-                    const urls = [
-                        'https://www.thesportsdb.com/api/v1/json/3/lookuptable.php?l=4339&s=2026-2027',
-                        'https://www.thesportsdb.com/api/v1/json/3/lookuptable.php?l=4339&s=2025-2026',
-                        'https://www.thesportsdb.com/api/v1/json/3/lookuptable.php?l=4339'
-                    ];
-                    for (let i = 0; i < urls.length; i++) {
-                        try {
-                            const res = await fetch(urls[i]);
-                            if (!res.ok) continue;
-                            const data = await res.json();
-                            const table = (data && data.table) ? data.table : [];
-                            if (table.length < 10) continue;
-                            rows = table.map(function(r) {
-                                return {
-                                    rank: Number(r.intRank) || 0,
-                                    team: r.strTeam || '',
-                                    played: r.intPlayed != null ? Number(r.intPlayed) : null,
-                                    win: r.intWin != null ? Number(r.intWin) : null,
-                                    draw: r.intDraw != null ? Number(r.intDraw) : null,
-                                    loss: r.intLoss != null ? Number(r.intLoss) : null,
-                                    gf: r.intGoalsFor != null ? Number(r.intGoalsFor) : null,
-                                    ga: r.intGoalsAgainst != null ? Number(r.intGoalsAgainst) : null,
-                                    gd: r.intGoalDifference != null ? Number(r.intGoalDifference) : null,
-                                    points: r.intPoints != null ? Number(r.intPoints) : null
-                                };
-                            }).filter(function(r) { return r.team; });
-                            if (rows.length >= 10) break;
-                        } catch (_) {}
-                    }
-                } catch (_) {}
-            }
-            superLigStandingsCache = rows;
-            try {
-                localStorage.setItem('yuvam_superlig_table', JSON.stringify({ at: Date.now(), list: rows }));
-            } catch (_) {}
-            return rows;
-        }
-
-        window.toggleSuperLigPanel = function(which, forceOpen) {
-            if (which !== 'fixtures' && which !== 'table') return;
-            if (forceOpen === true) superLigPanelState[which] = true;
-            else if (forceOpen === false) superLigPanelState[which] = false;
-            else superLigPanelState[which] = !superLigPanelState[which];
-            const fixBody = document.getElementById('superLigFixBody');
-            const tableBody = document.getElementById('superLigTableBody');
-            const fixCh = document.getElementById('superLigFixChevron');
-            const tableCh = document.getElementById('superLigTableChevron');
-            const openFix = !!superLigPanelState.fixtures;
-            const openTable = !!superLigPanelState.table;
-            if (fixBody) fixBody.classList.toggle('hidden', !openFix);
-            if (tableBody) tableBody.classList.toggle('hidden', !openTable);
-            if (fixCh) fixCh.textContent = openFix ? '▾' : '▸';
-            if (tableCh) tableCh.textContent = openTable ? '▾' : '▸';
-        };
-
-        function applySuperLigPanelState() {
-            try { toggleSuperLigPanel('fixtures', !!superLigPanelState.fixtures); } catch (_) {}
-            // fixtures forceOpen sets fixtures only; re-apply table without toggling fixtures
-            const tableBody = document.getElementById('superLigTableBody');
-            const tableCh = document.getElementById('superLigTableChevron');
-            const openTable = !!superLigPanelState.table;
-            if (tableBody) tableBody.classList.toggle('hidden', !openTable);
-            if (tableCh) tableCh.textContent = openTable ? '▾' : '▸';
-            const fixBody = document.getElementById('superLigFixBody');
-            const fixCh = document.getElementById('superLigFixChevron');
-            const openFix = !!superLigPanelState.fixtures;
-            if (fixBody) fixBody.classList.toggle('hidden', !openFix);
-            if (fixCh) fixCh.textContent = openFix ? '▾' : '▸';
-        };
-
-
         /** GS maçları 0–7 gün içindeyse aile takvimine ekle; çift kayıtları temizle */
         async function syncGsMatchesToCalendar(fixtures) {
             if (!currentUser || !db) return;
@@ -1007,21 +818,9 @@
 
         window.loadSuperLigFixtures = loadSuperLigFixtures;
         window.refreshSuperLigFixtures = async function(force) {
-            const st = document.getElementById('superLigStatus');
-            if (st) st.textContent = 'Yükleniyor…';
             try {
                 const list = await loadSuperLigFixtures(!!force);
-                renderSuperLigList(list);
-                try {
-                    const table = await loadSuperLigStandings(!!force);
-                    renderSuperLigTable(table);
-                } catch (te) {
-                    console.warn('standings', te);
-                    renderSuperLigTable([]);
-                }
-                await syncGsMatchesToCalendar(list);
-                try { applySuperLigPanelState(); } catch (_) {}
-                // Anasayfa yaklaşanları güncelle (ilk açılışta maçlar görünsün)
+                try { await syncGsMatchesToCalendar(list); } catch (_) {}
                 try {
                     if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
                     const home = document.getElementById('tabContentHome');
@@ -1029,14 +828,14 @@
                         renderHomeTab();
                     }
                 } catch (_) {}
-                // aile listesini yenile (açılır liste — renderFamilyCalendarList)
                 try {
-                    if (typeof renderFamilyCalendarList === 'function') renderFamilyCalendarList();
+                    if (document.getElementById('familyPlanList') && typeof renderPlanTab === 'function') {
+                        const plan = document.getElementById('tabContentPlan');
+                        if (plan && !plan.classList.contains('hidden')) renderPlanTab();
+                    }
                 } catch (_) {}
             } catch (err) {
-                if (st) st.textContent = err.message || String(err);
-                const box = document.getElementById('superLigFixtureList');
-                if (box) box.innerHTML = '<p class="text-xs text-rose-600 font-semibold p-2">' + escapeHtml(err.message || String(err)) + '</p>';
+                console.warn('GS fikstür', err && err.message ? err.message : err);
             }
         };
 
@@ -2326,24 +2125,15 @@
                 renderCategoriesList();
             }, err => console.warn('categorySubtypes:', err));
             
-            // İkincil dinleyiciler — ilk boyamadan sonra
-            setTimeout(function() {
-                if (!currentUser) return;
-            db.collection("settings").doc("vehicleProfile").onSnapshot(d => {
-                if (d.exists && d.data()) {
-                    vehicleProfile = Object.assign({}, vehicleProfile, d.data());
-                    try { renderVehicleProfileUI(); } catch (_) {}
-                    try { if (typeof refreshAppNotifications === 'function') refreshAppNotifications(); } catch (_) {}
-                }
-            }, err => console.warn('vehicleProfile', err));
-db.collection("settings").doc("periodConfig").onSnapshot(d => {
+            // period + budget — hafif, erken
+            db.collection("settings").doc("periodConfig").onSnapshot(d => {
                 if (d.exists && d.data()) {
                     const p = d.data();
                     periodConfig = {
                         startDay: Number(p.startDay) || 29,
                         endDay: Number(p.endDay) || 28
                     };
-                    applyPeriodConfigToForm();
+                    try { applyPeriodConfigToForm(); } catch (_) {}
                     scheduleRenderApp();
                 }
             }, err => console.warn('periodConfig', err));
@@ -2357,75 +2147,6 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
                 }
                 if (typeof renderBudgetInfo === 'function') renderBudgetInfo();
             }, err => console.warn('budgetTarget', err));
-
-            function refreshFamilyViews() {
-                try {
-                    if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
-                    if (typeof updateTaskNavBadges === 'function') updateTaskNavBadges();
-                    if (typeof renderTabBar === 'function' && currentUser) renderTabBar();
-                    const home = document.getElementById('tabContentHome');
-                    if (home && !home.classList.contains('hidden') && typeof renderHomeTab === 'function') renderHomeTab();
-                    const cal = document.getElementById('tabContentCalendar');
-                    if (cal && !cal.classList.contains('hidden') && typeof renderCalendarTab === 'function') renderCalendarTab();
-                    const tk = document.getElementById('tabContentTasks');
-                    if (tk && !tk.classList.contains('hidden') && typeof renderTasksTab === 'function') renderTasksTab();
-                    const sh = document.getElementById('tabContentShopping');
-                    if (sh && !sh.classList.contains('hidden') && typeof renderShoppingTab === 'function') renderShoppingTab();
-                } catch (_) {}
-            }
-            db.collection('familyCalendar').onSnapshot(function(snap) {
-                familyCalendar = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
-                refreshFamilyViews();
-            }, function(e) { console.warn('familyCalendar', e); });
-            // Önce local, sonra settings/goldHoldings
-            try {
-                goldHoldings = loadGoldHoldingsLocal();
-                if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
-            } catch (_) {}
-            db.collection('settings').doc('goldHoldings').onSnapshot(function(d) {
-                if (d.exists && d.data() && Array.isArray(d.data().list)) {
-                    goldHoldings = d.data().list;
-                    saveGoldHoldingsLocal(goldHoldings);
-                    if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
-                }
-            }, function(e) { console.warn('goldHoldings settings', e); });
-            db.collection('familyTasks').onSnapshot(function(snap) {
-                familyTasks = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
-                refreshFamilyViews();
-            }, function(e) { console.warn('familyTasks', e); });
-            // familyShopping: lazy
-            db.collection("settings").doc("uiPrefs").onSnapshot(d => {
-                if (d.exists && d.data()) {
-                    const u = d.data();
-                    // Tema kullanıcıya özel localStorage'da; paylaşılan uiPrefs temayı dayatmaz
-                    if (u.dashboardCards && typeof u.dashboardCards === 'object') {
-                        dashboardCards = Object.assign(dashboardCards, u.dashboardCards);
-                        applyDashboardCards();
-                    }
-                }
-            }, err => console.warn('uiPrefs', err));
-            db.collection("settings").doc("apiKeys").onSnapshot(d => {
-                // Anahtar sadece oturum açıkken bellekte tutulur; localStorage'a yazılmaz
-                if (!auth.currentUser) {
-                    openrouterApiKey = '';
-                    collectApiKey = '';
-                    return;
-                }
-                if (d.exists && d.data()) {
-                    const k = d.data() || {};
-                    if (k.openrouter) openrouterApiKey = String(k.openrouter).trim();
-                    else if (k.gemini) openrouterApiKey = String(k.gemini).trim();
-                    else openrouterApiKey = '';
-                    collectApiKey = String(k.collectapi || k.collectApi || '').trim();
-                } else {
-                    openrouterApiKey = '';
-                    collectApiKey = '';
-                }
-            }, err => {
-                openrouterApiKey = '';
-                collectApiKey = '';
-                console.warn('apiKeys okunamadı (rules?)');
-            });
             db.collection("settings").doc("tabs").onSnapshot(d => {
                 if (d.exists && d.data()) {
                     const data = d.data();
@@ -2440,23 +2161,56 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
                     tabsConfig = DEFAULT_TABS.map(t => ({ ...t }));
                 }
                 if (currentUser) applyRoleAndTabs();
-                renderTabsList();
+                try { renderTabsList(); } catch (_) {}
             }, err => console.error("Sekme yükleme hatası:", err));
             db.collection("settings").doc("paymentTypes").onSnapshot(d => {
                 if (d.exists) paymentTypes = d.data().list;
                 updatePaymentSelects();
             });
-            db.collection("cardStatements").onSnapshot(snap => {
-                cardStatements = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-                const statsTab = document.getElementById('tabContentStats');
-                if (statsTab && !statsTab.classList.contains('hidden')) {
-                    renderCardStatements('bekir');
-                    renderCardStatements('duygu');
-                }
-            }, err => console.error("Cardstatements yüklemesinde hata:", err));
-            // ibans: lazy
 
-            }, 450);
+            // İkincil / seyrek: gecikmeli + lazy koleksiyonlar
+            setTimeout(function() {
+                if (!currentUser) return;
+                try {
+                    goldHoldings = loadGoldHoldingsLocal();
+                    if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
+                } catch (_) {}
+                // Anasayfa için aile verisi + araç profili (bildirimler)
+                try { ensureLazyCollection('familyTasks'); } catch (_) {}
+                try { ensureLazyCollection('familyCalendar'); } catch (_) {}
+                try { ensureLazyCollection('vehicleProfile'); } catch (_) {}
+                try { ensureLazyCollection('goldHoldings'); } catch (_) {}
+                db.collection("settings").doc("uiPrefs").onSnapshot(d => {
+                    if (d.exists && d.data()) {
+                        const u = d.data();
+                        if (u.dashboardCards && typeof u.dashboardCards === 'object') {
+                            dashboardCards = Object.assign(dashboardCards, u.dashboardCards);
+                            applyDashboardCards();
+                        }
+                    }
+                }, err => console.warn('uiPrefs', err));
+                db.collection("settings").doc("apiKeys").onSnapshot(d => {
+                    if (!auth.currentUser) {
+                        openrouterApiKey = '';
+                        collectApiKey = '';
+                        return;
+                    }
+                    if (d.exists && d.data()) {
+                        const k = d.data() || {};
+                        if (k.openrouter) openrouterApiKey = String(k.openrouter).trim();
+                        else if (k.gemini) openrouterApiKey = String(k.gemini).trim();
+                        else openrouterApiKey = '';
+                        collectApiKey = String(k.collectapi || k.collectApi || '').trim();
+                    } else {
+                        openrouterApiKey = '';
+                        collectApiKey = '';
+                    }
+                }, err => {
+                    openrouterApiKey = '';
+                    collectApiKey = '';
+                    console.warn('apiKeys okunamadı (rules?)');
+                });
+            }, 600);
 
             // activityLog: lazy — sadece panel açılınca (ensureActivityLogListener)
 
@@ -2467,6 +2221,20 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
 
         // İkincil koleksiyonlar — ilgili sekme açılınca dinle
         window._lazyUnsub = window._lazyUnsub || {};
+        function refreshFamilyViewsLazy() {
+            try {
+                if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
+                if (typeof updateTaskNavBadges === 'function') updateTaskNavBadges();
+                if (typeof renderTabBar === 'function' && currentUser) renderTabBar();
+                const home = document.getElementById('tabContentHome');
+                if (home && !home.classList.contains('hidden') && typeof renderHomeTab === 'function') renderHomeTab();
+                const plan = document.getElementById('tabContentPlan');
+                if (plan && !plan.classList.contains('hidden') && typeof renderPlanTab === 'function') renderPlanTab();
+                const sh = document.getElementById('tabContentShopping');
+                if (sh && !sh.classList.contains('hidden') && typeof renderShoppingTab === 'function') renderShoppingTab();
+            } catch (_) {}
+        }
+
         window.ensureLazyCollection = function(name) {
             if (!db || !currentUser) return;
             if (window._lazyUnsub[name]) return;
@@ -2490,6 +2258,41 @@ db.collection("settings").doc("periodConfig").onSnapshot(d => {
                         }
                         if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
                     }, function(e) { console.warn('familyShopping', e); });
+                } else if (name === 'familyTasks') {
+                    window._lazyUnsub.familyTasks = db.collection('familyTasks').onSnapshot(function(snap) {
+                        familyTasks = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+                        refreshFamilyViewsLazy();
+                    }, function(e) { console.warn('familyTasks', e); });
+                } else if (name === 'familyCalendar') {
+                    window._lazyUnsub.familyCalendar = db.collection('familyCalendar').onSnapshot(function(snap) {
+                        familyCalendar = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+                        refreshFamilyViewsLazy();
+                    }, function(e) { console.warn('familyCalendar', e); });
+                } else if (name === 'goldHoldings') {
+                    window._lazyUnsub.goldHoldings = db.collection('settings').doc('goldHoldings').onSnapshot(function(d) {
+                        if (d.exists && d.data() && Array.isArray(d.data().list)) {
+                            goldHoldings = d.data().list;
+                            try { saveGoldHoldingsLocal(goldHoldings); } catch (_) {}
+                            if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
+                        }
+                    }, function(e) { console.warn('goldHoldings', e); });
+                } else if (name === 'vehicleProfile') {
+                    window._lazyUnsub.vehicleProfile = db.collection('settings').doc('vehicleProfile').onSnapshot(function(d) {
+                        if (d.exists && d.data()) {
+                            vehicleProfile = Object.assign({}, vehicleProfile, d.data());
+                            try { renderVehicleProfileUI(); } catch (_) {}
+                            try { if (typeof refreshAppNotifications === 'function') refreshAppNotifications(); } catch (_) {}
+                        }
+                    }, function(e) { console.warn('vehicleProfile', e); });
+                } else if (name === 'cardStatements') {
+                    window._lazyUnsub.cardStatements = db.collection('cardStatements').onSnapshot(function(snap) {
+                        cardStatements = snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()); });
+                        const statsTab = document.getElementById('tabContentStats');
+                        if (statsTab && !statsTab.classList.contains('hidden')) {
+                            try { if (typeof renderCardStatements === 'function') { renderCardStatements('bekir'); renderCardStatements('duygu'); } } catch (_) {}
+                            try { if (typeof renderCurrentStatements === 'function') renderCurrentStatements(); } catch (_) {}
+                        }
+                    }, function(e) { console.warn('cardStatements', e); });
                 }
             } catch (err) {
                 console.warn('ensureLazyCollection', name, err);

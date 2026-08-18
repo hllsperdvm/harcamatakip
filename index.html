@@ -725,14 +725,14 @@
             </div>
 
 <div id="tabContentStats" class="hidden space-y-6 fade-in">
-<div class="flex flex-wrap items-center justify-between gap-2">
-                    <h2 class="text-lg font-black text-slate-800">Özet &amp; Grafikler</h2>
-                    <p class="text-[11px] text-slate-400 font-semibold">Pasta / Güne Tıklayınca Detay Açılır</p>
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <h2 class="text-lg font-black text-slate-800">Raporlar</h2>
+                    <p class="text-[11px] text-slate-400 font-semibold">Özet · Dilime / güne tıklayın</p>
                 </div>
 
                 <div class="chart-block max-w-5xl mx-auto w-full">
                     <h2 id="chartTitle" class="chart-title text-center sm:text-left">Kategori Dağılımı</h2>
-                    <p class="chart-sub text-center sm:text-left">Dönem Bazlı · Dilime Tıklayın</p>
+                    <p class="chart-sub text-center sm:text-left">Dönem bazlı · dilime tıklayın</p>
                     <div class="chart-wrap chart-box h-80 sm:h-[22rem] md:h-96 max-w-3xl mx-auto sm:max-w-none"><canvas id="expenseChart"></canvas></div>
                     <div class="mt-5 pt-4 border-t border-slate-100 max-w-3xl mx-auto">
                         <h3 class="text-sm font-black text-slate-700 mb-2 text-center sm:text-left">Kategori Özeti</h3>
@@ -740,35 +740,40 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="chart-block">
-                        <h2 class="chart-title">Faturalar (Aylık)</h2>
-                        <p class="chart-sub">Elektrik · Su · Doğalgaz · Telefon · İnternet · Abonelik</p>
-                        <div class="chart-wrap chart-box h-[26rem] sm:h-96"><canvas id="billsChart"></canvas></div>
-                    </div>
-                    <div class="chart-block">
-                        <h2 class="chart-title">Haftalık Trend</h2>
-                        <p class="chart-sub">Güne Tıklayın · Detay Açılır</p>
-                        <div class="chart-wrap chart-box h-56 sm:h-64"><canvas id="weeklyTrendChart"></canvas></div>
-                    </div>
-                </div>
-
                 <div class="chart-block">
-                    <h2 class="chart-title">Ekstre Dönemi Trendi (29–28)</h2>
-                    <p class="chart-sub">Dönem Toplamları</p>
-                    <div class="chart-wrap chart-box h-56 sm:h-64"><canvas id="monthlyTrendChart"></canvas></div>
+                    <h2 class="chart-title">Haftalık Trend</h2>
+                    <p class="chart-sub">Güne tıklayın · detay açılır</p>
+                    <div class="chart-wrap chart-box h-56 sm:h-64"><canvas id="weeklyTrendChart"></canvas></div>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="chart-block">
-                        <h2 class="chart-title">Bu Dönem vs Önceki</h2>
-                        <p id="monthCompareSummary" class="chart-sub">Karşılaştırma</p>
-                        <div class="chart-wrap chart-box h-56 sm:h-64"><canvas id="monthCompareChart"></canvas></div>
-                    </div>
-                    <div class="chart-block">
-                        <h2 class="chart-title">Kategori Trendi (3 Dönem)</h2>
-                        <p class="chart-sub">En Yüksek 5 Kategori</p>
-                        <div class="chart-wrap chart-box h-56 sm:h-72"><canvas id="categoryTrendChart"></canvas></div>
+                <div class="rounded-[1.75rem] border border-slate-100 bg-white overflow-hidden card-shadow">
+                    <button type="button" id="statsExtraToggle" onclick="toggleStatsExtraCharts()" class="w-full flex items-center justify-between gap-2 px-5 py-4 text-left hover:bg-slate-50">
+                        <span class="text-sm font-black text-slate-800">📈 Daha fazla grafik</span>
+                        <span id="statsExtraChevron" class="text-slate-400 font-bold">▸</span>
+                    </button>
+                    <div id="statsExtraCharts" class="hidden border-t border-slate-100 p-4 space-y-6">
+                        <div class="chart-block">
+                            <h2 class="chart-title">Faturalar (Aylık)</h2>
+                            <p class="chart-sub">Elektrik · Su · Doğalgaz · Telefon · İnternet · Abonelik</p>
+                            <div class="chart-wrap chart-box h-[26rem] sm:h-96"><canvas id="billsChart"></canvas></div>
+                        </div>
+                        <div class="chart-block">
+                            <h2 class="chart-title">Ekstre Dönemi Trendi (29–28)</h2>
+                            <p class="chart-sub">Dönem toplamları</p>
+                            <div class="chart-wrap chart-box h-56 sm:h-64"><canvas id="monthlyTrendChart"></canvas></div>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div class="chart-block">
+                                <h2 class="chart-title">Bu Dönem vs Önceki</h2>
+                                <p id="monthCompareSummary" class="chart-sub">Karşılaştırma</p>
+                                <div class="chart-wrap chart-box h-56 sm:h-64"><canvas id="monthCompareChart"></canvas></div>
+                            </div>
+                            <div class="chart-block">
+                                <h2 class="chart-title">Kategori Trendi (3 Dönem)</h2>
+                                <p class="chart-sub">En yüksek 5 kategori</p>
+                                <div class="chart-wrap chart-box h-56 sm:h-72"><canvas id="categoryTrendChart"></canvas></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -799,6 +804,21 @@
                         <p class="text-[11px] text-slate-400 font-semibold mb-3">Alışveriş · ayın 1'i → sonraki ayın 1'i · dönem harcamasına dahil değil</p>
                         <div id="multinetStatements" class="space-y-2"></div>
                     </div>
+                </div>
+
+                <!-- Canlı dönem özeti -->
+                <div id="periodLiveSummary" class="bg-white p-6 sm:p-8 rounded-[2rem] card-shadow border border-indigo-100">
+                    <div class="flex flex-wrap items-start justify-between gap-2 mb-4">
+                        <div>
+                            <h3 class="text-lg font-black text-slate-900">📋 Dönem Özeti</h3>
+                            <p id="periodLiveRange" class="text-[11px] text-slate-400 font-semibold mt-0.5">Canlı · 29–28</p>
+                        </div>
+                        <span class="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700">Canlı</span>
+                    </div>
+                    <div id="periodLiveBody" class="space-y-3 text-sm">
+                        <p class="text-slate-400 font-semibold text-center py-4">Yükleniyor…</p>
+                    </div>
+                    <div id="periodLiveAdvice" class="mt-4 pt-4 border-t border-slate-100 text-sm text-slate-600 font-medium leading-relaxed"></div>
                 </div>
             </div>
 

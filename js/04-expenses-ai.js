@@ -1391,6 +1391,18 @@
             });
         }
 
+        window._statsExtraOpen = false;
+        window.toggleStatsExtraCharts = function() {
+            window._statsExtraOpen = !window._statsExtraOpen;
+            const box = document.getElementById('statsExtraCharts');
+            const ch = document.getElementById('statsExtraChevron');
+            if (box) box.classList.toggle('hidden', !window._statsExtraOpen);
+            if (ch) ch.textContent = window._statsExtraOpen ? '▾' : '▸';
+            if (window._statsExtraOpen) {
+                try { updateStatsPanel(); } catch (_) {}
+            }
+        };
+
         function updateStatsPanel() {
             const period = getCurrentPeriod();
             const processedExpenses = getProcessedExpenses().filter(function(e) {
@@ -1525,6 +1537,14 @@
                     });
                 }
             } catch (errW) { console.warn('weeklyTrend', errW); }
+
+            try { renderPeriodLiveSummary(); } catch (_) {}
+
+            // İkincil grafikler yalnızca açılır panel açıkken
+            if (!window._statsExtraOpen) {
+                return;
+            }
+            try { if (typeof renderBillsChart === 'function') renderBillsChart(); } catch (_) {}
 
             // --- Dönem trendi ---
             try {
@@ -1677,9 +1697,163 @@
             } catch (errT) { console.warn('categoryTrend', errT); }
         }
 
+
+        window.renderPeriodLiveSummary = function() {
+            const body = document.getElementById('periodLiveBody');
+            const adviceEl = document.getElementById('periodLiveAdvice');
+            const rangeEl = document.getElementById('periodLiveRange');
+            if (!body) return;
+            try {
+                const period = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
+                const lab = (typeof formatPeriodLabel === 'function') ? formatPeriodLabel(period) : period;
+                if (rangeEl) rangeEl.textContent = (lab || period || 'Güncel dönem') + ' · canlı';
+
+                const all = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : [];
+                const list = all.filter(function(e) {
+                    return e.effectiveMonth === period && (typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e));
+                });
+                const sum = function(arr, pred) {
+                    return arr.filter(pred).reduce(function(s, e) { return s + (Number(e.displayAmount) || 0); }, 0);
+                };
+                const isCard = function(e) {
+                    return typeof isCreditPayment === 'function' ? isCreditPayment(e.paymentType) : /kredi/i.test(String(e.paymentType || ''));
+                };
+                const isCash = function(e) {
+                    return typeof isCashPayment === 'function' ? isCashPayment(e.paymentType) : /nakit/i.test(String(e.paymentType || ''));
+                };
+                const total = list.reduce(function(s, e) { return s + (Number(e.displayAmount) || 0); }, 0);
+                const card = sum(list, isCard);
+                const cash = sum(list, isCash);
+
+                // Multinet (ayın 1'i kuralı — dönem toplamına dahil değil)
+                let multi = 0;
+                try {
+                    if (typeof getMultinetMonthRange === 'function') {
+                        const r = getMultinetMonthRange();
+                        multi = all.filter(function(e) {
+                            return (typeof isMultinetPayment === 'function' && isMultinetPayment(e.paymentType))
+                                && e.date >= r.start && e.date < r.end;
+                        }).reduce(function(s, e) { return s + (Number(e.displayAmount) || e.amount || 0); }, 0);
+                    } else {
+                        multi = all.filter(function(e) {
+                            return typeof isMultinetPayment === 'function' && isMultinetPayment(e.paymentType)
+                                && e.effectiveMonth === period;
+                        }).reduce(function(s, e) { return s + (Number(e.displayAmount) || 0); }, 0);
+                    }
+                } catch (_) {}
+
+                // Kişi
+                const byPerson = {};
+                list.forEach(function(e) {
+                    const p = e.person || 'Diğer';
+                    byPerson[p] = (byPerson[p] || 0) + (Number(e.displayAmount) || 0);
+                });
+
+                // Kategori top 3
+                const byCat = {};
+                list.forEach(function(e) {
+                    let c = e.category || 'Diğer';
+                    if (typeof isLegacyShopCategory === 'function' && isLegacyShopCategory(c)) c = 'Alışveriş';
+                    if (c === 'E-ticaret') c = 'Alışveriş';
+                    byCat[c] = (byCat[c] || 0) + (Number(e.displayAmount) || 0);
+                });
+                const topCats = Object.entries(byCat).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 3);
+
+                // Önceki dönem
+                let prevSum = 0, prevKey = '';
+                try {
+                    const keys = (typeof getPreviousPeriodKeys === 'function') ? getPreviousPeriodKeys(2) : [];
+                    if (keys.length >= 2) {
+                        prevKey = keys[0];
+                        prevSum = all.filter(function(e) {
+                            return e.effectiveMonth === prevKey && (typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e));
+                        }).reduce(function(s, e) { return s + (Number(e.displayAmount) || 0); }, 0);
+                    }
+                } catch (_) {}
+                const delta = total - prevSum;
+                const deltaPct = prevSum > 0 ? Math.round((delta / prevSum) * 100) : (total > 0 ? 100 : 0);
+
+                // KK hedefi
+                const target = Number(monthlyBudgetTarget) || 0;
+                const targetPct = target > 0 ? Math.round((card / target) * 100) : null;
+
+                const fmt = function(n) { return Math.round(n).toLocaleString('tr-TR') + ' TL'; };
+                let html = '';
+                html += '<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">';
+                html += '<div class="rounded-xl bg-slate-50 p-3"><p class="text-[10px] font-bold text-slate-400 uppercase">Toplam</p><p class="text-base font-black text-slate-900">' + fmt(total) + '</p></div>';
+                html += '<div class="rounded-xl bg-indigo-50 p-3"><p class="text-[10px] font-bold text-indigo-400 uppercase">Kredi kartı</p><p class="text-base font-black text-indigo-900">' + fmt(card) + '</p></div>';
+                html += '<div class="rounded-xl bg-emerald-50 p-3"><p class="text-[10px] font-bold text-emerald-500 uppercase">Nakit</p><p class="text-base font-black text-emerald-900">' + fmt(cash) + '</p></div>';
+                html += '<div class="rounded-xl bg-amber-50 p-3"><p class="text-[10px] font-bold text-amber-600 uppercase">Multinet*</p><p class="text-base font-black text-amber-900">' + fmt(multi) + '</p></div>';
+                html += '</div>';
+                html += '<p class="text-[10px] text-slate-400 font-semibold">* Multinet dönem toplamına dahil edilmez</p>';
+
+                if (target > 0) {
+                    const barPct = Math.min(100, targetPct);
+                    const barCol = targetPct >= 100 ? 'bg-rose-500' : (targetPct >= 80 ? 'bg-amber-500' : 'bg-sky-500');
+                    html += '<div class="mt-1"><div class="flex justify-between text-[11px] font-bold mb-1"><span class="text-slate-500">KK hedefi</span><span class="text-slate-800">' + fmt(card) + ' / ' + fmt(target) + ' · %' + targetPct + '</span></div>';
+                    html += '<div class="h-2 rounded-full bg-slate-100 overflow-hidden"><div class="h-full rounded-full ' + barCol + '" style="width:' + barPct + '%"></div></div></div>';
+                }
+
+                if (topCats.length) {
+                    html += '<div><p class="text-[10px] font-black text-slate-400 uppercase mb-1.5">En yüksek kategoriler</p><div class="space-y-1">';
+                    topCats.forEach(function(pair) {
+                        const share = total > 0 ? Math.round(pair[1] / total * 100) : 0;
+                        html += '<div class="flex justify-between gap-2 text-xs"><span class="font-bold text-slate-700">' + escapeHtml(pair[0]) + '</span><span class="font-black text-slate-800">' + fmt(pair[1]) + ' <span class="text-slate-400">%' + share + '</span></span></div>';
+                    });
+                    html += '</div></div>';
+                }
+
+                const persons = Object.entries(byPerson).sort(function(a, b) { return b[1] - a[1]; });
+                if (persons.length) {
+                    html += '<div class="flex flex-wrap gap-2">';
+                    persons.forEach(function(pair) {
+                        html += '<span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">' + escapeHtml(pair[0]) + ': ' + fmt(pair[1]) + '</span>';
+                    });
+                    html += '</div>';
+                }
+
+                if (prevKey) {
+                    const arrow = delta > 0 ? '▲' : (delta < 0 ? '▼' : '●');
+                    const col = delta > 0 ? 'text-rose-600' : (delta < 0 ? 'text-emerald-600' : 'text-slate-500');
+                    const prevLab = (typeof formatPeriodLabel === 'function') ? formatPeriodLabel(prevKey) : prevKey;
+                    html += '<p class="text-xs font-semibold ' + col + '">' + arrow + ' Önceki döneme göre (' + escapeHtml(prevLab || prevKey) + '): ' +
+                        (delta >= 0 ? '+' : '') + fmt(delta).replace(' TL', '') + ' TL (%' + deltaPct + ')</p>';
+                }
+
+                body.innerHTML = html;
+
+                // Yerel uyarı / öneri
+                const tips = [];
+                if (target > 0) {
+                    if (targetPct >= 100) tips.push('Kredi kartı harcaması aylık hedefini aştı (%' + targetPct + '). Kalan günlerde KK kullanımını sınırlamak iyi olur.');
+                    else if (targetPct >= 85) tips.push('KK hedefinin %' + targetPct + 'ine ulaşıldı. Dönem bitmeden dikkatli ilerleyin.');
+                    else if (targetPct <= 50 && total > 0) tips.push('KK hedefinin henüz yarısındasınız; bu tempoyu korumak mümkün.');
+                }
+                if (prevSum > 0 && deltaPct >= 15) tips.push('Bu dönem önceki döneme göre belirgin arttı (%' + deltaPct + '). En şişkin kategoriyi aşağıdan kontrol edin.');
+                if (prevSum > 0 && deltaPct <= -10) tips.push('Önceki döneme göre harcama geriledi (%' + deltaPct + '). İyi bir tempo.');
+                if (topCats.length && total > 0 && topCats[0][1] / total >= 0.4) {
+                    tips.push('“' + topCats[0][0] + '” tek başına dönemin %' + Math.round(topCats[0][1] / total * 100) + 'ini oluşturuyor; kırılımı incelemeye değer.');
+                }
+                if (cash > 0 && card > 0 && cash / Math.max(total, 1) >= 0.25) {
+                    tips.push('Nakit payı görece yüksek; nakit fişlerini de düzenli işlediğinizden emin olun.');
+                }
+                if (!list.length) tips.push('Bu dönemde henüz dönem toplamına giren harcama yok.');
+                if (!tips.length) tips.push('Dönem dengeli görünüyor. Büyük sapma yok; mevcut tempoyu sürdürebilirsiniz.');
+
+                if (adviceEl) {
+                    adviceEl.innerHTML = '<p class="text-[10px] font-black text-indigo-500 uppercase tracking-wider mb-1">Yerel uyarı</p><p>' + escapeHtml(tips[0]) + '</p>' +
+                        (tips[1] ? '<p class="mt-1.5 text-slate-500">' + escapeHtml(tips[1]) + '</p>' : '');
+                }
+            } catch (err) {
+                console.warn('periodLiveSummary', err);
+                body.innerHTML = '<p class="text-slate-400 font-semibold text-center py-3">Özet hesaplanamadı</p>';
+                if (adviceEl) adviceEl.textContent = '';
+            }
+        };
+
         window.renderMonthlyReports = function() {
-            // Kategori özeti updateStatsPanel içinde
             try { updateStatsPanel(); } catch (_) {}
+            try { renderPeriodLiveSummary(); } catch (_) {}
         };
 
         window.markCardStatementUnpaid = async function(statementId) {

@@ -142,9 +142,7 @@
         let _weatherDailyCache = null;
         let _weatherDailyAt = 0;
 
-        let superLigStandingsCache = [];
         let superLigLastFetch = 0;
-        let superLigPanelState = { fixtures: false, table: false }; // bağımsız aç/kapa · varsayılan kapalı
 
         let currentUser = null; // { name, role }
         let onboardingPending = false;
@@ -1239,6 +1237,7 @@
                 if (typeof applyPageLayout === 'function') applyPageLayout('expense');
             }
             if (tabName === 'stats') {
+                try { if (typeof ensureLazyCollection === 'function') ensureLazyCollection('cardStatements'); } catch (_) {}
                 try { if (typeof renderCurrentStatements === 'function') renderCurrentStatements(); } catch (_) {}
                 if (typeof renderCardStatements === 'function') {
                     renderCardStatements('bekir');
@@ -1251,14 +1250,19 @@
                 });
             } else if (tabName === 'vehicle') {
                 Promise.resolve(typeof ensureChartJs === 'function' ? ensureChartJs() : null).then(function() {
-                    try { if (typeof renderVehicleTab === 'function') renderVehicleTab(); } catch (_) {}
+                    try { try { if (typeof ensureLazyCollection === 'function') ensureLazyCollection('vehicleProfile'); } catch (_) {}
+                if (typeof renderVehicleTab === 'function') renderVehicleTab(); } catch (_) {}
                 });
             } else if (tabName === 'home') {
                 if (typeof renderHomeTab === 'function') renderHomeTab();
             } else if (tabName === 'plan' || tabName === 'calendar' || tabName === 'tasks' || tabName === 'notes') {
+                try { if (typeof ensureLazyCollection === 'function') {
+                    ensureLazyCollection('familyTasks');
+                    ensureLazyCollection('familyCalendar');
+                    ensureLazyCollection('notes');
+                    ensureLazyCollection('ibans');
+                } } catch (_) {}
                 if (typeof renderPlanTab === 'function') renderPlanTab();
-                try { if (typeof ensureLazyCollection === 'function') ensureLazyCollection('notes'); } catch (_) {}
-                try { if (typeof ensureLazyCollection === 'function') ensureLazyCollection('ibans'); } catch (_) {}
                 try { if (typeof renderNotesList === 'function') renderNotesList(); } catch (_) {}
                 try { if (typeof renderIbans === 'function') renderIbans(); } catch (_) {}
             } else if (tabName === 'shopping') {
@@ -1299,6 +1303,14 @@
         window.renderHomeTab = function() {
             try {
                 // Fikstür boşsa arka planda yükle → yaklaşan maçlar gelsin
+                try {
+                    if (typeof ensureLazyCollection === 'function') {
+                        ensureLazyCollection('familyTasks');
+                        ensureLazyCollection('familyCalendar');
+                        ensureLazyCollection('vehicleProfile');
+                        ensureLazyCollection('goldHoldings');
+                    }
+                } catch (_) {}
                 try {
                     if (!(superLigFixturesCache && superLigFixturesCache.length)) {
                         if (typeof ensureGsFixturesForHome === 'function') ensureGsFixturesForHome();
