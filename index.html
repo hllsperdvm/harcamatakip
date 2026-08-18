@@ -1,0 +1,1649 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0284c7">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="YUVAM">
+    <meta name="application-name" content="YUVAM">
+    <meta name="description" content="YUVAM Digital Home Hub — aile bütçe ve ev merkezi">
+    <title>YUVAM · Digital Home Hub</title>
+    <!-- Hazır CSS (Tailwind CDN yok — daha hızlı açılış) -->
+    <link rel="stylesheet" href="css/tw.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230284c7'/%3E%3Cpath d='M50 22L20 45v35h60V45L50 22z' fill='none' stroke='%23ffffff' stroke-width='6' stroke-linejoin='round'/%3E%3Cpath d='M68 35v10h8v-6h4V35h-12z' fill='%23ffffff'/%3E%3Crect x='38' y='52' width='12' height='16' rx='2' fill='%23ffffff'/%3E%3Crect x='56' y='52' width='12' height='16' rx='2' fill='%23ffffff'/%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230284c7'/%3E%3Cpath d='M50 22L20 45v35h60V45L50 22z' fill='none' stroke='%23ffffff' stroke-width='6' stroke-linejoin='round'/%3E%3Cpath d='M68 35v10h8v-6h4V35h-12z' fill='%23ffffff'/%3E%3Crect x='38' y='52' width='12' height='16' rx='2' fill='%23ffffff'/%3E%3Crect x='56' y='52' width='12' height='16' rx='2' fill='%23ffffff'/%3E%3C/svg%3E">
+</head>
+<body class="text-slate-800 antialiased">
+    <div id="offlineBanner" class="hidden fixed top-0 left-0 right-0 z-[200] bg-amber-500 text-white text-center text-xs font-bold py-1.5 px-3 shadow-md">
+        📡 Çevrimdışı — kayıtlar cihazda tutulur, internet gelince senkronlanır
+    </div>
+
+
+    <!-- Giriş Ekranı -->
+    <div id="errorContainer" class="fixed inset-0 z-[100] flex items-center justify-center bg-gradient-to-br from-slate-50 via-indigo-50/40 to-slate-100">
+        <div class="w-full max-w-md p-8">
+            <div class="bg-white rounded-[2rem] shadow-xl shadow-indigo-100/50 border border-slate-100 p-8 text-center">
+                <div class="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                </div>
+                <h2 class="mb-1 text-2xl font-extrabold text-slate-900">YUVAM</h2>
+                <p class="mb-8 text-sm text-slate-400 font-medium">Digital Home Hub — Giriş yapın</p>
+
+                <div class="space-y-4 text-left">
+                    <div>
+                        <label class="block text-[11px] font-black text-slate-400 uppercase tracking-wider mb-2 ml-1">Kullanıcı</label>
+                        <select id="loginUser" class="w-full rounded-2xl border-none bg-slate-50 p-4 font-bold text-slate-800 ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <option value="">Kullanıcı seçin</option>
+                            <option value="Bekir">Bekir</option>
+                            <option value="Duygu">Duygu</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-black text-slate-400 uppercase tracking-wider mb-2 ml-1">Şifre</label>
+                        <input type="password" id="sifreInput" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="current-password" placeholder="••••••" class="w-full rounded-2xl border-none bg-slate-50 p-4 text-center text-2xl tracking-[0.35em] font-bold ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" onkeypress="handlePasswordKeyPress(event)">
+                    </div>
+                    <p class="text-[10px] text-slate-400 font-semibold text-center">Sayısal şifre (Firebase Authentication · en az 6 rakam önerilir)</p>
+                    <button type="button" id="loginBtn" onclick="checkPassword()" class="w-full rounded-2xl bg-indigo-600 py-4 font-bold text-white shadow-lg shadow-indigo-100 transition hover:bg-indigo-700 active:scale-[0.98] mt-2">Giriş Yap</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Veri yüklenirken — kapı görseli + ışıltı -->
+    <div id="appSkeleton" class="gate-loader hidden" aria-hidden="true">
+        <div class="gate-loader-stage" id="gateLoaderStage" style="--p:0%">
+            <img src="images/loading-gate.png" alt="" class="gate-loader-base" draggable="false">
+            <img src="images/loading-gate.png" alt="" class="gate-loader-lit" draggable="false">
+            <div class="gate-loader-shine" aria-hidden="true"></div>
+        </div>
+    </div>
+
+    <!-- Ana Uygulama Alanı -->
+    <div id="appContainer" class="hidden min-h-screen">
+        <div class="max-w-7xl mx-auto px-4 py-8">
+            <!-- Header -->
+            <header class="mb-10 flex flex-col sm:flex-row justify-between items-center gap-6">
+                <button type="button" onclick="switchTab('home')" class="flex items-center gap-4 text-left group cursor-pointer bg-transparent border-0 p-0" title="Ana Sayfa">
+                    <div class="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100 text-white group-hover:bg-indigo-700 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-3xl font-black text-slate-900 tracking-tight group-hover:text-indigo-700 transition">YUVAM</h1>
+                        <p class="text-sm font-semibold text-slate-400 uppercase tracking-widest group-hover:text-slate-500">Digital Home Hub</p>
+                    </div>
+                </button>
+                
+                <div class="flex items-center gap-2 flex-wrap justify-end relative">
+                    <span id="loggedInUserLabel" class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-2 rounded-xl"></span>
+                    <button type="button" onclick="openSiteSearch()" title="Ara" class="bg-white border border-slate-200 text-slate-700 w-10 h-10 rounded-xl text-lg font-bold transition hover:bg-sky-50 shadow-sm flex items-center justify-center">🔍</button>
+                    <div class="relative">
+                        <button type="button" id="userThemeBtn" onclick="toggleUserTheme()" title="Tema değiştir"
+                            class="hidden bg-white border border-slate-200 text-slate-700 w-10 h-10 rounded-xl text-lg font-bold transition hover:bg-sky-50 hover:border-sky-200 shadow-sm flex items-center justify-center">
+                            <span id="userThemeBtnIcon">🌙</span>
+                        </button>
+                        <button type="button" id="notifBtn" onclick="toggleNotifPanel(event)" title="Bildirimler"
+                            class="relative bg-white border border-slate-200 text-slate-700 w-10 h-10 rounded-xl text-lg font-bold transition hover:bg-amber-50 hover:border-amber-200 shadow-sm flex items-center justify-center">
+                            🔔
+                            <span id="notifBadge" class="hidden absolute -top-1 -right-1 min-w-[1.15rem] h-5 px-1 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center">0</span>
+                        </button>
+                        <div id="notifPanel" class="hidden absolute right-0 mt-2 w-[min(92vw,22rem)] z-50 bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
+                            <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-2">
+                                <p class="text-sm font-black text-slate-800">Bildirimler</p>
+                                <button type="button" onclick="closeNotifPanel()" class="text-xs font-bold text-slate-400 hover:text-slate-600">Kapat</button>
+                            </div>
+                            <div id="notifPanelBody" class="max-h-80 overflow-y-auto p-2 space-y-1.5">
+                                <p class="text-xs text-slate-400 font-semibold p-3 text-center">Kontrol ediliyor…</p>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" id="mobilePreviewBtn" onclick="toggleMobilePreview()" title="Mobil / web görünümü"
+                        class="hidden sm:inline-flex items-center gap-1.5 bg-white border border-sky-200 text-sky-700 px-3 py-2.5 rounded-xl text-sm font-bold transition hover:bg-sky-50 shadow-sm">
+                        <span id="mobilePreviewBtnLabel">📱 Mobil</span>
+                    </button>
+                                    <button type="button" id="layoutEditBtn" onclick="toggleLayoutEditCurrent()" title="Sayfa düzeni"
+                    class="hidden text-xs font-bold px-3 py-2 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-100 hover:bg-indigo-100">📐 Düzen</button>
+<button onclick="logout()" class="bg-white border border-slate-200 text-slate-600 px-4 py-2.5 rounded-xl text-sm font-bold transition hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 shadow-sm">Çıkış</button>
+                </div>
+            </header>
+
+            <!-- Tek navigasyon: webde üst şerit, mobilde gizli (alt menü) -->
+            <div id="tabBar" class="yuvam-top-tabs flex overflow-x-auto no-scrollbar bg-slate-100/50 p-1.5 rounded-2xl mb-8 gap-1 justify-start sm:justify-center"></div>
+
+            <!-- SEKME: ANA SAYFA (YUVAM 2.0 iskelet) -->
+            <div id="tabContentHome" class="hidden space-y-5 fade-in pb-4">
+                <div class="home-hero relative overflow-hidden text-white rounded-[2rem] p-6 shadow-lg" data-layout-fixed="1" id="homeHeroBanner">
+                    <div class="home-hero-pattern" aria-hidden="true"></div>
+                    <div class="relative z-[1]">
+                        <p id="homeGreeting" class="text-2xl sm:text-3xl font-black tracking-tight order-first">Merhaba</p>
+                        <p id="homeTodayDate" class="text-sm font-semibold text-white/80 mt-2">—</p>
+                        <p id="homeWeather" onclick="openWeatherModal()" title="7 günlük tahmin" class="text-sm font-semibold text-white/85 mt-1 cursor-pointer hover:text-white underline decoration-white/30 underline-offset-2">Ankara / Keçiören hava durumu yükleniyor…</p>
+                        <p id="homeDailyAyah" onclick="loadDailyAyah(true)" title="Yeni ayet için dokunun" class="text-sm sm:text-[0.95rem] font-semibold text-white/95 mt-3 leading-snug cursor-pointer hover:text-white">Günün ayeti yükleniyor…</p>
+                        <div class="flex flex-wrap items-center gap-2 mt-3">
+                        <p id="homePeriodBadge" class="inline-flex text-[11px] font-bold bg-white/15 px-3 py-1 rounded-full backdrop-blur-sm">Dönem: —</p>
+                    </div>
+                    </div>
+                </div>
+
+                <div data-layout-block="homeAgenda" data-home-card="homeAgenda" class="yuvam-card stripe-tasks bg-white rounded-[1.75rem] p-5 card-shadow border border-slate-100">
+                    <div class="flex items-center justify-between mb-2 gap-2">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="icon-ring icon-ring-emerald">✅</span>
+                            <h2 class="text-base font-black text-slate-800">Görevler &amp; Yaklaşanlar</h2>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <div id="homeTasksProgress" class="task-progress hidden" title="Tamamlanan">
+                                <svg viewBox="0 0 36 36" class="task-progress-svg"><path class="tp-bg" d="M18 2.5a15.5 15.5 0 1 1 0 31 15.5 15.5 0 1 1 0-31"/><path id="homeTasksProgressArc" class="tp-fg" stroke-dasharray="0, 100" d="M18 2.5a15.5 15.5 0 1 1 0 31 15.5 15.5 0 1 1 0-31"/></svg>
+                                <span id="homeTasksProgressLabel" class="task-progress-lbl">0</span>
+                            </div>
+                            <button type="button" onclick="switchTab('plan')" class="text-xs font-bold text-emerald-600">Görevler</button>
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-slate-400 font-semibold mb-3">Açık görevler ve yaklaşan ödemeler / hatırlatmalar</p>
+                    <div id="homeAgendaList" class="space-y-2"></div>
+                </div>
+
+                <button type="button" data-layout-block="homeQuickAdd" data-home-card="homeQuickAdd" onclick="switchTab('expense'); openExpenseModal();"
+                    class="w-full home-quick-add text-white rounded-[2rem] p-6 shadow-lg text-left flex items-center justify-between gap-4 transition active:scale-[0.99]">
+                    <div>
+                        <p class="text-[10px] font-black text-white/80 uppercase tracking-wider">Hızlı İşlem</p>
+                        <p class="text-xl font-black mt-1">+ Harcama Ekle</p>
+                        <p class="text-[11px] text-white/80 font-semibold mt-1">Bütçe Takibe ekle</p>
+                    </div>
+                    <span class="text-3xl font-light opacity-80 shrink-0">＋</span>
+                </button>
+
+                <div data-layout-block="homeGrid" class="grid grid-cols-2 gap-3">
+                    <div data-home-card="homeToday" class="yuvam-card stripe-today bg-white rounded-2xl p-4 card-shadow border border-slate-100">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Bugün Harcama</p>
+                        <p id="homeTodaySpend" class="text-lg font-black text-slate-800 mt-1">0 TL</p>
+                        <p id="homeTodayCount" class="text-[11px] text-slate-400 font-semibold">0 kayıt</p>
+                    </div>
+                    <div data-home-card="homePeriod" class="yuvam-card stripe-period bg-white rounded-2xl p-4 card-shadow border border-slate-100">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Dönem Toplam</p>
+                        <p id="homePeriodSpend" class="text-lg font-black text-rose-600 mt-1">0 TL</p>
+                        <p class="text-[10px] text-slate-500 font-semibold mt-0.5">Nakit <span id="homePeriodCash">0</span> · KK <span id="homePeriodCard">0</span></p>
+                        <p class="text-[11px] text-slate-400 font-semibold">29–28 ekstre</p>
+                    </div>
+                    <button type="button" data-home-card="homeGold" onclick="switchTab('expense')" class="yuvam-card bg-white rounded-2xl p-4 card-shadow border border-amber-100 text-left col-span-2">
+                        <p class="text-[10px] font-black text-amber-700/80 uppercase tracking-wide">🥇 Altın Yatırımı</p>
+                        <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 mt-1">
+                            <p id="homeGoldPnL" class="text-xl font-black text-slate-800">—</p>
+                            <p id="homeGoldNet" class="text-lg font-black text-slate-700">—</p>
+                        </div>
+                        <p id="homeGoldSub" class="text-[11px] text-slate-500 font-semibold mt-0.5">Bütçe Takip</p>
+                    </button>
+                    <div data-layout-block="homeBudget" data-home-card="homeBudget" class="yuvam-card stripe-budget bg-white rounded-2xl p-4 card-shadow border border-slate-100 col-span-2">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Aylık Bütçe Hedefi</p>
+                        <p id="homeBudgetLabel" class="text-sm font-bold text-slate-700">—</p>
+                        <div class="mt-2 h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                            <div id="homeBudgetBar" class="h-full rounded-full bg-sky-500 transition-all duration-500" style="width:0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- TAKVİM -->
+            <!-- PLAN: Görev + Takvim birleşik -->
+                                    <div id="tabContentPlan" class="hidden space-y-4 fade-in max-w-2xl mx-auto">
+                <div data-layout-block="planMain" class="bg-white p-5 rounded-[1.75rem] card-shadow border border-slate-100">
+                    <h2 class="text-lg font-black mb-0.5">📋 Plan</h2>
+                    <p class="text-[11px] text-slate-400 font-semibold mb-4">Görev · Etkinlik · Randevu · tek formda</p>
+                    <form onsubmit="familyAddPlan(event)" class="space-y-2 mb-4">
+                        <input type="hidden" id="famPlanEditId" value="">
+                        <input type="hidden" id="famPlanEditSource" value="">
+                        <input type="text" id="famPlanText" required placeholder="Ne yapılacak? (örn. Fatura öde / Duygu randevu)" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            <select id="famPlanKind" onchange="onPlanKindChange()" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                                <option value="task">✅ Görev</option>
+                                <option value="event">📅 Etkinlik</option>
+                                <option value="appointment">🏥 Randevu</option>
+                                <option value="birthday">🎂 Doğum günü</option>
+                                <option value="anniversary">💍 Yıldönümü</option>
+                                <option value="other">📌 Diğer</option>
+                            </select>
+                            <input type="date" id="famPlanDate" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            <select id="famPlanAssignee" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                                <option value="Herkes">Herkes</option>
+                                <option value="Bekir">Bekir</option>
+                                <option value="Duygu">Duygu</option>
+                            </select>
+                            <select id="famPlanRepeat" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                                <option value="none">Tek sefer</option>
+                                <option value="weekly">Her hafta</option>
+                                <option value="monthly">Her ay</option>
+                                <option value="yearly">Her yıl</option>
+                            </select>
+                            <button type="submit" id="famPlanSubmitBtn" class="sm:col-span-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl py-3 text-sm">Ekle</button>
+                        </div>
+                        <button type="button" id="famPlanCancelEdit" onclick="familyCancelPlanEdit()" class="hidden text-xs font-bold text-slate-500">Düzenlemeyi iptal</button>
+                    </form>
+                    <div class="flex flex-wrap gap-2 mb-3">
+                        <button type="button" onclick="setPlanFilter('all')" id="planFilterAll" class="text-[11px] font-bold px-3 py-1.5 rounded-full bg-indigo-600 text-white">Tümü</button>
+                        <button type="button" onclick="setPlanFilter('task')" id="planFilterTask" class="text-[11px] font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-600">Görevler</button>
+                        <button type="button" onclick="setPlanFilter('cal')" id="planFilterCal" class="text-[11px] font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-600">Takvim</button>
+                    </div>
+                    <div id="familyPlanList" class="space-y-2"></div>
+                    <div id="familyTasksList" class="hidden"></div>
+                    <div id="familyCalendarList" class="hidden"></div>
+                </div>
+
+                <div data-layout-block="planNotesForm" class="bg-white p-5 sm:p-8 rounded-[1.75rem] sm:rounded-[2.5rem] card-shadow border border-slate-100">
+                    <h2 id="noteFormTitle" class="text-xl font-black mb-2">📝 Not Yaz</h2>
+                    <p class="text-[11px] text-slate-400 font-semibold mb-4">Unutmamak için kısa notlar</p>
+                    <form onsubmit="handleNoteSubmit(event)" class="space-y-3">
+                        <input type="hidden" id="editNoteId">
+                        <select id="notePerson" required class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="Bekir">Bekir</option>
+                            <option value="Duygu">Duygu</option>
+                        </select>
+                        <textarea id="noteContent" rows="3" required placeholder="Notunuzu buraya yazın..." class="w-full bg-slate-50 border-none rounded-2xl p-4 font-medium outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                        <button type="submit" id="noteSubmitBtn" class="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition">Kaydet</button>
+                    </form>
+                </div>
+
+                <div data-layout-block="planNotesList" id="notesContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+
+                <div data-layout-block="planIban" class="bg-white p-5 sm:p-8 rounded-[1.75rem] sm:rounded-[2.5rem] card-shadow border border-slate-100">
+                    <div class="flex justify-between items-center mb-4 gap-2">
+                        <h2 class="text-xl font-black">💳 IBAN Numaraları</h2>
+                        <button type="button" onclick="openIbanModal()" class="bg-indigo-600 text-white px-4 sm:px-6 py-2 rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition">+ IBAN Ekle</button>
+                    </div>
+                    <div id="ibanListContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="text-center text-slate-400 py-8 col-span-full">
+                            <p class="text-sm">Henüz IBAN kaydı yok</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+<!-- ALIŞVERİŞ -->
+            <div id="tabContentShopping" class="hidden space-y-4 fade-in max-w-2xl mx-auto">
+                <div class="bg-white p-5 rounded-[1.75rem] card-shadow border border-slate-100">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+                        <h2 class="text-lg font-black">🛒 Alışveriş listesi</h2>
+                        <button type="button" onclick="familyClearBoughtShop()" class="text-xs font-bold text-slate-500 hover:text-rose-600">Alınanları temizle</button>
+                    </div>
+                    <p id="familyShopSummary" class="text-[11px] text-slate-400 font-semibold mb-4">—</p>
+                    <form onsubmit="familyAddShop(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-4">
+                        <input type="text" id="famShopName" required placeholder="Ürün" class="sm:col-span-2 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                        <input type="text" id="famShopQty" placeholder="Miktar" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                        <select id="famShopCat" class="bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            <option value="Market">Market</option>
+                            <option value="Ev">Ev</option>
+                            <option value="Teknoloji">Teknoloji</option>
+                            <option value="Diğer">Diğer</option>
+                        </select>
+                        <button type="submit" class="sm:col-span-4 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl py-3 text-sm">Listeye ekle</button>
+                    </form>
+                    <div id="familyShopList" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- SEKME: FİNANS (eski Bütçe Takip) -->
+            <div id="tabContentExpense" class="hidden space-y-8 fade-in">
+                <div data-layout-block="expensePeriod" class="flex justify-center">
+                    <span id="activePeriodBadge" class="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 text-xs font-bold px-4 py-2 rounded-full border border-indigo-100">Aktif dönem: —</span>
+                </div>
+                <!-- Özet Kartları -->
+                <div data-layout-block="expenseDash" id="dashboardCardsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div data-dash-card="total" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
+                        <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2">Dönem Harcaması</p>
+                        <p id="totalExpense" class="text-xl font-black text-rose-600">0,00 TL</p>
+                        <div id="totalExpenseBreakdown" class="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-bold text-slate-400">
+                            <span>Nakit <b id="totalCashAmt" class="text-slate-600">0</b></span>
+                            <span>KK <b id="totalCardAmt" class="text-slate-600">0</b></span>
+                        </div>
+                    </div>
+                    <div data-dash-card="bekir" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
+                        <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2">Bekir (Dönem)</p>
+                        <p id="bekirExpense" class="text-xl font-black text-blue-600">0,00 TL</p>
+                        <div class="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-bold text-slate-400">
+                            <span>Nakit <b id="bekirCashAmt" class="text-slate-600">0</b></span>
+                            <span>KK <b id="bekirCardAmt" class="text-slate-600">0</b></span>
+                        </div>
+                    </div>
+                    <div data-dash-card="duygu" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100">
+                        <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2">Duygu (Dönem)</p>
+                        <p id="duyguExpense" class="text-xl font-black text-pink-600">0,00 TL</p>
+                        <div class="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] font-bold text-slate-400">
+                            <span>Nakit <b id="duyguCashAmt" class="text-slate-600">0</b></span>
+                            <span>KK <b id="duyguCardAmt" class="text-slate-600">0</b></span>
+                        </div>
+                    </div>
+                    <div data-dash-card="debt" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative">
+                        <button type="button" onclick="openCardDebtModal()" title="Kredi kartı borcu ekle"
+                            class="absolute top-3 right-3 w-9 h-9 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xl font-black leading-none flex items-center justify-center shadow-sm transition">+</button>
+                        <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-2 pr-10">Aktif KK Borcu</p>
+                        <p id="totalCardDebtDisplay" class="text-xl font-black text-amber-600">0,00 TL</p>
+                        <p class="text-[10px] text-slate-400 font-semibold mt-1">+ ile yeni borç ekle</p>
+                    </div>
+                </div>
+
+                <!-- Aylık Bütçe Hedefi progress -->
+                <div id="budgetTargetCard" class="bg-white p-5 sm:p-6 rounded-3xl card-shadow border border-slate-100">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div data-layout-block="expenseBudget">
+                            <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Dönem bütçe hedefi</p>
+                            <p id="budgetTargetLabel" class="text-sm font-black text-slate-800 mt-0.5">Hedef belirlenmedi</p>
+                        </div>
+                        <p id="budgetTargetPct" class="text-lg font-black text-sky-700">—</p>
+                    </div>
+                    <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
+                        <div id="budgetTargetBar" class="h-full rounded-full transition-all duration-700 bg-sky-500" style="width:0%"></div>
+                    </div>
+                    <p id="budgetTargetDetail" class="text-[11px] text-slate-500 font-semibold mt-2">Ayarlar → Bütçe hedefi</p>
+                </div>
+
+                <!-- Yeni Harcama Ekle Butonu -->
+                <div data-layout-block="expenseAdd" class="flex justify-center">
+                    <button onclick="openExpenseModal()" class="w-full sm:w-auto bg-slate-900 hover:bg-indigo-600 text-white px-12 py-4 rounded-2xl text-base font-bold transition shadow-xl shadow-slate-200 flex items-center justify-center gap-3 active:scale-95">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Yeni Harcama Ekle
+                    </button>
+                </div>
+
+                                <!-- Altın yatırımları (açılır) -->
+                <div data-layout-block="expenseGold" class="bg-white rounded-2xl card-shadow border border-slate-100 overflow-hidden">
+                    <button type="button" id="goldToggleBtn" onclick="toggleGoldPanel()" class="w-full flex items-center justify-between gap-2 p-4 text-left hover:bg-amber-50/50 transition">
+                        <div class="min-w-0">
+                            <h2 class="text-base font-black text-slate-800">🥇 Altın</h2>
+                            <p class="text-[10px] text-slate-400 font-semibold truncate"><span id="goldSumPnLPreview">Kâr/zarar</span> · detay için aç</p>
+                        </div>
+                        <span id="goldToggleChevron" class="text-slate-400 font-black text-lg shrink-0 transition-transform">▼</span>
+                    </button>
+                    <div id="goldPanelBody" class="hidden px-4 pb-4 border-t border-slate-100">
+                    <div class="flex items-center justify-between gap-2 mt-3 mb-2">
+                        <p id="goldPriceMeta" class="text-[10px] text-slate-400 font-semibold">Fiyat yükleniyor…</p>
+                        <button type="button" onclick="refreshGoldPrice(true); event.stopPropagation();" class="text-[10px] font-bold text-amber-700 px-2 py-1 rounded-lg bg-amber-50">Yenile</button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 mb-3 text-[11px]">
+
+                        <div class="rounded-xl bg-amber-50/80 border border-amber-100 p-2">
+                            <p class="font-black text-amber-900 mb-1">24 ayar</p>
+                            <p class="text-slate-600">Alış <span id="goldBuy24" class="font-black text-slate-800">—</span></p>
+                            <p class="text-slate-600">Satış <span id="goldSell24" class="font-black text-amber-800">—</span></p>
+                        </div>
+                        <div class="rounded-xl bg-orange-50/80 border border-orange-100 p-2">
+                            <p class="font-black text-orange-900 mb-1">22 ayar</p>
+                            <p class="text-slate-600">Alış <span id="goldBuy22" class="font-black text-slate-800">—</span></p>
+                            <p class="text-slate-600">Satış <span id="goldSell22" class="font-black text-orange-800">—</span></p>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-3 text-xs font-bold mb-3">
+                        <span>Maliyet: <span id="goldSumCost">—</span></span>
+                        <span>Değer: <span id="goldSumValue">—</span></span>
+                        <span id="goldSumPnL" class="font-black">—</span>
+                    </div>
+                    <form onsubmit="addGoldHolding(event)" class="grid grid-cols-2 sm:grid-cols-6 gap-2 mb-3">
+                        <select id="goldKarat" class="bg-slate-50 rounded-xl p-2.5 text-xs font-bold outline-none ring-1 ring-slate-200">
+                            <option value="24">24 ayar</option>
+                            <option value="22">22 ayar</option>
+                        </select>
+                        <input type="number" id="goldGrams" step="0.01" min="0.01" required placeholder="Gram" class="bg-slate-50 rounded-xl p-2.5 text-xs font-bold outline-none ring-1 ring-slate-200" inputmode="decimal" enterkeyhint="done">
+                        <input type="number" id="goldBuyPrice" step="0.01" min="0.01" required placeholder="Alış ₺/g" class="bg-slate-50 rounded-xl p-2.5 text-xs font-bold outline-none ring-1 ring-slate-200" inputmode="decimal" enterkeyhint="done">
+                        <input type="date" id="goldBuyDate" required class="bg-slate-50 rounded-xl p-2.5 text-xs font-bold outline-none ring-1 ring-slate-200">
+                        <input type="text" id="goldNote" placeholder="Not" class="bg-slate-50 rounded-xl p-2.5 text-xs font-bold outline-none ring-1 ring-slate-200">
+                        <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl py-2.5 text-xs">Ekle</button>
+                    </form>
+                    <div id="goldHoldingsList" class="space-y-1.5 max-h-48 overflow-y-auto"></div>
+                    <div class="mt-2 flex gap-2 items-center">
+                        <input type="number" id="goldManualPrice" step="0.01" min="0" placeholder="Elle ₺/g" class="flex-1 bg-slate-50 rounded-lg p-1.5 text-[11px] font-bold outline-none ring-1 ring-slate-200" inputmode="decimal" enterkeyhint="done">
+                        <button type="button" onclick="applyManualGoldPrice()" class="text-[11px] font-bold px-2 py-1.5 rounded-lg bg-slate-100 text-slate-700">Uygula</button>
+                    </div>
+                    </div>
+                </div>
+
+<!-- Kredi Kartları -->
+                <div data-layout-block="expenseCards" class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <!-- Bekir Kredi Kartı -->
+                    <div id="bekirDebtCard" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative overflow-hidden hidden">
+                        <div class="flex justify-between items-start mb-6">
+                            <div>
+                                <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Bekir Kredi Kartı</p>
+                                <h3 id="bekirDebtDisplay" class="text-2xl font-black text-slate-900">0,00 TL</h3>
+                                <span id="bekirDebtStatusBadge" class="inline-block mt-2 text-[10px] px-2.5 py-1 rounded-full font-bold uppercase">Ödenmedi</span>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <button onclick="setCardDebt('bekir')" class="text-[11px] font-bold bg-slate-50 px-3 py-2 rounded-xl hover:bg-slate-100 transition">Borç Gir</button>
+                                <button id="bekirDebtToggleBtn" onclick="toggleCardDebt('bekir')" class="text-[11px] font-bold px-3 py-2 rounded-xl shadow-sm transition">Ödendi Yap</button>
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-[10px] font-bold">
+                                <span class="text-slate-400">SON ÖDEME: <b id="bekirDueDateDisplay" class="text-slate-900">-</b></span>
+                                <span id="bekirProgressPercentage" class="text-indigo-600">0%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 h-1.5 rounded-full">
+                                <div id="bekirProgressBar" class="h-full rounded-full transition-all duration-1000" style="width: 0%"></div>
+                            </div>
+                            <div class="flex justify-end">
+                                <input type="date" id="bekirDueDateInput" onchange="updateCardDueDate('bekir', this.value)" class="text-[10px] border-none bg-slate-50 rounded-lg p-1 font-bold outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Duygu Kredi Kartı -->
+                    <div id="duyguDebtCard" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative overflow-hidden hidden">
+                        <div class="flex justify-between items-start mb-6">
+                            <div>
+                                <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Duygu Kredi Kartı</p>
+                                <h3 id="duyguDebtDisplay" class="text-2xl font-black text-slate-900">0,00 TL</h3>
+                                <span id="duyguDebtStatusBadge" class="inline-block mt-2 text-[10px] px-2.5 py-1 rounded-full font-bold uppercase">Ödenmedi</span>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <button onclick="setCardDebt('duygu')" class="text-[11px] font-bold bg-slate-50 px-3 py-2 rounded-xl hover:bg-slate-100 transition">Borç Gir</button>
+                                <button id="duyguDebtToggleBtn" onclick="toggleCardDebt('duygu')" class="text-[11px] font-bold px-3 py-2 rounded-xl shadow-sm transition">Ödendi Yap</button>
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-[10px] font-bold">
+                                <span class="text-slate-400">SON ÖDEME: <b id="duyguDueDateDisplay" class="text-slate-900">-</b></span>
+                                <span id="duyguProgressPercentage" class="text-indigo-600">0%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 h-1.5 rounded-full">
+                                <div id="duyguProgressBar" class="h-full rounded-full transition-all duration-1000" style="width: 0%"></div>
+                            </div>
+                            <div class="flex justify-end">
+                                <input type="date" id="duyguDueDateInput" onchange="updateCardDueDate('duygu', this.value)" class="text-[10px] border-none bg-slate-50 rounded-lg p-1 font-bold outline-none">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Yuvam'a Sor -->
+                <div data-layout-block="expenseAdvisor" class="advisor-card bg-gradient-to-br from-violet-50 via-indigo-50 to-sky-50 rounded-[2rem] card-shadow border border-violet-100 p-5 sm:p-6">
+                    <div class="flex items-start justify-between gap-3 mb-3">
+                        <div>
+                            <h2 class="advisor-title text-base font-black text-slate-900">💬 Yuvam'a Sor</h2>
+                            <p class="advisor-sub text-[11px] text-slate-600 font-semibold mt-0.5">Sorunuzu yazın · AI yanıtlar (anahtar yoksa yerel yedek)</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-2 mb-3">
+                        <input type="text" id="yuvamAskInput" placeholder="Örn: Son 2 ayın yakıt ortalaması nedir?"
+                            class="flex-1 bg-white rounded-xl p-3 text-sm font-semibold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-violet-500"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault();askYuvam();}">
+                        <button type="button" id="yuvamAskBtn" onclick="askYuvam()" class="bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold px-5 py-3 rounded-xl shrink-0">Sor</button>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 mb-3" id="yuvamAskChips">
+                        <button type="button" onclick="askYuvamPreset('Bu ay ne kadar harcadık?')" class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-600">Bu ay harcama</button>
+                        <button type="button" onclick="askYuvamPreset('Son 3 ayda araç masrafımız ne kadar?')" class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-600">Araç 3 ay</button>
+                        <button type="button" onclick="askYuvamPreset('Önümüzdeki hafta hangi ödemeler var?')" class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-600">Yaklaşan ödemeler</button>
+                        <button type="button" onclick="askYuvamPreset('Hangi faturaları ödememiz gerekiyor?')" class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-600">Faturalar</button>
+                        <button type="button" onclick="askYuvamPreset('Geçen aya göre market harcamamız arttı mı?')" class="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-600">Market karşılaştırması</button>
+                    </div>
+                    <div id="aiAdvisorProgressWrap" class="hidden mb-3">
+                        <div class="flex justify-between text-[10px] font-bold text-violet-600 mb-1">
+                            <span>Yanıt hazırlanıyor…</span>
+                            <span id="aiAdvisorProgressPct">0%</span>
+                        </div>
+                        <div class="h-2 bg-violet-100 rounded-full overflow-hidden">
+                            <div id="aiAdvisorProgressBar" class="h-full bg-violet-600 rounded-full transition-all duration-200" style="width:0%"></div>
+                        </div>
+                    </div>
+                    <div id="yuvamAskResult" class="bg-white/90 rounded-2xl p-3 min-h-[4rem] border border-violet-50 max-h-96 overflow-y-auto">
+                        <p class="text-sm text-slate-400 font-medium">Sorunuzu yazın veya yukarıdaki örneklerden birine dokunun.</p>
+                    </div>
+                    <!-- Geriye uyum gizli -->
+                    <div id="localAdvisorResult" class="hidden"></div>
+                    <div id="aiAdvisorResult" class="hidden"></div>
+                </div>
+
+<!-- İşlem Geçmişi -->
+                <div data-layout-block="expenseHistory" class="bg-white rounded-[2.5rem] card-shadow border border-slate-100 overflow-hidden">
+                    <div class="p-8 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <h2 class="text-xl font-black text-slate-900">İşlem Geçmişi</h2>
+                        <div class="flex items-center gap-2">
+                            <button onclick="toggleFilterPanel()" class="text-xs font-bold bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition">⚙️ Filtrele</button>
+                            <button type="button" onclick="downloadExcel()" class="text-xs font-bold bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 transition" title="Tüm harcamalar CSV">📥 Excel / CSV</button>
+                            <button type="button" onclick="downloadPeriodExcel()" class="text-xs font-bold bg-teal-600 text-white px-4 py-2 rounded-xl hover:bg-teal-700 transition" title="Sadece aktif dönem">📅 Bu dönem</button>
+                            <button onclick="resetFilters()" class="text-xs font-bold text-slate-400 hover:text-slate-900 transition">Temizle</button>
+                        </div>
+                    </div>
+
+                    <!-- Filtreler (Gizli Panel) -->
+                    <div id="filterPanel" class="hidden p-4 sm:p-6 bg-slate-50/50 border-b border-slate-200 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+                        <div class="flex flex-col gap-1 sm:col-span-2">
+                            <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Kelime ara</label>
+                            <input type="text" id="filterSearch" placeholder="ör. Sigara, market…" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none" onkeydown="if(event.key==='Enter'){event.preventDefault();applyFilters();}">
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Kişi</label>
+                            <select id="filterPerson" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500">
+                                <option value="Tümü">Tümü</option>
+                                <option value="Bekir">Bekir</option>
+                                <option value="Duygu">Duygu</option>
+                                                            </select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Kategori</label>
+                            <select id="filterCategory" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500"></select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Ödeme</label>
+                            <select id="filterPayment" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500"></select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Alışveriş türü</label>
+                            <select id="filterShopSubtype" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500">
+                                <option value="Tümü">Tümü</option>
+                                <option value="Market">Market</option>
+                                <option value="Gıda/Yemek">Gıda/Yemek</option>
+                                <option value="Giyim">Giyim</option>
+                                <option value="Elektronik">Elektronik</option>
+                                <option value="Ev & Yaşam">Ev &amp; Yaşam</option>
+                                <option value="Kişisel Bakım">Kişisel Bakım</option>
+                                <option value="__empty__">Alt tür yok</option>
+                            </select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase ml-1">E-ticaret</label>
+                            <select id="filterEcommerce" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500">
+                                <option value="Tümü">Tümü</option>
+                                <option value="Evet">Sadece E-ticaret</option>
+                                <option value="Hayır">E-ticaret değil</option>
+                            </select>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Başlangıç</label>
+                            <input type="date" id="filterStartDate" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Bitiş</label>
+                            <input type="date" id="filterEndDate" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div class="flex flex-col gap-2 justify-center">
+                            <label class="flex items-center gap-2 text-xs font-bold text-indigo-600 cursor-pointer bg-white px-3 py-2 rounded-xl">
+                                <input type="checkbox" id="filterShowInstallments" class="rounded border-indigo-200 text-indigo-600 focus:ring-indigo-500">
+                                Taksitleri Göster
+                            </label>
+                            <button onclick="openInstallmentsModal()" class="w-full bg-purple-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-purple-700 transition">📊 Ay Başlıkları ile Gör</button>
+                            <button onclick="applyFilters()" class="w-full bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">Filtreleri Uygula</button>
+                        </div>
+                    </div>
+
+                    <!-- Mobil: kaydırılabilir kart listesi -->
+                    <div id="expenseCardsScroll" class="expense-cards-mobile expense-history-scroll">
+                        <div id="expenseCardsMobile" class="p-3 sm:p-4 space-y-2.5"></div>
+                    </div>
+
+                    <!-- Web: tablo -->
+                    <div class="overflow-x-auto table-scroll-hint expense-table-desktop">
+                        <table class="w-full text-left expense-table">
+                            <thead>
+                                <tr class="text-[11px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50">
+                                    <th class="px-8 py-5 cursor-pointer" onclick="sortTable('date')">Tarih ↕</th>
+                                    <th class="px-6 py-5 cursor-pointer" onclick="sortTable('person')">Kişi ↕</th>
+                                    <th class="px-6 py-5 cursor-pointer" onclick="sortTable('category')">Kategori ↕</th>
+                                    <th class="px-6 py-5 cursor-pointer" onclick="sortTable('paymentType')">Ödeme ↕</th>
+                                    <th class="px-6 py-5">Açıklama</th>
+                                    <th class="px-6 py-5 text-right cursor-pointer" onclick="sortTable('amount')">Tutar ↕</th>
+                                    <th class="px-8 py-5 text-center">İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="expenseTableBody" class="divide-y divide-slate-100 text-sm font-semibold text-slate-700"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Diğer Sekmeler (Gizli) -->
+                        
+            <!-- SEKME: ARAÇ -->
+                        <div id="tabContentVehicle" class="hidden space-y-5 fade-in">
+                <div class="max-w-2xl mx-auto bg-white rounded-[2rem] card-shadow border border-slate-100 p-5 sm:p-6">
+                    <div class="flex items-start justify-between gap-3 mb-4">
+                        <div>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Aracım</p>
+                            <h2 id="vehicleNameDisplay" class="text-2xl font-black text-slate-900 mt-0.5">Toyota Corolla</h2>
+                            <p class="text-sm font-bold text-slate-500 mt-1"><span id="vehicleKmDisplay">184.900</span> km</p>
+                        </div>
+                        <button type="button" onclick="toggleVehicleEdit()" class="text-xs font-bold px-3 py-2 rounded-xl bg-slate-100 text-slate-700">Düzenle</button>
+                    </div>
+                    <div id="vehicleUpcomingBox" class="space-y-2 mb-4"></div>
+                    <div id="vehicleEditPanel" class="hidden border-t border-slate-100 pt-4 space-y-3">
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase">Araç adı</label>
+                            <input type="text" id="vehicleNameInput" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase">Güncel KM (elle düzeltilebilir)</label>
+                            <input type="number" id="vehicleKmInput" inputmode="numeric" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase">Son bakım tarihi</label>
+                                <input type="date" id="vehicleMaintDate" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase">Bakım KM</label>
+                                <input type="number" id="vehicleMaintKm" inputmode="numeric" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase">Bakım notları</label>
+                            <textarea id="vehicleMaintNotes" rows="2" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-medium outline-none ring-1 ring-slate-200" placeholder="Yapılan işlemler…"></textarea>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase">Son muayene tarihi</label>
+                            <input type="date" id="vehicleInspectionDate" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            <p class="text-[10px] text-slate-400 font-semibold mt-1">2 yılda bir · 1 ay kala hatırlatma</p>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-slate-400 uppercase">Sigorta / kasko tarihi</label>
+                            <input type="date" id="vehicleInsuranceDate" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            <p class="text-[10px] text-slate-400 font-semibold mt-1">Yılda bir · 1 ay kala hatırlatma</p>
+                        </div>
+                        <button type="button" onclick="saveVehicleProfile()" class="w-full py-3 rounded-xl bg-indigo-600 text-white font-bold">Kaydet</button>
+                    </div>
+                    <div id="vehicleDetailCards" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2"></div>
+                </div>
+
+                <div class="space-y-3">
+                    <button type="button" id="vehicleTabFuelBtn" onclick="toggleVehicleAccordion('fuel')" class="w-full flex items-center justify-between gap-3 bg-white rounded-2xl p-4 card-shadow border border-slate-200 hover:border-indigo-300 text-left transition">
+                        <span class="font-black text-slate-800">⛽ Yakıt grafikleri &amp; liste</span>
+                        <span id="vehicleAccFuelChevron" class="text-slate-400 font-bold text-sm">▼</span>
+                    </button>
+                    <div id="vehicleFuelPanel" class="hidden space-y-6">
+                    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                        <div class="bg-white p-4 rounded-2xl card-shadow border border-slate-100">
+                            <p class="text-[10px] font-black text-slate-400 uppercase">Toplam harcama</p>
+                            <p id="fuelStatTotal" class="text-lg font-black text-rose-600 mt-1">—</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-2xl card-shadow border border-slate-100">
+                            <p class="text-[10px] font-black text-slate-400 uppercase">Toplam litre</p>
+                            <p id="fuelStatLiters" class="text-lg font-black text-cyan-600 mt-1">—</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-2xl card-shadow border border-slate-100">
+                            <p class="text-[10px] font-black text-slate-400 uppercase">Toplam KM</p>
+                            <p id="fuelStatKm" class="text-lg font-black text-slate-800 mt-1">—</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-2xl card-shadow border border-slate-100">
+                            <p class="text-[10px] font-black text-slate-400 uppercase">Ort. tüketim</p>
+                            <p id="fuelStatCons" class="text-lg font-black text-emerald-600 mt-1">—</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-2xl card-shadow border border-slate-100 col-span-2 lg:col-span-1">
+                            <p class="text-[10px] font-black text-slate-400 uppercase">Ort. km maliyeti</p>
+                            <p id="fuelStatCost" class="text-lg font-black text-amber-600 mt-1">—</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="chart-block">
+                            <h2 class="chart-title">Aylık Yakıt · Harcama &amp; Litre</h2>
+                            <p class="chart-sub">Son 6 ay · web yan yana · mobil yatay</p>
+                            <div class="chart-wrap chart-box h-[26rem] sm:h-80 md:h-96"><canvas id="vehicleFuelChart"></canvas></div>
+                        </div>
+                        <div class="chart-block">
+                            <h2 class="chart-title">Tüketim &amp; Km Maliyeti</h2>
+                            <p class="chart-sub">Dolum bazlı · L/100 km &amp; TL/km</p>
+                            <div class="chart-wrap chart-box h-80 sm:h-80 md:h-96"><canvas id="vehicleFuelConsChart"></canvas></div>
+                        </div>
+                        <div class="chart-block lg:col-span-2">
+                            <div class="flex items-start justify-between gap-2 mb-1">
+                                <div class="min-w-0">
+                                    <h2 class="chart-title mb-0">Yakıt LT Fiyatı (TL)</h2>
+                                    <p class="chart-sub">Dolum bazlı · girilen litre fiyatı</p>
+                                </div>
+                                <button type="button" onclick="openFuelPriceModal()" class="shrink-0 text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-100 hover:bg-amber-100" title="Güncel akaryakıt">⛽ Fiyatlar</button>
+                            </div>
+                            <div class="chart-wrap chart-box h-72 sm:h-80"><canvas id="vehicleFuelPriceChart"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
+                        <h2 class="text-xl font-black mb-4">Yakıt Harcamaları</h2>
+                        <div id="vehicleFuelList"></div>
+                    </div>
+                </div>
+
+                    <button type="button" id="vehicleTabMaintBtn" onclick="toggleVehicleAccordion('maint')" class="w-full flex items-center justify-between gap-3 bg-white rounded-2xl p-4 card-shadow border border-slate-200 hover:border-indigo-300 text-left transition">
+                        <span class="font-black text-slate-800">🔧 Vergi &amp; bakım grafikleri</span>
+                        <span id="vehicleAccMaintChevron" class="text-slate-400 font-bold text-sm">▼</span>
+                    </button>
+                    <div id="vehicleMaintPanel" class="hidden space-y-6">
+                    <div class="chart-block">
+                        <h2 class="chart-title">Vergi &amp; Bakım — Aylık Grafik</h2>
+                        <p class="chart-sub">Aylık toplam</p>
+                        <div class="chart-wrap chart-box h-72 sm:h-80"><canvas id="vehicleMaintChart"></canvas></div>
+                    </div>
+                    <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
+                        <h2 class="text-xl font-black mb-4">Vergi &amp; Bakım Harcamaları</h2>
+                        <div id="vehicleMaintList"></div>
+                    </div>
+                </div>
+                </div>
+            </div>
+
+<div id="tabContentStats" class="hidden space-y-6 fade-in">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <h2 class="text-lg font-black text-slate-800">Raporlar</h2>
+                    <p class="text-[11px] text-slate-400 font-semibold">Özet · Dilime / güne tıklayın</p>
+                </div>
+
+                <div class="chart-block max-w-5xl mx-auto w-full">
+                    <h2 id="chartTitle" class="chart-title text-center sm:text-left">Kategori Dağılımı</h2>
+                    <p class="chart-sub text-center sm:text-left">Dönem bazlı · dilime tıklayın</p>
+                    <div class="chart-wrap chart-box h-80 sm:h-[22rem] md:h-96 max-w-3xl mx-auto sm:max-w-none"><canvas id="expenseChart"></canvas></div>
+                    <div class="mt-5 pt-4 border-t border-slate-100 max-w-3xl mx-auto">
+                        <h3 class="text-sm font-black text-slate-700 mb-2 text-center sm:text-left">Kategori Özeti</h3>
+                        <div id="detailedMonthlyReport" class="grid grid-cols-1 sm:grid-cols-2 gap-1.5"></div>
+                    </div>
+                </div>
+
+                <div class="chart-block">
+                    <h2 class="chart-title">Haftalık Trend</h2>
+                    <p class="chart-sub">Güne tıklayın · detay açılır</p>
+                    <div class="chart-wrap chart-box h-56 sm:h-64"><canvas id="weeklyTrendChart"></canvas></div>
+                </div>
+
+                <div class="rounded-[1.75rem] border border-slate-100 bg-white overflow-hidden card-shadow">
+                    <button type="button" id="statsExtraToggle" onclick="toggleStatsExtraCharts()" class="w-full flex items-center justify-between gap-2 px-5 py-4 text-left hover:bg-slate-50">
+                        <span class="text-sm font-black text-slate-800">📈 Daha fazla grafik</span>
+                        <span id="statsExtraChevron" class="text-slate-400 font-bold">▸</span>
+                    </button>
+                    <div id="statsExtraCharts" class="hidden border-t border-slate-100 p-4 space-y-6">
+                        <div class="chart-block">
+                            <h2 class="chart-title">Faturalar (Aylık)</h2>
+                            <p class="chart-sub">Elektrik · Su · Doğalgaz · Telefon · İnternet · Abonelik</p>
+                            <div class="chart-wrap chart-box h-[26rem] sm:h-96"><canvas id="billsChart"></canvas></div>
+                        </div>
+                        <div class="chart-block">
+                            <h2 class="chart-title">Ekstre Dönemi Trendi (29–28)</h2>
+                            <p class="chart-sub">Dönem toplamları</p>
+                            <div class="chart-wrap chart-box h-56 sm:h-64"><canvas id="monthlyTrendChart"></canvas></div>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div class="chart-block">
+                                <h2 class="chart-title">Bu Dönem vs Önceki</h2>
+                                <p id="monthCompareSummary" class="chart-sub">Karşılaştırma</p>
+                                <div class="chart-wrap chart-box h-56 sm:h-64"><canvas id="monthCompareChart"></canvas></div>
+                            </div>
+                            <div class="chart-block">
+                                <h2 class="chart-title">Kategori Trendi (3 Dönem)</h2>
+                                <p class="chart-sub">En yüksek 5 kategori</p>
+                                <div class="chart-wrap chart-box h-56 sm:h-72"><canvas id="categoryTrendChart"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hidden" id="monthlySummaryReport"></div>
+                <div class="hidden" id="personSummaryReport"></div>
+
+                <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-black">📊 Kredi Kartı Ekstreleri</h3>
+                        <p class="text-[11px] text-slate-400 font-semibold uppercase">Güncel</p>
+                    </div>
+                    <div id="currentStatementsContainer" class="space-y-6"></div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                        <div>
+                            <h4 class="font-black text-slate-800 mb-3">Bekir</h4>
+                            <div id="bekirCardStatements"></div>
+                        </div>
+                        <div>
+                            <h4 class="font-black text-slate-800 mb-3">Duygu</h4>
+                            <div id="duyguCardStatements"></div>
+                        </div>
+                    </div>
+                    <div class="mt-8 pt-6 border-t border-slate-100">
+                        <div class="flex justify-between items-center mb-3 gap-2">
+                            <h4 class="font-black text-slate-800">🍽️ Multinet</h4>
+                            <p id="multinetPeriodTotal" class="text-sm font-black text-emerald-700">0 TL</p>
+                        </div>
+                        <p class="text-[11px] text-slate-400 font-semibold mb-3">Alışveriş · ayın 1'i → sonraki ayın 1'i · dönem harcamasına dahil değil</p>
+                        <div id="multinetStatements" class="space-y-2"></div>
+                    </div>
+                </div>
+
+                <!-- Canlı dönem özeti -->
+                <div id="periodLiveSummary" class="bg-white p-6 sm:p-8 rounded-[2rem] card-shadow border border-indigo-100">
+                    <div class="flex flex-wrap items-start justify-between gap-2 mb-4">
+                        <div>
+                            <h3 class="text-lg font-black text-slate-900">📋 Dönem Özeti</h3>
+                            <p id="periodLiveRange" class="text-[11px] text-slate-400 font-semibold mt-0.5">Canlı · 29–28</p>
+                        </div>
+                        <span class="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700">Canlı</span>
+                    </div>
+                    <div id="periodLiveBody" class="space-y-3 text-sm">
+                        <p class="text-slate-400 font-semibold text-center py-4">Yükleniyor…</p>
+                    </div>
+                    <div id="periodLiveAdvice" class="mt-4 pt-4 border-t border-slate-100 text-sm text-slate-600 font-medium leading-relaxed"></div>
+                </div>
+            </div>
+
+<div id="tabContentSettings" class="hidden fade-in">
+                <div class="max-w-2xl mx-auto space-y-6">
+                    <div class="text-center mb-2">
+                        <h2 class="text-2xl font-black text-slate-900">Ayarlar</h2>
+                        <p class="text-sm text-slate-400 font-medium mt-1">Uygulama tercihlerini buradan yönetin</p>
+                    </div>
+
+
+                    <!-- Admin: Şifre -->
+                    <div class="bg-white rounded-[2rem] card-shadow border border-slate-100 overflow-hidden">
+                        <button type="button" onclick="toggleAdminPanel('password')" class="w-full flex items-center justify-between gap-4 p-6 text-left hover:bg-slate-50 transition">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl shrink-0">🔐</div>
+                                <div>
+                                    <p class="font-black text-slate-900">Şifre Değiştir</p>
+                                    <p class="text-[11px] text-slate-400 font-semibold">Bekir / Duygu şifreleri</p>
+                                </div>
+                            </div>
+                            <span class="text-slate-300 text-lg">▾</span>
+                        </button>
+                        <div id="adminPanel_password" class="hidden border-t border-slate-100 p-6 space-y-4">
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase">Kullanıcı</label>
+                                <select id="pwdUser" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                                    <option value="Bekir">Bekir (Admin)</option>
+                                    <option value="Duygu">Duygu</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase">Yeni şifre</label>
+                                <input type="password" id="pwdNew" inputmode="numeric" pattern="[0-9]*" maxlength="32" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200" placeholder="••••">
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase">Tekrar</label>
+                                <input type="password" id="pwdNew2" inputmode="numeric" pattern="[0-9]*" maxlength="32" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200" placeholder="••••">
+                            </div>
+                            <button type="button" onclick="savePasswordChange()" class="w-full bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 rounded-xl">Kaydet</button>
+                        </div>
+                    </div>
+
+                    <!-- Admin: Aylık Bütçe Hedefi -->
+                    <div class="bg-white rounded-[2rem] card-shadow border border-slate-100 overflow-hidden">
+                        <button type="button" onclick="toggleAdminPanel('budget')" class="w-full flex items-center justify-between gap-4 p-6 text-left hover:bg-slate-50 transition">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center text-xl shrink-0">🎯</div>
+                                <div>
+                                    <p class="font-black text-slate-900">Aylık Bütçe Hedefi</p>
+                                    <p class="text-[11px] text-slate-400 font-semibold">Dönem harcama limiti · ana sayfada progress</p>
+                                </div>
+                            </div>
+                            <span class="text-slate-300 text-lg">▾</span>
+                        </button>
+                        <div id="adminPanel_budget" class="hidden border-t border-slate-100 p-6 space-y-4">
+                            <div>
+                                <label class="text-[10px] font-black text-slate-400 uppercase">Hedef tutar (TL)</label>
+                                <input type="number" id="budgetTargetInput" min="0" max="9999999" step="1" placeholder="örn. 50000" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            </div>
+                            <p class="text-[11px] text-slate-500 font-medium">Aktif ekstre dönemindeki toplam harcama bu hedefe göre yüzde olarak gösterilir.</p>
+                            <button type="button" onclick="saveBudgetTarget()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 rounded-xl">Hedefi kaydet</button>
+                        </div>
+                    </div>
+
+                    <!-- Admin: Dönem -->
+                    <div class="bg-white rounded-[2rem] card-shadow border border-slate-100 overflow-hidden">
+                        <button type="button" onclick="toggleAdminPanel('period')" class="w-full flex items-center justify-between gap-4 p-6 text-left hover:bg-slate-50 transition">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shrink-0">📅</div>
+                                <div>
+                                    <p class="font-black text-slate-900">Ekstre dönemi</p>
+                                    <p class="text-[11px] text-slate-400 font-semibold">Başlangıç / bitiş günü (varsayılan 29–28)</p>
+                                </div>
+                            </div>
+                            <span class="text-slate-300 text-lg">▾</span>
+                        </button>
+                        <div id="adminPanel_period" class="hidden border-t border-slate-100 p-6 space-y-4">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase">Başlangıç günü</label>
+                                    <input type="number" id="periodStartDay" min="1" max="31" value="29" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                                    <p class="text-[10px] text-slate-400 mt-1">Örn. 29 (ayın 29’u)</p>
+                                </div>
+                                <div>
+                                    <label class="text-[10px] font-black text-slate-400 uppercase">Bitiş günü</label>
+                                    <input type="number" id="periodEndDay" min="1" max="31" value="28" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                                    <p class="text-[10px] text-slate-400 mt-1">Örn. 28 (sonraki ay)</p>
+                                </div>
+                            </div>
+                            <p class="text-[11px] text-slate-500 font-medium">Dönem: her ayın <b>başlangıç</b> gününden, bir sonraki ayın <b>bitiş</b> gününe kadar.</p>
+                            <button type="button" onclick="savePeriodConfig()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl">Dönemi kaydet</button>
+                        </div>
+                    </div>
+
+                    <!-- Admin: Yedek geri yükle -->
+                    <div class="bg-white rounded-[2rem] card-shadow border border-slate-100 overflow-hidden">
+                        <button type="button" onclick="toggleAdminPanel('backup')" class="w-full flex items-center justify-between gap-4 p-6 text-left hover:bg-slate-50 transition">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shrink-0">📥</div>
+                                <div>
+                                    <p class="font-black text-slate-900">Yedekten geri yükle</p>
+                                    <p class="text-[11px] text-slate-400 font-semibold">CSV dosyasından harcama içe aktar</p>
+                                </div>
+                            </div>
+                            <span class="text-slate-300 text-lg">▾</span>
+                        </button>
+                        <div id="adminPanel_backup" class="hidden border-t border-slate-100 p-6 space-y-4">
+                            <p class="text-[11px] text-slate-500 font-medium">İşlem Geçmişi → <b>Yedek (CSV)</b> ile indirdiğiniz dosyayı seçin. Mevcut kayıtlara <b>eklenir</b> (silmez).</p>
+                            <input type="file" id="backupFileInput" accept=".csv,text/csv" class="w-full text-sm font-semibold file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-emerald-50 file:text-emerald-700 file:font-bold">
+                            <label class="flex items-center gap-2 text-xs font-bold text-slate-600">
+                                <input type="checkbox" id="backupReplaceAll" class="rounded text-emerald-600">
+                                Önce tüm harcamaları sil, sonra yükle (dikkat!)
+                            </label>
+                            <button type="button" onclick="restoreFromCsvBackup()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl">İçe aktar</button>
+                            <p id="backupStatus" class="text-xs text-slate-400 font-semibold"></p>
+                        </div>
+                    </div>
+
+                    <!-- Admin: Tema -->
+                    <div class="bg-white rounded-[2rem] card-shadow border border-slate-100 overflow-hidden">
+                        <button type="button" onclick="toggleAdminPanel('theme')" class="w-full flex items-center justify-between gap-4 p-6 text-left hover:bg-slate-50 transition">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center text-xl shrink-0">🎨</div>
+                                <div>
+                                    <p class="font-black text-slate-900">Tema</p>
+                                    <p class="text-[11px] text-slate-400 font-semibold">Açık / koyu görünüm</p>
+                                </div>
+                            </div>
+                            <span class="text-slate-300 text-lg">▾</span>
+                        </button>
+                        <div id="adminPanel_theme" class="hidden border-t border-slate-100 p-6 space-y-3">
+                            <p class="text-[11px] text-slate-500 font-semibold">Açık / koyu tercih <b>cihazına özel</b>dir (mobil ≠ web). Palet tüm cihazlarda geçerli.</p>
+                            <div class="flex gap-3">
+                                <button type="button" onclick="setAppTheme('light')" id="themeBtnLight" class="flex-1 py-3 rounded-xl font-bold border-2 border-sky-500 bg-sky-50 text-sky-800">☀️ Açık</button>
+                                <button type="button" onclick="setAppTheme('dark')" id="themeBtnDark" class="flex-1 py-3 rounded-xl font-bold border-2 border-transparent bg-slate-100 text-slate-600">🌙 Koyu</button>
+                            </div>
+                            <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider pt-1">Renk paleti</p>
+                            <div class="grid grid-cols-3 gap-2">
+                                <button type="button" onclick="setThemePalette('ocean')" id="paletteBtnOcean" class="py-3 rounded-xl font-bold text-xs border-2 border-sky-500 bg-sky-50 text-sky-800">🌊 Ocean</button>
+                                <button type="button" onclick="setThemePalette('warm')" id="paletteBtnWarm" class="py-3 rounded-xl font-bold text-xs border-2 border-transparent bg-orange-50 text-orange-800">🏠 Warm</button>
+                                <button type="button" onclick="setThemePalette('forest')" id="paletteBtnForest" class="py-3 rounded-xl font-bold text-xs border-2 border-transparent bg-emerald-50 text-emerald-800">🌲 Forest</button>
+                            </div>
+                            <p id="themeDeviceHint" class="text-[10px] text-sky-700 font-bold"></p>
+                        </div>
+                    </div>
+
+                    <!-- Admin: Ana Sayfa Kartları -->
+                    <div class="bg-white rounded-[2rem] card-shadow border border-slate-100 overflow-hidden">
+                        <button type="button" onclick="toggleAdminPanel('cards')" class="w-full flex items-center justify-between gap-4 p-6 text-left hover:bg-slate-50 transition">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shrink-0">🃏</div>
+                                <div>
+                                    <p class="font-black text-slate-900">Ana Sayfa Kartları</p>
+                                    <p class="text-[11px] text-slate-400 font-semibold">Özet kutularını göster / gizle</p>
+                                </div>
+                            </div>
+                            <span class="text-slate-300 text-lg">▾</span>
+                        </button>
+                        <div id="adminPanel_cards" class="hidden border-t border-slate-100 p-6 space-y-4">
+                            <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider">Ana Sayfa</p>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Bugün Harcama</span>
+                                <input type="checkbox" id="cardVis_homeToday" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Dönem Toplam</span>
+                                <input type="checkbox" id="cardVis_homePeriod" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Altın Yatırımı (kâr/zarar)</span>
+                                <input type="checkbox" id="cardVis_homeGold" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Hızlı + Harcama</span>
+                                <input type="checkbox" id="cardVis_homeQuickAdd" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Bütçe Hedefi (İlerleme)</span>
+                                <input type="checkbox" id="cardVis_homeBudget" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Görevler &amp; Yaklaşanlar</span>
+                                <input type="checkbox" id="cardVis_homeAgenda" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+
+                            <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider pt-2">Bütçe Takip özeti</p>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Dönem harcaması</span>
+                                <input type="checkbox" id="cardVis_total" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Bekir (dönem)</span>
+                                <input type="checkbox" id="cardVis_bekir" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Duygu (dönem)</span>
+                                <input type="checkbox" id="cardVis_duygu" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 cursor-pointer">
+                                <span class="text-sm font-bold text-slate-800">Aktif KK borcu</span>
+                                <input type="checkbox" id="cardVis_debt" checked class="rounded text-indigo-600" onchange="saveDashboardCards()">
+                            </label>
+
+                            <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider pt-2">İleride eklenebilir (pasif)</p>
+                            <p class="text-[11px] text-slate-400 font-semibold">Şimdilik seçilemez · ileride aktifleştirilecek</p>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/80 cursor-not-allowed opacity-60">
+                                <span class="text-sm font-bold text-slate-600">📅 Takvim özeti</span>
+                                <input type="checkbox" disabled class="rounded">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/80 cursor-not-allowed opacity-60">
+                                <span class="text-sm font-bold text-slate-600">🛒 Alışveriş özeti</span>
+                                <input type="checkbox" disabled class="rounded">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/80 cursor-not-allowed opacity-60">
+                                <span class="text-sm font-bold text-slate-600">🌤️ Hava durumu</span>
+                                <input type="checkbox" disabled class="rounded">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/80 cursor-not-allowed opacity-60">
+                                <span class="text-sm font-bold text-slate-600">🎂 Önemli tarihler</span>
+                                <input type="checkbox" disabled class="rounded">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/80 cursor-not-allowed opacity-60">
+                                <span class="text-sm font-bold text-slate-600">📝 Son notlar</span>
+                                <input type="checkbox" disabled class="rounded">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/80 cursor-not-allowed opacity-60">
+                                <span class="text-sm font-bold text-slate-600">🚗 Araç hatırlatmaları</span>
+                                <input type="checkbox" disabled class="rounded">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/80 cursor-not-allowed opacity-60">
+                                <span class="text-sm font-bold text-slate-600">💳 Abonelik hatırlatma</span>
+                                <input type="checkbox" disabled class="rounded">
+                            </label>
+                            <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50/80 cursor-not-allowed opacity-60">
+                                <span class="text-sm font-bold text-slate-600">📊 Mini grafik</span>
+                                <input type="checkbox" disabled class="rounded">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Kategori Yönetimi - kapalı kart / açılır panel -->
+                    <div class="bg-white rounded-[2rem] card-shadow border border-slate-100 overflow-hidden">
+                        <button type="button" id="categoryToggleBtn" onclick="toggleCategoryPanel()"
+                            class="w-full flex items-center justify-between gap-4 p-6 text-left hover:bg-slate-50 transition">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shrink-0">📂</div>
+                                <div>
+                                    <p class="font-black text-slate-900">Kategori Yönetimi</p>
+                                    <p class="text-xs text-slate-400 font-semibold mt-0.5">Ekle, sırala, yeniden adlandır veya sil</p>
+                                </div>
+                            </div>
+                            <span id="categoryToggleIcon" class="text-slate-400 text-xl font-light transition-transform duration-200">▾</span>
+                        </button>
+
+                        <div id="categoryPanel" class="hidden border-t border-slate-100">
+                            <div class="p-6 space-y-5">
+                                <!-- Yeni Kategori Ekle -->
+                                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                    <p class="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Yeni Kategori</p>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="newCategoryInput" placeholder="Kategori adı..."
+                                            class="flex-1 bg-white border border-slate-200 rounded-xl p-3 text-sm font-bold focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                            onkeypress="if(event.key==='Enter'){event.preventDefault();addCategory();}">
+                                        <button type="button" onclick="addCategory()"
+                                            class="bg-indigo-600 text-white px-5 py-3 rounded-xl text-sm font-bold hover:bg-indigo-700 transition shrink-0">Ekle</button>
+                                    </div>
+                                </div>
+
+                                <!-- Kategori Listesi -->
+                                <div>
+                                    <p class="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Mevcut Kategoriler</p>
+                                    <div id="categoriesList" class="space-y-2">
+                                        <!-- Kategoriler buraya render edilecek -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sekmeleri Düzenle -->
+                    <div class="bg-white rounded-[2rem] card-shadow border border-slate-100 overflow-hidden">
+                        <button type="button" id="tabsToggleBtn" onclick="toggleTabsPanel()"
+                            class="w-full flex items-center justify-between gap-4 p-6 text-left hover:bg-slate-50 transition">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center text-xl shrink-0">🗂️</div>
+                                <div>
+                                    <p class="font-black text-slate-900">Sekmeleri Düzenle</p>
+                                    <p class="text-xs text-slate-400 font-semibold mt-0.5">Ekle, sil, yeniden adlandır veya gizle</p>
+                                </div>
+                            </div>
+                            <span id="tabsToggleIcon" class="text-slate-400 text-xl font-light transition-transform duration-200">▾</span>
+                        </button>
+
+                        <div id="tabsPanel" class="hidden border-t border-slate-100">
+                            <div class="p-6 space-y-5">
+                                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                                    <p class="text-xs font-black text-slate-400 uppercase tracking-wider">Yeni Özel Sekme</p>
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                        <input type="text" id="newTabEmoji" placeholder="Emoji (📌)" maxlength="4" class="bg-white border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <input type="text" id="newTabLabel" placeholder="Sekme adı" class="sm:col-span-2 bg-white border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                                    </div>
+                                    <textarea id="newTabContent" rows="3" placeholder="Örn: bu sayfada haftalık alışveriş listesi olsun, veya basit bir not defteri..." class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                                    <label class="flex items-center gap-2 text-xs font-bold text-slate-600 cursor-pointer select-none">
+                                        <input type="checkbox" id="newTabUseAI" checked class="rounded border-slate-300 text-violet-600 focus:ring-violet-500">
+                                        Yapay zeka ile sayfa içeriği oluştur (OpenRouter)
+                                    </label>
+                                    <p id="newTabAiStatus" class="hidden text-[11px] text-violet-600 font-semibold"></p>
+                                    <div>
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Kimler görsün?</label>
+                                        <select id="newTabVisibleTo" class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                                            <option value="both">Herkes (Bekir + Duygu)</option>
+                                            <option value="Bekir">Sadece Bekir</option>
+                                            <option value="Duygu">Sadece Duygu</option>
+                                            <option value="admin">Sadece Admin</option>
+                                        </select>
+                                    </div>
+                                    <button type="button" id="addTabBtn" onclick="addCustomTab()" class="w-full bg-violet-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-violet-700 transition">Sekme Ekle</button>
+                                </div>
+                                <div>
+                                    <p class="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Mevcut Sekmeler</p>
+                                    <div id="tabsList" class="space-y-2"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Kullanıcı Hareketleri -->
+                    <div class="bg-white rounded-[2rem] card-shadow border border-slate-100 overflow-hidden">
+                        <button type="button" id="activityToggleBtn" onclick="toggleActivityPanel()"
+                            class="w-full flex items-center justify-between gap-4 p-6 text-left hover:bg-slate-50 transition">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shrink-0">📋</div>
+                                <div>
+                                    <p class="font-black text-slate-900">Kullanıcı Hareketleri</p>
+                                    <p class="text-xs text-slate-400 font-semibold mt-0.5">Giriş, işlem ve değişiklik geçmişi</p>
+                                </div>
+                            </div>
+                            <span id="activityToggleIcon" class="text-slate-400 text-xl font-light transition-transform duration-200">▾</span>
+                        </button>
+
+                        <div id="activityPanel" class="hidden border-t border-slate-100">
+                            <div class="p-6 space-y-4">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                    <div>
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Kullanıcı</label>
+                                        <select id="activityFilterUser" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500">
+                                            <option value="Tümü">Tümü</option>
+                                            <option value="Bekir">Bekir</option>
+                                            <option value="Duygu">Duygu</option>
+                                            <option value="Sistem">Sistem</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">İşlem türü</label>
+                                        <select id="activityFilterAction" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500">
+                                            <option value="Tümü">Tümü</option>
+                                            <option value="Giriş">Giriş</option>
+                                            <option value="Çıkış">Çıkış</option>
+                                            <option value="Harcama">Harcama</option>
+                                                                                        <option value="Kategori">Kategori</option>
+                                            <option value="Sekme">Sekme</option>
+                                            <option value="Not">Not</option>
+                                                                                        <option value="Diğer">Diğer</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Başlangıç</label>
+                                        <input type="date" id="activityFilterStart" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Bitiş</label>
+                                        <input type="date" id="activityFilterEnd" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500">
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" onclick="applyActivityFilters()" class="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-emerald-700">Filtrele</button>
+                                    <button type="button" onclick="resetActivityFilters()" class="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-200">Temizle</button>
+                                    <button type="button" onclick="clearActivityLog()" class="bg-rose-50 text-rose-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-rose-100 ml-auto">Kaydı temizle</button>
+                                </div>
+                                <p id="activityCountLabel" class="text-[11px] text-slate-400 font-semibold"></p>
+                                <div class="overflow-x-auto rounded-2xl border border-slate-100 max-h-[40rem] overflow-y-auto">
+                                    <table class="w-full text-left text-sm">
+                                        <thead class="bg-slate-50 sticky top-0 z-10">
+                                            <tr class="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                                                <th class="px-4 py-3">Zaman</th>
+                                                <th class="px-4 py-3">Kullanıcı</th>
+                                                <th class="px-4 py-3">Tür</th>
+                                                <th class="px-4 py-3">İşlem</th>
+                                                <th class="px-4 py-3">Detay</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="activityTableBody" class="divide-y divide-slate-100 font-semibold text-slate-700"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tabContentCustom" class="hidden fade-in">
+                <div class="max-w-3xl mx-auto">
+                    <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
+                        <h2 id="customTabTitle" class="text-xl font-black mb-4">Özel Sekme</h2>
+                        <div id="customTabBody" class="text-slate-700 font-medium leading-relaxed"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tabContentTrash" class="hidden fade-in">
+                <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100 overflow-hidden">
+                    <div class="flex justify-between items-center mb-8">
+                        <h2 class="text-xl font-black">Silinen Kayıtlar</h2>
+                        <button onclick="emptyTrash()" class="bg-rose-50 text-rose-600 px-6 py-2 rounded-xl font-bold hover:bg-rose-600 hover:text-white transition">Çöpü Boşalt</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-50/50">
+                                <tr>
+                                    <th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest">Silinme</th>
+                                    <th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest">Harcama</th>
+                                    <th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest">Kişi</th>
+                                    <th class="px-6 py-4 font-black text-slate-400 uppercase tracking-widest">Açıklama</th>
+                                    <th class="px-6 py-4 text-right font-black text-slate-400 uppercase tracking-widest">Tutar</th>
+                                    <th class="px-6 py-4 text-center font-black text-slate-400 uppercase tracking-widest">İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="trashTableBody" class="font-bold text-slate-600"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobil alt navigasyon (YUVAM 2.0 iskelet) -->
+    <nav id="mobileBottomNav" class="mobile-bottom-nav sm:hidden" aria-label="Ana menü"></nav>
+
+    <div id="mobileMoreSheet" class="fixed inset-0 z-[200] hidden items-end justify-center bg-slate-900/50 backdrop-blur-sm" style="display:none" onclick="if(event.target===this)closeMobileMoreSheet()">
+        <div class="w-full max-w-lg bg-white rounded-t-[1.75rem] p-5 pb-8 shadow-2xl space-y-2 max-h-[80vh] overflow-y-auto" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-2">
+                <p class="text-sm font-black text-slate-800">Daha fazla</p>
+                <button type="button" onclick="closeMobileMoreSheet()" class="text-slate-400 font-bold text-xl leading-none px-2">&times;</button>
+            </div>
+            <div id="mobileMoreSheetBody" class="space-y-2"></div>
+            <button type="button" onclick="closeMobileMoreSheet(); logout();" class="w-full text-left px-4 py-3.5 rounded-xl bg-rose-50 font-bold text-rose-600">Çıkış</button>
+        </div>
+    </div>
+
+    <!-- MODALLAR -->
+
+    <div id="ibanModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[110] p-4">
+        <div class="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden slide-in">
+            <div class="bg-indigo-600 p-6 text-white flex justify-between items-center">
+                <h2 class="text-2xl font-black">IBAN Ekle</h2>
+                <button type="button" onclick="closeIbanModal()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition text-2xl font-light">&times;</button>
+            </div>
+            <form onsubmit="handleIbanSubmit(event)" class="p-8 space-y-4">
+                <input type="hidden" id="editIbanId">
+                <div>
+                    <label class="block text-sm font-bold text-slate-600 mb-2">Adı Soyadı</label>
+                    <input type="text" id="ibanOwnerName" required placeholder="Ad ve Soyad" class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-600 mb-2">İBAN No</label>
+                    <input type="text" id="ibanNumber" required placeholder="TR00 0000 0000..." class="w-full bg-slate-50 border-none rounded-2xl p-4 font-mono text-sm outline-none focus:ring-2 focus:ring-indigo-500 uppercase">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-600 mb-2">Banka</label>
+                    <input type="text" id="ibanBank" required placeholder="Banka adı" class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="closeIbanModal()" class="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition">Vazgeç</button>
+                    <button type="submit" class="flex-1 py-3 rounded-2xl bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+
+    <div id="siteSearchModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-start sm:items-center justify-center z-[130] p-4 pt-16 sm:pt-4">
+        <div class="bg-white w-full max-w-lg rounded-[1.75rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+            <div class="p-4 border-b border-slate-100 flex gap-2 items-center">
+                <input type="search" id="siteSearchInput" placeholder="Ara… (örn. Corolla, sigorta, market)"
+                    class="flex-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-sky-500"
+                    oninput="runSiteSearch(this.value)">
+                <button type="button" onclick="closeSiteSearch()" class="w-10 h-10 rounded-xl bg-slate-100 font-bold text-slate-500">&times;</button>
+            </div>
+            <div id="siteSearchResults" class="p-3 overflow-y-auto space-y-2 flex-1">
+                <p class="text-xs text-slate-400 font-semibold text-center py-6">Kelime yazın…</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Harcama Modalı -->
+    <div id="expenseModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-end sm:items-center justify-center z-[110] p-0 sm:p-4">
+        <div class="expense-modal-sheet bg-white w-full max-w-lg rounded-t-[1.75rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden slide-in flex flex-col max-h-[92vh] sm:max-h-[90vh]">
+            <div class="bg-indigo-600 px-5 py-4 sm:p-6 text-white flex justify-between items-center shrink-0">
+                <h2 id="formTitle" class="text-lg sm:text-2xl font-black">Harcama Kaydı</h2>
+                <button type="button" onclick="closeExpenseModal()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition text-2xl font-light">&times;</button>
+            </div>
+            <form onsubmit="handleFormSubmit(event)" class="p-4 sm:p-6 space-y-3 sm:space-y-4 overflow-y-auto flex-1 overscroll-contain">
+                <input type="hidden" id="editId">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Tutar (TL)</label>
+                        <input type="number" step="0.01" min="0.01" max="999999" id="amount" required class="w-full bg-slate-50 border-none rounded-2xl p-4 text-xl font-black focus:ring-2 focus:ring-indigo-500" placeholder="0,01 – 999.999" inputmode="decimal" enterkeyhint="done">
+                        <p id="amountHint" class="text-[10px] text-slate-400 font-semibold mt-1 ml-2">Min 0,01 · Max 999.999 TL</p>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Taksit</label>
+                        <input type="number" id="installmentCount" min="1" value="1" required class="w-full bg-slate-50 border-none rounded-2xl p-4 text-xl font-black focus:ring-2 focus:ring-indigo-500" inputmode="numeric" enterkeyhint="done">
+                    </div>
+                </div>
+                <div class="bg-violet-50/80 border border-violet-100 rounded-2xl p-3 sm:p-4 space-y-3">
+                    <label class="flex items-center gap-2.5 cursor-pointer select-none">
+                        <input type="checkbox" id="isRecurring" onchange="onRecurringToggle()" class="rounded border-slate-300 text-violet-600 focus:ring-violet-500 w-4 h-4">
+                        <span class="text-sm font-bold text-slate-800">Tekrarlı ödeme</span>
+                        <span class="text-[10px] text-slate-400 font-semibold">(her ay aynı tutar)</span>
+                    </label>
+                    <div id="recurringMonthsWrap" class="hidden">
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Kaç ay tekrar etsin?</label>
+                        <select id="recurringMonths" class="w-full mt-1 bg-white border border-violet-100 rounded-xl p-3 text-sm font-bold outline-none focus:ring-2 focus:ring-violet-500">
+                            <option value="1">1 ay</option>
+<option value="2">2 ay</option>
+<option value="3">3 ay</option>
+<option value="4">4 ay</option>
+<option value="5">5 ay</option>
+<option value="6">6 ay</option>
+<option value="7">7 ay</option>
+<option value="8">8 ay</option>
+<option value="9">9 ay</option>
+<option value="10">10 ay</option>
+<option value="11">11 ay</option>
+<option value="12">12 ay</option>
+                        </select>
+                        <p class="text-[10px] text-slate-400 font-medium mt-1.5">Tutar her ay aynı yazılır (taksit gibi bölünmez). Maks. 12 ay.</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Kişi</label>
+                        <select id="person" required class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold focus:ring-2 focus:ring-indigo-500">
+                            <option value="Bekir">Bekir</option>
+                            <option value="Duygu">Duygu</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Kategori</label>
+                        <select id="category" required onchange="onCategoryChange()" class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold focus:ring-2 focus:ring-indigo-500"></select>
+                    </div>
+                </div>
+                <div id="vehicleSubtypeWrap" class="hidden">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Araç harcama türü</label>
+                    <select id="vehicleSubtype" onchange="onVehicleSubtypeChange()" class="w-full bg-amber-50 border-none rounded-2xl p-4 font-bold focus:ring-2 focus:ring-amber-500">
+                        <option value="Yakıt">Yakıt</option>
+                        <option value="Vergi">Vergi</option>
+                        <option value="Bakım">Bakım</option>
+                    </select>
+                </div>
+                <div id="billSubtypeWrap" class="hidden">
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Fatura türü</label>
+                    <select id="billSubtype" class="w-full bg-sky-50 border-none rounded-2xl p-4 font-bold focus:ring-2 focus:ring-sky-500">
+                        <option value="Elektrik">Elektrik</option>
+                        <option value="Su">Su</option>
+                        <option value="Doğalgaz">Doğalgaz</option>
+                        <option value="Telefon">Telefon</option>
+                        <option value="İnternet">İnternet</option>
+                        <option value="Abonelik">Abonelik</option>
+                    </select>
+                </div>
+                <div id="shopSubtypeWrap" class="hidden space-y-2">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Alışveriş türü</label>
+                        <select id="shopSubtype" class="w-full bg-violet-50 border-none rounded-2xl p-4 font-bold focus:ring-2 focus:ring-violet-500">
+                            <option value="">Seçin…</option>
+                            <option value="Market">Market</option>
+                            <option value="Gıda/Yemek">Gıda/Yemek</option>
+                            <option value="Giyim">Giyim</option>
+                            <option value="Elektronik">Elektronik</option>
+                            <option value="Ev & Yaşam">Ev &amp; Yaşam</option>
+                            <option value="Kişisel Bakım">Kişisel Bakım</option>
+                        </select>
+                    </div>
+                    <label class="flex items-center gap-3 px-2 py-2 rounded-xl bg-violet-50/80 border border-violet-100 cursor-pointer">
+                        <input type="checkbox" id="isEcommerce" class="w-5 h-5 rounded text-violet-600 focus:ring-violet-500">
+                        <span class="text-sm font-bold text-slate-700">E-ticaret <span class="text-[11px] font-semibold text-slate-400">(internetten alındı)</span></span>
+                    </label>
+                </div>
+                <div id="fuelDetailWrap" class="hidden grid grid-cols-3 gap-2 sm:gap-3 bg-amber-50/80 p-3 sm:p-4 rounded-2xl border border-amber-100">
+                    <div>
+                        <label class="text-[10px] font-black text-amber-700/80 uppercase ml-1">Yapılan KM</label>
+                        <input type="number" step="any" min="0" id="fuelKm" placeholder="örn. 450" class="w-full bg-white border-none rounded-xl p-3 font-bold focus:ring-2 focus:ring-amber-500" inputmode="decimal" enterkeyhint="done">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-amber-700/80 uppercase ml-1">Alınan LT</label>
+                        <input type="number" step="any" min="0" id="fuelLiters" placeholder="örn. 30" class="w-full bg-white border-none rounded-xl p-3 font-bold focus:ring-2 focus:ring-amber-500" inputmode="decimal" enterkeyhint="done">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-amber-700/80 uppercase ml-1">LT Fiyatı (TL)</label>
+                        <input type="number" step="any" min="0" id="fuelPricePerLt" placeholder="örn. 45" class="w-full bg-white border-none rounded-xl p-3 font-bold focus:ring-2 focus:ring-amber-500" inputmode="decimal" enterkeyhint="done">
+                    </div>
+                    <p class="sm:col-span-3 text-[10px] text-amber-800/70 font-semibold">KM + litre girilirse 100 km tüketim ve km maliyeti otomatik hesaplanır.</p>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Ödeme Tipi</label>
+                        <select id="paymentType" required class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold focus:ring-2 focus:ring-indigo-500"></select>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Tarih</label>
+                        <input type="date" id="date" required class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase ml-2">Açıklama</label>
+                    <input type="text" id="description" class="w-full bg-slate-50 border-none rounded-2xl p-4 font-bold focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="flex gap-3 pt-2 pb-2 sm:pt-4 sticky bottom-0 bg-white">
+                    <button type="button" onclick="resetForm(); closeExpenseModal();" class="flex-1 py-3.5 sm:py-4 rounded-2xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition">Vazgeç</button>
+                    <button type="submit" id="submitBtn" class="flex-[2] py-3.5 sm:py-4 rounded-2xl bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    
+    <div id="categoryDetailModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+            <div class="bg-indigo-600 p-5 text-white flex justify-between items-center shrink-0">
+                <div>
+                    <h2 id="categoryDetailTitle" class="text-lg font-black">Kategori</h2>
+                    <p id="categoryDetailTotal" class="text-sm text-indigo-100 font-bold mt-0.5">0 TL</p>
+                </div>
+                <button type="button" onclick="closeCategoryDetailModal()" class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-xl leading-none">&times;</button>
+            </div>
+            <div id="categoryDetailBody" class="p-5 overflow-y-auto"></div>
+        </div>
+    </div>
+
+    
+    <!-- Kredi Kartı Ekstre Detay -->
+    <div id="statementDetailModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+            <div class="bg-slate-900 p-5 text-white flex justify-between items-start shrink-0">
+                <div>
+                    <h2 id="statementTitle" class="text-lg font-black">Kredi Kartı Ekstresi</h2>
+                    <p id="statementDateRange" class="text-xs text-slate-300 font-semibold mt-1"></p>
+                    <p id="statementAmount" class="text-2xl font-black text-emerald-300 mt-2">0 TL</p>
+                </div>
+                <button type="button" onclick="closeStatementDetail()" class="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 text-xl leading-none">&times;</button>
+            </div>
+            <div id="statementItems" class="p-5 overflow-y-auto space-y-2"></div>
+        </div>
+    </div>
+
+    <!-- Taksitler / Ay başlıkları -->
+    <div id="installmentsModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+            <div class="bg-purple-600 p-5 text-white flex justify-between items-center shrink-0">
+                <h2 class="text-lg font-black">💳 Taksitler</h2>
+                <button type="button" onclick="closeInstallmentsModal()" class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-xl leading-none">&times;</button>
+            </div>
+            <div class="p-5 overflow-y-auto space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-slate-50 p-4 rounded-2xl">
+                        <p class="text-[10px] font-black text-slate-400 uppercase">Toplam Taksit</p>
+                        <p id="totalInstallmentAmount" class="text-xl font-black text-slate-900 mt-1">0 TL</p>
+                    </div>
+                    <div class="bg-indigo-50 p-4 rounded-2xl">
+                        <p class="text-[10px] font-black text-indigo-400 uppercase">Bu Dönem</p>
+                        <p id="selectedMonthAmount" class="text-xl font-black text-indigo-700 mt-1">0 TL</p>
+                    </div>
+                </div>
+                <div id="installmentsContainer" class="space-y-3"></div>
+            </div>
+        </div>
+    </div>
+
+    
+    <!-- Sekme Düzenle Modal -->
+    <div id="tabEditModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[130] p-4">
+        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden">
+            <div class="bg-violet-600 p-5 text-white flex justify-between items-center">
+                <h2 class="text-lg font-black">Sekmeyi Düzenle</h2>
+                <button type="button" onclick="closeTabEditModal()" class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-xl leading-none">&times;</button>
+            </div>
+            <form onsubmit="saveTabEdit(event)" class="p-6 space-y-4">
+                <input type="hidden" id="editTabIndex">
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Emoji</label>
+                    <input type="text" id="editTabEmoji" maxlength="4" class="w-full bg-slate-50 rounded-xl p-3 font-bold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-violet-500">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Sekme adı</label>
+                    <input type="text" id="editTabLabel" required class="w-full bg-slate-50 rounded-xl p-3 font-bold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-violet-500">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Sayfa içeriği / istek</label>
+                    <textarea id="editTabContent" rows="3" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-medium outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-violet-500" placeholder="Örn: hesap makinesi"></textarea>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-1">Kimler görsün?</label>
+                    <select id="editTabVisibleTo" class="w-full bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-violet-500">
+                        <option value="both">Herkes (Bekir + Duygu)</option>
+                        <option value="Bekir">Sadece Bekir</option>
+                        <option value="Duygu">Sadece Duygu</option>
+                        <option value="admin">Sadece Admin</option>
+                    </select>
+                </div>
+                <p id="editTabStatus" class="text-xs text-violet-600 font-semibold hidden"></p>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="closeTabEditModal()" class="flex-1 py-3 rounded-xl bg-slate-100 font-bold text-slate-600">Vazgeç</button>
+                    <button type="submit" class="flex-[2] py-3 rounded-xl bg-violet-600 text-white font-bold">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- Tüm bildirimler modal -->
+    <div id="notifAllModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[130] p-4">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-2">
+                <h2 class="text-lg font-black text-slate-900">Tüm bildirimler</h2>
+                <button type="button" onclick="closeNotifAllModal()" class="w-9 h-9 rounded-full bg-slate-100 font-bold text-slate-500">&times;</button>
+            </div>
+            <div id="notifAllBody" class="p-3 overflow-y-auto space-y-1.5 flex-1"></div>
+        </div>
+    </div>
+
+    <!-- Kredi Kartı Borç Giriş Modal -->
+    <div id="cardDebtModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
+        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden">
+            <div class="bg-amber-500 p-5 text-white flex justify-between items-center">
+                <h2 id="cardDebtModalTitle" class="text-lg font-black">Kredi Kartı Borcu</h2>
+                <button type="button" onclick="closeCardDebtModal()" class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-xl leading-none">&times;</button>
+            </div>
+            <form onsubmit="handleCardDebtSubmit(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase">Kişi</label>
+                    <select id="cardDebtPerson" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-amber-500">
+                        <option value="bekir">Bekir</option>
+                        <option value="duygu">Duygu</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase">Borç tutarı (TL)</label>
+                    <input type="number" step="any" min="0" id="cardDebtAmount" required placeholder="0,00"
+                        class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-lg font-black outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-amber-500">
+                </div>
+                <p class="text-[11px] text-slate-500 font-medium">Son ödeme tarihi ve ilerleme çubuğu <b>ekstre dönemine (29–28)</b> göre otomatik ayarlanır.</p>
+                <p id="cardDebtDueHint" class="text-[11px] text-amber-700 font-bold"></p>
+                <div class="flex gap-2 pt-1">
+                    <button type="button" onclick="closeCardDebtModal()" class="flex-1 py-3 rounded-xl bg-slate-100 font-bold text-slate-600">Vazgeç</button>
+                    <button type="submit" class="flex-[2] py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    
+    <!-- Mobil Hızlı Ekle -->
+    <div id="quickAddFabWrap" class="quick-add-fab-wrap">
+        <div id="quickAddMenu" class="quick-add-menu hidden">
+            <button type="button" onclick="quickAddAction('expense')">💰 Harcama</button>
+            <button type="button" onclick="quickAddAction('plan')">✅ Görev</button>
+            <button type="button" onclick="quickAddAction('plan')">📋 Plan</button>
+            <button type="button" onclick="quickAddAction('shopping')">🛒 Alışveriş</button>
+            <button type="button" onclick="quickAddAction('note')">📝 Not</button>
+            <button type="button" onclick="quickAddAction('bill')">📄 Fatura</button>
+        </div>
+        <button type="button" id="quickAddFab" class="quick-add-fab" onclick="toggleQuickAddMenu()" aria-label="Hızlı ekle">＋</button>
+    </div>
+
+    <!-- Firebase: yerel → hata olursa CDN -->
+    <script src="vendor/firebase-app-compat.js" onerror="this.onerror=null;this.src='https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js'"></script>
+    <script src="vendor/firebase-firestore-compat.js" onerror="this.onerror=null;this.src='https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js'"></script>
+    <script src="vendor/firebase-auth-compat.js" onerror="this.onerror=null;this.src='https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js'"></script>
+    <script src="js/01-core.js"></script>
+    <script src="js/02-family-gold-calendar.js"></script>
+    <script src="js/03-sync-vehicle.js"></script>
+    <script src="js/04-expenses-ai.js"></script>
+    <script src="js/05-settings-boot.js"></script>
+
+    <!-- EYVAH easter egg -->
+    <div id="eyvahOverlay" class="eyvah-overlay hidden" aria-hidden="true">
+        <div class="eyvah-card">
+            <p class="eyvah-title">EYVAH !!</p>
+            <img src="images/eyvah-maymun.png" alt="" class="eyvah-img" draggable="false">
+        </div>
+    </div>
+
+
+    <!-- 7 günlük hava (Ankara/Keçiören) -->
+    <div id="weatherModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4" onclick="if(event.target===this)closeWeatherModal()">
+        <div class="bg-white w-full max-w-md rounded-[1.75rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between p-4 border-b border-slate-100">
+                <div>
+                    <h2 class="text-lg font-black text-slate-800">🌤️ 7 Günlük Hava</h2>
+                    <p class="text-[11px] text-slate-400 font-semibold">Ankara / Keçiören</p>
+                </div>
+                <button type="button" onclick="closeWeatherModal()" class="w-9 h-9 rounded-xl bg-slate-100 font-bold text-slate-600">✕</button>
+            </div>
+            <div id="weatherModalBody" class="p-4 overflow-y-auto space-y-2 text-sm">Yükleniyor…</div>
+        </div>
+    </div>
+
+
+    <!-- Güncel akaryakıt fiyatları -->
+    <div id="fuelPriceModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4" onclick="if(event.target===this)closeFuelPriceModal()">
+        <div class="bg-white w-full max-w-md rounded-[1.75rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between p-4 border-b border-slate-100">
+                <div>
+                    <h2 class="text-lg font-black text-slate-800">⛽ Güncel Akaryakıt</h2>
+                    <p class="text-[11px] text-slate-400 font-semibold">Son dolumlarınızdaki litre fiyatları</p>
+                </div>
+                <button type="button" onclick="closeFuelPriceModal()" class="w-9 h-9 rounded-xl bg-slate-100 font-bold text-slate-600">✕</button>
+            </div>
+            <div id="fuelPriceModalBody" class="p-4 overflow-y-auto text-sm space-y-2">Yükleniyor…</div>
+        </div>
+    </div>
+
+</body>
+</html>
