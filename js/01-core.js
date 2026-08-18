@@ -538,13 +538,13 @@
                 });
             } catch (_) {}
 
-            // Galatasaray maçları — tek kaynak (önbellek), max 7 gün
+            // Galatasaray maçları — tek kaynak (önbellek), max 14 gün
             try {
                 const gsSeen = {};
                 (superLigFixturesCache || []).forEach(function(f) {
                     if (!f || !f.isGs || !f.date) return;
                     const days = daysUntilYMD(f.date);
-                    if (days == null || days < 0 || days > 7) return;
+                    if (days == null || days < 0 || days > 14) return;
                     const k = f.key || matchDedupeKey(f.date, f.home, f.away);
                     if (gsSeen[k]) return;
                     gsSeen[k] = true;
@@ -1268,8 +1268,34 @@
             if (typeof updateMobileBottomNav === 'function') updateMobileBottomNav(tabName);
         };
 
+
+        window._gsHomeLoading = false;
+        window.ensureGsFixturesForHome = async function() {
+            if (window._gsHomeLoading) return;
+            if (superLigFixturesCache && superLigFixturesCache.length) return;
+            // Başarısız denemeyi 2 dk tekrarlama (sonsuz döngü engeli)
+            if (window._gsHomeTriedAt && (Date.now() - window._gsHomeTriedAt) < 120000) return;
+            window._gsHomeLoading = true;
+            window._gsHomeTriedAt = Date.now();
+            try {
+                if (typeof refreshSuperLigFixtures === 'function') {
+                    await refreshSuperLigFixtures(false);
+                }
+            } catch (e) {
+                console.warn('GS fikstür (anasayfa)', e);
+            } finally {
+                window._gsHomeLoading = false;
+            }
+        };
+
         window.renderHomeTab = function() {
             try {
+                // Fikstür boşsa arka planda yükle → yaklaşan maçlar gelsin
+                try {
+                    if (!(superLigFixturesCache && superLigFixturesCache.length)) {
+                        if (typeof ensureGsFixturesForHome === 'function') ensureGsFixturesForHome();
+                    }
+                } catch (_) {}
                 const greet = document.getElementById('homeGreeting');
                 const name = (currentUser && currentUser.name) ? currentUser.name : '';
                 const hour = new Date().getHours();

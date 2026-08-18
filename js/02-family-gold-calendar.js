@@ -276,6 +276,7 @@
             if (!modal || !body) return;
             modal.classList.remove('hidden');
             modal.classList.add('flex');
+            body.innerHTML = '<p class="text-slate-400 font-semibold text-center py-4">Yükleniyor…</p>';
 
             // Bugünkü fiyatı da kayda ekle
             try {
@@ -301,9 +302,10 @@
                 });
             });
 
-            // son 30 gün filtresi
-            const cutoff = addDaysYMD(todayDateStr(), -30);
-            hist = hist.filter(function(r) { return r.date >= cutoff; });
+            // son 30 gün
+            const today = todayDateStr();
+            const cutoff = addDaysYMD(today, -30);
+            hist = hist.filter(function(r) { return r && r.date >= cutoff; });
 
             // birleştir: günlük snapshot öncelikli
             const byDate = {};
@@ -313,6 +315,50 @@
                 }
             });
             hist.forEach(function(r) { byDate[r.date] = r; });
+
+            // Eksik günleri doldur (alış → bugün arası doğrusal tahmin) — gerçek API geçmişi yoksa
+            const cur24 = goldQuotes && goldQuotes.sell24 != null ? Number(goldQuotes.sell24) : null;
+            const cur22 = goldQuotes && goldQuotes.sell22 != null ? Number(goldQuotes.sell22) : (cur24 != null ? cur24 * (22 / 24) : null);
+            let anchor24 = null, anchor22 = null, anchorDate = null;
+            fromHoldings.forEach(function(r) {
+                if (r.sell24 != null && (anchor24 == null || r.date < anchorDate)) {
+                    anchor24 = r.sell24; anchorDate = r.date;
+                }
+                if (r.sell22 != null && (anchor22 == null || r.date < (anchorDate || '9999'))) {
+                    anchor22 = r.sell22;
+                    if (!anchorDate || r.date < anchorDate) anchorDate = r.date;
+                }
+            });
+            if (anchor24 == null && cur24 != null) anchor24 = cur24;
+            if (anchor22 == null && cur22 != null) anchor22 = cur22;
+            if (cur24 != null && typeof addDaysYMD === 'function') {
+                for (let i = 0; i <= 30; i++) {
+                    const d = addDaysYMD(today, -i);
+                    if (d < cutoff) continue;
+                    if (byDate[d] && byDate[d].sell24 != null) continue;
+                    // doğrusal: anchorDate → today
+                    let t = 1;
+                    if (anchorDate && anchorDate < today) {
+                        const total = Math.max(1, (new Date(today) - new Date(anchorDate)) / 86400000);
+                        const part = Math.max(0, (new Date(d) - new Date(anchorDate)) / 86400000);
+                        t = Math.min(1, Math.max(0, part / total));
+                    }
+                    const s24 = (anchor24 != null && cur24 != null)
+                        ? (anchor24 + (cur24 - anchor24) * t)
+                        : cur24;
+                    const s22 = (anchor22 != null && cur22 != null)
+                        ? (anchor22 + (cur22 - anchor22) * t)
+                        : (s24 != null ? s24 * (22 / 24) : cur22);
+                    if (s24 == null && s22 == null) continue;
+                    byDate[d] = {
+                        date: d,
+                        sell24: s24 != null ? Math.round(s24 * 100) / 100 : null,
+                        sell22: s22 != null ? Math.round(s22 * 100) / 100 : null,
+                        estimated: true,
+                        note: byDate[d] && byDate[d].note ? byDate[d].note : 'tahmini'
+                    };
+                }
+            }
 
             const dates = Object.keys(byDate).sort().reverse();
             if (!dates.length) {
@@ -341,9 +387,10 @@
                     '<div class="flex justify-between gap-2 items-start">' +
                     '<div class="min-w-0">' +
                     '<p class="text-sm font-black text-slate-800">' + formatDateTR(d) +
-                    (r.fromHolding ? ' <span class="text-[10px] font-bold text-amber-700">alış</span>' : '') + '</p>' +
+                    (r.fromHolding ? ' <span class="text-[10px] font-bold text-amber-700">alış</span>' : '') +
+                    (r.estimated ? ' <span class="text-[10px] font-bold text-slate-400">tahmini</span>' : '') + '</p>' +
                     '<p class="text-[11px] text-slate-500 font-semibold mt-0.5">' + (priceTxt || (r.note || 'Fiyat yok')) + '</p>' +
-                    (r.note && !r.fromHolding ? '<p class="text-[10px] text-slate-400">' + escapeHtml(r.note) + '</p>' : '') +
+                    (r.note && !r.fromHolding && r.note !== 'tahmini' ? '<p class="text-[10px] text-slate-400">' + escapeHtml(r.note) + '</p>' : '') +
                     '</div>' +
                     '<div class="text-right shrink-0">' +
                     '<p class="text-[10px] font-bold text-slate-400 uppercase">Kâr/Zarar</p>' +
@@ -351,7 +398,7 @@
                     '</div></div></div>';
             });
             html += '</div>';
-            html += '<p class="text-[10px] text-slate-400 font-semibold mt-3 text-center">Kâr/zarar, o günkü (veya en yakın) gram satış fiyatı ile mevcut portföye göre hesaplanır.</p>';
+            html += '<p class="text-[10px] text-slate-400 font-semibold mt-3 text-center">Kâr/zarar mevcut portföye göre hesaplanır. “Tahmini” satırlar alış fiyatı ile bugün arasında doğrusal doldurulur; site her gün açıldıkça gerçek kayıt birikir.</p>';
             body.innerHTML = html;
         };
 
@@ -419,6 +466,7 @@
                 goldQuotes = { buy24: buy24, sell24: sell24, buy22: buy22, sell22: sell22 };
                 goldPricePerGram = sell24;
                 goldPricePerGram22 = sell22;
+                try { saveGoldPriceSnapshot(sell24, sell22); } catch (_) {}
                 updateGoldPriceUI();
                 if (elMeta) {
                     let meta = source || 'Güncel';
@@ -1130,6 +1178,7 @@
             }
         }
 
+        window.loadSuperLigFixtures = loadSuperLigFixtures;
         window.refreshSuperLigFixtures = async function(force) {
             const st = document.getElementById('superLigStatus');
             if (st) st.textContent = 'Yükleniyor…';
