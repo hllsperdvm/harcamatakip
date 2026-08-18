@@ -831,10 +831,40 @@
 
         window.toggleTabVisible = async (index) => {
             if (!isAdmin()) return;
-            tabsConfig[index].visible = !tabsConfig[index].visible;
+            const tab = tabsConfig[index];
+            if (!tab) return;
+            // Sistem admin sekmeleri gizlenemesin
+            if ((tab.id === 'settings' || tab.id === 'trash') && tab.visible) {
+                if (typeof showToast === 'function') showToast('Ayarlar / Çöp Kutusu gizlenemez', 'error');
+                return;
+            }
+            tab.visible = !tab.visible;
             await saveTabsConfig();
             applyRoleAndTabs();
             renderTabsList();
+        };
+
+        /** Konsoldan veya acil kurtarma: Ayarlar sekmesini tekrar görünür yap */
+        window.restoreSettingsTab = async function() {
+            if (!isAdmin()) {
+                alert('Sadece admin (Bekir) yapabilir');
+                return;
+            }
+            let found = false;
+            tabsConfig.forEach(function(t) {
+                if (t && (t.id === 'settings' || t.id === 'trash')) {
+                    t.visible = true;
+                    found = true;
+                }
+            });
+            if (!found) {
+                tabsConfig.push({ id: 'settings', emoji: '⚙️', label: 'Ayarlar', visible: true, core: true, adminOnly: true });
+            }
+            try { await saveTabsConfig(); } catch (e) { console.warn(e); }
+            try { applyRoleAndTabs(); } catch (_) {}
+            try { renderTabsList(); } catch (_) {}
+            try { switchTab('settings'); } catch (_) {}
+            if (typeof showToast === 'function') showToast('Ayarlar sekmesi geri açıldı', 'success');
         };
 
         window.editTabMeta = (index) => {
