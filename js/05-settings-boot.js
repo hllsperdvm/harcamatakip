@@ -2109,8 +2109,12 @@
             } catch (_) {}
         }
 
-        /** Aktif işlem geçmişi filtrelerini (alışveriş türü, e-ticaret vb.) uygula */
-        function applyHistoryFiltersToList(list) {
+        /**
+         * İşlem geçmişi filtreleri.
+         * opts.skipDates: true → başlangıç/bitiş tarihi uygulanmaz (Bu dönem indirmesi için)
+         */
+        function applyHistoryFiltersToList(list, opts) {
+            opts = opts || {};
             let out = (list || []).slice();
             try {
                 const person = (typeof currentPersonFilter !== 'undefined') ? currentPersonFilter : 'Tümü';
@@ -2119,8 +2123,8 @@
                 const shop = (typeof currentShopSubtypeFilter !== 'undefined') ? currentShopSubtypeFilter : 'Tümü';
                 const ecom = (typeof currentEcommerceFilter !== 'undefined') ? currentEcommerceFilter : 'Tümü';
                 const search = (typeof currentSearchFilter !== 'undefined') ? String(currentSearchFilter || '').trim().toLowerCase() : '';
-                const startD = (typeof currentStartDateFilter !== 'undefined') ? currentStartDateFilter : '';
-                const endD = (typeof currentEndDateFilter !== 'undefined') ? currentEndDateFilter : '';
+                const startD = opts.skipDates ? '' : ((typeof currentStartDateFilter !== 'undefined') ? currentStartDateFilter : '');
+                const endD = opts.skipDates ? '' : ((typeof currentEndDateFilter !== 'undefined') ? currentEndDateFilter : '');
 
                 out = out.filter(function(e) {
                     if (person && person !== 'Tümü' && e.person !== person) return false;
@@ -2153,19 +2157,30 @@
                     }
                     return true;
                 });
-            } catch (_) {}
+            } catch (err) {
+                console.warn('applyHistoryFiltersToList', err);
+            }
             return out;
         }
 
         window.downloadExcel = function() {
             try {
                 let processed = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : (expenses || []);
-                processed = applyHistoryFiltersToList(processed);
+                if (!processed || !processed.length) {
+                    processed = (typeof expenses !== 'undefined' && expenses) ? expenses.slice() : [];
+                }
+                // Tüm yedekte aktif filtreler (alışveriş türü + e-ticaret dahil) uygulanır
+                processed = applyHistoryFiltersToList(processed, { skipDates: false });
                 const rows = buildExpenseCsvRows(processed);
-                downloadCsvRows(rows, 'yuvam-yedek', 'Tüm yedek indirildi (CSV — Excel ile açılır)');
+                if (rows.length <= 1) {
+                    if (typeof showToast === 'function') showToast('İndirilecek kayıt yok (filtreleri kontrol edin)', 'error');
+                    return;
+                }
+                downloadCsvRows(rows, 'yuvam-yedek', 'Yedek indirildi · ' + (rows.length - 1) + ' satır (Alışveriş türü + E-ticaret sütunları var)');
             } catch (err) {
                 console.error(err);
-                showToast('Yedek indirilemedi: ' + (err.message || err), 'error');
+                if (typeof showToast === 'function') showToast('Yedek indirilemedi: ' + (err.message || err), 'error');
+                else alert('Yedek indirilemedi: ' + (err.message || err));
             }
         };
 
@@ -2173,22 +2188,45 @@
             try {
                 const period = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
                 if (!period) {
-                    showToast('Aktif dönem hesaplanamadı', 'error');
+                    if (typeof showToast === 'function') showToast('Aktif dönem hesaplanamadı', 'error');
+                    else alert('Aktif dönem hesaplanamadı');
                     return;
                 }
-                let processed = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : (expenses || []);
-                processed = processed.filter(function(e) { return e && e.effectiveMonth === period; });
-                processed = applyHistoryFiltersToList(processed);
-                if (!processed.length) {
-                    showToast('Bu dönemde (filtrelerle) kayıt yok', 'info');
+                let processed = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : [];
+                if (!processed || !processed.length) {
+                    // yedek yol: ham expenses + period key
+                    const raw = (typeof expenses !== 'undefined' && expenses) ? expenses : [];
+                    processed = raw.map(function(item) {
+                        const pk = (typeof getPeriodKeyForDateStr === 'function')
+                            ? getPeriodKeyForDateStr(item.date)
+                            : String(item.date || '').slice(0, 7);
+                        return Object.assign({}, item, {
+                            effectiveMonth: item.effectiveMonth || pk,
+                            displayAmount: item.displayAmount != null ? item.displayAmount : item.amount
+                        });
+                    });
+                }
+                // Sadece bu dönem (tarih aralığı filtresi YOK — yoksa buton boş döner)
+                let periodItems = processed.filter(function(e) {
+                    if (!e) return false;
+                    const em = e.effectiveMonth || (typeof getPeriodKeyForDateStr === 'function' ? getPeriodKeyForDateStr(e.date) : '');
+                    return em === period;
+                });
+                // Alışveriş türü / e-ticaret / kişi vb. filtreler uygulanır; tarih aralığı atlanır
+                periodItems = applyHistoryFiltersToList(periodItems, { skipDates: true });
+                if (!periodItems.length) {
+                    if (typeof showToast === 'function') showToast('Bu dönemde kayıt yok (veya filtreler hepsini eledi). Filtreleri Temizle deyip tekrar deneyin.', 'error');
+                    else alert('Bu dönemde kayıt yok');
                     return;
                 }
-                const rows = buildExpenseCsvRows(processed);
+                const rows = buildExpenseCsvRows(periodItems);
                 const lab = (typeof formatPeriodLabel === 'function') ? formatPeriodLabel(period) : period;
-                downloadCsvRows(rows, 'yuvam-donem-' + String(period).replace(/[^\w\-]+/g, '_'), 'Bu dönem yedeği indirildi · ' + (lab || period));
+                const safe = String(period).replace(/[^\w\-]+/g, '_');
+                downloadCsvRows(rows, 'yuvam-donem-' + safe, 'Bu dönem indirildi · ' + (lab || period) + ' · ' + (rows.length - 1) + ' satır');
             } catch (err) {
-                console.error(err);
-                showToast('Dönem yedeği indirilemedi: ' + (err.message || err), 'error');
+                console.error('downloadPeriodExcel', err);
+                if (typeof showToast === 'function') showToast('Dönem yedeği indirilemedi: ' + (err.message || err), 'error');
+                else alert('Dönem yedeği indirilemedi: ' + (err.message || err));
             }
         };
 
