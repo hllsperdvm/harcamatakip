@@ -88,7 +88,7 @@
         }
 
         function updateGoldPriceUI() {
-            try { saveGoldPriceSnapshot(goldQuotes.sell24, goldQuotes.sell22); } catch (_) {}
+            
 
             const fmt = function(v) { return v != null && isFinite(v) ? formatGoldTL(v) : '—'; };
             const elB24 = document.getElementById('goldBuy24');
@@ -229,191 +229,18 @@
         };
 
 
-        // ——— Altın geçmiş fiyat anlık görüntüleri (local) ———
-        function loadGoldPriceHistory() {
-            try {
-                const raw = localStorage.getItem('yuvam_gold_history');
-                const list = raw ? JSON.parse(raw) : [];
-                return Array.isArray(list) ? list : [];
-            } catch (_) { return []; }
-        }
-
-        function saveGoldPriceSnapshot(sell24, sell22) {
-            if (sell24 == null && sell22 == null) return;
-            const today = todayDateStr();
-            let list = loadGoldPriceHistory();
-            // aynı gün güncelle
-            list = list.filter(function(r) { return r && r.date !== today; });
-            list.push({
-                date: today,
-                sell24: sell24 != null ? Number(sell24) : null,
-                sell22: sell22 != null ? Number(sell22) : null,
-                at: new Date().toISOString()
-            });
-            // son 45 gün
-            list.sort(function(a, b) { return String(a.date).localeCompare(String(b.date)); });
-            if (list.length > 45) list = list.slice(list.length - 45);
-            try { localStorage.setItem('yuvam_gold_history', JSON.stringify(list)); } catch (_) {}
-        }
-
-        function portfolioPnlAtPrice(sell24, sell22) {
-            let cost = 0, value = 0, grams = 0;
-            (goldHoldings || []).forEach(function(h) {
-                const g = Number(h.grams) || 0;
-                const bp = Number(h.buyPrice) || 0;
-                const k = Number(h.karat) || 24;
-                cost += g * bp;
-                grams += g;
-                const px = (k === 22) ? sell22 : sell24;
-                if (px != null) value += g * Number(px);
-            });
-            return { cost: cost, value: value, pnl: value - cost, grams: grams };
-        }
-
+        // Altın geçmiş fiyat özelliği kaldırıldı
+        function saveGoldPriceSnapshot() { /* no-op */ }
         window.openGoldHistoryModal = function() {
-            const modal = document.getElementById('goldHistoryModal');
-            const body = document.getElementById('goldHistoryModalBody');
-            if (!modal || !body) return;
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            body.innerHTML = '<p class="text-slate-400 font-semibold text-center py-4">Yükleniyor…</p>';
-
-            // Bugünkü fiyatı da kayda ekle
-            try {
-                if (goldQuotes && (goldQuotes.sell24 != null || goldQuotes.sell22 != null)) {
-                    saveGoldPriceSnapshot(goldQuotes.sell24, goldQuotes.sell22);
-                }
-            } catch (_) {}
-
-            let hist = loadGoldPriceHistory();
-            // Holding alış tarihlerini de satır olarak ekle (fiyat = alış)
-            const fromHoldings = [];
-            (goldHoldings || []).forEach(function(h) {
-                const d = String(h.buyDate || '').slice(0, 10);
-                if (!d) return;
-                const k = Number(h.karat) || 24;
-                const bp = Number(h.buyPrice) || 0;
-                fromHoldings.push({
-                    date: d,
-                    sell24: k === 24 ? bp : null,
-                    sell22: k === 22 ? bp : null,
-                    fromHolding: true,
-                    note: (k + ' ayar alış · ' + (Number(h.grams) || 0) + ' g')
-                });
-            });
-
-            // son 30 gün
-            const today = todayDateStr();
-            const cutoff = addDaysYMD(today, -30);
-            hist = hist.filter(function(r) { return r && r.date >= cutoff; });
-
-            // birleştir: günlük snapshot öncelikli
-            const byDate = {};
-            fromHoldings.forEach(function(r) {
-                if (r.date >= cutoff) {
-                    if (!byDate[r.date]) byDate[r.date] = r;
-                }
-            });
-            hist.forEach(function(r) { byDate[r.date] = r; });
-
-            // Eksik günleri doldur (alış → bugün arası doğrusal tahmin) — gerçek API geçmişi yoksa
-            const cur24 = goldQuotes && goldQuotes.sell24 != null ? Number(goldQuotes.sell24) : null;
-            const cur22 = goldQuotes && goldQuotes.sell22 != null ? Number(goldQuotes.sell22) : (cur24 != null ? cur24 * (22 / 24) : null);
-            let anchor24 = null, anchor22 = null, anchorDate = null;
-            fromHoldings.forEach(function(r) {
-                if (r.sell24 != null && (anchor24 == null || r.date < anchorDate)) {
-                    anchor24 = r.sell24; anchorDate = r.date;
-                }
-                if (r.sell22 != null && (anchor22 == null || r.date < (anchorDate || '9999'))) {
-                    anchor22 = r.sell22;
-                    if (!anchorDate || r.date < anchorDate) anchorDate = r.date;
-                }
-            });
-            if (anchor24 == null && cur24 != null) anchor24 = cur24;
-            if (anchor22 == null && cur22 != null) anchor22 = cur22;
-            if (cur24 != null && typeof addDaysYMD === 'function') {
-                for (let i = 0; i <= 30; i++) {
-                    const d = addDaysYMD(today, -i);
-                    if (d < cutoff) continue;
-                    if (byDate[d] && byDate[d].sell24 != null) continue;
-                    // doğrusal: anchorDate → today
-                    let t = 1;
-                    if (anchorDate && anchorDate < today) {
-                        const total = Math.max(1, (new Date(today) - new Date(anchorDate)) / 86400000);
-                        const part = Math.max(0, (new Date(d) - new Date(anchorDate)) / 86400000);
-                        t = Math.min(1, Math.max(0, part / total));
-                    }
-                    const s24 = (anchor24 != null && cur24 != null)
-                        ? (anchor24 + (cur24 - anchor24) * t)
-                        : cur24;
-                    const s22 = (anchor22 != null && cur22 != null)
-                        ? (anchor22 + (cur22 - anchor22) * t)
-                        : (s24 != null ? s24 * (22 / 24) : cur22);
-                    if (s24 == null && s22 == null) continue;
-                    byDate[d] = {
-                        date: d,
-                        sell24: s24 != null ? Math.round(s24 * 100) / 100 : null,
-                        sell22: s22 != null ? Math.round(s22 * 100) / 100 : null,
-                        estimated: true,
-                        note: byDate[d] && byDate[d].note ? byDate[d].note : 'tahmini'
-                    };
-                }
-            }
-
-            const dates = Object.keys(byDate).sort().reverse();
-            if (!dates.length) {
-                body.innerHTML = '<p class="text-slate-400 font-semibold text-center py-6">Henüz geçmiş fiyat yok.<br><span class="text-xs">Siteyi açtıkça günlük fiyat kaydı birikir.</span></p>';
-                return;
-            }
-
-            let html = '<div class="space-y-2">';
-            dates.forEach(function(d) {
-                const r = byDate[d];
-                const s24 = r.sell24;
-                const s22 = r.sell22;
-                // P&L: eldeki fiyatlardan hesapla (eksik ayarı mevcut anlık fiyatla doldur)
-                const use24 = s24 != null ? s24 : (goldQuotes && goldQuotes.sell24);
-                const use22 = s22 != null ? s22 : (goldQuotes && goldQuotes.sell22);
-                const p = portfolioPnlAtPrice(use24, use22);
-                const hasHold = (goldHoldings || []).length > 0;
-                const pnlTxt = hasHold && (use24 != null || use22 != null)
-                    ? ((p.pnl >= 0 ? '+' : '') + Math.round(p.pnl).toLocaleString('tr-TR') + ' TL')
-                    : '—';
-                const pnlCls = !hasHold ? 'text-slate-400' : (p.pnl >= 0 ? 'text-emerald-600' : 'text-rose-600');
-                const priceTxt = (s24 != null ? ('24ayar ' + formatGoldTL(s24) + '/g') : '') +
-                    (s24 != null && s22 != null ? ' · ' : '') +
-                    (s22 != null ? ('22ayar ' + formatGoldTL(s22) + '/g') : '');
-                html += '<div class="p-3 rounded-xl border border-slate-100 bg-slate-50">' +
-                    '<div class="flex justify-between gap-2 items-start">' +
-                    '<div class="min-w-0">' +
-                    '<p class="text-sm font-black text-slate-800">' + formatDateTR(d) +
-                    (r.fromHolding ? ' <span class="text-[10px] font-bold text-amber-700">alış</span>' : '') +
-                    (r.estimated ? ' <span class="text-[10px] font-bold text-slate-400">tahmini</span>' : '') + '</p>' +
-                    '<p class="text-[11px] text-slate-500 font-semibold mt-0.5">' + (priceTxt || (r.note || 'Fiyat yok')) + '</p>' +
-                    (r.note && !r.fromHolding && r.note !== 'tahmini' ? '<p class="text-[10px] text-slate-400">' + escapeHtml(r.note) + '</p>' : '') +
-                    '</div>' +
-                    '<div class="text-right shrink-0">' +
-                    '<p class="text-[10px] font-bold text-slate-400 uppercase">Kâr/Zarar</p>' +
-                    '<p class="text-sm font-black ' + pnlCls + '">' + pnlTxt + '</p>' +
-                    '</div></div></div>';
-            });
-            html += '</div>';
-            html += '<p class="text-[10px] text-slate-400 font-semibold mt-3 text-center">Kâr/zarar mevcut portföye göre hesaplanır. “Tahmini” satırlar alış fiyatı ile bugün arasında doğrusal doldurulur; site her gün açıldıkça gerçek kayıt birikir.</p>';
-            body.innerHTML = html;
+            if (typeof showToast === 'function') showToast('Geçmiş fiyatlar kaldırıldı', 'info');
         };
-
-        window.closeGoldHistoryModal = function() {
-            const modal = document.getElementById('goldHistoryModal');
-            if (!modal) return;
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        };
+        window.closeGoldHistoryModal = function() {};
 
         window.refreshGoldPrice = async function(force) {
             const elMeta = document.getElementById('goldPriceMeta');
             try {
                 if (!force && goldQuotes.sell24 != null) {
-                    updateGoldPriceUI(); try { saveGoldPriceSnapshot(goldQuotes.sell24, goldQuotes.sell22); } catch (_) {}
+                    updateGoldPriceUI(); 
                     renderGoldHoldings();
                     return;
                 }
@@ -466,7 +293,7 @@
                 goldQuotes = { buy24: buy24, sell24: sell24, buy22: buy22, sell22: sell22 };
                 goldPricePerGram = sell24;
                 goldPricePerGram22 = sell22;
-                try { saveGoldPriceSnapshot(sell24, sell22); } catch (_) {}
+                
                 updateGoldPriceUI();
                 if (elMeta) {
                     let meta = source || 'Güncel';
@@ -2063,6 +1890,14 @@
             blocks.forEach(function(b) {
                 if (order.indexOf(b.id) < 0) order.push(b.id);
             });
+            // Plan sayfası sabit sıra: Plan → Not yaz → Notlar → IBAN
+            if (page === 'plan') {
+                const forced = ['planMain', 'planNotesForm', 'planNotesList', 'planIban'];
+                order = forced.filter(function(id) { return !!byId[id]; });
+                blocks.forEach(function(b) {
+                    if (order.indexOf(b.id) < 0) order.push(b.id);
+                });
+            }
 
             // DOM: önce sabitler, sonra sıra
             fixedNodes.forEach(function(ch) { root.appendChild(ch); });

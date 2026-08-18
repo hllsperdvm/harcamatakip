@@ -538,23 +538,31 @@
                 });
             } catch (_) {}
 
-            // Galatasaray maçları — tek kaynak (önbellek), max 14 gün
+            // Galatasaray — tüm kulvarlar, SADECE en yakın 1 maç
             try {
-                const gsSeen = {};
-                (superLigFixturesCache || []).forEach(function(f) {
-                    if (!f || !f.isGs || !f.date) return;
+                const today = (typeof todayDateStr === 'function') ? todayDateStr() : '';
+                const candidates = (superLigFixturesCache || [])
+                    .filter(function(f) {
+                        if (!f || !f.isGs || !f.date) return false;
+                        const days = daysUntilYMD(f.date);
+                        return days != null && days >= 0;
+                    })
+                    .sort(function(a, b) {
+                        const dd = String(a.date).localeCompare(String(b.date));
+                        if (dd !== 0) return dd;
+                        return String(a.time || '').localeCompare(String(b.time || ''));
+                    });
+                if (candidates.length) {
+                    const f = candidates[0];
                     const days = daysUntilYMD(f.date);
-                    if (days == null || days < 0 || days > 14) return;
-                    const k = f.key || matchDedupeKey(f.date, f.home, f.away);
-                    if (gsSeen[k]) return;
-                    gsSeen[k] = true;
+                    const k = f.key || (typeof matchDedupeKey === 'function' ? matchDedupeKey(f.date, f.home, f.away) : (f.date + f.home + f.away));
                     const title = '🦁 ' + f.home + ' – ' + f.away;
-                    const key = 'gsfx-' + k;
+                    const key = 'gsfx-next';
                     const msg = formatDateTR(f.date) + (f.time ? ' · ' + f.time : '') + (f.league ? ' · ' + f.league : '');
                     if (days === 0) pushNotif(key, 'critical', '⚽', 'Bugün: ' + title, msg);
                     else if (days <= 3) pushNotif(key, 'warning', '⚽', days + ' gün: ' + title, msg);
                     else pushNotif(key, 'info', '⚽', days + ' gün: ' + title, msg);
-                });
+                }
             } catch (_) {}
 
 
@@ -1417,22 +1425,20 @@
                             const allN = (typeof collectAppNotifications === 'function')
                                 ? collectAppNotifications().filter(function(n) { return n && n.category !== 'activity'; })
                                 : [];
-                            // Maç bildirimleri en üste
-                            allN.sort(function(a, b) {
-                                function isMatch(n) {
-                                    if (!n) return false;
-                                    if (n.key && String(n.key).indexOf('gsfx-') === 0) return true;
-                                    if (n.key && String(n.key).indexOf('fcal-') === 0 && n.icon === '⚽') return true;
-                                    const t = String(n.title || '') + String(n.message || '');
-                                    return t.indexOf('🦁') >= 0 || t.indexOf('maç') >= 0 || t.indexOf('Maç') >= 0;
-                                }
-                                const am = isMatch(a) ? 0 : 1;
-                                const bm = isMatch(b) ? 0 : 1;
-                                if (am !== bm) return am - bm;
+                            // GS maçı her zaman ilk; diğerleri önem sırası
+                            function isGsMatch(n) {
+                                if (!n) return false;
+                                if (n.key === 'gsfx-next' || (n.key && String(n.key).indexOf('gsfx-') === 0)) return true;
+                                if (n.icon === '⚽' && String(n.title || '').indexOf('🦁') >= 0) return true;
+                                return false;
+                            }
+                            const gs = allN.filter(isGsMatch).slice(0, 1);
+                            const rest = allN.filter(function(n) { return !isGsMatch(n); });
+                            rest.sort(function(a, b) {
                                 const sev = { critical: 0, warning: 1, info: 2 };
                                 return (sev[a.severity] != null ? sev[a.severity] : 3) - (sev[b.severity] != null ? sev[b.severity] : 3);
                             });
-                            upcoming = allN.slice(0, 5);
+                            upcoming = gs.concat(rest).slice(0, 5);
                         } catch (_) {}
                         if (upcoming.length) {
                             html += '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mt-3 mb-1.5">Yaklaşanlar</p>';
