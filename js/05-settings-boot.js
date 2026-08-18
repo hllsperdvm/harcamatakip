@@ -2230,30 +2230,10 @@
             }
         };
 
-        window.maybeShowOnboarding = function() {
-            try {
-                if (localStorage.getItem('yuvam_onboarded_v1') === '1') return;
-            } catch (_) {}
-            const modal = document.getElementById('onboardingModal');
-            if (!modal) return;
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        };
-
-        window.closeOnboarding = function(permanent) {
-            const modal = document.getElementById('onboardingModal');
-            if (modal) {
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
-            }
-            if (permanent) {
-                try { localStorage.setItem('yuvam_onboarded_v1', '1'); } catch (_) {}
-            }
-        };
-
+        window.maybeShowOnboarding = function() { /* kaldırıldı */ };
+        window.closeOnboarding = function() {};
         window.showHelp = function() {
-            try { localStorage.removeItem('yuvam_onboarded_v1'); } catch (_) {}
-            maybeShowOnboarding();
+            if (typeof showToast === 'function') showToast('Yardım kaldırıldı — Ayarlar sekmesini kullanın', 'info');
         };
 
 

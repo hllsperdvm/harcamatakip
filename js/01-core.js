@@ -360,8 +360,7 @@
                 // Bildirim / onboarding: biraz sonra (ilk boyamayı engellemesin)
                 setTimeout(function() {
                     if (!currentUser || currentUser.uid !== uidEnter) return;
-                    try { if (typeof maybeShowOnboarding === 'function') maybeShowOnboarding(); } catch (_) {}
-                    try { if (typeof refreshAppNotifications === 'function') refreshAppNotifications(); } catch (_) {}
+                                        try { if (typeof refreshAppNotifications === 'function') refreshAppNotifications(); } catch (_) {}
                 }, 1200);
                 // Fikstür / tatil / altın: girişte ASLA — ilgili sekme veya boşta çok geç
             }, 0);

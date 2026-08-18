@@ -1220,20 +1220,22 @@
         };
 
 
+        /** Eski yerel danışman — UI kalktı; Yuvam kutusuna yazar (uyumluluk) */
         window.runLocalAdvisor = function() {
-            const btn = document.getElementById('localAdvisorBtn');
             try {
-                if (btn) btn.disabled = true;
-                const tips = buildDetailedLocalTips();
-                renderAdvisorInto('localAdvisorResult', tips, 'Yerel detaylı analiz', 'local');
-                logActivity('Diğer', 'Yerel bütçe analizi', '');
-            } catch (err) {
-                console.error(err);
-                const box = document.getElementById('localAdvisorResult');
-                if (box) box.innerHTML = '<p class="text-sm text-rose-600 font-semibold">' + escapeHtml(err.message || String(err)) + '</p>';
-            } finally {
-                if (btn) btn.disabled = false;
-            }
+                const tips = (typeof buildDetailedLocalTips === 'function') ? buildDetailedLocalTips() : [];
+                const box = document.getElementById('yuvamAskResult') || document.getElementById('localAdvisorResult');
+                if (box) {
+                    if (typeof renderAdvisorInto === 'function' && document.getElementById('localAdvisorResult')) {
+                        renderAdvisorInto('localAdvisorResult', tips, 'Yerel detaylı analiz', 'local');
+                    } else {
+                        box.innerHTML = '<p class="text-xs font-black text-slate-500 mb-2">Yerel analiz</p>' +
+                            (tips || []).map(function(t) {
+                                return '<p class="text-sm text-slate-700 font-medium mb-1.5">• ' + escapeHtml(String(t)) + '</p>';
+                            }).join('') || '<p class="text-sm text-slate-400">Öneri yok</p>';
+                    }
+                }
+            } catch (err) { console.warn('runLocalAdvisor', err); }
         };
 
         window.runAiAdvisor = async function() {
@@ -1510,11 +1512,12 @@
                 }
             }
 
-            // --- Haftalık trend ---
+            // --- Haftalık trend (güne tıkla → detay) ---
             try {
                 const ctxW = document.getElementById('weeklyTrendChart');
                 if (ctxW) {
                     const days = [];
+                    const dayYm = [];
                     const daySums = [];
                     const today = new Date();
                     for (let i = 6; i >= 0; i--) {
@@ -1523,6 +1526,7 @@
                         const ymd = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
                         const lab = String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0');
                         days.push(lab);
+                        dayYm.push(ymd);
                         const sum = getProcessedExpenses().filter(function(e) {
                             if (typeof countsInPeriodTotals === 'function' && !countsInPeriodTotals(e)) return false;
                             return String(e.date || '').slice(0, 10) === ymd;
@@ -1533,7 +1537,21 @@
                     weeklyTrendChart = new Chart(ctxW, {
                         type: 'bar',
                         data: { labels: days, datasets: [{ label: 'Harcama', data: daySums, backgroundColor: '#6366f1', borderRadius: 6, maxBarThickness: 28 }] },
-                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: { y: { beginAtZero: true } },
+                            onClick: function(evt, els) {
+                                if (!els || !els.length) return;
+                                const i = els[0].index;
+                                const ymd = dayYm[i];
+                                const lab = days[i];
+                                if (ymd && typeof showDayExpenses === 'function') {
+                                    showDayExpenses(ymd, lab);
+                                }
+                            }
+                        }
                     });
                 }
             } catch (errW) { console.warn('weeklyTrend', errW); }
