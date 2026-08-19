@@ -78,8 +78,8 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
 #errorContainer .space-y-5>div{margin-bottom:0.75rem}
 </style>
     <!-- Hazır CSS (Tailwind CDN yok — daha hızlı açılış) -->
-    <link rel="stylesheet" href="css/tw.css" id="yuvamTwCss" onerror="this.onerror=null;this.href='tw.css'">
-    <link rel="stylesheet" href="css/style.css" id="yuvamStyleCss" onerror="this.onerror=null;this.href='style.css'">
+    <link rel="stylesheet" href="css/tw.css">
+    <link rel="stylesheet" href="css/style.css">
     <script>
     /* Bozuk service worker stilleri düşürüyorsa temizle */
     (function(){
@@ -117,12 +117,12 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
     <noscript><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
-        <link rel="icon" href="images/icon-192.png" sizes="192x192" type="image/png">
-    <link rel="icon" href="images/icon-512.png" sizes="512x512" type="image/png">
+
+    <link rel="icon" type="image/png" sizes="192x192" href="images/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="images/icon-512.png">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
     <link rel="apple-touch-icon" sizes="192x192" href="images/icon-192.png">
-    <link rel="apple-touch-icon" sizes="512x512" href="images/icon-512.png">
 </head>
 <body class="text-slate-800 antialiased">
     <div id="offlineBanner" class="hidden fixed top-0 left-0 right-0 z-[200] bg-amber-500 text-white text-center text-xs font-bold py-1.5 px-3 shadow-md" style="padding-top: max(0.35rem, env(safe-area-inset-top));">
@@ -137,13 +137,10 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
     <div id="errorContainer" class="fixed inset-0 z-[100] flex items-center justify-center bg-gradient-to-br from-slate-50 via-indigo-50/40 to-slate-100">
         <div class="w-full max-w-md p-8">
             <div class="bg-white rounded-[2rem] shadow-xl shadow-indigo-100/50 border border-slate-100 p-8 text-center">
-                <div class="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-200">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="80" height="80" aria-hidden="true" style="display:block;margin:0 auto 12px">
-                  <rect width="100" height="100" rx="22" fill="#0284c7"/>
-                  <path d="M50 22L20 48v34h60V48L50 22z" fill="#ffffff"/>
-                  <rect x="42" y="58" width="16" height="24" rx="2" fill="#0284c7"/>
-                  <rect x="62" y="30" width="12" height="18" fill="#ffffff"/>
-                </svg>
+                                <div class="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-200 text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-9 h-9" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
                 </div>
                 <h2 class="mb-1 text-2xl font-extrabold text-slate-900">YUVAM</h2>
                 <p class="mb-8 text-sm text-slate-400 font-medium">Digital Home Hub — Giriş yapın</p>
@@ -238,7 +235,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         <p id="homeGreeting" class="text-2xl sm:text-3xl font-black tracking-tight order-first">Merhaba</p>
                         <p id="homeTodayDate" class="text-sm font-semibold text-white/80 mt-2">—</p>
                         <p id="homeWeather" onclick="openWeatherModal()" title="7 günlük tahmin" class="text-sm font-semibold text-white/85 mt-1 cursor-pointer hover:text-white underline decoration-white/30 underline-offset-2">Ankara / Keçiören hava durumu yükleniyor…</p>
-                        <p id="homeDailyAyah" onclick="loadDailyAyah(true)" title="Yeni ayet için dokunun" class="text-sm sm:text-[0.95rem] font-semibold text-white/95 mt-3 leading-snug cursor-pointer hover:text-white">Günün ayeti yükleniyor…</p>
+                        <p id="homeDailyAyah" onclick="openSurahFromAyah()" title="Sureyi aç" class="text-sm sm:text-[0.95rem] font-semibold text-white/95 mt-3 leading-snug cursor-pointer hover:text-white">Günün ayeti yükleniyor…</p>
                         <div class="flex flex-wrap items-center gap-2 mt-3">
                         <p id="homePeriodBadge" class="inline-flex text-[11px] font-bold bg-white/15 px-3 py-1 rounded-full backdrop-blur-sm">Dönem: —</p>
                     </div>
@@ -1755,6 +1752,17 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                 <button type="button" onclick="closeFuelPriceModal()" class="w-9 h-9 rounded-xl bg-slate-100 font-bold text-slate-600">✕</button>
             </div>
             <div id="fuelPriceModalBody" class="p-4 overflow-y-auto text-sm space-y-2">Yükleniyor…</div>
+        </div>
+    </div>
+
+
+    <div id="surahModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-[130] p-4" onclick="if(event.target===this)closeSurahModal()">
+        <div class="bg-white rounded-[1.75rem] shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden border border-slate-100">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3 shrink-0">
+                <h3 id="surahModalTitle" class="text-base font-black text-slate-900 truncate">Sure</h3>
+                <button type="button" onclick="closeSurahModal()" class="text-slate-400 hover:text-slate-700 font-black text-lg leading-none px-2">×</button>
+            </div>
+            <div id="surahModalBody" class="p-5 overflow-y-auto text-sm text-slate-700 leading-relaxed space-y-3 font-medium">Yükleniyor…</div>
         </div>
     </div>
 

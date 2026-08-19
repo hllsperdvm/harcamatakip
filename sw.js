@@ -1,9 +1,10 @@
-/* YUVAM SW v7 — CSS/JS'ye dokunmaz (stil bozulmasını önler) */
-const CACHE = 'yuvam-shell-v7';
+/* YUVAM SW v8 — düzenli klasör yapısı; CSS/JS'ye dokunmaz */
+const CACHE = 'yuvam-shell-v8';
 const PRECACHE = [
   './',
   './index.html',
   './manifest.json',
+  './apple-touch-icon.png',
   './images/icon-192.png',
   './images/icon-512.png',
   './images/loading-gate.png'
@@ -35,12 +36,9 @@ self.addEventListener('fetch', function(event) {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  // CSS, JS, font, worker — hiçbir şekilde SW üzerinden geçirme
-  if (/\.(css|js|mjs|map|woff2?|ttf|otf)(\?.*)?$/i.test(url.pathname)) {
-    return; // tarayıcı normal ağ isteği yapsın
-  }
+  // CSS / JS — SW karışmasın
+  if (/\.(css|js|mjs|map|woff2?|ttf)(\?.*)?$/i.test(url.pathname)) return;
 
-  // Sadece HTML navigasyon için offline yedek
   const isNav = req.mode === 'navigate' ||
     ((req.headers.get('accept') || '').indexOf('text/html') >= 0);
   if (!isNav) return;

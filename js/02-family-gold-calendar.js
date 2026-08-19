@@ -1218,8 +1218,12 @@
                 list.innerHTML = items.map(function(it) {
                     const due = it.date ? formatDateTR(it.date) : 'Tarihsiz';
                     const days = it.date && typeof daysUntilYMD === 'function' ? daysUntilYMD(it.date) : null;
-                    const badge = days == null ? '' : (days < 0 ? ' · geçti' : (days === 0 ? ' · bugün' : ' · ' + days + ' gün'));
-                    const title = (it.done ? '<span class="line-through opacity-60">' : '') + escapeHtml(it.title) + (it.done ? '</span>' : '');
+                    const overdue = !it.done && days != null && days < 0;
+                    const badge = days == null ? '' : (overdue
+                        ? ' <span class="inline-flex items-center gap-0.5 text-[10px] font-black text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded-md">❗ GEÇTİ</span>'
+                        : (days === 0 ? ' · bugün' : ' · ' + days + ' gün'));
+                    const title = (it.done ? '<span class="line-through opacity-60">' : '') + escapeHtml(it.title) + (it.done ? '</span>' : '') +
+                        (overdue ? ' <span class="text-rose-600 font-black">❗</span>' : '');
                     const sub = (it.source === 'task' ? '✅ Görev' : '📅 Takvim') + ' · ' + due + badge + (it.meta ? ' · ' + escapeHtml(it.meta) : '');
                     const editB = '<button type="button" onclick="familyEditPlan(\'' + it.source + '\',\'' + escapeHtml(it.id) + '\')" class="text-xs font-bold text-sky-600 px-2 py-1 rounded-lg hover:bg-sky-50">Düzenle</button>';
                     const tog = it.source === 'task'

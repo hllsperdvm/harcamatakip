@@ -1376,7 +1376,7 @@
                 const hi = hour < 12 ? 'Günaydın' : (hour < 18 ? 'İyi günler' : 'İyi akşamlar');
                 if (greet) greet.textContent = hi + (name ? ', ' + name : '');
 
-                try { if (typeof loadDailyAyah === 'function') loadDailyAyah(false); } catch (_) {}
+                try { if (typeof loadDailyAyah === 'function') loadDailyAyah(true); } catch (_) {}
 
                 const dateEl = document.getElementById('homeTodayDate');
                 if (dateEl) {
@@ -1477,10 +1477,16 @@
                             html += taskShow.map(function(t) {
                                 const due = t.due ? formatDateTR(t.due) : '';
                                 const who = t.assignee && t.assignee !== 'Herkes' ? t.assignee : '';
+                                const days = t.due && typeof daysUntilYMD === 'function' ? daysUntilYMD(t.due) : null;
+                                const overdue = days != null && days < 0;
                                 const sub = [due, who].filter(Boolean).join(' · ');
-                                return '<div class="flex gap-2 items-start p-2.5 rounded-xl bg-slate-50 border border-slate-100">' +
-                                    '<span class="text-sm shrink-0">⬜</span>' +
-                                    '<div class="min-w-0"><p class="text-sm font-bold text-slate-800">' + escapeHtml(t.text || '-') + '</p>' +
+                                const badge = overdue
+                                    ? ' <span class="inline-flex items-center gap-0.5 text-[10px] font-black text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded-md">❗ GEÇTİ</span>'
+                                    : '';
+                                return '<div class="flex gap-2 items-start p-2.5 rounded-xl ' +
+                                    (overdue ? 'bg-rose-50 border border-rose-200' : 'bg-slate-50 border border-slate-100') + '">' +
+                                    '<span class="text-sm shrink-0">' + (overdue ? '❗' : '⬜') + '</span>' +
+                                    '<div class="min-w-0"><p class="text-sm font-bold text-slate-800">' + escapeHtml(t.text || '-') + badge + '</p>' +
                                     (sub ? '<p class="text-[10px] text-slate-400 font-semibold">' + escapeHtml(sub) + '</p>' : '') +
                                     '</div></div>';
                             }).join('');
@@ -1714,30 +1720,47 @@
             const ref = surahTr
                 ? (surahTr + (num ? (', ' + num) : ''))
                 : ('Ayet ' + n);
-            return { text: text, ref: ref };
+            return { text: text, ref: ref, surahNo: surahNo, ayahNo: num, globalN: n };
         }
+
+        window._currentAyah = null;
 
         window.loadDailyAyah = async function(force) {
             const el = document.getElementById('homeDailyAyah');
             if (!el) return;
-            if (force || el.dataset.loaded !== '1') {
-                el.textContent = 'Günün ayeti yükleniyor…';
+            // force=false ve zaten yüklüyse dokunma ile değişmesin; sadece sekme yenilemede force veya ilk yükleme
+            if (!force && el.dataset.loaded === '1' && window._currentAyah) {
+                return;
             }
+            el.textContent = 'Günün ayeti yükleniyor…';
             try {
                 let item = null;
                 let tries = 0;
                 while (tries < 4) {
                     tries++;
                     item = await fetchDailyAyah();
-                    if (item.text && item.text !== _lastAyahText) break;
+                    if (item && item.text && item.text !== _lastAyahText) break;
                 }
+                if (!item || !item.text) throw new Error('no ayah');
                 _lastAyahText = item.text;
                 let body = item.text.replace(/\s+/g, ' ').trim();
                 if (body.length > 300) body = body.slice(0, 297) + '…';
                 el.textContent = 'Günün ayeti (' + item.ref + '): ' + body;
                 el.dataset.loaded = '1';
+                window._currentAyah = {
+                    surahNo: item.surahNo || 0,
+                    ayahNo: item.ayahNo || '',
+                    ref: item.ref || '',
+                    text: item.text
+                };
                 try {
-                    sessionStorage.setItem('yuvam_ayah_cache', JSON.stringify({ t: Date.now(), ref: item.ref, text: body }));
+                    sessionStorage.setItem('yuvam_ayah_cache', JSON.stringify({
+                        t: Date.now(),
+                        ref: item.ref,
+                        text: body,
+                        surahNo: item.surahNo || 0,
+                        full: item.text
+                    }));
                 } catch (_) {}
             } catch (e) {
                 try {
@@ -1746,18 +1769,60 @@
                         const o = JSON.parse(raw);
                         if (o && o.text) {
                             el.textContent = 'Günün ayeti' + (o.ref ? (' (' + o.ref + ')') : '') + ': ' + o.text;
+                            window._currentAyah = { surahNo: o.surahNo || 0, ref: o.ref || '', text: o.full || o.text };
+                            el.dataset.loaded = '1';
                             return;
                         }
                     }
                 } catch (_) {}
-                el.textContent = 'Günün ayeti yüklenemedi · dokunarak tekrar deneyin';
+                el.textContent = 'Günün ayeti yüklenemedi';
             }
-            if (_ayahTimer) clearInterval(_ayahTimer);
-            _ayahTimer = setInterval(function() {
+            // Otomatik periyodik değişim yok — sadece ana sayfa yenilenince
+            if (_ayahTimer) { clearInterval(_ayahTimer); _ayahTimer = null; }
+        };
+
+        window.closeSurahModal = function() {
+            const m = document.getElementById('surahModal');
+            if (!m) return;
+            m.classList.add('hidden');
+            m.classList.remove('flex');
+        };
+
+        window.openSurahFromAyah = async function() {
+            const m = document.getElementById('surahModal');
+            const title = document.getElementById('surahModalTitle');
+            const body = document.getElementById('surahModalBody');
+            if (!m || !body) return;
+            let surahNo = window._currentAyah && window._currentAyah.surahNo;
+            if (!surahNo) {
                 try {
-                    const home = document.getElementById('tabContentHome');
-                    if (home && !home.classList.contains('hidden')) loadDailyAyah(true);
+                    const o = JSON.parse(sessionStorage.getItem('yuvam_ayah_cache') || '{}');
+                    surahNo = o.surahNo;
                 } catch (_) {}
-            }, 180000);
+            }
+            if (!surahNo) {
+                if (typeof showToast === 'function') showToast('Önce ayet yüklensin', 'info');
+                return;
+            }
+            const nameTr = (SURAH_NAMES_TR[surahNo]) ? SURAH_NAMES_TR[surahNo] : ('Sure ' + surahNo);
+            if (title) title.textContent = nameTr + ' suresi';
+            body.innerHTML = '<p class="text-slate-400 font-semibold text-center py-6">Sure yükleniyor…</p>';
+            m.classList.remove('hidden');
+            m.classList.add('flex');
+            try {
+                const r = await fetch('https://api.alquran.cloud/v1/surah/' + surahNo + '/tr.diyanet', { cache: 'force-cache' });
+                if (!r.ok) throw new Error('http');
+                const j = await r.json();
+                const ayas = (j && j.data && j.data.ayahs) ? j.data.ayahs : [];
+                if (!ayas.length) throw new Error('empty');
+                body.innerHTML = ayas.map(function(a) {
+                    const n = a.numberInSurah || '';
+                    const tx = String(a.text || '').trim();
+                    return '<p class="leading-relaxed"><span class="text-[11px] font-black text-indigo-500 mr-1">' + n + '.</span>' +
+                        escapeHtml(tx) + '</p>';
+                }).join('');
+            } catch (err) {
+                body.innerHTML = '<p class="text-rose-600 font-semibold text-center py-4">Sure yüklenemedi. İnterneti kontrol edin.</p>';
+            }
         };
 
