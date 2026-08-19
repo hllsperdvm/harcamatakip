@@ -1781,16 +1781,40 @@
             m.classList.remove('hidden');
             m.classList.add('flex');
             try {
-                const r = await fetch('https://api.alquran.cloud/v1/surah/' + surahNo + '/tr.diyanet', { cache: 'force-cache' });
-                if (!r.ok) throw new Error('http');
-                const j = await r.json();
-                const ayas = (j && j.data && j.data.ayahs) ? j.data.ayahs : [];
+                // tr.diyanet bazen aynı Türkçe metni ardışık ayetlere tekrar yazar → birleştir
+                let ayas = [];
+                let edition = 'tr.diyanet';
+                try {
+                    const r = await fetch('https://api.alquran.cloud/v1/surah/' + surahNo + '/' + edition, { cache: 'default' });
+                    if (!r.ok) throw new Error('http');
+                    const j = await r.json();
+                    ayas = (j && j.data && j.data.ayahs) ? j.data.ayahs : [];
+                } catch (_) {
+                    edition = 'tr.yazir';
+                    const r2 = await fetch('https://api.alquran.cloud/v1/surah/' + surahNo + '/' + edition, { cache: 'default' });
+                    if (!r2.ok) throw new Error('http');
+                    const j2 = await r2.json();
+                    ayas = (j2 && j2.data && j2.data.ayahs) ? j2.data.ayahs : [];
+                }
                 if (!ayas.length) throw new Error('empty');
-                body.innerHTML = ayas.map(function(a) {
-                    const n = a.numberInSurah || '';
-                    const tx = String(a.text || '').trim();
-                    return '<p class="leading-relaxed"><span class="text-[11px] font-black text-indigo-500 mr-1">' + n + '.</span>' +
-                        escapeHtml(tx) + '</p>';
+
+                // Ardışık aynı metinleri tek satırda birleştir (59–61. …)
+                const groups = [];
+                for (let i = 0; i < ayas.length; i++) {
+                    const n = Number(ayas[i].numberInSurah) || (i + 1);
+                    const tx = String(ayas[i].text || '').replace(/\s+/g, ' ').trim();
+                    if (!tx) continue;
+                    const prev = groups.length ? groups[groups.length - 1] : null;
+                    if (prev && prev.text === tx) {
+                        prev.end = n;
+                    } else {
+                        groups.push({ start: n, end: n, text: tx });
+                    }
+                }
+                body.innerHTML = groups.map(function(g) {
+                    const label = (g.start === g.end) ? (g.start + '.') : (g.start + '–' + g.end + '.');
+                    return '<p class="leading-relaxed mb-2"><span class="text-[11px] font-black text-indigo-500 mr-1">' +
+                        label + '</span>' + escapeHtml(g.text) + '</p>';
                 }).join('');
             } catch (err) {
                 body.innerHTML = '<p class="text-rose-600 font-semibold text-center py-4">Sure yüklenemedi. İnterneti kontrol edin.</p>';
