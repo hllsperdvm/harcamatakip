@@ -396,6 +396,63 @@
             } catch (_) {}
         }
 
+
+        /** İş mesaisi: 5 haftada bir, Cmt ↔ Paz dönüşümlü. İlk: 29.08.2026 Cumartesi */
+        const MESAI_ANCHOR_YMD = '2026-08-29';
+
+        function mesaiNextFrom(ymd) {
+            // ymd bir mesai günü (Cmt veya Paz)
+            const d = parseYMD(ymd);
+            if (!d) return null;
+            const wd = d.getDay(); // 0 Sun ... 6 Sat
+            const base = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            if (wd === 6) {
+                // Cumartesi → +36 gün = Pazar
+                base.setUTCDate(base.getUTCDate() + 36);
+            } else if (wd === 0) {
+                // Pazar → +34 gün = Cumartesi
+                base.setUTCDate(base.getUTCDate() + 34);
+            } else {
+                return null;
+            }
+            return base.getUTCFullYear() + '-' +
+                String(base.getUTCMonth() + 1).padStart(2, '0') + '-' +
+                String(base.getUTCDate()).padStart(2, '0');
+        }
+
+        function getUpcomingMesaiDates(limit) {
+            limit = limit || 8;
+            const today = (typeof todayDateStr === 'function') ? todayDateStr() : MESAI_ANCHOR_YMD;
+            let cur = MESAI_ANCHOR_YMD;
+            // Geçmişe kadar ilerlet
+            let guard = 0;
+            while (cur < today && guard < 200) {
+                const n = mesaiNextFrom(cur);
+                if (!n) break;
+                cur = n;
+                guard++;
+            }
+            const out = [];
+            guard = 0;
+            while (out.length < limit && guard < 200) {
+                if (cur >= today) out.push(cur);
+                const n = mesaiNextFrom(cur);
+                if (!n) break;
+                cur = n;
+                guard++;
+            }
+            return out;
+        }
+
+        function mesaiDayLabel(ymd) {
+            const d = parseYMD(ymd);
+            if (!d) return '';
+            const wd = d.getDay();
+            if (wd === 6) return 'Cumartesi';
+            if (wd === 0) return 'Pazar';
+            return '';
+        }
+
         function collectAppNotifications() {
             const items = [];
             const today = todayDateStr();
@@ -557,6 +614,32 @@
                 }
             } catch (_) {}
 
+            // İş mesaisi — 5 haftada bir Cmt/Paz; 2 hafta önceden yaklaşanlarda (gün gelene kadar)
+            try {
+                const mesaiDates = getUpcomingMesaiDates(3);
+                if (mesaiDates.length) {
+                    const md = mesaiDates[0];
+                    const days = daysUntilYMD(md);
+                    if (days != null && days >= 0 && days <= 14) {
+                        const dayLab = mesaiDayLabel(md) || '';
+                        const key = 'mesai-next';
+                        // Tek satır: "10 gün sonra mesai - 29 Ağustos Cumartesi"
+                        let datePart = '';
+                        try {
+                            const d = parseYMD(md);
+                            if (d) {
+                                const months = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+                                datePart = d.getDate() + ' ' + months[d.getMonth()] + (dayLab ? (' ' + dayLab) : '');
+                            }
+                        } catch (_) {}
+                        if (!datePart) datePart = (typeof formatDateTR === 'function' ? formatDateTR(md) : md) + (dayLab ? (' ' + dayLab) : '');
+                        const line = days === 0
+                            ? ('Bugün mesai - ' + datePart)
+                            : (days + ' gün sonra mesai - ' + datePart);
+                        pushNotif(key, days === 0 ? 'critical' : (days <= 3 ? 'warning' : 'info'), '🏭', line, '');
+                    }
+                }
+            } catch (_) {}
 
 
             // Resmi tatiller (14 gün)
@@ -1460,7 +1543,10 @@
                             const allN = (typeof collectAppNotifications === 'function')
                                 ? collectAppNotifications().filter(function(n) { return n && n.category !== 'activity'; })
                                 : [];
-                            // GS maçı her zaman ilk; diğerleri önem sırası
+                            // GS maçı üstte, mesai hemen altında, sonra diğerleri
+                            function isMesai(n) {
+                                return n && (n.key === 'mesai-next' || (n.key && String(n.key).indexOf('mesai-') === 0));
+                            }
                             function isGsMatch(n) {
                                 if (!n) return false;
                                 if (n.key === 'gsfx-next' || (n.key && String(n.key).indexOf('gsfx-') === 0)) return true;
@@ -1468,20 +1554,23 @@
                                 return false;
                             }
                             const gs = allN.filter(isGsMatch).slice(0, 1);
-                            const rest = allN.filter(function(n) { return !isGsMatch(n); });
+                            const mesai = allN.filter(isMesai).slice(0, 1);
+                            const rest = allN.filter(function(n) { return !isMesai(n) && !isGsMatch(n); });
                             rest.sort(function(a, b) {
                                 const sev = { critical: 0, warning: 1, info: 2 };
                                 return (sev[a.severity] != null ? sev[a.severity] : 3) - (sev[b.severity] != null ? sev[b.severity] : 3);
                             });
-                            upcoming = gs.concat(rest).slice(0, 5);
+                            upcoming = gs.concat(mesai).concat(rest).slice(0, 6);
                         } catch (_) {}
                         if (upcoming.length) {
                             html += '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mt-3 mb-1.5">Yaklaşanlar</p>';
                             html += upcoming.map(function(n) {
+                                const msg = (n.message || '').trim();
                                 return '<div class="flex gap-2 items-start p-2.5 rounded-xl bg-amber-50/80 border border-amber-100">' +
                                     '<span class="text-base shrink-0">' + (n.icon || '🔔') + '</span>' +
-                                    '<div class="min-w-0"><p class="text-sm font-bold text-slate-800 truncate">' + escapeHtml(n.title || '') + '</p>' +
-                                    '<p class="text-[11px] text-slate-500 font-semibold">' + escapeHtml(n.message || '') + '</p></div></div>';
+                                    '<div class="min-w-0"><p class="text-sm font-bold text-slate-800">' + escapeHtml(n.title || '') + '</p>' +
+                                    (msg ? ('<p class="text-[11px] text-slate-500 font-semibold">' + escapeHtml(msg) + '</p>') : '') +
+                                    '</div></div>';
                             }).join('');
                         }
 
