@@ -1734,6 +1734,13 @@
                 const el = document.getElementById(id);
                 if (el) el.value = '';
             });
+            const ob = document.getElementById('isOnBehalf');
+            if (ob) ob.checked = false;
+            const obOf = document.getElementById('onBehalfOf');
+            if (obOf) obOf.value = '';
+            const obR = document.getElementById('onBehalfReimbursed');
+            if (obR) obR.checked = false;
+            if (typeof onOnBehalfToggle === 'function') onOnBehalfToggle();
             if (typeof onCategoryChange === 'function') onCategoryChange();
         }
 

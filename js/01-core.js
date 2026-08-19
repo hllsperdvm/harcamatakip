@@ -1359,8 +1359,10 @@
                     const list = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : [];
                     list.forEach(function(e) {
                         if (!e || e.installmentLabel === 'Gelir') return;
-                        // Multinet dönem toplamlarına dahil değil
+                        // Multinet / başkası adına — dönem toplamına dahil değil
                         if (typeof isMultinetPayment === 'function' && isMultinetPayment(e.paymentType)) return;
+                        if (typeof isOnBehalfExpense === 'function' && isOnBehalfExpense(e)) return;
+                        if (e.isOnBehalf) return;
                         const amt = Number(e.displayAmount) || 0;
                         if (e.effectiveMonth === period) {
                             periodSum += amt;

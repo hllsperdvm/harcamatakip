@@ -20,13 +20,124 @@
             return s.indexOf('nakit') >= 0 || s === 'cash';
         }
 
-        /** Multinet dönem harcaması / bütçe toplamlarına dahil edilmez */
+        function isOnBehalfExpense(e) {
+            if (!e) return false;
+            return !!(e.isOnBehalf || e.onBehalf);
+        }
+
+        /** Multinet ve başkası adına ödemeler dönem/bütçe toplamına dahil değil */
         function countsInPeriodTotals(e) {
             if (!e) return false;
             if (e.installmentLabel === 'Gelir') return false;
             if (isMultinetPayment(e.paymentType)) return false;
+            if (isOnBehalfExpense(e)) return false;
             return true;
         }
+
+        window.onOnBehalfToggle = function() {
+            const chk = document.getElementById('isOnBehalf');
+            const wrap = document.getElementById('onBehalfFields');
+            if (wrap) wrap.classList.toggle('hidden', !(chk && chk.checked));
+        };
+
+        function todayYMD() {
+            if (typeof todayDateStr === 'function') return todayDateStr();
+            const d = new Date();
+            return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+
+        /** Tekrarlı/taksit başkası-adına satırlarını ay ay üretir */
+        function expandOnBehalfSchedule(item) {
+            if (!item || !isOnBehalfExpense(item)) return [];
+            const count = Math.max(1, parseInt(item.installmentCount, 10) || 1);
+            const isRec = !!item.isRecurring;
+            const isMulti = count > 1 || isRec;
+            const baseDate = String(item.date || '').slice(0, 10);
+            const perAmt = isRec
+                ? (Number(item.amount) || 0)
+                : (isMulti ? ((Number(item.amount) || 0) / count) : (Number(item.amount) || 0));
+            const map = item.onBehalfReimbursedByMonth || {};
+            const rows = [];
+            const n = isMulti ? count : 1;
+            for (let i = 0; i < n; i++) {
+                const dateStr = (isMulti && typeof shiftDateByMonths === 'function')
+                    ? shiftDateByMonths(baseDate, i)
+                    : baseDate;
+                const periodKey = (typeof getPeriodKeyForDateStr === 'function')
+                    ? getPeriodKeyForDateStr(dateStr)
+                    : String(dateStr || '').slice(0, 7);
+                const monthKey = String(dateStr || '').slice(0, 7); // YYYY-MM takvim ayı
+                const reimbursed = !!(map[monthKey] || map[periodKey] || (n === 1 && item.onBehalfReimbursed));
+                rows.push({
+                    expenseId: item.id,
+                    installmentIndex: i,
+                    date: dateStr,
+                    monthKey: monthKey,
+                    effectiveMonth: periodKey,
+                    displayAmount: perAmt,
+                    description: item.description,
+                    person: item.person,
+                    category: item.category,
+                    billSubtype: item.billSubtype,
+                    onBehalfOf: item.onBehalfOf,
+                    reimbursed: reimbursed,
+                    isRecurring: isRec
+                });
+            }
+            return rows;
+        }
+
+        /**
+         * Alacak listesi: yalnızca ödeme günü gelmiş (tarih <= bugün) ve henüz geri alınmamış aylar.
+         * Gelecek aylar gösterilmez.
+         */
+        function getDueOnBehalfReceivables() {
+            const today = todayYMD();
+            const list = (typeof expenses !== 'undefined' && expenses) ? expenses : [];
+            const out = [];
+            list.forEach(function(item) {
+                expandOnBehalfSchedule(item).forEach(function(row) {
+                    if (!row.date || row.date > today) return; // gelecek / henüz ödeme günü gelmemiş
+                    if (row.reimbursed) return;
+                    out.push(row);
+                });
+            });
+            out.sort(function(a, b) {
+                return String(b.date || '').localeCompare(String(a.date || ''));
+            });
+            return out;
+        }
+
+        /** Ay bazlı geri alındı — tekrarlıda diğer aylar açık kalır */
+        window.markOnBehalfReimbursed = async function(expenseId, monthKey, done) {
+            if (!expenseId || !monthKey || !db) return;
+            done = (done !== false);
+            try {
+                const ref = db.collection('expenses').doc(expenseId);
+                const snap = await ref.get();
+                if (!snap.exists) throw new Error('Kayıt yok');
+                const data = snap.data() || {};
+                const map = Object.assign({}, data.onBehalfReimbursedByMonth || {});
+                if (done) map[monthKey] = true;
+                else delete map[monthKey];
+                const patch = {
+                    onBehalfReimbursedByMonth: map,
+                    updatedAt: new Date().toISOString()
+                };
+                // Tek satırlık (tekrarlı değil) kayıtta eski bayrağı da senkronla
+                const cnt = Math.max(1, parseInt(data.installmentCount, 10) || 1);
+                if (cnt <= 1 && !data.isRecurring) {
+                    patch.onBehalfReimbursed = !!done;
+                }
+                await ref.update(patch);
+                if (typeof showToast === 'function') {
+                    showToast(done ? (monthKey + ' alacağı kapatıldı') : 'Alacak yeniden açıldı', 'success');
+                }
+                try { if (typeof renderOnBehalfReport === 'function') renderOnBehalfReport(); } catch (_) {}
+            } catch (err) {
+                if (typeof showToast === 'function') showToast((err && err.message) || 'Güncellenemedi', 'error');
+            }
+        };
 
         function sumByPay(list, pred) {
             return list.filter(pred).reduce(function(s, e) { return s + (Number(e.displayAmount) || 0); }, 0);
@@ -81,6 +192,7 @@
             // Bütçe hedefi yalnızca kredi kartı harcamasına endeksli
             renderBudgetTargetUI(cardSpent, periodInfo);
             if (typeof renderMultinetReport === 'function') renderMultinetReport();
+            if (typeof renderOnBehalfReport === 'function') renderOnBehalfReport();
             if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
         }
 
@@ -1202,6 +1314,15 @@
                 alert('Lütfen tarih seçiniz');
                 return;
             }
+            const onBehalfChk = document.getElementById('isOnBehalf');
+            if (onBehalfChk && onBehalfChk.checked) {
+                const who = document.getElementById('onBehalfOf');
+                if (!who || !String(who.value || '').trim()) {
+                    alert('Başkası adına ödeme için "Kimin adına?" alanını doldurun');
+                    if (who) who.focus();
+                    return;
+                }
+            }
             
             const data = {
                 amount: isRecurring ? amount : amount,
@@ -1222,8 +1343,36 @@
                 fuelKm: fuelKm,
                 fuelLiters: fuelLiters,
                 fuelPricePerLt: fuelPricePerLt,
-                fuelNote: fuelNote || ''
+                fuelNote: fuelNote || '',
+                isOnBehalf: !!(document.getElementById('isOnBehalf') && document.getElementById('isOnBehalf').checked),
+                onBehalfOf: (function() {
+                    const el = document.getElementById('onBehalfOf');
+                    return el ? String(el.value || '').trim() : '';
+                })(),
+                onBehalfReimbursed: !!(document.getElementById('onBehalfReimbursed') && document.getElementById('onBehalfReimbursed').checked)
             };
+            // Ay bazlı alacak haritası
+            (function() {
+                const onB = !!(document.getElementById('isOnBehalf') && document.getElementById('isOnBehalf').checked);
+                if (!onB) {
+                    data.onBehalfOf = '';
+                    data.onBehalfReimbursed = false;
+                    data.onBehalfReimbursedByMonth = {};
+                    return;
+                }
+                const mk = String(data.date || '').slice(0, 7);
+                let map = {};
+                if (id) {
+                    try {
+                        const prev = (expenses || []).find(function(x) { return x.id === id; });
+                        if (prev && prev.onBehalfReimbursedByMonth) {
+                            map = Object.assign({}, prev.onBehalfReimbursedByMonth);
+                        }
+                    } catch (_) {}
+                }
+                if (data.onBehalfReimbursed && mk) map[mk] = true;
+                data.onBehalfReimbursedByMonth = map;
+            })();
             
             try {
                 if (id) {
@@ -1378,6 +1527,13 @@
             if (fk) fk.value = e.fuelKm != null ? e.fuelKm : '';
             if (fl) fl.value = e.fuelLiters != null ? e.fuelLiters : '';
             if (fp) fp.value = e.fuelPricePerLt != null ? e.fuelPricePerLt : '';
+            const ob = document.getElementById('isOnBehalf');
+            if (ob) ob.checked = !!(e.isOnBehalf || e.onBehalf);
+            const obOf = document.getElementById('onBehalfOf');
+            if (obOf) obOf.value = e.onBehalfOf || '';
+            const obR = document.getElementById('onBehalfReimbursed');
+            if (obR) obR.checked = !!e.onBehalfReimbursed;
+            if (typeof onOnBehalfToggle === 'function') onOnBehalfToggle();
             openExpenseModal();
         };
 

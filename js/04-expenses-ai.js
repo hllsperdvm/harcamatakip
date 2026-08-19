@@ -147,6 +147,16 @@
             return String(item.id || '');
         }
 
+
+        function onBehalfBadgeHtml(item) {
+            if (!item || !(item.isOnBehalf || item.onBehalf)) return '';
+            const who = escapeHtml(item.onBehalfOf || 'Başkası');
+            if (item.onBehalfReimbursed) {
+                return '<span class="inline-block text-[9px] font-black px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500">Alındı · ' + who + '</span>';
+            }
+            return '<span class="inline-block text-[9px] font-black px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800">Alacak · ' + who + '</span>';
+        }
+
         function renderTable() {
             const tbody = document.getElementById('expenseTableBody');
             const cardsHost = document.getElementById('expenseCardsMobile');
@@ -242,7 +252,7 @@
                                 ${escapeHtml((item.person || '').toUpperCase())}
                             </span>
                         </td>
-                        <td class="px-6 py-5"><span class="bg-slate-100 px-2 py-1 rounded text-[10px]">${escapeHtml(item.category)}${item.shopSubtype ? ' · ' + escapeHtml(item.shopSubtype) : ''}${item.isEcommerce ? ' · E-ticaret' : ''}${item.billSubtype ? ' · ' + escapeHtml(item.billSubtype) : ''}${item.vehicleSubtype ? ' · ' + escapeHtml(item.vehicleSubtype) : ''}</span></td>
+                        <td class="px-6 py-5"><span class="bg-slate-100 px-2 py-1 rounded text-[10px]">${escapeHtml(item.category)}${item.shopSubtype ? ' · ' + escapeHtml(item.shopSubtype) : ''}${item.isEcommerce ? ' · E-ticaret' : ''}${item.billSubtype ? ' · ' + escapeHtml(item.billSubtype) : ''}${item.vehicleSubtype ? ' · ' + escapeHtml(item.vehicleSubtype) : ''}${(item.isOnBehalf || item.onBehalf) ? (item.onBehalfReimbursed ? ' · Alındı' : ' · Alacak') + (item.onBehalfOf ? ' (' + escapeHtml(item.onBehalfOf) + ')' : '') : ''}</span></td>
                         <td class="px-6 py-5 opacity-60">${escapeHtml(item.paymentType || '-')}</td>
                         <td class="px-6 py-5">
                             <div class="flex flex-col">
@@ -1857,7 +1867,45 @@
             box.innerHTML = html;
         };
 
-        function renderCardStatements(person) {
+                window.renderOnBehalfReport = function() {
+            const box = document.getElementById('onBehalfStatements');
+            const totalEl = document.getElementById('onBehalfPendingTotal');
+            if (!box) return;
+            const pending = (typeof getDueOnBehalfReceivables === 'function')
+                ? getDueOnBehalfReceivables()
+                : [];
+            const sum = pending.reduce(function(s, e) {
+                return s + (Number(e.displayAmount) || 0);
+            }, 0);
+            if (totalEl) totalEl.textContent = Math.round(sum).toLocaleString('tr-TR') + ' TL';
+            if (!pending.length) {
+                box.innerHTML = '<p class="text-xs text-slate-400 font-semibold text-center py-4">Ödeme günü gelmiş bekleyen alacak yok</p>';
+                return;
+            }
+            box.innerHTML = pending.map(function(e) {
+                const amt = Math.round(Number(e.displayAmount) || 0).toLocaleString('tr-TR');
+                const d = (typeof formatDateTR === 'function') ? formatDateTR(String(e.date || '').slice(0, 10)) : String(e.date || '').slice(0, 10);
+                const who = escapeHtml(e.onBehalfOf || 'Başkası');
+                const eid = escapeHtml(e.expenseId || '');
+                const mk = escapeHtml(e.monthKey || String(e.date || '').slice(0, 7));
+                const monthLabel = e.monthKey || '';
+                return '<div class="flex items-center justify-between gap-2 p-3 rounded-xl bg-amber-50/80 border border-amber-100">' +
+                    '<div class="min-w-0">' +
+                    '<p class="text-sm font-black text-slate-800 truncate">' + escapeHtml(e.description || e.category || 'Ödeme') + '</p>' +
+                    '<p class="text-[11px] text-slate-500 font-semibold">' + d +
+                    (monthLabel ? (' · ' + escapeHtml(monthLabel)) : '') +
+                    ' · ' + who +
+                    (e.person ? (' · ödeyen ' + escapeHtml(e.person)) : '') +
+                    (e.billSubtype ? (' · ' + escapeHtml(e.billSubtype)) : '') +
+                    (e.isRecurring ? ' · tekrarlı' : '') + '</p></div>' +
+                    '<div class="shrink-0 text-right">' +
+                    '<p class="text-sm font-black text-amber-800">' + amt + ' TL</p>' +
+                    '<button type="button" onclick="markOnBehalfReimbursed(\'' + eid + '\',\'' + mk + '\', true)" class="text-[10px] font-bold text-emerald-700 mt-1">Geri alındı</button>' +
+                    '</div></div>';
+            }).join('');
+        };
+
+function renderCardStatements(person) {
             const key = (person || '').toLowerCase();
             const sortedStatements = cardStatements
                 .filter(s => String(s.person || '').toLowerCase() === key)
@@ -1866,6 +1914,7 @@
             const container = document.getElementById(person === 'bekir' ? 'bekirCardStatements' : 'duyguCardStatements');
             if (!container) return;
             try { if (typeof renderMultinetReport === 'function') renderMultinetReport(); } catch (_) {}
+            try { if (typeof renderOnBehalfReport === 'function') renderOnBehalfReport(); } catch (_) {}
             if (sortedStatements.length === 0) {
                 container.innerHTML = '<div class="col-span-full text-center py-8 text-slate-400"><p class="text-sm">Henüz ekstre kaydı yok</p></div>';
                 return;
