@@ -280,46 +280,6 @@
         };
 
         /** Borç ödenmemişken kalan hatalı ekstreleri temizle */
-        window.cleanupOrphanCardStatements = async function(person) {
-            const key = !person ? null : ((person === 'bekir' || person === 'Bekir') ? 'bekir' : 'duygu');
-            const keys = key ? [key] : ['bekir', 'duygu'];
-            const today = new Date().toISOString().slice(0, 10);
-            let total = 0;
-            for (const k of keys) {
-                const debt = k === 'bekir' ? bekirDebt : duyguDebt;
-                if (debt && debt.paid) continue;
-                const list = (cardStatements || []).filter(s => String(s.person || '').toLowerCase() === k);
-                const ids = new Set();
-                if (debt && debt.lastStatementId) ids.add(debt.lastStatementId);
-                // Bugün oluşmuş hatalı kayıtlar (önceki bug)
-                list.forEach(s => {
-                    const d = String(s.paidDate || s.createdAt || '').slice(0, 10);
-                    if (d === today && s.id) ids.add(s.id);
-                });
-                // lastStatementId yoksa en yeni tek kayıt
-                if (!ids.size && list.length) {
-                    const sorted = list.slice().sort((a, b) =>
-                        String(b.createdAt || b.paidDate || '').localeCompare(String(a.createdAt || a.paidDate || ''))
-                    );
-                    if (sorted[0] && sorted[0].id) ids.add(sorted[0].id);
-                }
-                for (const id of ids) {
-                    try {
-                        await db.collection('cardStatements').doc(id).delete();
-                        total++;
-                    } catch (e) { console.warn(e); }
-                }
-                if (debt) {
-                    debt.lastStatementId = null;
-                    debt.lastStatementMonth = null;
-                    try { await db.collection('settings').doc(k + 'Debt').set(debt); } catch (_) {}
-                }
-            }
-            renderCardStatements('bekir');
-            renderCardStatements('duygu');
-            if (total) showToast(total + ' hatalı ekstre silindi', 'success');
-            return total;
-        };
 
         window.updateCardDueDate = async (person, date) => {
             let debt = person === 'bekir' ? bekirDebt : duyguDebt;
@@ -530,27 +490,6 @@
             return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         }
 
-        function nextMtvDue(fromYmd) {
-            // next of Jan 31 or Jul 31 after fromYmd (or today)
-            const base = fromYmd ? parseYMD(fromYmd) : new Date();
-            if (!base) return '';
-            const y = base.getFullYear();
-            const candidates = [
-                new Date(y, 0, 31),
-                new Date(y, 6, 31),
-                new Date(y + 1, 0, 31),
-                new Date(y + 1, 6, 31)
-            ];
-            const t = Date.UTC(base.getFullYear(), base.getMonth(), base.getDate());
-            for (let i = 0; i < candidates.length; i++) {
-                const c = candidates[i];
-                const ct = Date.UTC(c.getFullYear(), c.getMonth(), c.getDate());
-                if (ct > t) {
-                    return c.getFullYear() + '-' + String(c.getMonth() + 1).padStart(2, '0') + '-' + String(c.getDate()).padStart(2, '0');
-                }
-            }
-            return (y + 1) + '-01-31';
-        }
 
         function getVehicleUpcomingItems() {
             const v = vehicleProfile || {};
