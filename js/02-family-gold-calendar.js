@@ -124,7 +124,7 @@
             };
         }
 
-        function updateHomeGoldCard() {
+        window.updateHomeGoldCard = function updateHomeGoldCard() {
             const el = document.getElementById('homeGoldPnL');
             const netEl = document.getElementById('homeGoldNet');
             const sub = document.getElementById('homeGoldSub');
@@ -1675,6 +1675,10 @@
 
         window.applyDashboardCards = function() {
             const dc = dashboardCards || {};
+            // Bozuk kayıt: home* anahtarları yoksa göster (eski saveDashboardCards silmiş olabilirdi)
+            ['homeToday','homePeriod','homeGold','homeQuickAdd','homeBudget','homeAgenda'].forEach(function(k) {
+                if (dc[k] === undefined) dc[k] = true;
+            });
             document.querySelectorAll('[data-dash-card]').forEach(function(el) {
                 const k = el.getAttribute('data-dash-card');
                 const on = dc[k] !== false;
@@ -1963,6 +1967,11 @@
                 } else {
                     monthlyBudgetTarget = 0;
                 }
+                try { if (typeof updateBudgetTargetCard === 'function') updateBudgetTargetCard(); } catch (_) {}
+                try {
+                    const home = document.getElementById('tabContentHome');
+                    if (home && !home.classList.contains('hidden') && typeof renderHomeTab === 'function') renderHomeTab();
+                } catch (_) {}
                 if (typeof renderBudgetInfo === 'function') renderBudgetInfo();
             }, err => console.warn('budgetTarget', err));
             db.collection("settings").doc("tabs").onSnapshot(d => {
@@ -2092,6 +2101,7 @@
                             goldHoldings = d.data().list;
                             try { saveGoldHoldingsLocal(goldHoldings); } catch (_) {}
                             if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
+                            try { if (typeof updateHomeGoldCard === 'function') updateHomeGoldCard(); } catch (_) {}
                         }
                     }, function(e) { console.warn('goldHoldings', e); });
                 } else if (name === 'vehicleProfile') {

@@ -1573,40 +1573,14 @@
             } catch (_) {}
         })();
 
-        window.saveDashboardCards = async function() {
-            dashboardCards = {
-                total: !!(document.getElementById('cardVis_total') || {}).checked,
-                bekir: !!(document.getElementById('cardVis_bekir') || {}).checked,
-                duygu: !!(document.getElementById('cardVis_duygu') || {}).checked,
-                debt: !!(document.getElementById('cardVis_debt') || {}).checked
-            };
-            applyDashboardCards();
-            try { localStorage.setItem('yuvam_dash_cards', JSON.stringify(dashboardCards)); } catch (_) {}
-            if (isAdmin()) {
-                try {
-                    await db.collection('settings').doc('uiPrefs').set({ dashboardCards: dashboardCards }, { merge: true });
-                    showToast('Kart görünürlüğü kaydedildi', 'success');
-                } catch (err) {
-                    showToast(friendlyFirebaseError(err), 'error');
-                }
-            }
-        };
-
-        function applyDashboardCards() {
-            ['total', 'bekir', 'duygu', 'debt'].forEach(function(k) {
-                const el = document.querySelector('[data-dash-card="' + k + '"]');
-                if (el) el.classList.toggle('hidden', !dashboardCards[k]);
-                const cb = document.getElementById('cardVis_' + k);
-                if (cb) cb.checked = !!dashboardCards[k];
-            });
-        }
-
+        // Kart görünürlüğü: js/02-family-gold-calendar.js (window.saveDashboardCards / applyDashboardCards)
+        // 05 içindeki eski sürüm homeGold/homeBudget anahtarlarını siliyordu — kaldırıldı.
         function loadDashboardCardsLocal() {
             try {
                 const raw = localStorage.getItem('yuvam_dash_cards');
-                if (raw) dashboardCards = Object.assign(dashboardCards, JSON.parse(raw));
+                if (raw) dashboardCards = Object.assign(dashboardCards || {}, JSON.parse(raw));
             } catch (_) {}
-            applyDashboardCards();
+            try { if (typeof applyDashboardCards === 'function') applyDashboardCards(); } catch (_) {}
         }
 
         function parseCsvLine(line) {
