@@ -1533,9 +1533,19 @@
                 if (typeof applyDashboardCards === 'function') applyDashboardCards();
                 try { if (typeof updateAdminLayoutButtons === 'function') updateAdminLayoutButtons(); } catch (_) {}
                 try {
-                    if (typeof refreshGoldPrice === 'function') refreshGoldPrice(false);
-                    if (typeof updateHomeGoldCard === 'function') updateHomeGoldCard();
-                    else if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
+                    // Yerel altın + lazy dinleyici
+                    try {
+                        if (typeof loadGoldHoldingsLocal === 'function' && (!(goldHoldings || []).length)) {
+                            goldHoldings = loadGoldHoldingsLocal() || [];
+                        }
+                    } catch (_) {}
+                    try { if (typeof ensureLazyCollection === 'function') ensureLazyCollection('goldHoldings'); } catch (_) {}
+                    try { if (typeof updateHomeGoldCard === 'function') updateHomeGoldCard(); } catch (_) {}
+                    Promise.resolve(typeof refreshGoldPrice === 'function' ? refreshGoldPrice(true) : null).then(function() {
+                        try { if (typeof updateHomeGoldCard === 'function') updateHomeGoldCard(); } catch (_) {}
+                    }).catch(function() {
+                        try { if (typeof updateHomeGoldCard === 'function') updateHomeGoldCard(); } catch (_) {}
+                    });
                 } catch (_) {}
                 try { if (typeof applyPageLayout === 'function') applyPageLayout('home'); } catch (_) {}
 
