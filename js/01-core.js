@@ -45,12 +45,12 @@
             }
             try {
                 document.body.classList.toggle('yuvam-offline', !online);
-                try { updatePendingSyncBadge(); } catch (_) {}
+                
             } catch (_) {}
             return online;
         };
         window.addEventListener('online', function() {
-            try { window._yuvamPendingWrites = 0; updatePendingSyncBadge(); } catch (_) {}
+            
             updateOnlineStatus();
             try { showToast('İnternet geldi — veriler senkronlanıyor', 'success'); } catch (_) {}
             try { if (typeof refreshAppNotifications === 'function') refreshAppNotifications(); } catch (_) {}
@@ -62,33 +62,6 @@
         try { updateOnlineStatus(); } catch (_) {}
 
 
-        function updatePendingSyncBadge() {
-            const el = document.getElementById('pendingSyncBadge');
-            if (!el) return;
-            const offline = (typeof navigator !== 'undefined' && navigator.onLine === false);
-            let pending = 0;
-            try { pending = Number(window._yuvamPendingWrites || 0); } catch (_) {}
-            // Giriş ekranında veya online + bekleyen yoksa gizle
-            const onLogin = !document.body.classList.contains('yuvam-app-open');
-            if (onLogin || (!offline && pending <= 0)) {
-                el.classList.add('hidden');
-                el.style.display = 'none';
-                el.setAttribute('aria-hidden', 'true');
-                return;
-            }
-            if (offline || pending > 0) {
-                el.classList.remove('hidden');
-                el.style.display = '';
-                el.setAttribute('aria-hidden', 'false');
-                el.textContent = offline
-                    ? (pending > 0 ? ('⏳ ' + pending + ' bekleyen · çevrimdışı') : '📡 Çevrimdışı')
-                    : ('⏳ ' + pending + ' senkron bekliyor');
-            }
-        }
-        window.markPendingWrite = function(delta) {
-            window._yuvamPendingWrites = Math.max(0, (window._yuvamPendingWrites || 0) + (delta || 0));
-            try { updatePendingSyncBadge(); } catch (_) {}
-        };
 
         // PWA / offline kabuk
         if ('serviceWorker' in navigator) {
@@ -151,22 +124,13 @@
             return 'İşlem başarısız: ' + msg;
         }
 
-        async function withErrorHandling(actionLabel, fn) {
-            try {
-                return await fn();
-            } catch (err) {
-                console.error(actionLabel, err);
-                const text = friendlyFirebaseError(err);
-                showToast((actionLabel ? actionLabel + ': ' : '') + text, 'error');
-                throw err;
-            }
-        }
 
 
         // Kullanıcı hesapları: Bekir = admin, Duygu = normal
         // Kimlik: Firebase Auth. Rol: Firestore users/{uid}
         let openrouterApiKey = ''; // Firestore settings/apiKeys.openrouter — koda yazılmaz
         let collectApiKey = ''; // Firestore settings/apiKeys.collectapi — CollectAPI spor
+        try { window.openrouterApiKey = ''; window.collectApiKey = ''; } catch (_) {}
         let superLigFixturesCache = []; // bellek önbelleği
         let publicHolidaysCache = [];
         let publicHolidaysAt = 0;
@@ -707,9 +671,6 @@
             try { closeNotifPanel(true); } catch (_) {}
         };
 
-        window.openHomeAllNotifs = function() {
-            openNotifAllModal();
-        };
 
         window.closeNotifAllModal = function() {
             const modal = document.getElementById('notifAllModal');

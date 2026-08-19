@@ -933,85 +933,18 @@
         };
 
 
-        window._familyCalPanelOpen = false;
-
-        window.toggleFamilyCalPanel = function(forceOpen) {
-            if (forceOpen === true) window._familyCalPanelOpen = true;
-            else if (forceOpen === false) window._familyCalPanelOpen = false;
-            else window._familyCalPanelOpen = !window._familyCalPanelOpen;
-            const body = document.getElementById('familyCalPanelBody');
-            const chev = document.getElementById('familyCalPanelChevron');
-            const open = !!window._familyCalPanelOpen;
-            if (body) body.classList.toggle('hidden', !open);
-            if (chev) chev.textContent = open ? '▾' : '▸';
-            if (open) {
-                try { renderFamilyCalendarList(); } catch (_) {}
-            }
-        };
-
-        window._familyCalOpen = window._familyCalOpen || {};
-
-        window.toggleFamilyCalItem = function(id) {
-            if (!id) return;
-            window._familyCalOpen[id] = !window._familyCalOpen[id];
-            // Listeyi yeniden çiz (buton metni Detayları gör / Gizle güncellensin)
-            try { renderFamilyCalendarList(); } catch (_) {}
-        };
-
-        function renderFamilyCalendarList() {
-            // Eski liste DOM'u gizli; Plan sekmesi kullanılıyor
-            const list = document.getElementById('familyCalendarList');
-            if (list) list.innerHTML = '';
-        }
-
+        // Eski sekme adları → Plan (geriye uyum)
         window.renderCalendarTab = function() {
             try { if (typeof renderPlanTab === 'function') renderPlanTab(); } catch (_) {}
         };
-
-
-        window.familyEditCalendar = function(id) {
-            if (typeof familyEditPlan === 'function') familyEditPlan('cal', id);
-        };
-
-
-        window.familyCancelCalEdit = function() {
-            if (typeof familyCancelPlanEdit === 'function') familyCancelPlanEdit();
-        };
-
-
-        window.familyAddCalendar = async function(e) {
-            if (e && e.preventDefault) e.preventDefault();
-            if (typeof showToast === 'function') showToast('Etkinlik eklemek için Plan formunu kullanın', 'info');
-            try { if (typeof switchTab === 'function') switchTab('plan'); } catch (_) {}
-        };
-
-
         window.renderTasksTab = function() {
             try { if (typeof renderPlanTab === 'function') renderPlanTab(); } catch (_) {}
         };
-
+        window.familyEditCalendar = function(id) {
+            if (typeof familyEditPlan === 'function') familyEditPlan('cal', id);
+        };
         window.familyEditTask = function(id) {
             if (typeof familyEditPlan === 'function') familyEditPlan('task', id);
-        };
-
-
-        window.familyCancelTaskEdit = function() {
-            const eid = document.getElementById('famTaskEditId');
-            if (eid) eid.value = '';
-            const tx = document.getElementById('famTaskText');
-            if (tx) tx.value = '';
-            const due = document.getElementById('famTaskDue');
-            if (due) due.value = '';
-            const btn = document.getElementById('famTaskSubmitBtn');
-            if (btn) btn.textContent = 'Ekle';
-            const c = document.getElementById('famTaskCancelEdit');
-            if (c) c.classList.add('hidden');
-        };
-
-        window.familyAddTask = async function(e) {
-            if (e && e.preventDefault) e.preventDefault();
-            if (typeof showToast === 'function') showToast('Görev eklemek için Plan formunu kullanın', 'info');
-            try { if (typeof switchTab === 'function') switchTab('plan'); } catch (_) {}
         };
 
 
@@ -1261,14 +1194,6 @@
             try { if (typeof renderIbans === 'function') renderIbans(); } catch (_) {}
         };
 
-        // Eski isimler → plan
-        window.renderTasksTab = function() {
-            try { if (typeof renderPlanTab === 'function') renderPlanTab(); } catch (_) {}
-        };
-
-        window.renderCalendarTab = function() {
-            try { if (typeof renderPlanTab === 'function') renderPlanTab(); } catch (_) {}
-        };
 
         window.renderShoppingTab = function() {
             const list = document.getElementById('familyShopList');
@@ -2034,26 +1959,61 @@
                         }
                     }
                 }, err => console.warn('uiPrefs', err));
+
+        function applyApiKeysFromDoc(data) {
+            const k = data || {};
+            // Olası alan adları (kullanıcı farklı isimle kaydetmiş olabilir)
+            var orKey = k.openrouter || k.OpenRouter || k.openRouter || k.openrouterKey
+                || k.openrouter_api_key || k.OPENROUTER_API_KEY || k.orKey
+                || k.apiKey || k.apikey || k.key || k.gemini || k.Gemini || '';
+            // Nested: { openrouter: { key: '...' } }
+            if (orKey && typeof orKey === 'object') {
+                orKey = orKey.key || orKey.value || orKey.token || orKey.apiKey || '';
+            }
+            openrouterApiKey = String(orKey || '').trim();
+            try { window.openrouterApiKey = openrouterApiKey; } catch (_) {}
+            var col = k.collectapi || k.collectApi || k.CollectAPI || k.collect || '';
+            if (col && typeof col === 'object') col = col.key || col.value || '';
+            collectApiKey = String(col || '').trim();
+            try { window.collectApiKey = collectApiKey; } catch (_) {}
+        }
+
+        window.ensureApiKeysLoaded = async function() {
+            if (openrouterApiKey && String(openrouterApiKey).trim()) return openrouterApiKey;
+            if (typeof window.openrouterApiKey === 'string' && window.openrouterApiKey.trim()) {
+                openrouterApiKey = window.openrouterApiKey.trim();
+                return openrouterApiKey;
+            }
+            if (!db || !auth || !auth.currentUser) return '';
+            try {
+                const snap = await db.collection('settings').doc('apiKeys').get();
+                if (snap.exists) applyApiKeysFromDoc(snap.data());
+            } catch (e) {
+                console.warn('ensureApiKeysLoaded', e);
+            }
+            return openrouterApiKey || '';
+        };
+
+
                 db.collection("settings").doc("apiKeys").onSnapshot(d => {
                     if (!auth.currentUser) {
                         openrouterApiKey = '';
+                        try { window.openrouterApiKey = ''; } catch (_) {}
                         collectApiKey = '';
                         return;
                     }
                     if (d.exists && d.data()) {
-                        const k = d.data() || {};
-                        if (k.openrouter) openrouterApiKey = String(k.openrouter).trim();
-                        else if (k.gemini) openrouterApiKey = String(k.gemini).trim();
-                        else openrouterApiKey = '';
-                        collectApiKey = String(k.collectapi || k.collectApi || '').trim();
+                        applyApiKeysFromDoc(d.data());
                     } else {
                         openrouterApiKey = '';
+                        try { window.openrouterApiKey = ''; } catch (_) {}
                         collectApiKey = '';
                     }
                 }, err => {
                     openrouterApiKey = '';
+                    try { window.openrouterApiKey = ''; } catch (_) {}
                     collectApiKey = '';
-                    console.warn('apiKeys okunamadı (rules?)');
+                    console.warn('apiKeys okunamadı (rules?)', err);
                 });
             }, 600);
 

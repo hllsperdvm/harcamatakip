@@ -503,7 +503,7 @@
                 .reduce((s, e) => s + (Number(e.displayAmount) || 0), 0);
 
             return {
-                months: periodKeys, // geriye uyum: runAiAdvisor "months" kullanıyor
+                months: periodKeys, // dönem anahtarları
                 byMonth: byPeriod,
                 period: currentPk,
                 currentTotal,
@@ -1081,9 +1081,16 @@
             }, 180);
 
             try {
-                if (!openrouterApiKey) {
+                try {
+                    if (typeof ensureApiKeysLoaded === 'function') await ensureApiKeysLoaded();
+                } catch (_) {}
+                var keyNow = (typeof openrouterApiKey !== 'undefined' && openrouterApiKey)
+                    ? openrouterApiKey
+                    : (typeof window !== 'undefined' ? window.openrouterApiKey : '');
+                if (!keyNow || !String(keyNow).trim()) {
                     throw new Error('NO_KEY');
                 }
+                openrouterApiKey = String(keyNow).trim();
                 const dataCtx = buildYuvamDataContext(q);
                 const system = [
                     'Sen YUVAM aile bütçe asistanısın. Sadece VERİ bloğunu kullan; uydurma.',
@@ -1220,180 +1227,6 @@
         };
 
 
-        /** Eski yerel danışman — UI kalktı; Yuvam kutusuna yazar (uyumluluk) */
-        window.runLocalAdvisor = function() {
-            try {
-                const tips = (typeof buildDetailedLocalTips === 'function') ? buildDetailedLocalTips() : [];
-                const box = document.getElementById('yuvamAskResult') || document.getElementById('localAdvisorResult');
-                if (box) {
-                    if (typeof renderAdvisorInto === 'function' && document.getElementById('localAdvisorResult')) {
-                        renderAdvisorInto('localAdvisorResult', tips, 'Yerel detaylı analiz', 'local');
-                    } else {
-                        box.innerHTML = '<p class="text-xs font-black text-slate-500 mb-2">Yerel analiz</p>' +
-                            (tips || []).map(function(t) {
-                                return '<p class="text-sm text-slate-700 font-medium mb-1.5">• ' + escapeHtml(String(t)) + '</p>';
-                            }).join('') || '<p class="text-sm text-slate-400">Öneri yok</p>';
-                    }
-                }
-            } catch (err) { console.warn('runLocalAdvisor', err); }
-        };
-
-        window.runAiAdvisor = async function() {
-            const box = document.getElementById('aiAdvisorResult');
-            const btn = document.getElementById('aiAdvisorBtn');
-            const bar = document.getElementById('aiAdvisorProgressBar');
-            const wrap = document.getElementById('aiAdvisorProgressWrap');
-            const pctEl = document.getElementById('aiAdvisorProgressPct');
-            if (btn) btn.disabled = true;
-            if (wrap) wrap.classList.remove('hidden');
-            let pct = 0;
-            let timer = setInterval(function() {
-                // %95e kadar yavaşça ilerle, yanıt gelince 100
-                if (pct < 90) pct += (pct < 40 ? 4 : pct < 70 ? 2 : 1);
-                if (bar) bar.style.width = pct + '%';
-                if (pctEl) pctEl.textContent = Math.round(pct) + '%';
-            }, 200);
-            if (box) box.innerHTML = '<p class="text-sm text-slate-500 font-semibold">AI analiz hazırlanıyor…</p>';
-
-            try {
-                if (!openrouterApiKey) {
-                    throw new Error('OpenRouter anahtarı yok. Firebase: settings/apiKeys → openrouter');
-                }
-                const summary = buildExpenseSummaryForAi();
-                const lines = [];
-                lines.push('Sabit aylık hane geliri: ' + HOUSEHOLD_MONTHLY_INCOME.toLocaleString('tr-TR') + ' TL (bu rakamı UI\'da gösterme; önerilerini bu gelire göre ver).');
-                summary.months.forEach(function(m) {
-                    const cats = summary.byMonth[m] || {};
-                    const total = Object.values(cats).reduce(function(a, b) { return a + b; }, 0);
-                    const label = (summary.labels && summary.labels[m]) ? summary.labels[m] : m;
-                    const top = Object.entries(cats).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 8)
-                        .map(function(kv) { return kv[0] + ': ' + Math.round(kv[1]) + ' TL'; }).join(', ');
-                    lines.push(label + ' toplam ' + Math.round(total) + ' TL → ' + (top || 'kayıt yok'));
-                });
-                const income = HOUSEHOLD_MONTHLY_INCOME;
-                const lastMonthKey = summary.months && summary.months.length ? summary.months[0] : null;
-                let lastTotal = 0;
-                if (lastMonthKey && summary.byMonth[lastMonthKey]) {
-                    lastTotal = Object.values(summary.byMonth[lastMonthKey]).reduce(function(a, b) { return a + b; }, 0);
-                }
-                const spendRatio = income > 0 ? (lastTotal / income * 100) : 0;
-                lines.unshift('Son donem toplam harcama: ' + Math.round(lastTotal) + ' TL; gelire oran ~%' + spendRatio.toFixed(1) + '; kalan nefes ~' + Math.round(income - lastTotal) + ' TL.');
-
-                const prompt = [
-                    'Rol: Deneyimli Turk ev ekonomisi danismani (hane butcesi, kart, fatura, taksit).',
-                    'Sabit hane aylik geliri: ' + income + ' TL. Tum onerileri bu gelire gore oransal ve uygulanabilir yaz.',
-                    'Gorev: 7-9 numarali oneri uret. Her madde su formatta olsun:',
-                    'N. Baslik — Durum (rakam/oran) + Ne yapilmali (somut adim) + Beklenen etki (TL veya %).',
-                    'Kurallar:',
-                    '- Sadece "azaltin" deme; alternatif, limit, tarih, taksit, tarife, abonelik iptali, kart odeme plani, acil fon, toplu alim ver.',
-                    '- En az 3 farkli kategoriye degine (or. market, fatura, arac, egitim, kart).',
-                    '- Gelire oran %70 ustuyse once nakit akisi ve kart riski; %50 altindaysa tasarruf/yatirim firsati soyle.',
-                    '- Uydurma istatistik yok; verilen donem rakamlarina dayan.',
-                    '- Markdown, emoji, yildiz yok. Turkce, tamamlanmis cumleler.',
-                    '',
-                    'Veri (29-28 donem):',
-                    lines.join(String.fromCharCode(10))
-                ].join(String.fromCharCode(10));
-
-                const systemPrompt = [
-                    'Sen kisa ve net yazan bir ev butcesi danismanisin.',
-                    'Cikti sadece numarali maddeler olsun.',
-                    'Her madde: baslik, durum, aksiyon, beklenen etki icersin.',
-                    'Hane geliri ' + income + ' TL; onerileri bu gelire gore oransal kur.',
-                    'Yuzeysel genel soylem yasak; rakama bagli, uygulanabilir adim zorunlu.'
-                ].join(' ');
-
-                const text = await callOpenRouter(
-                    prompt,
-                    systemPrompt,
-                    2200
-                );
-                pct = 100;
-                if (bar) bar.style.width = '100%';
-                if (pctEl) pctEl.textContent = '100%';
-                const gemLines = parseAdvisorText(text);
-                renderAdvisorInto('aiAdvisorResult', gemLines.length ? gemLines : [text], 'OpenRouter AI analizi', 'ai');
-                logActivity('Diğer', 'AI bütçe danışmanı (OpenRouter)', '');
-            } catch (err) {
-                console.error(err);
-                if (box) {
-                    box.innerHTML = '<p class="text-sm text-rose-600 font-semibold">' + escapeHtml(err.message || String(err)) + '</p>' +
-                        '<p class="text-[11px] text-slate-400 mt-2">Soldaki yerel analizi kullanabilir veya anahtarı/kotayı kontrol edebilirsiniz.</p>';
-                }
-            } finally {
-                clearInterval(timer);
-                if (bar) bar.style.width = '100%';
-                if (pctEl) pctEl.textContent = '100%';
-                setTimeout(function() {
-                    if (wrap) wrap.classList.add('hidden');
-                    if (bar) bar.style.width = '0%';
-                    if (pctEl) pctEl.textContent = '0%';
-                }, 600);
-                if (btn) btn.disabled = false;
-            }
-        };
-
-
-        let billsChart = null;
-
-        function renderBillsChart() {
-            const ctx = document.getElementById('billsChart');
-            if (!ctx || typeof Chart === 'undefined') return;
-            const processed = getProcessedExpenses().filter(e => e.category === 'Faturalar');
-            const isMobile = (typeof window !== 'undefined' && window.innerWidth < 640);
-            // Mobilde son 3 dönem + yatay çubuk (dokunması kolay)
-            const keys = getPreviousPeriodKeys(isMobile ? 3 : 6);
-            const labels = keys.map(function(k) {
-                if (isMobile) {
-                    const [y, m] = k.split('-').map(Number);
-                    return ['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'][m - 1] + " '" + String(y).slice(2);
-                }
-                return formatPeriodLabel(k);
-            });
-            const types = getSubtypesForCategory('Faturalar');
-            const colorPalette = ['#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6', '#a855f7', '#f97316'];
-            const colors = types.map(function(_, i) { return colorPalette[i % colorPalette.length]; });
-            const datasets = types.map(function(t, i) {
-                return {
-                    label: t,
-                    data: keys.map(function(k) {
-                        return processed.filter(function(e) {
-                            return e.effectiveMonth === k && (e.billSubtype || '') === t;
-                        }).reduce(function(s, e) { return s + (e.displayAmount || 0); }, 0);
-                    }),
-                    backgroundColor: colors[i],
-                    borderRadius: 5,
-                    maxBarThickness: isMobile ? 16 : 22,
-                    barPercentage: isMobile ? 0.9 : 0.8,
-                    categoryPercentage: isMobile ? 0.85 : 0.75
-                };
-            });
-            if (billsChart) { try { billsChart.destroy(); } catch (_) {} }
-            billsChart = new Chart(ctx, {
-                type: 'bar',
-                data: { labels: labels, datasets: datasets },
-                options: {
-                    indexAxis: isMobile ? 'y' : 'x',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: { boxWidth: 12, font: { size: isMobile ? 10 : 11 }, padding: isMobile ? 8 : 12 }
-                        }
-                    },
-                    scales: isMobile ? {
-                        x: { stacked: false, beginAtZero: true },
-                        y: { stacked: false, ticks: { font: { size: 11 } } }
-                    } : {
-                        x: { stacked: false, ticks: { maxRotation: 40, font: { size: 10 } } },
-                        y: { stacked: false, beginAtZero: true }
-                    }
-                }
-            });
-        }
-
-        window._statsExtraOpen = false;
         window.toggleStatsExtraCharts = function() {
             window._statsExtraOpen = !window._statsExtraOpen;
             const box = document.getElementById('statsExtraCharts');

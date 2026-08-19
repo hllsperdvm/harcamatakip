@@ -691,7 +691,9 @@
 
 
         async function callOpenRouter(userPrompt, systemPrompt, maxTokens) {
-            if (!openrouterApiKey) throw new Error('OpenRouter anahtarı yok (Firebase settings/apiKeys → openrouter)');
+            try { if (typeof ensureApiKeysLoaded === 'function') await ensureApiKeysLoaded(); } catch (_) {}
+            if (!openrouterApiKey && typeof window !== 'undefined' && window.openrouterApiKey) openrouterApiKey = window.openrouterApiKey;
+            if (!openrouterApiKey) throw new Error('OpenRouter anahtarı yok (Firebase settings/apiKeys → openrouter alanına sk-or-... yapıştırın)');
             const models = [
                 'openrouter/free',
                 'meta-llama/llama-3.3-70b-instruct:free',
@@ -1573,15 +1575,6 @@
             } catch (_) {}
         })();
 
-        // Kart görünürlüğü: js/02-family-gold-calendar.js (window.saveDashboardCards / applyDashboardCards)
-        // 05 içindeki eski sürüm homeGold/homeBudget anahtarlarını siliyordu — kaldırıldı.
-        function loadDashboardCardsLocal() {
-            try {
-                const raw = localStorage.getItem('yuvam_dash_cards');
-                if (raw) dashboardCards = Object.assign(dashboardCards || {}, JSON.parse(raw));
-            } catch (_) {}
-            try { if (typeof applyDashboardCards === 'function') applyDashboardCards(); } catch (_) {}
-        }
 
         function parseCsvLine(line) {
             const out = [];
@@ -2262,11 +2255,6 @@
             }
         };
 
-        window.maybeShowOnboarding = function() { /* kaldırıldı */ };
-        window.closeOnboarding = function() {};
-        window.showHelp = function() {
-            if (typeof showToast === 'function') showToast('Yardım kaldırıldı — Ayarlar sekmesini kullanın', 'info');
-        };
 
 
         // Sayfa açılışında oturum varsa geri yükle ve veriyi çek
