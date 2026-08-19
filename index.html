@@ -614,19 +614,23 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
 
 <!-- İşlem Geçmişi -->
                 <div data-layout-block="expenseHistory" data-stripe="expense" class="bg-white rounded-[2.5rem] card-shadow border border-slate-100 overflow-hidden">
-                    <div class="p-8 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div class="p-4 sm:p-8 border-b border-slate-50 flex flex-col gap-3">
                         <h2 class="text-xl font-black text-slate-900">İşlem Geçmişi</h2>
-                        <div class="flex items-center gap-2">
-                            <button type="button" onclick="openInstallmentsModal()" class="text-xs font-bold bg-purple-600 text-white px-4 py-2 rounded-xl hover:bg-purple-700 transition">💳 Tüm Taksitleri Göster</button>
-                            <button onclick="toggleFilterPanel()" class="text-xs font-bold bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition">⚙️ Filtrele</button>
-                            <button type="button" onclick="downloadExcel()" class="text-xs font-bold bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 transition" title="Tüm harcamalar CSV">📥 Excel / CSV</button>
-                            <button type="button" onclick="downloadPeriodExcel()" class="text-xs font-bold bg-teal-600 text-white px-4 py-2 rounded-xl hover:bg-teal-700 transition" title="Sadece aktif dönem">📅 Bu dönem</button>
-                            <button onclick="resetFilters()" class="text-xs font-bold text-slate-400 hover:text-slate-900 transition">Temizle</button>
+                        <div class="expense-history-actions">
+                            <button type="button" onclick="openInstallmentsModal()" class="eh-btn eh-btn-purple">💳 Taksitler</button>
+                            <button type="button" onclick="toggleFilterPanel()" class="eh-btn eh-btn-indigo">⚙️ Filtrele</button>
+                            <button type="button" onclick="downloadExcel()" class="eh-btn eh-btn-emerald">📥 Excel</button>
+                            <button type="button" onclick="downloadPeriodExcel()" class="eh-btn eh-btn-teal">📅 Dönem</button>
+                            <button type="button" onclick="resetFilters()" class="eh-btn eh-btn-ghost">Temizle</button>
                         </div>
                     </div>
 
                     <!-- Filtreler (Gizli Panel) -->
-                    <div id="filterPanel" class="hidden filter-sheet-mobile p-4 sm:p-6 bg-slate-50/50 border-b border-slate-200 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+                    <div id="filterPanel" class="hidden filter-sheet-mobile p-4 sm:p-6 bg-slate-50/50 border-b border-slate-200 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4" onclick="event.stopPropagation()">
+                        <div class="filter-sheet-head sm:hidden">
+                            <p class="text-sm font-black text-slate-800">Filtrele</p>
+                            <button type="button" onclick="closeFilterPanel()" class="text-slate-400 text-xl leading-none px-2">&times;</button>
+                        </div>
                         <div class="flex flex-col gap-1 sm:col-span-2">
                             <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Kelime ara</label>
                             <input type="text" id="filterSearch" placeholder="ör. Sigara, market…" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none" onkeydown="if(event.key==='Enter'){event.preventDefault();applyFilters();}">
@@ -676,8 +680,9 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                             <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Bitiş</label>
                             <input type="date" id="filterEndDate" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500">
                         </div>
-                        <div class="flex flex-col gap-2 justify-center">
-                            <button onclick="applyFilters()" class="w-full bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">Filtreleri Uygula</button>
+                        <div class="filter-sheet-actions flex flex-col gap-2 justify-center sm:col-span-1">
+                            <button type="button" onclick="applyFilters()" class="w-full bg-indigo-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-indigo-700 transition">Uygula</button>
+                            <button type="button" onclick="closeFilterPanel()" class="w-full sm:hidden bg-slate-100 text-slate-600 py-2.5 rounded-xl text-xs font-bold">Kapat</button>
                         </div>
                     </div>
 

@@ -1969,19 +1969,37 @@
         window.closeFilterPanel = function() {
             const panel = document.getElementById('filterPanel');
             const bd = document.getElementById('filterSheetBackdrop');
-            if (panel) panel.classList.add('hidden');
-            if (bd) bd.classList.add('hidden');
+            if (panel) {
+                panel.classList.add('hidden');
+                // web düzenine geri
+                if (panel._yuvamOrigParent && panel.parentNode === document.body) {
+                    try { panel._yuvamOrigParent.insertBefore(panel, panel._yuvamOrigNext); } catch (_) {}
+                }
+            }
+            if (bd) {
+                bd.classList.add('hidden');
+                bd.style.display = 'none';
+            }
             try { document.body.classList.remove('yuvam-sheet-open'); } catch (_) {}
         };
-        window.toggleFilterPanel = function() {
+        window.toggleFilterPanel = function(ev) {
+            if (ev && ev.stopPropagation) ev.stopPropagation();
             const panel = document.getElementById('filterPanel');
             const bd = document.getElementById('filterSheetBackdrop');
             if (!panel) return;
             const opening = panel.classList.contains('hidden');
             if (opening) {
+                const isMobile = window.matchMedia && window.matchMedia('(max-width: 639px)').matches;
+                // Mobilde overflow:hidden kart içinde fixed bozulmasın diye body'ye taşı
+                if (isMobile && panel.parentNode !== document.body) {
+                    panel._yuvamOrigParent = panel.parentNode;
+                    panel._yuvamOrigNext = panel.nextSibling;
+                    document.body.appendChild(panel);
+                }
                 panel.classList.remove('hidden');
-                if (bd && window.matchMedia && window.matchMedia('(max-width: 639px)').matches) {
+                if (isMobile && bd) {
                     bd.classList.remove('hidden');
+                    bd.style.display = 'block';
                     document.body.classList.add('yuvam-sheet-open');
                 }
             } else {
