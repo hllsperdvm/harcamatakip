@@ -1530,3 +1530,185 @@ header p.uppercase {
 .quick-add-menu button:active { background: #e0f2fe; }
 html.theme-dark .quick-add-menu { background: #132337; border-color: #334155; }
 html.theme-dark .quick-add-menu button { background: #0c1929; color: #e2e8f0; }
+
+
+/* ========== Mobil UX 2026-08-19 ========== */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  overscroll-behavior-y: contain;
+}
+body.yuvam-app-open {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Kart renk şeritleri */
+[data-stripe="expense"], .stripe-expense { border-left: 4px solid #0284c7 !important; }
+[data-stripe="tasks"], .stripe-tasks { border-left: 4px solid #10b981 !important; }
+[data-stripe="plan"], .stripe-plan { border-left: 4px solid #8b5cf6 !important; }
+[data-stripe="vehicle"], .stripe-vehicle { border-left: 4px solid #f59e0b !important; }
+[data-stripe="stats"], .stripe-stats { border-left: 4px solid #6366f1 !important; }
+[data-stripe="gold"], .stripe-gold { border-left: 4px solid #eab308 !important; }
+[data-stripe="home"] { border-left: 4px solid #0ea5e9 !important; }
+
+.yuvam-card, .card-shadow {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+@media (max-width: 639px) {
+  .yuvam-card:active, .expense-m-card:active {
+    transform: scale(0.985);
+  }
+  .mnav-item {
+    min-height: 3.5rem;
+    min-width: 44px;
+  }
+  .mnav-item.mnav-active {
+    color: #0369a1;
+    background: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 100%);
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.2);
+  }
+  .mnav-item.mnav-active .mnav-ico {
+    transform: scale(1.08);
+  }
+  .quick-add-fab {
+    width: 3.5rem !important;
+    height: 3.5rem !important;
+    font-size: 1.75rem !important;
+    box-shadow: 0 8px 28px rgba(2, 132, 199, 0.45) !important;
+    background: linear-gradient(145deg, #0ea5e9, #0284c7) !important;
+  }
+  .quick-add-menu button {
+    min-height: 48px;
+    font-weight: 800;
+  }
+  .chart-block, .chart-wrap, canvas {
+    min-height: 220px !important;
+  }
+  .chart-block {
+    padding: 0.75rem !important;
+  }
+  /* İşlem geçmişi kendi içinde kaydır */
+  #expenseMobileList {
+    max-height: min(70vh, 560px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding-bottom: 0.5rem;
+  }
+  /* Filtre bottom sheet */
+  .filter-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    z-index: 110;
+  }
+  #filterPanel.filter-sheet-mobile:not(.hidden) {
+    position: fixed !important;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 111;
+    max-height: min(88vh, 640px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 1.25rem 1.25rem 0 0 !important;
+    border: none !important;
+    border-top: 1px solid #e2e8f0 !important;
+    background: #fff !important;
+    padding: 1rem 1rem calc(1.25rem + env(safe-area-inset-bottom)) !important;
+    box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.18);
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    animation: yuvamSheetUp 0.22s ease-out;
+  }
+  #filterPanel.filter-sheet-mobile:not(.hidden)::before {
+    content: "";
+    grid-column: 1 / -1;
+    width: 2.5rem;
+    height: 0.3rem;
+    background: #cbd5e1;
+    border-radius: 999px;
+    margin: 0 auto 0.25rem;
+  }
+  #filterPanel .sm\:col-span-2 { grid-column: 1 / -1; }
+}
+@keyframes yuvamSheetUp {
+  from { transform: translateY(40%); opacity: 0.6; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@media (min-width: 640px) {
+  .filter-sheet-backdrop { display: none !important; }
+}
+
+/* Empty state soft color */
+.yuvam-empty {
+  background: linear-gradient(180deg, #f8fafc 0%, #eff6ff 100%);
+  border-radius: 1.25rem;
+  padding: 1.5rem 1rem;
+}
+
+/* Pending sync badge */
+#pendingSyncBadge {
+  top: max(2.75rem, calc(env(safe-area-inset-top) + 2.25rem));
+}
+
+html.theme-dark #filterPanel.filter-sheet-mobile:not(.hidden) {
+  background: #1e293b !important;
+  border-top-color: #334155 !important;
+}
+html.theme-dark .mnav-item.mnav-active {
+  background: linear-gradient(180deg, #0c4a6e 0%, #075985 100%);
+  color: #e0f2fe;
+}
+
+.mnav-item.mnav-c-home.mnav-active { color: #0369a1; background: linear-gradient(180deg,#e0f2fe,#bae6fd); }
+.mnav-item.mnav-c-expense.mnav-active { color: #1d4ed8; background: linear-gradient(180deg,#dbeafe,#bfdbfe); }
+.mnav-item.mnav-c-stats.mnav-active { color: #5b21b6; background: linear-gradient(180deg,#ede9fe,#ddd6fe); }
+.mnav-item.mnav-c-plan.mnav-active { color: #047857; background: linear-gradient(180deg,#d1fae5,#a7f3d0); }
+.mnav-item.mnav-c-shop.mnav-active { color: #c2410c; background: linear-gradient(180deg,#ffedd5,#fed7aa); }
+.mnav-item.mnav-c-vehicle.mnav-active { color: #b45309; background: linear-gradient(180deg,#fef3c7,#fde68a); }
+
+/* LOGIN SCREEN FIX */
+#errorContainer {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
+#errorContainer h2 {
+  font-size: 1.75rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  letter-spacing: -0.02em;
+}
+#errorContainer p {
+  color: #94a3b8 !important;
+  font-weight: 500 !important;
+}
+#errorContainer label {
+  font-size: 0.7rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #94a3b8 !important;
+}
+#errorContainer select,
+#errorContainer #sifreInput {
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  background: #f8fafc !important;
+  border-radius: 1rem !important;
+}
+#errorContainer #sifreInput {
+  font-size: 1.35rem !important;
+  letter-spacing: 0.28em !important;
+  text-align: center !important;
+}
+#errorContainer #loginBtn {
+  background: #4f46e5 !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.25) !important;
+}

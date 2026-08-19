@@ -1573,40 +1573,14 @@
             } catch (_) {}
         })();
 
-        window.saveDashboardCards = async function() {
-            dashboardCards = {
-                total: !!(document.getElementById('cardVis_total') || {}).checked,
-                bekir: !!(document.getElementById('cardVis_bekir') || {}).checked,
-                duygu: !!(document.getElementById('cardVis_duygu') || {}).checked,
-                debt: !!(document.getElementById('cardVis_debt') || {}).checked
-            };
-            applyDashboardCards();
-            try { localStorage.setItem('yuvam_dash_cards', JSON.stringify(dashboardCards)); } catch (_) {}
-            if (isAdmin()) {
-                try {
-                    await db.collection('settings').doc('uiPrefs').set({ dashboardCards: dashboardCards }, { merge: true });
-                    showToast('Kart görünürlüğü kaydedildi', 'success');
-                } catch (err) {
-                    showToast(friendlyFirebaseError(err), 'error');
-                }
-            }
-        };
-
-        function applyDashboardCards() {
-            ['total', 'bekir', 'duygu', 'debt'].forEach(function(k) {
-                const el = document.querySelector('[data-dash-card="' + k + '"]');
-                if (el) el.classList.toggle('hidden', !dashboardCards[k]);
-                const cb = document.getElementById('cardVis_' + k);
-                if (cb) cb.checked = !!dashboardCards[k];
-            });
-        }
-
+        // Kart görünürlüğü: js/02-family-gold-calendar.js (window.saveDashboardCards / applyDashboardCards)
+        // 05 içindeki eski sürüm homeGold/homeBudget anahtarlarını siliyordu — kaldırıldı.
         function loadDashboardCardsLocal() {
             try {
                 const raw = localStorage.getItem('yuvam_dash_cards');
-                if (raw) dashboardCards = Object.assign(dashboardCards, JSON.parse(raw));
+                if (raw) dashboardCards = Object.assign(dashboardCards || {}, JSON.parse(raw));
             } catch (_) {}
-            applyDashboardCards();
+            try { if (typeof applyDashboardCards === 'function') applyDashboardCards(); } catch (_) {}
         }
 
         function parseCsvLine(line) {
@@ -1999,7 +1973,28 @@
         // HESAPLAMA TAB
 
         // Filtreler & Sıralama
-        window.toggleFilterPanel = () => document.getElementById('filterPanel').classList.toggle('hidden');
+        window.closeFilterPanel = function() {
+            const panel = document.getElementById('filterPanel');
+            const bd = document.getElementById('filterSheetBackdrop');
+            if (panel) panel.classList.add('hidden');
+            if (bd) bd.classList.add('hidden');
+            try { document.body.classList.remove('yuvam-sheet-open'); } catch (_) {}
+        };
+        window.toggleFilterPanel = function() {
+            const panel = document.getElementById('filterPanel');
+            const bd = document.getElementById('filterSheetBackdrop');
+            if (!panel) return;
+            const opening = panel.classList.contains('hidden');
+            if (opening) {
+                panel.classList.remove('hidden');
+                if (bd && window.matchMedia && window.matchMedia('(max-width: 639px)').matches) {
+                    bd.classList.remove('hidden');
+                    document.body.classList.add('yuvam-sheet-open');
+                }
+            } else {
+                closeFilterPanel();
+            }
+        };
         window.resetFilters = () => {
             currentPersonFilter = 'Tümü'; currentCategoryFilter = 'Tümü'; currentPaymentFilter = 'Tümü';
             currentShopSubtypeFilter = 'Tümü'; currentEcommerceFilter = 'Tümü';
@@ -2033,6 +2028,9 @@
             currentEndDateFilter = document.getElementById('filterEndDate').value;
             currentShowInstallments = document.getElementById('filterShowInstallments').checked;
             renderTable();
+            try {
+                if (window.matchMedia && window.matchMedia('(max-width: 639px)').matches && typeof closeFilterPanel === 'function') closeFilterPanel();
+            } catch (_) {}
         };
         window.sortTable = (col) => {
             if (sortColumn === col) sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';

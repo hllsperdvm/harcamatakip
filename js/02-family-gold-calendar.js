@@ -124,7 +124,7 @@
             };
         }
 
-        function updateHomeGoldCard() {
+        window.updateHomeGoldCard = function updateHomeGoldCard() {
             const el = document.getElementById('homeGoldPnL');
             const netEl = document.getElementById('homeGoldNet');
             const sub = document.getElementById('homeGoldSub');
@@ -230,6 +230,21 @@
 
 
         function saveGoldPriceSnapshot() { /* kaldırıldı */ }
+
+        function parseGoldNum(v) {
+            if (v == null || v === '') return NaN;
+            if (typeof v === 'number') return v;
+            var s = String(v).trim().replace(/\s/g, '').replace(/₺|TL/gi, '');
+            // 4.523,50 → 4523.50 | 4523.50 → 4523.50
+            if (s.indexOf(',') >= 0 && s.indexOf('.') >= 0) {
+                s = s.replace(/\./g, '').replace(',', '.');
+            } else if (s.indexOf(',') >= 0) {
+                s = s.replace(',', '.');
+            }
+            var n = parseFloat(s);
+            return isFinite(n) ? n : NaN;
+        }
+
         window.refreshGoldPrice = async function(force) {
             const elMeta = document.getElementById('goldPriceMeta');
             try {
@@ -248,19 +263,19 @@
                     const res = await fetch('https://finans.truncgil.com/v4/today.json', { cache: 'no-store' });
                     if (!res.ok) throw new Error('truncgil ' + res.status);
                     const data = await res.json();
-                    const has = data.HAS || data.GRAMHASALTIN || data.GramAltin || data['Gram Altın'];
+                    const has = data.HAS || data.GRAMHASALTIN || data.GramAltin || data['Gram Altın'] || data.altin || data.ALTIN;
                     if (has) {
-                        buy24 = parseFloat(has.Buying);
-                        sell24 = parseFloat(has.Selling);
+                        buy24 = parseGoldNum(has.Buying != null ? has.Buying : has.Alis);
+                        sell24 = parseGoldNum(has.Selling != null ? has.Selling : has.Satis);
                         if (!(buy24 > 0)) buy24 = sell24;
                         if (!(sell24 > 0)) sell24 = buy24;
                         if (has.Change != null && has.Change !== '') change = has.Change;
                         source = 'Truncgil' + (data.Update_Date ? (' · ' + data.Update_Date) : '');
                     }
-                    const a22 = data['22AYARALTIN'] || data['22AYAR'] || data.AYAR22;
+                    const a22 = data['22AYARALTIN'] || data['22AYAR'] || data.AYAR22 || data['22 Ayar Altın'];
                     if (a22) {
-                        buy22 = parseFloat(a22.Buying);
-                        sell22 = parseFloat(a22.Selling);
+                        buy22 = parseGoldNum(a22.Buying != null ? a22.Buying : a22.Alis);
+                        sell22 = parseGoldNum(a22.Selling != null ? a22.Selling : a22.Satis);
                         if (!(buy22 > 0)) buy22 = sell22;
                         if (!(sell22 > 0)) sell22 = buy22;
                     }
@@ -300,6 +315,7 @@
                     }));
                 } catch (_) {}
                 renderGoldHoldings();
+                try { if (typeof updateHomeGoldCard === 'function') updateHomeGoldCard(); } catch (_) {}
             } catch (e) {
                 try {
                     const raw = localStorage.getItem('yuvam_gold_price');
@@ -320,6 +336,7 @@
                         updateGoldPriceUI();
                         if (elMeta) elMeta.textContent = 'Önbellek · elle de girebilirsiniz';
                         renderGoldHoldings();
+                        try { if (typeof updateHomeGoldCard === 'function') updateHomeGoldCard(); } catch (_) {}
                         return;
                     }
                 } catch (_) {}
@@ -368,7 +385,7 @@
 
         const GOLD_LS_KEY = 'yuvam_gold_holdings_v1';
 
-        function loadGoldHoldingsLocal() {
+        window.loadGoldHoldingsLocal = function loadGoldHoldingsLocal() {
             try {
                 const raw = localStorage.getItem(GOLD_LS_KEY);
                 if (!raw) return [];
@@ -1218,8 +1235,12 @@
                 list.innerHTML = items.map(function(it) {
                     const due = it.date ? formatDateTR(it.date) : 'Tarihsiz';
                     const days = it.date && typeof daysUntilYMD === 'function' ? daysUntilYMD(it.date) : null;
-                    const badge = days == null ? '' : (days < 0 ? ' · geçti' : (days === 0 ? ' · bugün' : ' · ' + days + ' gün'));
-                    const title = (it.done ? '<span class="line-through opacity-60">' : '') + escapeHtml(it.title) + (it.done ? '</span>' : '');
+                    const overdue = !it.done && days != null && days < 0;
+                    const badge = days == null ? '' : (overdue
+                        ? ' <span class="inline-flex items-center gap-0.5 text-[10px] font-black text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded-md">❗ GEÇTİ</span>'
+                        : (days === 0 ? ' · bugün' : ' · ' + days + ' gün'));
+                    const title = (it.done ? '<span class="line-through opacity-60">' : '') + escapeHtml(it.title) + (it.done ? '</span>' : '') +
+                        (overdue ? ' <span class="text-rose-600 font-black">❗</span>' : '');
                     const sub = (it.source === 'task' ? '✅ Görev' : '📅 Takvim') + ' · ' + due + badge + (it.meta ? ' · ' + escapeHtml(it.meta) : '');
                     const editB = '<button type="button" onclick="familyEditPlan(\'' + it.source + '\',\'' + escapeHtml(it.id) + '\')" class="text-xs font-bold text-sky-600 px-2 py-1 rounded-lg hover:bg-sky-50">Düzenle</button>';
                     const tog = it.source === 'task'
@@ -1671,6 +1692,10 @@
 
         window.applyDashboardCards = function() {
             const dc = dashboardCards || {};
+            // Bozuk kayıt: home* anahtarları yoksa göster (eski saveDashboardCards silmiş olabilirdi)
+            ['homeToday','homePeriod','homeGold','homeQuickAdd','homeBudget','homeAgenda'].forEach(function(k) {
+                if (dc[k] === undefined) dc[k] = true;
+            });
             document.querySelectorAll('[data-dash-card]').forEach(function(el) {
                 const k = el.getAttribute('data-dash-card');
                 const on = dc[k] !== false;
@@ -1953,12 +1978,18 @@
             }, err => console.warn('periodConfig', err));
             db.collection("settings").doc("budgetTarget").onSnapshot(d => {
                 if (d.exists && d.data()) {
-                    monthlyBudgetTarget = Number(d.data().amount) || 0;
+                    const bd = d.data() || {};
+                    monthlyBudgetTarget = Number(bd.amount != null ? bd.amount : (bd.value != null ? bd.value : bd.target)) || 0;
                     const inp = document.getElementById('budgetTargetInput');
                     if (inp && document.activeElement !== inp) inp.value = monthlyBudgetTarget > 0 ? String(monthlyBudgetTarget) : '';
                 } else {
                     monthlyBudgetTarget = 0;
                 }
+                try { if (typeof updateBudgetTargetCard === 'function') updateBudgetTargetCard(); } catch (_) {}
+                try {
+                    const home = document.getElementById('tabContentHome');
+                    if (home && !home.classList.contains('hidden') && typeof renderHomeTab === 'function') renderHomeTab();
+                } catch (_) {}
                 if (typeof renderBudgetInfo === 'function') renderBudgetInfo();
             }, err => console.warn('budgetTarget', err));
             db.collection("settings").doc("tabs").onSnapshot(d => {
@@ -2084,11 +2115,23 @@
                     }, function(e) { console.warn('familyCalendar', e); });
                 } else if (name === 'goldHoldings') {
                     window._lazyUnsub.goldHoldings = db.collection('settings').doc('goldHoldings').onSnapshot(function(d) {
-                        if (d.exists && d.data() && Array.isArray(d.data().list)) {
-                            goldHoldings = d.data().list;
-                            try { saveGoldHoldingsLocal(goldHoldings); } catch (_) {}
+                        try {
+                            if (d.exists && d.data() && Array.isArray(d.data().list)) {
+                                goldHoldings = d.data().list;
+                                try { saveGoldHoldingsLocal(goldHoldings); } catch (_) {}
+                            } else {
+                                // Firestore boşsa yerelden dene
+                                try {
+                                    var local = loadGoldHoldingsLocal();
+                                    if (local && local.length) goldHoldings = local;
+                                } catch (_) {}
+                            }
                             if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
-                        }
+                            try { if (typeof updateHomeGoldCard === 'function') updateHomeGoldCard(); } catch (_) {}
+                            try {
+                                if (typeof refreshGoldPrice === 'function') refreshGoldPrice(false);
+                            } catch (_) {}
+                        } catch (err) { console.warn('goldHoldings snap', err); }
                     }, function(e) { console.warn('goldHoldings', e); });
                 } else if (name === 'vehicleProfile') {
                     window._lazyUnsub.vehicleProfile = db.collection('settings').doc('vehicleProfile').onSnapshot(function(d) {
