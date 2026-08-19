@@ -918,7 +918,7 @@
         let currentStartDateFilter = '', currentEndDateFilter = '';
         
 
-        let expenseChart = null, weeklyTrendChart = null, monthlyTrendChart = null;
+        let expenseChart = null, weeklyTrendChart = null, monthlyTrendChart = null, billsChart = null;
         let syncInitialized = false;
         let periodConfig = { startDay: 29, endDay: 28 };
         let monthlyBudgetTarget = 0; // TL, 0 = kapalı

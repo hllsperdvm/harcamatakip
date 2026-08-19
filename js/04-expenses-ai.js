@@ -1260,6 +1260,170 @@
         };
 
 
+
+        window.renderBillsChart = async function() {
+            const canvas = document.getElementById('billsChart');
+            if (!canvas) return;
+            try { if (typeof ensureChartJs === 'function') await ensureChartJs(); } catch (_) {}
+            if (typeof Chart === 'undefined') return;
+
+            const subtypes = ['Elektrik', 'Su', 'Doğalgaz', 'Telefon', 'İnternet', 'Abonelik'];
+            const colors = {
+                'Elektrik': '#f59e0b',
+                'Su': '#0ea5e9',
+                'Doğalgaz': '#f97316',
+                'Telefon': '#8b5cf6',
+                'İnternet': '#6366f1',
+                'Abonelik': '#ec4899',
+                'Diğer': '#94a3b8'
+            };
+
+            // Son 6 ekstre dönemi (29–28)
+            const periods = [];
+            try {
+                const cur = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
+                if (cur && cur.indexOf('-') > 0) {
+                    let y = parseInt(cur.slice(0, 4), 10);
+                    let m = parseInt(cur.slice(5, 7), 10);
+                    for (let i = 5; i >= 0; i--) {
+                        let mm = m - i;
+                        let yy = y;
+                        while (mm <= 0) { mm += 12; yy -= 1; }
+                        periods.push(yy + '-' + String(mm).padStart(2, '0'));
+                    }
+                }
+            } catch (_) {}
+            if (!periods.length) {
+                const now = new Date();
+                for (let i = 5; i >= 0; i--) {
+                    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                    periods.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'));
+                }
+            }
+
+            let all = [];
+            try {
+                all = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : [];
+            } catch (_) { all = []; }
+
+            const byPeriodSub = {};
+            periods.forEach(function(p) { byPeriodSub[p] = {}; });
+
+            all.forEach(function(e) {
+                if (!e) return;
+                if (e.category !== 'Faturalar') return;
+                if (typeof countsInPeriodTotals === 'function' && !countsInPeriodTotals(e)) return;
+                const pk = e.effectiveMonth || (typeof getPeriodKeyForDateStr === 'function' ? getPeriodKeyForDateStr(e.date) : String(e.date || '').slice(0, 7));
+                if (!pk || periods.indexOf(pk) < 0) return;
+                let st = String(e.billSubtype || '').trim();
+                if (st === 'Platform') st = 'Abonelik';
+                if (!st || (subtypes.indexOf(st) < 0 && st !== 'Diğer')) st = 'Diğer';
+                if (subtypes.indexOf(st) < 0 && st !== 'Diğer') st = 'Diğer';
+                byPeriodSub[pk][st] = (byPeriodSub[pk][st] || 0) + (Number(e.displayAmount) || 0);
+            });
+
+            // Sadece fatura olan dönemler (boş aylar eksende yer kaplamasın)
+            const activePeriods = periods.filter(function(p) {
+                const o = byPeriodSub[p] || {};
+                return Object.keys(o).some(function(k) { return (o[k] || 0) > 0; });
+            });
+
+            const labels = activePeriods.map(function(p) {
+                return (typeof formatPeriodLabel === 'function') ? formatPeriodLabel(p) : p;
+            });
+
+            // Yalnızca en az bir dönemde tutarı > 0 olan türler
+            const seriesKeys = [];
+            subtypes.forEach(function(st) {
+                const any = activePeriods.some(function(p) { return (byPeriodSub[p][st] || 0) > 0; });
+                if (any) seriesKeys.push(st);
+            });
+            if (activePeriods.some(function(p) { return (byPeriodSub[p]['Diğer'] || 0) > 0; })) {
+                seriesKeys.push('Diğer');
+            }
+
+            // 0 değerler null → skipNull ile boş çubuk/yer yok
+            const datasets = seriesKeys.map(function(st) {
+                return {
+                    label: st,
+                    data: activePeriods.map(function(p) {
+                        const v = byPeriodSub[p][st] || 0;
+                        return v > 0 ? Math.round(v * 100) / 100 : null;
+                    }),
+                    backgroundColor: colors[st] || '#94a3b8',
+                    borderRadius: 4,
+                    maxBarThickness: 22,
+                    skipNull: true
+                };
+            });
+
+            const hasAny = datasets.length > 0 && activePeriods.length > 0;
+
+            if (billsChart) {
+                try { billsChart.destroy(); } catch (_) {}
+                billsChart = null;
+            }
+
+            billsChart = new Chart(canvas, {
+                type: 'bar',
+                data: { labels: labels.length ? labels : ['Veri yok'], datasets: datasets.length ? datasets : [{ label: '—', data: [0], backgroundColor: '#e2e8f0' }] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 10, font: { size: 10 }, padding: 8 }
+                        },
+                        tooltip: {
+                            filter: function(item) {
+                                const v = item.parsed && item.parsed.y;
+                                return v != null && v > 0;
+                            },
+                            callbacks: {
+                                label: function(ctx) {
+                                    const v = ctx.parsed && ctx.parsed.y != null ? ctx.parsed.y : 0;
+                                    if (!(v > 0)) return null;
+                                    return ctx.dataset.label + ': ' + Math.round(v).toLocaleString('tr-TR') + ' TL';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: false,
+                            ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 0 }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(v) { return Number(v).toLocaleString('tr-TR'); }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Boşsa alt başlığa not
+            try {
+                const sub = canvas.closest('.chart-block');
+                if (sub) {
+                    let note = sub.querySelector('.bills-chart-empty');
+                    if (!hasAny) {
+                        if (!note) {
+                            note = document.createElement('p');
+                            note.className = 'bills-chart-empty text-xs text-slate-400 font-semibold text-center mt-2';
+                            canvas.parentNode.appendChild(note);
+                        }
+                        note.textContent = 'Son 6 dönemde Faturalar kaydı yok (veya hepsi başkası adına / hariç tutulan)';
+                    } else if (note) {
+                        note.remove();
+                    }
+                }
+            } catch (_) {}
+        };
+
         window.toggleStatsExtraCharts = function() {
             window._statsExtraOpen = !window._statsExtraOpen;
             const box = document.getElementById('statsExtraCharts');
