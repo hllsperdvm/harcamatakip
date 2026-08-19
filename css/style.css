@@ -1670,3 +1670,45 @@ html.theme-dark .mnav-item.mnav-active {
 .mnav-item.mnav-c-plan.mnav-active { color: #047857; background: linear-gradient(180deg,#d1fae5,#a7f3d0); }
 .mnav-item.mnav-c-shop.mnav-active { color: #c2410c; background: linear-gradient(180deg,#ffedd5,#fed7aa); }
 .mnav-item.mnav-c-vehicle.mnav-active { color: #b45309; background: linear-gradient(180deg,#fef3c7,#fde68a); }
+
+/* LOGIN SCREEN FIX */
+#errorContainer {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+}
+#errorContainer h2 {
+  font-size: 1.75rem !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  letter-spacing: -0.02em;
+}
+#errorContainer p {
+  color: #94a3b8 !important;
+  font-weight: 500 !important;
+}
+#errorContainer label {
+  font-size: 0.7rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #94a3b8 !important;
+}
+#errorContainer select,
+#errorContainer #sifreInput {
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  background: #f8fafc !important;
+  border-radius: 1rem !important;
+}
+#errorContainer #sifreInput {
+  font-size: 1.35rem !important;
+  letter-spacing: 0.28em !important;
+  text-align: center !important;
+}
+#errorContainer #loginBtn {
+  background: #4f46e5 !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.25) !important;
+}
