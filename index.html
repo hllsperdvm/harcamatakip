@@ -617,6 +617,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                     <div class="p-8 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <h2 class="text-xl font-black text-slate-900">İşlem Geçmişi</h2>
                         <div class="flex items-center gap-2">
+                            <button type="button" onclick="openInstallmentsModal()" class="text-xs font-bold bg-purple-600 text-white px-4 py-2 rounded-xl hover:bg-purple-700 transition">💳 Tüm Taksitleri Göster</button>
                             <button onclick="toggleFilterPanel()" class="text-xs font-bold bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition">⚙️ Filtrele</button>
                             <button type="button" onclick="downloadExcel()" class="text-xs font-bold bg-emerald-600 text-white px-4 py-2 rounded-xl hover:bg-emerald-700 transition" title="Tüm harcamalar CSV">📥 Excel / CSV</button>
                             <button type="button" onclick="downloadPeriodExcel()" class="text-xs font-bold bg-teal-600 text-white px-4 py-2 rounded-xl hover:bg-teal-700 transition" title="Sadece aktif dönem">📅 Bu dönem</button>
@@ -676,11 +677,6 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                             <input type="date" id="filterEndDate" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500">
                         </div>
                         <div class="flex flex-col gap-2 justify-center">
-                            <label class="flex items-center gap-2 text-xs font-bold text-indigo-600 cursor-pointer bg-white px-3 py-2 rounded-xl">
-                                <input type="checkbox" id="filterShowInstallments" class="rounded border-indigo-200 text-indigo-600 focus:ring-indigo-500">
-                                Taksitleri Göster
-                            </label>
-                            <button onclick="openInstallmentsModal()" class="w-full bg-purple-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-purple-700 transition">📊 Ay Başlıkları ile Gör</button>
                             <button onclick="applyFilters()" class="w-full bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">Filtreleri Uygula</button>
                         </div>
                     </div>
@@ -1595,13 +1591,14 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
     <div id="installmentsModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
         <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
             <div class="bg-purple-600 p-5 text-white flex justify-between items-center shrink-0">
-                <h2 class="text-lg font-black">💳 Taksitler</h2>
+                <h2 class="text-lg font-black">💳 Tüm Taksitler</h2>
+                <p class="text-[11px] text-slate-400 font-semibold mt-0.5">Bu dönem ve gelecek dönemler</p>
                 <button type="button" onclick="closeInstallmentsModal()" class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-xl leading-none">&times;</button>
             </div>
             <div class="p-5 overflow-y-auto space-y-4">
                 <div class="grid grid-cols-2 gap-3">
                     <div class="bg-slate-50 p-4 rounded-2xl">
-                        <p class="text-[10px] font-black text-slate-400 uppercase">Toplam Taksit</p>
+                        <p class="text-[10px] font-black text-slate-400 uppercase">Bu dönem + gelecek</p>
                         <p id="totalInstallmentAmount" class="text-xl font-black text-slate-900 mt-1">0 TL</p>
                     </div>
                     <div class="bg-indigo-50 p-4 rounded-2xl">

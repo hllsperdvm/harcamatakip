@@ -916,7 +916,7 @@
         let currentShopSubtypeFilter = 'Tümü', currentEcommerceFilter = 'Tümü';
         let currentSearchFilter = '';
         let currentStartDateFilter = '', currentEndDateFilter = '';
-        let currentShowInstallments = false;
+        
 
         let expenseChart = null, weeklyTrendChart = null, monthlyTrendChart = null;
         let syncInitialized = false;

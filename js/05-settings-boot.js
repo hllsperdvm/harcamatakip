@@ -1991,7 +1991,7 @@
         window.resetFilters = () => {
             currentPersonFilter = 'Tümü'; currentCategoryFilter = 'Tümü'; currentPaymentFilter = 'Tümü';
             currentShopSubtypeFilter = 'Tümü'; currentEcommerceFilter = 'Tümü';
-            currentStartDateFilter = ''; currentEndDateFilter = ''; currentShowInstallments = false;
+            currentStartDateFilter = ''; currentEndDateFilter = '';
             currentSearchFilter = '';
             document.getElementById('filterPerson').value = 'Tümü';
             document.getElementById('filterCategory').value = 'Tümü';
@@ -2004,7 +2004,6 @@
             if (fs) fs.value = '';
             document.getElementById('filterStartDate').value = '';
             document.getElementById('filterEndDate').value = '';
-            document.getElementById('filterShowInstallments').checked = false;
             renderTable();
         };
         window.applyFilters = () => {
@@ -2019,7 +2018,6 @@
             currentEcommerceFilter = fec ? fec.value : 'Tümü';
             currentStartDateFilter = document.getElementById('filterStartDate').value;
             currentEndDateFilter = document.getElementById('filterEndDate').value;
-            currentShowInstallments = document.getElementById('filterShowInstallments').checked;
             renderTable();
             try {
                 if (window.matchMedia && window.matchMedia('(max-width: 639px)').matches && typeof closeFilterPanel === 'function') closeFilterPanel();
@@ -2031,48 +2029,100 @@
             renderTable();
         };
 
-        window.openInstallmentsModal = () => {
+        window.openInstallmentsModal = function() {
             const modal = document.getElementById('installmentsModal');
             if (!modal) {
-                alert('Taksit penceresi yüklenemedi. Ctrl+F5 ile yenileyin.');
+                if (typeof showToast === 'function') showToast('Taksit penceresi yüklenemedi', 'error');
                 return;
             }
-            const processed = getProcessedExpenses().filter(e => e.installmentLabel !== 'Peşin');
-            const total = processed.reduce((s, e) => s + e.displayAmount, 0);
-            const totalEl = document.getElementById('totalInstallmentAmount');
-            if (totalEl) totalEl.innerText = total.toLocaleString('tr-TR') + ' TL';
-            
-            const currentPeriod = getCurrentPeriod();
-            const currentTotal = processed.filter(e => e.effectiveMonth === currentPeriod).reduce((s, e) => s + e.displayAmount, 0);
-            const selEl = document.getElementById('selectedMonthAmount');
-            if (selEl) selEl.innerText = currentTotal.toLocaleString('tr-TR') + ' TL';
-
-            const container = document.getElementById('installmentsContainer');
-            if (!container) return;
-            const grouped = {};
-            processed.forEach(e => {
-                grouped[e.effectiveMonth] = grouped[e.effectiveMonth] || [];
-                grouped[e.effectiveMonth].push(e);
+            const currentPeriod = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
+            const all = (typeof getInstallmentScheduleRows === 'function')
+                ? getInstallmentScheduleRows()
+                : [];
+            // Bu dönem + gelecek (geçmiş taksit satırları ayrı, altta kısa)
+            const currentAndFuture = all.filter(function(e) {
+                return e && e.effectiveMonth && (!currentPeriod || e.effectiveMonth >= currentPeriod);
+            });
+            const past = all.filter(function(e) {
+                return e && e.effectiveMonth && currentPeriod && e.effectiveMonth < currentPeriod;
             });
 
-            container.innerHTML = Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0])).map(([m, items]) => `
-                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="font-black text-slate-700">${formatPeriodLabel(m)} <span class="text-[10px] text-slate-400 font-bold">(${m})</span></span>
-                        <span class="font-bold text-indigo-600">${items.reduce((s, i) => s + i.displayAmount, 0).toLocaleString('tr-TR')} TL</span>
-                    </div>
-                    <div class="space-y-1">
-                        ${items.map(i => `<div class="flex justify-between text-xs text-slate-500"><span>${escapeHtml(i.description)} (${escapeHtml(i.person)})</span><span>${i.displayAmount.toLocaleString('tr-TR')} TL</span></div>`).join('')}
-                    </div>
-                </div>
-            `).join('');
+            function groupByPeriod(list) {
+                const g = {};
+                (list || []).forEach(function(e) {
+                    const m = e.effectiveMonth || '';
+                    if (!g[m]) g[m] = [];
+                    g[m].push(e);
+                });
+                return Object.keys(g).sort().map(function(m) {
+                    return { month: m, items: g[m], sum: g[m].reduce(function(s, x) {
+                        return s + (Number(x.displayAmount) || 0);
+                    }, 0) };
+                });
+            }
 
-            document.getElementById('installmentsModal').classList.remove('hidden');
-            document.getElementById('installmentsModal').classList.add('flex');
+            const groupsCF = groupByPeriod(currentAndFuture);
+            const groupsPast = groupByPeriod(past);
+            const totalCF = currentAndFuture.reduce(function(s, e) {
+                return s + (Number(e.displayAmount) || 0);
+            }, 0);
+            const totalCur = currentAndFuture.filter(function(e) {
+                return e.effectiveMonth === currentPeriod;
+            }).reduce(function(s, e) { return s + (Number(e.displayAmount) || 0); }, 0);
+
+            const totalEl = document.getElementById('totalInstallmentAmount');
+            if (totalEl) totalEl.textContent = Math.round(totalCF).toLocaleString('tr-TR') + ' TL';
+            const selEl = document.getElementById('selectedMonthAmount');
+            if (selEl) selEl.textContent = Math.round(totalCur).toLocaleString('tr-TR') + ' TL';
+
+            function periodBlock(g, isCurrent) {
+                const label = (typeof formatPeriodLabel === 'function') ? formatPeriodLabel(g.month) : g.month;
+                const badge = isCurrent
+                    ? ' <span class="text-[10px] font-black text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-md">BU DÖNEM</span>'
+                    : (currentPeriod && g.month > currentPeriod
+                        ? ' <span class="text-[10px] font-black text-sky-700 bg-sky-100 px-1.5 py-0.5 rounded-md">GELECEK</span>'
+                        : '');
+                const boxCls = isCurrent
+                    ? 'bg-emerald-50/80 p-4 rounded-2xl border border-emerald-200'
+                    : 'bg-slate-50 p-4 rounded-2xl border border-slate-200';
+                const lines = g.items.map(function(i) {
+                    return '<div class="flex justify-between gap-2 text-xs text-slate-600">' +
+                        '<span class="min-w-0 truncate">' + escapeHtml(i.description || '-') +
+                        ' <span class="text-slate-400">(' + escapeHtml(i.person || '') + ' · ' +
+                        escapeHtml(i.installmentLabel || '') + ')</span></span>' +
+                        '<span class="font-bold shrink-0">' + Math.round(Number(i.displayAmount) || 0).toLocaleString('tr-TR') + ' TL</span></div>';
+                }).join('');
+                return '<div class="' + boxCls + '">' +
+                    '<div class="flex justify-between items-center mb-2 gap-2">' +
+                    '<span class="font-black text-slate-800 text-sm">' + escapeHtml(label) + badge + '</span>' +
+                    '<span class="font-black text-indigo-600 text-sm">' + Math.round(g.sum).toLocaleString('tr-TR') + ' TL</span></div>' +
+                    '<div class="space-y-1">' + lines + '</div></div>';
+            }
+
+            let html = '';
+            if (!groupsCF.length) {
+                html = '<p class="text-center text-sm text-slate-400 font-semibold py-8">Bu dönem veya ilerisi için taksit yok</p>';
+            } else {
+                html = groupsCF.map(function(g) {
+                    return periodBlock(g, g.month === currentPeriod);
+                }).join('');
+            }
+            if (groupsPast.length) {
+                html += '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider pt-3 pb-1">Geçmiş taksitler</p>';
+                html += groupsPast.map(function(g) { return periodBlock(g, false); }).join('');
+            }
+
+            const container = document.getElementById('installmentsContainer');
+            if (container) container.innerHTML = html;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
         };
-        window.closeInstallmentsModal = () => {
-            document.getElementById('installmentsModal').classList.add('hidden');
-            document.getElementById('installmentsModal').classList.remove('flex');
+
+        window.closeInstallmentsModal = function() {
+            const modal = document.getElementById('installmentsModal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
         };
 
         function buildExpenseCsvRows(items) {

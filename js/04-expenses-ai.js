@@ -55,24 +55,51 @@
                         });
                     }
 
-                    if (currentShowInstallments) {
-                        installmentEntries.forEach(entry => {
-                            if (entry.effectiveMonth >= currentPeriod) {
-                                processed.push(entry);
-                            }
-                        });
-                    } else {
-                        const inCurrent = installmentEntries.find(e => e.effectiveMonth === currentPeriod);
-                        if (inCurrent) {
-                            processed.push({
-                                ...inCurrent,
-                                id: item.id
-                            });
-                        }
+                    // İşlem geçmişi: yalnızca aktif döneme düşen taksit satırı
+                    const inCurrent = installmentEntries.find(e => e.effectiveMonth === currentPeriod);
+                    if (inCurrent) {
+                        processed.push(Object.assign({}, inCurrent, { id: item.id }));
                     }
                 }
             });
             return processed;
+        }
+
+        /** Tüm taksit/tekrar satırları (bu dönem + gelecek + geçmiş) — modal için */
+        function getInstallmentScheduleRows() {
+            const rows = [];
+            const list = (typeof expenses !== 'undefined' && expenses) ? expenses : [];
+            list.forEach(function(item) {
+                if (!item) return;
+                if (item.installmentLabel === 'Gelir') return;
+                const count = item.installmentCount || 1;
+                const isMulti = count > 1 || !!item.isRecurring;
+                if (!isMulti) return;
+                const originalDate = item.date;
+                const perAmount = item.isRecurring
+                    ? (Number(item.amount) || 0)
+                    : ((Number(item.amount) || 0) / count);
+                for (let i = 0; i < count; i++) {
+                    const dateStr = typeof shiftDateByMonths === 'function'
+                        ? shiftDateByMonths(originalDate, i)
+                        : originalDate;
+                    const periodKey = typeof getPeriodKeyForDateStr === 'function'
+                        ? getPeriodKeyForDateStr(dateStr)
+                        : String(dateStr || '').slice(0, 7);
+                    const label = item.isRecurring
+                        ? ('Tekrar ' + (i + 1) + '/' + count)
+                        : ('Taksit ' + (i + 1) + '/' + count);
+                    rows.push(Object.assign({}, item, {
+                        id: item.id + '_ins_' + i,
+                        displayAmount: perAmount,
+                        installmentLabel: label,
+                        effectiveMonth: periodKey,
+                        date: dateStr,
+                        installmentIndex: i
+                    }));
+                }
+            });
+            return rows;
         }
 
         function formatDateTR(ymd) {
@@ -128,11 +155,7 @@
 
             let filtered = [];
 
-            if (currentShowInstallments) {
-                filtered = getProcessedExpenses().filter(item => item.installmentLabel !== 'Peşin');
-            } else {
-                filtered = getProcessedExpenses().map(e => ({ ...e }));
-            }
+            filtered = getProcessedExpenses().map(function(e) { return Object.assign({}, e); });
 
             filtered = filtered.filter(item => {
                 if (currentPersonFilter !== 'Tümü' && item.person !== currentPersonFilter) return false;
