@@ -1,5 +1,5 @@
-/* YUVAM service worker — statik kabuk + Firebase SDK (çevrimdışı) */
-const CACHE = 'yuvam-shell-v5';
+/* YUVAM service worker — asset-safe caching */
+const CACHE = 'yuvam-shell-v6';
 const ASSETS = [
   './',
   './index.html',
@@ -17,7 +17,9 @@ const ASSETS = [
   './vendor/firebase-auth-compat.js',
   './images/eyvah-maymun.png',
   './images/loading-gate.png',
-  './images/icon.svg'
+  './images/icon.svg',
+  './images/icon-192.png',
+  './images/icon-512.png'
 ];
 
 self.addEventListener('install', function(event) {
@@ -35,46 +37,77 @@ self.addEventListener('install', function(event) {
 self.addEventListener('activate', function(event) {
   event.waitUntil(
     caches.keys().then(function(keys) {
-      return Promise.all(keys.filter(function(k) { return k !== CACHE; }).map(function(k) {
-        return caches.delete(k);
-      }));
+      return Promise.all(
+        keys.filter(function(k) { return k !== CACHE; }).map(function(k) {
+          return caches.delete(k);
+        })
+      );
     }).then(function() { return self.clients.claim(); })
   );
 });
+
+function isHtmlRequest(req, url) {
+  if (req.mode === 'navigate') return true;
+  const accept = req.headers.get('accept') || '';
+  if (accept.indexOf('text/html') >= 0) return true;
+  const p = url.pathname || '';
+  return p.endsWith('/') || p.endsWith('.html');
+}
+
+function isStaticAsset(url) {
+  const p = url.pathname || '';
+  return /\.(css|js|png|jpg|jpeg|gif|svg|webp|woff2?|ttf|json|ico)(\?.*)?$/i.test(p);
+}
 
 self.addEventListener('fetch', function(event) {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
-  // Firebase / Google API ağ istekleri — Firestore kendi offline katmanı
-  if (url.hostname.indexOf('googleapis.com') >= 0 ||
-      url.hostname.indexOf('firebaseio.com') >= 0 ||
-      url.hostname.indexOf('firestore.googleapis.com') >= 0 ||
-      url.hostname.indexOf('identitytoolkit.googleapis.com') >= 0 ||
-      url.hostname.indexOf('securetoken.googleapis.com') >= 0 ||
-      url.hostname.indexOf('google.com') >= 0 ||
-      url.hostname.indexOf('jsdelivr.net') >= 0 ||
-      url.hostname.indexOf('fonts.googleapis.com') >= 0 ||
-      url.hostname.indexOf('fonts.gstatic.com') >= 0) {
-    return;
-  }
+  // Cross-origin (Firebase, fonts, CDN) — SW karışmasın
+  if (url.origin !== self.location.origin) return;
 
-  // Aynı origin: önce önbellek, yoksa ağ, yoksa index
-  if (url.origin === self.location.origin) {
+  // CSS / JS / görseller: ASLA index.html fallback yok
+  if (isStaticAsset(url)) {
     event.respondWith(
       caches.match(req).then(function(cached) {
-        const network = fetch(req).then(function(res) {
-          if (res && res.status === 200) {
+        const net = fetch(req).then(function(res) {
+          if (res && res.ok) {
             const copy = res.clone();
             caches.open(CACHE).then(function(c) { c.put(req, copy); }).catch(function() {});
           }
           return res;
         }).catch(function() {
-          return cached || caches.match('./index.html');
+          return cached || Response.error();
         });
-        // Stale-while-revalidate: önbellek varsa hemen ver
-        return cached || network;
+        // Önce ağ (güncel CSS), yoksa cache
+        return net.then(function(res) {
+          if (res && res.ok) return res;
+          return cached || res;
+        }).catch(function() {
+          return cached || Response.error();
+        });
+      })
+    );
+    return;
+  }
+
+  // HTML navigasyon
+  if (isHtmlRequest(req, url)) {
+    event.respondWith(
+      fetch(req).then(function(res) {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then(function(c) {
+            c.put('./index.html', copy);
+            c.put(req, res.clone());
+          }).catch(function() {});
+        }
+        return res;
+      }).catch(function() {
+        return caches.match('./index.html').then(function(c) {
+          return c || caches.match(req);
+        });
       })
     );
   }

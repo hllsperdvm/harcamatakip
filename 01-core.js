@@ -67,21 +67,22 @@
             if (!el) return;
             const offline = (typeof navigator !== 'undefined' && navigator.onLine === false);
             let pending = 0;
-            try {
-                if (typeof db !== 'undefined' && db && typeof firebase !== 'undefined') {
-                    /* Firestore persistence: metadata.hasPendingWrites */
-                }
-            } catch (_) {}
-            try {
-                pending = Number(window._yuvamPendingWrites || 0);
-            } catch (_) {}
+            try { pending = Number(window._yuvamPendingWrites || 0); } catch (_) {}
+            // Giriş ekranında veya online + bekleyen yoksa gizle
+            const onLogin = !document.body.classList.contains('yuvam-app-open');
+            if (onLogin || (!offline && pending <= 0)) {
+                el.classList.add('hidden');
+                el.style.display = 'none';
+                el.setAttribute('aria-hidden', 'true');
+                return;
+            }
             if (offline || pending > 0) {
                 el.classList.remove('hidden');
+                el.style.display = '';
+                el.setAttribute('aria-hidden', 'false');
                 el.textContent = offline
                     ? (pending > 0 ? ('⏳ ' + pending + ' bekleyen · çevrimdışı') : '📡 Çevrimdışı')
                     : ('⏳ ' + pending + ' senkron bekliyor');
-            } else {
-                el.classList.add('hidden');
             }
         }
         window.markPendingWrite = function(delta) {
