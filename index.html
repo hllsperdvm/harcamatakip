@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#0284c7" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#4f46e5" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="mobile-web-app-capable" content="yes">
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0284c7">
+    <meta name="theme-color" content="#4f46e5">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="YUVAM">
@@ -38,7 +38,13 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
   box-shadow:0 16px 48px rgba(2,132,199,0.12)!important;border:1px solid #e2e8f0;
   text-align:center;
 }
-#errorContainer svg{display:block;margin:0 auto 0.75rem;width:72px;height:72px}
+#errorContainer .yuvam-logo{
+  display:inline-flex!important;align-items:center;justify-content:center;
+  width:3.5rem!important;height:3.5rem!important;margin:0 auto 1.25rem!important;
+  border-radius:1rem!important;background:#4f46e5!important;color:#fff!important;
+  box-shadow:0 10px 24px rgba(79,70,229,.28)!important;
+}
+#errorContainer .yuvam-logo svg{display:block;width:2rem!important;height:2rem!important;margin:0!important;stroke:#fff!important}
 #errorContainer h2{
   margin:0 0 0.25rem!important;font-size:1.75rem!important;font-weight:800!important;
   color:#0f172a!important;letter-spacing:-0.02em;line-height:1.2;
@@ -137,9 +143,9 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
     <div id="errorContainer" class="fixed inset-0 z-[100] flex items-center justify-center bg-gradient-to-br from-slate-50 via-indigo-50/40 to-slate-100">
         <div class="w-full max-w-md p-8">
             <div class="bg-white rounded-[2rem] shadow-xl shadow-indigo-100/50 border border-slate-100 p-8 text-center">
-                                <div class="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-200 text-white">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-9 h-9" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                                                                <div class="yuvam-logo mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-100 text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                     </svg>
                 </div>
                 <h2 class="mb-1 text-2xl font-extrabold text-slate-900">YUVAM</h2>
@@ -180,7 +186,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
             <!-- Header -->
             <header class="mb-10 flex flex-col sm:flex-row justify-between items-center gap-6">
                 <button type="button" onclick="switchTab('home')" class="flex items-center gap-4 text-left group cursor-pointer bg-transparent border-0 p-0" title="Ana Sayfa">
-                    <div class="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100 text-white group-hover:bg-indigo-700 transition">
+                    <div class="yuvam-logo w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100 text-white group-hover:bg-indigo-700 transition">
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                         </svg>
