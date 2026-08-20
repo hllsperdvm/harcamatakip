@@ -219,11 +219,10 @@ html.theme-dark .text-indigo-600, html.theme-dark .text-indigo-700 { color: #7dd
     color: #94a3b8;
     margin-top: 0.35rem;
   }
-  #filterPanel label,
   #filterPanel button,
   #filterPanel select,
   #filterPanel input {
-    min-height: 2.5rem;
+    min-height: 2.75rem;
   }
   button, .rounded-xl, .rounded-2xl {
     touch-action: manipulation;
@@ -760,14 +759,6 @@ html.theme-dark .advisor-card {
   background: #132337 !important;
   border-color: #1e3a5f !important;
 }
-html.theme-dark .advisor-card-local {
-  background: linear-gradient(145deg, #0c4a6e 0%, #132337 70%) !important;
-  border-color: #0284c7 !important;
-}
-html.theme-dark .advisor-card-ai {
-  background: linear-gradient(145deg, #1e1b4b 0%, #132337 70%) !important;
-  border-color: #7c3aed !important;
-}
 html.theme-dark .advisor-title {
   color: #f0f9ff !important;
   text-shadow: 0 1px 2px rgba(0,0,0,0.35);
@@ -788,6 +779,53 @@ html.theme-dark #aiAdvisorResult p {
 
 
 /* İşlem geçmişi mobil: kendi içinde kaydır */
+
+/* İşlem geçmişi aksiyon butonları */
+.expense-history-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  width: 100%;
+}
+.eh-btn {
+  flex: 1 1 auto;
+  min-width: calc(50% - 0.35rem);
+  max-width: 100%;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.85rem;
+  border: none;
+  color: #fff;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+@media (min-width: 640px) {
+  .eh-btn {
+    flex: 0 0 auto;
+    min-width: 0;
+    padding: 0.5rem 1rem;
+  }
+}
+.eh-btn-purple { background: #9333ea; }
+.eh-btn-indigo { background: #4f46e5; }
+.eh-btn-emerald { background: #059669; }
+.eh-btn-teal { background: #0d9488; }
+.eh-btn-ghost {
+  background: #f1f5f9;
+  color: #475569;
+  flex: 1 1 100%;
+}
+@media (min-width: 640px) {
+  .eh-btn-ghost { flex: 0 0 auto; background: transparent; color: #94a3b8; }
+  .eh-btn-ghost:hover { color: #0f172a; }
+}
+html.theme-dark .eh-btn-ghost {
+  background: #334155;
+  color: #e2e8f0;
+}
+
 .expense-history-scroll {
   max-height: min(58vh, 520px);
   overflow-y: auto;
@@ -1597,43 +1635,127 @@ body.yuvam-app-open {
     overscroll-behavior: contain;
     padding-bottom: 0.5rem;
   }
-  /* Filtre bottom sheet */
+
+/* Filtre paneli: başlık büyük, değer daha sade */
+#filterPanel .filter-label,
+#filterPanel label {
+  font-size: 0.8rem !important;
+  font-weight: 800 !important;
+  color: #334155 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  margin-left: 0.15rem;
+  margin-bottom: 0.2rem;
+}
+#filterPanel .filter-control,
+#filterPanel select,
+#filterPanel input[type="text"],
+#filterPanel input[type="date"] {
+  width: 100%;
+  background: #fff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 0.85rem !important;
+  padding: 0.7rem 0.85rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  color: #475569 !important;
+  box-shadow: none !important;
+  min-height: 2.75rem;
+  outline: none;
+}
+#filterPanel .filter-control:focus,
+#filterPanel select:focus,
+#filterPanel input:focus {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+}
+/* Tarih: iOS boş alan + takvim görünürlüğü */
+#filterPanel input[type="date"].filter-date,
+#filterPanel input[type="date"] {
+  min-height: 3rem !important;
+  position: relative;
+  color-scheme: light;
+  -webkit-appearance: none;
+  appearance: none;
+  line-height: 1.4;
+}
+#filterPanel input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 1;
+  display: block;
+  width: 1.35rem;
+  height: 1.35rem;
+  cursor: pointer;
+  margin-left: 0.25rem;
+}
+#filterPanel input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+  min-height: 1.25rem;
+}
+html.theme-dark #filterPanel .filter-label,
+html.theme-dark #filterPanel label {
+  color: #e2e8f0 !important;
+}
+html.theme-dark #filterPanel .filter-control,
+html.theme-dark #filterPanel select,
+html.theme-dark #filterPanel input {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+  color-scheme: dark;
+}
+
+  /* Filtre bottom sheet — yüksek z-index, tıklanabilir */
   .filter-sheet-backdrop {
-    position: fixed;
+    position: fixed !important;
     inset: 0;
-    background: rgba(15, 23, 42, 0.45);
-    z-index: 110;
+    background: rgba(15, 23, 42, 0.5);
+    z-index: 200 !important;
+    pointer-events: auto;
   }
   #filterPanel.filter-sheet-mobile:not(.hidden) {
     position: fixed !important;
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 111;
-    max-height: min(88vh, 640px);
+    z-index: 210 !important;
+    max-height: min(85vh, 620px);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     border-radius: 1.25rem 1.25rem 0 0 !important;
     border: none !important;
     border-top: 1px solid #e2e8f0 !important;
     background: #fff !important;
-    padding: 1rem 1rem calc(1.25rem + env(safe-area-inset-bottom)) !important;
-    box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.18);
+    padding: 0.75rem 1rem calc(1rem + env(safe-area-inset-bottom)) !important;
+    box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.2);
     display: grid !important;
     grid-template-columns: 1fr 1fr;
     gap: 0.75rem;
     animation: yuvamSheetUp 0.22s ease-out;
+    pointer-events: auto !important;
+    touch-action: manipulation;
   }
-  #filterPanel.filter-sheet-mobile:not(.hidden)::before {
-    content: "";
+  #filterPanel .filter-sheet-head {
     grid-column: 1 / -1;
-    width: 2.5rem;
-    height: 0.3rem;
-    background: #cbd5e1;
-    border-radius: 999px;
-    margin: 0 auto 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid #f1f5f9;
+    margin-bottom: 0.15rem;
+  }
+  #filterPanel .filter-sheet-actions {
+    grid-column: 1 / -1;
+  }
+  #filterPanel.filter-sheet-mobile:not(.hidden) select,
+  #filterPanel.filter-sheet-mobile:not(.hidden) input {
+    pointer-events: auto !important;
+    font-size: 16px !important; /* iOS zoom engeli */
   }
   #filterPanel .sm\:col-span-2 { grid-column: 1 / -1; }
+  body.yuvam-sheet-open {
+    overflow: hidden !important;
+  }
 }
 @keyframes yuvamSheetUp {
   from { transform: translateY(40%); opacity: 0.6; }
@@ -1641,6 +1763,7 @@ body.yuvam-app-open {
 }
 @media (min-width: 640px) {
   .filter-sheet-backdrop { display: none !important; }
+  #filterPanel .filter-sheet-head { display: none !important; }
 }
 
 /* Empty state soft color */
