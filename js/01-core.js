@@ -1432,6 +1432,13 @@ window.renderHomeTab = function() {
                 const hour = new Date().getHours();
                 const hi = hour < 12 ? 'Günaydın' : (hour < 18 ? 'İyi günler' : 'İyi akşamlar');
                 if (greet) greet.textContent = hi + (name ? ', ' + name : '');
+                try {
+                    const hero = document.getElementById('homeHeroBanner');
+                    if (hero) {
+                        hero.classList.remove('hero-morning', 'hero-day', 'hero-evening');
+                        hero.classList.add(hour < 12 ? 'hero-morning' : (hour < 18 ? 'hero-day' : 'hero-evening'));
+                    }
+                } catch (_) {}
 
                 try { if (typeof loadDailyAyah === 'function') loadDailyAyah(true); } catch (_) {}
 
@@ -1542,11 +1549,10 @@ window.renderHomeTab = function() {
                                 const badge = overdue
                                     ? ' <span class="inline-flex items-center gap-0.5 text-[10px] font-black text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded-md">❗ GEÇTİ</span>'
                                     : '';
-                                return '<div class="flex gap-2 items-start p-2.5 rounded-xl ' +
-                                    (overdue ? 'bg-rose-50 border border-rose-200' : 'bg-slate-50 border border-slate-100') + '">' +
+                                return '<div class="agenda-item agenda-task' + (overdue ? ' is-overdue' : '') + '">' +
                                     '<span class="text-sm shrink-0">' + (overdue ? '❗' : '⬜') + '</span>' +
-                                    '<div class="min-w-0"><p class="text-sm font-bold text-slate-800">' + escapeHtml(t.text || '-') + badge + '</p>' +
-                                    (sub ? '<p class="text-[10px] text-slate-400 font-semibold">' + escapeHtml(sub) + '</p>' : '') +
+                                    '<div class="min-w-0"><p class="agenda-title">' + escapeHtml(t.text || '-') + badge + '</p>' +
+                                    (sub ? '<p class="agenda-sub">' + escapeHtml(sub) + '</p>' : '') +
                                     '</div></div>';
                             }).join('');
                         }
@@ -1583,10 +1589,10 @@ window.renderHomeTab = function() {
                             html += '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mt-3 mb-1.5">Yaklaşanlar</p>';
                             html += upcoming.map(function(n) {
                                 const msg = (n.message || '').trim();
-                                return '<div class="flex gap-2 items-start p-2.5 rounded-xl bg-amber-50/80 border border-amber-100">' +
+                                return '<div class="agenda-item">' +
                                     '<span class="text-base shrink-0">' + (n.icon || '🔔') + '</span>' +
-                                    '<div class="min-w-0"><p class="text-sm font-bold text-slate-800">' + escapeHtml(n.title || '') + '</p>' +
-                                    (msg ? ('<p class="text-[11px] text-slate-500 font-semibold">' + escapeHtml(msg) + '</p>') : '') +
+                                    '<div class="min-w-0"><p class="agenda-title">' + escapeHtml(n.title || '') + '</p>' +
+                                    (msg ? ('<p class="agenda-sub">' + escapeHtml(msg) + '</p>') : '') +
                                     '</div></div>';
                             }).join('');
                             const lim = Math.max(5, window._homeUpcomingLimit || 5);

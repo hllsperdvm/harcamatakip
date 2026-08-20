@@ -15,7 +15,12 @@
  * Harcama işleme, grafikler, Yuvam AI, istatistik
  * GitHub: js/ klasörünün tamamını yükleyin.
  */
-        function getProcessedExpenses() {
+        
+        window.yuvamChartPalette = function() {
+            // Ocean / warm / forest uyumlu marka paleti
+            return ['#0284c7', '#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#f43f5e', '#06b6d4', '#eab308', '#6366f1', '#ec4899', '#14b8a6', '#f97316'];
+        };
+function getProcessedExpenses() {
             // Harcamaları 29–28 ekstre dönemine göre işler. effectiveMonth = periodKey
             const currentPeriod = getCurrentPeriod();
             let processed = [];
@@ -1493,7 +1498,7 @@
                 if (expenseChart) { try { expenseChart.destroy(); } catch (_) {} }
                 const labels = Object.keys(categoryData);
                 const data = labels.map(function(k) { return categoryData[k]; });
-                const colors = ['#6366f1','#f59e0b','#10b981','#ef4444','#8b5cf6','#06b6d4','#ec4899','#14b8a6','#a855f7','#f97316','#64748b'];
+                const colors = (typeof yuvamChartPalette === 'function') ? yuvamChartPalette() : ['#0284c7','#0ea5e9','#10b981','#f59e0b','#8b5cf6','#f43f5e','#06b6d4'];
                 expenseChart = new Chart(ctx1, {
                     type: 'doughnut',
                     data: {
@@ -1590,7 +1595,7 @@
                     if (weeklyTrendChart) { try { weeklyTrendChart.destroy(); } catch (_) {} }
                     weeklyTrendChart = new Chart(ctxW, {
                         type: 'bar',
-                        data: { labels: days, datasets: [{ label: 'Harcama', data: daySums, backgroundColor: '#6366f1', borderRadius: 6, maxBarThickness: 28 }] },
+                        data: { labels: days, datasets: [{ label: 'Harcama', data: daySums, backgroundColor: ((typeof yuvamChartPalette === 'function') ? yuvamChartPalette()[0] : '#0284c7'), borderRadius: 6, maxBarThickness: 28 }] },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
@@ -1728,7 +1733,7 @@
                         });
                     });
                     const top5 = Object.entries(catGrand).sort(function(a, b) { return b[1] - a[1]; }).slice(0, 5).map(function(x) { return x[0]; });
-                    const palette = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'];
+                    const palette = (typeof yuvamChartPalette === 'function') ? yuvamChartPalette() : ['#0284c7', '#f59e0b', '#10b981', '#f43f5e', '#8b5cf6'];
                     const datasets = top5.map(function(cat, i) {
                         return {
                             label: cat,
@@ -2042,14 +2047,14 @@
             html += rows.map(function(e) {
                 const amt = (Number(e.displayAmount) || 0).toLocaleString('tr-TR');
                 const d = (typeof formatDateTR === 'function') ? formatDateTR(String(e.date || '').slice(0, 10)) : String(e.date || '').slice(0, 10);
-                return '<div class="flex items-center justify-between gap-2 p-3 rounded-xl bg-emerald-50/80 border border-emerald-100">' +
+                return '<div class="report-row report-multinet">' +
                     '<div class="min-w-0">' +
-                    '<p class="text-sm font-black text-slate-800 truncate">' + escapeHtml(e.description || e.category || 'Alışveriş') + '</p>' +
-                    '<p class="text-[11px] text-slate-500 font-semibold">' + escapeHtml(d) +
+                    '<p class="report-title truncate">' + escapeHtml(e.description || e.category || 'Alışveriş') + '</p>' +
+                    '<p class="report-sub">' + escapeHtml(d) +
                     (e.person ? (' · ' + escapeHtml(e.person)) : '') +
                     (e.category ? (' · ' + escapeHtml(e.category)) : '') + '</p>' +
                     '</div>' +
-                    '<p class="text-sm font-black text-emerald-700 shrink-0">' + amt + ' TL</p>' +
+                    '<p class="report-amt text-emerald-700 shrink-0">' + amt + ' TL</p>' +
                     '</div>';
             }).join('');
             box.innerHTML = html;
@@ -2111,17 +2116,17 @@
                 const eid = escapeHtml(e.expenseId || '');
                 const mk = escapeHtml(e.monthKey || String(e.date || '').slice(0, 7));
                 const monthLabel = e.monthKey || '';
-                return '<div class="flex items-center justify-between gap-2 p-3 rounded-xl bg-amber-50/80 border border-amber-100">' +
+                return '<div class="report-row report-alacak">' +
                     '<div class="min-w-0">' +
-                    '<p class="text-sm font-black text-slate-800 truncate">' + escapeHtml(e.description || e.category || 'Ödeme') + '</p>' +
-                    '<p class="text-[11px] text-slate-500 font-semibold">' + d +
+                    '<p class="report-title truncate">' + escapeHtml(e.description || e.category || 'Ödeme') + '</p>' +
+                    '<p class="report-sub">' + d +
                     (monthLabel ? (' · ' + escapeHtml(monthLabel)) : '') +
                     ' · ' + who +
                     (e.person ? (' · ödeyen ' + escapeHtml(e.person)) : '') +
                     (e.billSubtype ? (' · ' + escapeHtml(e.billSubtype)) : '') +
                     (e.isRecurring ? ' · tekrarlı' : '') + '</p></div>' +
                     '<div class="shrink-0 text-right">' +
-                    '<p class="text-sm font-black text-amber-800">' + amt + ' TL</p>' +
+                    '<p class="report-amt text-amber-800">' + amt + ' TL</p>' +
                     '<button type="button" onclick="markOnBehalfReimbursed(\'' + eid + '\',\'' + mk + '\', true)" class="text-[10px] font-bold text-emerald-700 mt-1">Geri alındı</button>' +
                     '</div></div>';
             }).join('');
@@ -2149,25 +2154,20 @@ function renderCardStatements(person) {
                 const year = parts[0] || '';
                 const month = parts[1] || '1';
                 const monthName = monthNames[parseInt(month, 10) - 1] || stmt.month || '';
-                const bgColor = key === 'bekir'
-                    ? 'from-blue-50 to-blue-100 border-blue-200'
-                    : 'from-pink-50 to-pink-100 border-pink-200';
-                const textColor = key === 'bekir' ? 'text-blue-600' : 'text-pink-600';
+                const kind = key === 'bekir' ? 'stmt-bekir' : 'stmt-duygu';
                 const safeId = escapeHtml(String(stmt.id || ''));
                 const amt = (Number(stmt.amount) || 0).toLocaleString('tr-TR');
                 const paid = escapeHtml(stmt.paidDate || '');
 
                 return (
-                    '<div class="bg-gradient-to-br ' + bgColor + ' p-4 rounded-2xl border shadow-sm transition">' +
-                      '<div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-1">' + escapeHtml(monthName + ' ' + year) + '</div>' +
-                      '<div class="text-xl font-black ' + textColor + '">' + amt + '</div>' +
-                      '<div class="text-[8px] text-slate-600 mb-1">TL</div>' +
-                      (paid ? '<div class="text-[8px] text-slate-400 border-t border-slate-200/80 pt-1.5 mt-1">Ödeme: ' + paid + '</div>' : '') +
-                      '<div class="flex gap-1.5 mt-3">' +
-                        '<button type="button" onclick="event.stopPropagation();markCardStatementUnpaid(\'' + safeId + '\')" ' +
-                          'class="flex-1 text-[10px] font-bold py-2 rounded-xl bg-white/80 text-amber-700 hover:bg-amber-50 border border-amber-200/80 transition">Ödenmedi yap</button>' +
-                        '<button type="button" onclick="event.stopPropagation();deleteCardStatement(\'' + safeId + '\')" ' +
-                          'class="flex-1 text-[10px] font-bold py-2 rounded-xl bg-white/80 text-rose-600 hover:bg-rose-50 border border-rose-200/80 transition">Sil</button>' +
+                    '<div class="stmt-card ' + kind + ' transition">' +
+                      '<div class="stmt-month mb-1">' + escapeHtml(monthName + ' ' + year) + '</div>' +
+                      '<div class="stmt-amt">' + amt + '</div>' +
+                      '<div class="stmt-meta mb-1">TL</div>' +
+                      (paid ? '<div class="stmt-meta border-t border-white/10 pt-1.5 mt-1">Ödeme: ' + paid + '</div>' : '') +
+                      '<div class="stmt-actions flex gap-1.5 mt-3">' +
+                        '<button type="button" onclick="event.stopPropagation();markCardStatementUnpaid(\'' + safeId + '\')">Ödenmedi yap</button>' +
+                        '<button type="button" onclick="event.stopPropagation();deleteCardStatement(\'' + safeId + '\')">Sil</button>' +
                       '</div>' +
                     '</div>'
                 );
@@ -2367,9 +2367,7 @@ function renderCardStatements(person) {
             container.innerHTML = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">' + list.map(function(stmt) {
                 const amt = Number(stmt.amount) || 0;
                 const blue = stmt.color === 'blue' || stmt.person === 'Bekir';
-                const bg = blue ? 'from-blue-50 to-blue-100 border-blue-200' : 'from-pink-50 to-pink-100 border-pink-200';
-                const tc = blue ? 'text-blue-600' : 'text-pink-600';
-                const border = blue ? 'border-blue-300' : 'border-pink-300';
+                const kind = blue ? 'stmt-bekir' : 'stmt-duygu';
                 const periodLab = (stmt.period && stmt.period.label) ? stmt.period.label : '-';
                 const n = (stmt.expenses && stmt.expenses.length) ? stmt.expenses.length : 0;
                 const clickable = amt > 0
@@ -2379,23 +2377,23 @@ function renderCardStatements(person) {
                     ? 'onclick="openStatementDetails(\'' + stmt.person + '\')"'
                     : '';
                 return (
-                    '<div class="bg-gradient-to-br ' + bg + ' p-6 rounded-2xl border ' + clickable + ' transition" ' + onclick + '>' +
-                      '<div class="flex justify-between items-start">' +
-                        '<div class="flex-1">' +
-                          '<p class="text-sm font-bold text-slate-600 uppercase tracking-wider">' + stmt.person + '</p>' +
-                          '<p class="text-4xl font-black ' + tc + ' mt-2">' + amt.toLocaleString('tr-TR') + '</p>' +
-                          '<p class="text-[11px] text-slate-500 mt-3">TL</p>' +
+                    '<div class="stmt-card ' + kind + ' p-5 ' + clickable + ' transition" ' + onclick + '>' +
+                      '<div class="flex justify-between items-start gap-2">' +
+                        '<div class="min-w-0 flex-1">' +
+                          '<p class="stmt-month">' + escapeHtml(stmt.person || '') + '</p>' +
+                          '<p class="stmt-amt text-3xl mt-1">' + amt.toLocaleString('tr-TR') + '</p>' +
+                          '<p class="stmt-meta mt-2">TL</p>' +
                         '</div>' +
-                        '<div>' +
-                          '<p class="text-xs text-slate-600 mb-3 font-semibold">' + periodLab + '</p>' +
+                        '<div class="text-right shrink-0">' +
+                          '<p class="stmt-meta mb-2 font-semibold">' + escapeHtml(periodLab) + '</p>' +
                           '<p class="text-3xl">💳</p>' +
                         '</div>' +
                       '</div>' +
-                      '<div class="mt-4 pt-4 border-t border-opacity-30 ' + border + '">' +
-                        '<p class="text-xs text-slate-600 mb-2">' + n + ' harcama</p>' +
+                      '<div class="mt-4 pt-3 border-t border-white/20">' +
+                        '<p class="stmt-meta mb-2">' + n + ' harcama</p>' +
                         (amt > 0
-                          ? '<button type="button" onclick="event.stopPropagation(); openStatementDetails(\'' + stmt.person + '\')" class="w-full py-2 bg-white/70 hover:bg-white text-slate-700 font-bold text-xs rounded-lg transition">Detayları Gör →</button>'
-                          : '<p class="text-[11px] text-slate-400 font-semibold">Bu dönem KK harcaması yok</p>') +
+                          ? '<button type="button" onclick="event.stopPropagation(); openStatementDetails(\'' + stmt.person + '\')" class="w-full py-2 rounded-xl text-xs font-bold bg-black/10 hover:bg-black/15">Detayları Gör</button>'
+                          : '<p class="text-xs font-semibold opacity-70">Borç yok</p>') +
                       '</div>' +
                     '</div>'
                 );
