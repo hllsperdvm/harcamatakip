@@ -67,7 +67,7 @@
             return String(ev.date).slice(0, 10);
         }
 
-        // ——— Altın yatırımları (goldprice.dev · 24 ayar TRY/gram) ———
+        // ——— Altın yatırımları (altinapi.com · ALTIN / AYAR22) ———
         function formatGoldTL(n) {
             const v = Number(n);
             if (!isFinite(v)) return '—';
@@ -249,52 +249,77 @@
             const elMeta = document.getElementById('goldPriceMeta');
             try {
                 if (!force && goldQuotes.sell24 != null) {
-                    updateGoldPriceUI(); 
+                    updateGoldPriceUI();
                     renderGoldHoldings();
                     return;
                 }
                 if (elMeta) elMeta.textContent = 'Fiyat çekiliyor…';
 
-                let buy24 = null, sell24 = null, buy22 = null, sell22 = null;
-                let source = '';
-                let change = null;
-
+                // Key: Firestore settings/apiKeys.altinapi
+                let key = '';
                 try {
-                    const res = await fetch('https://finans.truncgil.com/v4/today.json', { cache: 'no-store' });
-                    if (!res.ok) throw new Error('truncgil ' + res.status);
-                    const data = await res.json();
-                    const has = data.HAS || data.GRAMHASALTIN || data.GramAltin || data['Gram Altın'] || data.altin || data.ALTIN;
-                    if (has) {
-                        buy24 = parseGoldNum(has.Buying != null ? has.Buying : has.Alis);
-                        sell24 = parseGoldNum(has.Selling != null ? has.Selling : has.Satis);
-                        if (!(buy24 > 0)) buy24 = sell24;
-                        if (!(sell24 > 0)) sell24 = buy24;
-                        if (has.Change != null && has.Change !== '') change = has.Change;
-                        source = 'Truncgil' + (data.Update_Date ? (' · ' + data.Update_Date) : '');
-                    }
-                    const a22 = data['22AYARALTIN'] || data['22AYAR'] || data.AYAR22 || data['22 Ayar Altın'];
-                    if (a22) {
-                        buy22 = parseGoldNum(a22.Buying != null ? a22.Buying : a22.Alis);
-                        sell22 = parseGoldNum(a22.Selling != null ? a22.Selling : a22.Satis);
-                        if (!(buy22 > 0)) buy22 = sell22;
-                        if (!(sell22 > 0)) sell22 = buy22;
-                    }
+                    if (typeof altinApiKey === 'string' && altinApiKey.trim()) key = altinApiKey.trim();
+                    else if (window.altinApiKey && String(window.altinApiKey).trim()) key = String(window.altinApiKey).trim();
                 } catch (_) {}
-
-                if (!(sell24 > 0)) {
+                if (!key && typeof ensureApiKeysLoaded === 'function') {
+                    try { await ensureApiKeysLoaded(); } catch (_) {}
                     try {
-                        const res2 = await fetch('https://api.goldprice.dev/v1/carat?currency=TRY', { cache: 'no-store' });
-                        if (res2.ok) {
-                            const data2 = await res2.json();
-                            const g24 = parseFloat(data2.price_gram_24k);
-                            const g22 = parseFloat(data2.price_gram_22k);
-                            if (g24 > 0) { sell24 = g24; buy24 = g24; source = source || 'goldprice.dev'; }
-                            if (g22 > 0) { sell22 = g22; buy22 = g22; }
-                        }
+                        if (typeof altinApiKey === 'string' && altinApiKey.trim()) key = altinApiKey.trim();
+                        else if (window.altinApiKey && String(window.altinApiKey).trim()) key = String(window.altinApiKey).trim();
                     } catch (_) {}
                 }
 
-                if (!(sell24 > 0)) throw new Error('Fiyat alınamadı');
+                if (!key) {
+                    throw new Error('altinapi anahtarı yok');
+                }
+
+                // Tek istekte tüm fiyatlar — ALTIN (24) + AYAR22
+                const res = await fetch('https://altinapi.com/api/v1/prices', {
+                    cache: 'no-store',
+                    headers: { 'X-API-Key': key, 'Accept': 'application/json' }
+                });
+                if (res.status === 401 || res.status === 403) {
+                    throw new Error('altinapi anahtarı geçersiz (401/403)');
+                }
+                if (res.status === 429) {
+                    throw new Error('altinapi limit (429)');
+                }
+                if (!res.ok) throw new Error('altinapi ' + res.status);
+                const payload = await res.json();
+                const rows = Array.isArray(payload)
+                    ? payload
+                    : (Array.isArray(payload.data) ? payload.data : []);
+
+                function findSym(sym) {
+                    const u = String(sym).toUpperCase();
+                    for (let i = 0; i < rows.length; i++) {
+                        const r = rows[i];
+                        if (!r) continue;
+                        const s = String(r.symbol || r.code || r.name || '').toUpperCase();
+                        if (s === u) return r;
+                    }
+                    return null;
+                }
+
+                const row24 = findSym('ALTIN') || findSym('HASALTIN') || findSym('GRAMALTIN');
+                const row22 = findSym('AYAR22') || findSym('22AYAR') || findSym('AYAR_22');
+
+                let buy24 = null, sell24 = null, buy22 = null, sell22 = null;
+                if (row24) {
+                    // bid = alış, ask = satış
+                    buy24 = parseGoldNum(row24.bid != null ? row24.bid : (row24.alis != null ? row24.alis : row24.buy));
+                    sell24 = parseGoldNum(row24.ask != null ? row24.ask : (row24.satis != null ? row24.satis : row24.sell));
+                    if (!(buy24 > 0)) buy24 = sell24;
+                    if (!(sell24 > 0)) sell24 = buy24;
+                }
+                if (row22) {
+                    buy22 = parseGoldNum(row22.bid != null ? row22.bid : (row22.alis != null ? row22.alis : row22.buy));
+                    sell22 = parseGoldNum(row22.ask != null ? row22.ask : (row22.satis != null ? row22.satis : row22.sell));
+                    if (!(buy22 > 0)) buy22 = sell22;
+                    if (!(sell22 > 0)) sell22 = buy22;
+                }
+
+                if (!(sell24 > 0)) throw new Error('ALTIN sembolü yok');
                 if (!(buy24 > 0)) buy24 = sell24;
                 if (!(sell22 > 0)) sell22 = sell24 * (22 / 24);
                 if (!(buy22 > 0)) buy22 = buy24 * (22 / 24);
@@ -302,21 +327,26 @@
                 goldQuotes = { buy24: buy24, sell24: sell24, buy22: buy22, sell22: sell22 };
                 goldPricePerGram = sell24;
                 goldPricePerGram22 = sell22;
-                
+
                 updateGoldPriceUI();
-                if (elMeta) {
-                    let meta = source || 'Güncel';
-                    if (change != null && change !== '') meta += ' · ' + change + '%';
-                    elMeta.textContent = meta;
-                }
+                let meta = 'altinapi.com';
+                try {
+                    if (payload.updatedAt) meta += ' · ' + String(payload.updatedAt).replace('T', ' ').slice(0, 16);
+                    else if (row24 && row24.timestamp) {
+                        const d = new Date(Number(row24.timestamp));
+                        if (!isNaN(d.getTime())) meta += ' · ' + d.toLocaleString('tr-TR');
+                    }
+                } catch (_) {}
+                if (elMeta) elMeta.textContent = meta;
                 try {
                     localStorage.setItem('yuvam_gold_price', JSON.stringify({
-                        quotes: goldQuotes, p: sell24, p22: sell22, at: Date.now(), source: source
+                        quotes: goldQuotes, p: sell24, p22: sell22, at: Date.now(), source: 'altinapi'
                     }));
                 } catch (_) {}
                 renderGoldHoldings();
                 try { if (typeof updateHomeGoldCard === 'function') updateHomeGoldCard(); } catch (_) {}
             } catch (e) {
+                console.warn('refreshGoldPrice', e);
                 try {
                     const raw = localStorage.getItem('yuvam_gold_price');
                     if (raw) {
@@ -340,7 +370,14 @@
                         return;
                     }
                 } catch (_) {}
-                if (elMeta) elMeta.textContent = 'API yok — elle 24A satış ₺/g girin';
+                const msg = (e && e.message) ? String(e.message) : '';
+                if (elMeta) {
+                    if (msg.indexOf('anahtar') >= 0 || msg.indexOf('401') >= 0) {
+                        elMeta.textContent = 'API key yok — Firestore settings/apiKeys → altinapi';
+                    } else {
+                        elMeta.textContent = 'Fiyat alınamadı — elle 24A satış ₺/g girin';
+                    }
+                }
             }
         };
 
@@ -1983,6 +2020,10 @@
             if (col && typeof col === 'object') col = col.key || col.value || '';
             collectApiKey = String(col || '').trim();
             try { window.collectApiKey = collectApiKey; } catch (_) {}
+            var alt = k.altinapi || k.altinApi || k.AltinAPI || k.altin || k.hapi || '';
+            if (alt && typeof alt === 'object') alt = alt.key || alt.value || alt.token || alt.apiKey || '';
+            altinApiKey = String(alt || '').trim();
+            try { window.altinApiKey = altinApiKey; } catch (_) {}
         }
 
         window.ensureApiKeysLoaded = async function() {
@@ -2007,6 +2048,8 @@
                         openrouterApiKey = '';
                         try { window.openrouterApiKey = ''; } catch (_) {}
                         collectApiKey = '';
+                        altinApiKey = '';
+                        try { window.altinApiKey = ''; } catch (_) {}
                         return;
                     }
                     if (d.exists && d.data()) {
@@ -2015,11 +2058,15 @@
                         openrouterApiKey = '';
                         try { window.openrouterApiKey = ''; } catch (_) {}
                         collectApiKey = '';
+                        altinApiKey = '';
+                        try { window.altinApiKey = ''; } catch (_) {}
                     }
                 }, err => {
                     openrouterApiKey = '';
                     try { window.openrouterApiKey = ''; } catch (_) {}
                     collectApiKey = '';
+                    altinApiKey = '';
+                    try { window.altinApiKey = ''; } catch (_) {}
                     console.warn('apiKeys okunamadı (rules?)', err);
                 });
             }, 600);

@@ -130,7 +130,8 @@
         // Kimlik: Firebase Auth. Rol: Firestore users/{uid}
         let openrouterApiKey = ''; // Firestore settings/apiKeys.openrouter — koda yazılmaz
         let collectApiKey = ''; // Firestore settings/apiKeys.collectapi — CollectAPI spor
-        try { window.openrouterApiKey = ''; window.collectApiKey = ''; } catch (_) {}
+        let altinApiKey = ''; // Firestore settings/apiKeys.altinapi — altinapi.com
+        try { window.openrouterApiKey = ''; window.collectApiKey = ''; window.altinApiKey = ''; } catch (_) {}
         let superLigFixturesCache = []; // bellek önbelleği
         let publicHolidaysCache = [];
         let publicHolidaysAt = 0;
@@ -635,7 +636,7 @@
                         if (!datePart) datePart = (typeof formatDateTR === 'function' ? formatDateTR(md) : md) + (dayLab ? (' ' + dayLab) : '');
                         const line = days === 0
                             ? ('Bugün mesai - ' + datePart)
-                            : (days + ' Gün Sonra Mesai - ' + datePart);
+                            : (days + ' gün sonra mesai - ' + datePart);
                         pushNotif(key, days === 0 ? 'critical' : (days <= 3 ? 'warning' : 'info'), '🏭', line, '');
                     }
                 }
@@ -823,6 +824,7 @@
             try { auth.signOut(); } catch (_) {}
             try { openrouterApiKey = ''; } catch (_) {}
             try { collectApiKey = ''; } catch (_) {}
+            try { altinApiKey = ''; window.altinApiKey = ''; } catch (_) {}
             try { stopActivityLogListener(); } catch (_) {}
             try { activityLog = []; } catch (_) {}
             // realtime flag
