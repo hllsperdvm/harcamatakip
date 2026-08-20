@@ -255,71 +255,98 @@
                 }
                 if (elMeta) elMeta.textContent = 'Fiyat çekiliyor…';
 
-                // Key: Firestore settings/apiKeys.altinapi
-                let key = '';
+                let buy24 = null, sell24 = null, buy22 = null, sell22 = null;
+                let source = '';
+
+                // 1) altinapi.com (key Firestore settings/apiKeys.altinapi)
+                // Not: Birçok tarayıcıda CORS/CORP engeli olabilir → o zaman Truncgil yedek
                 try {
-                    if (typeof altinApiKey === 'string' && altinApiKey.trim()) key = altinApiKey.trim();
-                    else if (window.altinApiKey && String(window.altinApiKey).trim()) key = String(window.altinApiKey).trim();
-                } catch (_) {}
-                if (!key && typeof ensureApiKeysLoaded === 'function') {
-                    try { await ensureApiKeysLoaded(); } catch (_) {}
+                    let key = '';
                     try {
                         if (typeof altinApiKey === 'string' && altinApiKey.trim()) key = altinApiKey.trim();
                         else if (window.altinApiKey && String(window.altinApiKey).trim()) key = String(window.altinApiKey).trim();
                     } catch (_) {}
-                }
-
-                if (!key) {
-                    throw new Error('altinapi anahtarı yok');
-                }
-
-                // Tek istekte tüm fiyatlar — ALTIN (24) + AYAR22
-                const res = await fetch('https://altinapi.com/api/v1/prices', {
-                    cache: 'no-store',
-                    headers: { 'X-API-Key': key, 'Accept': 'application/json' }
-                });
-                if (res.status === 401 || res.status === 403) {
-                    throw new Error('altinapi anahtarı geçersiz (401/403)');
-                }
-                if (res.status === 429) {
-                    throw new Error('altinapi limit (429)');
-                }
-                if (!res.ok) throw new Error('altinapi ' + res.status);
-                const payload = await res.json();
-                const rows = Array.isArray(payload)
-                    ? payload
-                    : (Array.isArray(payload.data) ? payload.data : []);
-
-                function findSym(sym) {
-                    const u = String(sym).toUpperCase();
-                    for (let i = 0; i < rows.length; i++) {
-                        const r = rows[i];
-                        if (!r) continue;
-                        const s = String(r.symbol || r.code || r.name || '').toUpperCase();
-                        if (s === u) return r;
+                    if (!key && typeof ensureApiKeysLoaded === 'function') {
+                        try { await ensureApiKeysLoaded(); } catch (_) {}
+                        try {
+                            if (typeof altinApiKey === 'string' && altinApiKey.trim()) key = altinApiKey.trim();
+                            else if (window.altinApiKey && String(window.altinApiKey).trim()) key = String(window.altinApiKey).trim();
+                        } catch (_) {}
                     }
-                    return null;
+                    if (key) {
+                        const url = 'https://altinapi.com/api/v1/prices?api_key=' + encodeURIComponent(key);
+                        const res = await fetch(url, {
+                            cache: 'no-store',
+                            headers: { 'X-API-Key': key, 'Accept': 'application/json' }
+                        });
+                        if (res.ok) {
+                            const payload = await res.json();
+                            const rows = Array.isArray(payload) ? payload
+                                : (Array.isArray(payload.data) ? payload.data : []);
+                            function findSym(sym) {
+                                const u = String(sym).toUpperCase();
+                                for (let i = 0; i < rows.length; i++) {
+                                    const r = rows[i];
+                                    if (!r) continue;
+                                    const s = String(r.symbol || r.code || r.name || '').toUpperCase();
+                                    if (s === u) return r;
+                                }
+                                return null;
+                            }
+                            const row24 = findSym('ALTIN') || findSym('HASALTIN') || findSym('GRAMALTIN');
+                            const row22 = findSym('AYAR22') || findSym('22AYAR');
+                            if (row24) {
+                                buy24 = parseGoldNum(row24.bid != null ? row24.bid : row24.alis);
+                                sell24 = parseGoldNum(row24.ask != null ? row24.ask : row24.satis);
+                                if (!(buy24 > 0)) buy24 = sell24;
+                                if (!(sell24 > 0)) sell24 = buy24;
+                            }
+                            if (row22) {
+                                buy22 = parseGoldNum(row22.bid != null ? row22.bid : row22.alis);
+                                sell22 = parseGoldNum(row22.ask != null ? row22.ask : row22.satis);
+                                if (!(buy22 > 0)) buy22 = sell22;
+                                if (!(sell22 > 0)) sell22 = buy22;
+                            }
+                            if (sell24 > 0) {
+                                source = 'altinapi.com';
+                                try {
+                                    if (payload.updatedAt) source += ' · ' + String(payload.updatedAt).replace('T', ' ').slice(0, 16);
+                                } catch (_) {}
+                            }
+                        }
+                    }
+                } catch (errAlt) {
+                    console.warn('altinapi', errAlt);
                 }
 
-                const row24 = findSym('ALTIN') || findSym('HASALTIN') || findSym('GRAMALTIN');
-                const row22 = findSym('AYAR22') || findSym('22AYAR') || findSym('AYAR_22');
-
-                let buy24 = null, sell24 = null, buy22 = null, sell22 = null;
-                if (row24) {
-                    // bid = alış, ask = satış
-                    buy24 = parseGoldNum(row24.bid != null ? row24.bid : (row24.alis != null ? row24.alis : row24.buy));
-                    sell24 = parseGoldNum(row24.ask != null ? row24.ask : (row24.satis != null ? row24.satis : row24.sell));
-                    if (!(buy24 > 0)) buy24 = sell24;
-                    if (!(sell24 > 0)) sell24 = buy24;
+                // 2) Truncgil yedek — tarayıcıdan CORS açık, TR gram fiyatları
+                if (!(sell24 > 0)) {
+                    try {
+                        const res = await fetch('https://finans.truncgil.com/v4/today.json', { cache: 'no-store' });
+                        if (res.ok) {
+                            const data = await res.json();
+                            const has = data.HAS || data.GRAMHASALTIN || data.GramAltin;
+                            if (has) {
+                                buy24 = parseGoldNum(has.Buying != null ? has.Buying : has.Alis);
+                                sell24 = parseGoldNum(has.Selling != null ? has.Selling : has.Satis);
+                                if (!(buy24 > 0)) buy24 = sell24;
+                                if (!(sell24 > 0)) sell24 = buy24;
+                                source = 'Truncgil' + (data.Update_Date ? (' · ' + data.Update_Date) : '');
+                            }
+                            const a22 = data['22AYARALTIN'] || data['22AYAR'] || data.AYAR22;
+                            if (a22) {
+                                buy22 = parseGoldNum(a22.Buying != null ? a22.Buying : a22.Alis);
+                                sell22 = parseGoldNum(a22.Selling != null ? a22.Selling : a22.Satis);
+                                if (!(buy22 > 0)) buy22 = sell22;
+                                if (!(sell22 > 0)) sell22 = buy22;
+                            }
+                        }
+                    } catch (errT) {
+                        console.warn('truncgil', errT);
+                    }
                 }
-                if (row22) {
-                    buy22 = parseGoldNum(row22.bid != null ? row22.bid : (row22.alis != null ? row22.alis : row22.buy));
-                    sell22 = parseGoldNum(row22.ask != null ? row22.ask : (row22.satis != null ? row22.satis : row22.sell));
-                    if (!(buy22 > 0)) buy22 = sell22;
-                    if (!(sell22 > 0)) sell22 = buy22;
-                }
 
-                if (!(sell24 > 0)) throw new Error('ALTIN sembolü yok');
+                if (!(sell24 > 0)) throw new Error('Fiyat alınamadı');
                 if (!(buy24 > 0)) buy24 = sell24;
                 if (!(sell22 > 0)) sell22 = sell24 * (22 / 24);
                 if (!(buy22 > 0)) buy22 = buy24 * (22 / 24);
@@ -329,18 +356,10 @@
                 goldPricePerGram22 = sell22;
 
                 updateGoldPriceUI();
-                let meta = 'altinapi.com';
-                try {
-                    if (payload.updatedAt) meta += ' · ' + String(payload.updatedAt).replace('T', ' ').slice(0, 16);
-                    else if (row24 && row24.timestamp) {
-                        const d = new Date(Number(row24.timestamp));
-                        if (!isNaN(d.getTime())) meta += ' · ' + d.toLocaleString('tr-TR');
-                    }
-                } catch (_) {}
-                if (elMeta) elMeta.textContent = meta;
+                if (elMeta) elMeta.textContent = source || 'Güncel';
                 try {
                     localStorage.setItem('yuvam_gold_price', JSON.stringify({
-                        quotes: goldQuotes, p: sell24, p22: sell22, at: Date.now(), source: 'altinapi'
+                        quotes: goldQuotes, p: sell24, p22: sell22, at: Date.now(), source: source
                     }));
                 } catch (_) {}
                 renderGoldHoldings();
@@ -364,20 +383,13 @@
                             };
                         }
                         updateGoldPriceUI();
-                        if (elMeta) elMeta.textContent = 'Önbellek · elle de girebilirsiniz';
+                        if (elMeta) elMeta.textContent = 'Önbellek · yenilemeyi tekrar deneyin';
                         renderGoldHoldings();
                         try { if (typeof updateHomeGoldCard === 'function') updateHomeGoldCard(); } catch (_) {}
                         return;
                     }
                 } catch (_) {}
-                const msg = (e && e.message) ? String(e.message) : '';
-                if (elMeta) {
-                    if (msg.indexOf('anahtar') >= 0 || msg.indexOf('401') >= 0) {
-                        elMeta.textContent = 'API key yok — Firestore settings/apiKeys → altinapi';
-                    } else {
-                        elMeta.textContent = 'Fiyat alınamadı — elle 24A satış ₺/g girin';
-                    }
-                }
+                if (elMeta) elMeta.textContent = 'Fiyat alınamadı — elle 24A satış ₺/g girin';
             }
         };
 
@@ -2020,26 +2032,36 @@
             if (col && typeof col === 'object') col = col.key || col.value || '';
             collectApiKey = String(col || '').trim();
             try { window.collectApiKey = collectApiKey; } catch (_) {}
-            var alt = k.altinapi || k.altinApi || k.AltinAPI || k.altin || k.hapi || '';
+            var alt = k.altinapi || k.altinApi || k.AltinAPI || k.altinAPI
+                || k.altin_api || k.altin_api_key || k.ALTINAPI || k.altin || k.hapi
+                || k.altinKey || k.goldApi || k.goldapi || '';
             if (alt && typeof alt === 'object') alt = alt.key || alt.value || alt.token || alt.apiKey || '';
             altinApiKey = String(alt || '').trim();
+            // Bazen key alanına hapi_ yazılmış olabilir (openrouter değilse)
+            if (!altinApiKey && typeof k.apiKey === 'string' && String(k.apiKey).indexOf('hapi_') === 0) {
+                altinApiKey = String(k.apiKey).trim();
+            }
             try { window.altinApiKey = altinApiKey; } catch (_) {}
         }
 
         window.ensureApiKeysLoaded = async function() {
-            if (openrouterApiKey && String(openrouterApiKey).trim()) return openrouterApiKey;
+            // Memory'de varsa kullan ama Firestore'dan da güncelle (altinapi vs. yeni alanlar)
             if (typeof window.openrouterApiKey === 'string' && window.openrouterApiKey.trim()) {
                 openrouterApiKey = window.openrouterApiKey.trim();
-                return openrouterApiKey;
             }
-            if (!db || !auth || !auth.currentUser) return '';
+            if (typeof window.altinApiKey === 'string' && window.altinApiKey.trim()) {
+                altinApiKey = window.altinApiKey.trim();
+            }
+            if (!db || !auth || !auth.currentUser) {
+                return openrouterApiKey || altinApiKey || '';
+            }
             try {
                 const snap = await db.collection('settings').doc('apiKeys').get();
                 if (snap.exists) applyApiKeysFromDoc(snap.data());
             } catch (e) {
                 console.warn('ensureApiKeysLoaded', e);
             }
-            return openrouterApiKey || '';
+            return openrouterApiKey || altinApiKey || '';
         };
 
 
