@@ -636,7 +636,7 @@
                         if (!datePart) datePart = (typeof formatDateTR === 'function' ? formatDateTR(md) : md) + (dayLab ? (' ' + dayLab) : '');
                         const line = days === 0
                             ? ('Bugün mesai - ' + datePart)
-                            : (days + ' gün sonra mesai - ' + datePart);
+                            : (days + ' Gün Sonra Mesai - ' + datePart);
                         pushNotif(key, days === 0 ? 'critical' : (days <= 3 ? 'warning' : 'info'), '🏭', line, '');
                     }
                 }
