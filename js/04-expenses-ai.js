@@ -148,10 +148,30 @@
         }
 
 
+        /** Bu satır/ay için alacak geri alınmış mı? Harita varsa ay bazlı; yoksa global bayrak */
+        function isOnBehalfMonthReimbursed(item) {
+            if (!item || !(item.isOnBehalf || item.onBehalf)) return false;
+            const map = item.onBehalfReimbursedByMonth || {};
+            const keys = Object.keys(map);
+            const d = String(item.date || item.effectiveDate || '').slice(0, 10);
+            const mk = d.slice(0, 7);
+            if (keys.length) {
+                if (mk && map[mk]) return true;
+                try {
+                    if (typeof getPeriodKeyForDateStr === 'function' && d) {
+                        const pk = getPeriodKeyForDateStr(d);
+                        if (pk && map[pk]) return true;
+                    }
+                } catch (_) {}
+                return false; // harita var ama bu ay işaretli değil → Alacak
+            }
+            return !!item.onBehalfReimbursed;
+        }
+
         function onBehalfBadgeHtml(item) {
             if (!item || !(item.isOnBehalf || item.onBehalf)) return '';
             const who = escapeHtml(item.onBehalfOf || 'Başkası');
-            if (item.onBehalfReimbursed) {
+            if (isOnBehalfMonthReimbursed(item)) {
                 return '<span class="inline-block text-[9px] font-black px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500">Alındı · ' + who + '</span>';
             }
             return '<span class="inline-block text-[9px] font-black px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800">Alacak · ' + who + '</span>';
@@ -252,7 +272,7 @@
                                 ${escapeHtml((item.person || '').toUpperCase())}
                             </span>
                         </td>
-                        <td class="px-6 py-5"><span class="bg-slate-100 px-2 py-1 rounded text-[10px]">${escapeHtml(item.category)}${item.shopSubtype ? ' · ' + escapeHtml(item.shopSubtype) : ''}${item.isEcommerce ? ' · E-ticaret' : ''}${item.billSubtype ? ' · ' + escapeHtml(item.billSubtype) : ''}${item.vehicleSubtype ? ' · ' + escapeHtml(item.vehicleSubtype) : ''}${(item.isOnBehalf || item.onBehalf) ? (item.onBehalfReimbursed ? ' · Alındı' : ' · Alacak') + (item.onBehalfOf ? ' (' + escapeHtml(item.onBehalfOf) + ')' : '') : ''}</span></td>
+                        <td class="px-6 py-5"><span class="bg-slate-100 px-2 py-1 rounded text-[10px]">${escapeHtml(item.category)}${item.shopSubtype ? ' · ' + escapeHtml(item.shopSubtype) : ''}${item.isEcommerce ? ' · E-ticaret' : ''}${item.billSubtype ? ' · ' + escapeHtml(item.billSubtype) : ''}${item.vehicleSubtype ? ' · ' + escapeHtml(item.vehicleSubtype) : ''}${(item.isOnBehalf || item.onBehalf) ? (isOnBehalfMonthReimbursed(item) ? ' · Alındı' : ' · Alacak') + (item.onBehalfOf ? ' (' + escapeHtml(item.onBehalfOf) + ')' : '') : ''}</span></td>
                         <td class="px-6 py-5 opacity-60">${escapeHtml(item.paymentType || '-')}</td>
                         <td class="px-6 py-5">
                             <div class="flex flex-col">
@@ -306,7 +326,11 @@
                     const personCls = item.person === 'Bekir' ? 'person-bekir' : (item.person === 'Duygu' ? 'person-duygu' : '');
                     const catLine = escapeHtml(item.category || '-')
                         + (item.billSubtype ? ' · ' + escapeHtml(item.billSubtype) : '')
-                        + (item.vehicleSubtype ? ' · ' + escapeHtml(item.vehicleSubtype) : '');
+                        + (item.vehicleSubtype ? ' · ' + escapeHtml(item.vehicleSubtype) : '')
+                        + ((item.isOnBehalf || item.onBehalf)
+                            ? ((isOnBehalfMonthReimbursed(item) ? ' · Alındı' : ' · Alacak')
+                                + (item.onBehalfOf ? ' (' + escapeHtml(item.onBehalfOf) + ')' : ''))
+                            : '');
                     const canEdit = !isIncome && !String(item.id).includes('_ins_');
                     const delFn = isIncome ? "deleteIncome('" + safeId + "')" : "deleteExpense('" + safeId + "')";
 
@@ -2035,9 +2059,43 @@
             const box = document.getElementById('onBehalfStatements');
             const totalEl = document.getElementById('onBehalfPendingTotal');
             if (!box) return;
-            const pending = (typeof getDueOnBehalfReceivables === 'function')
-                ? getDueOnBehalfReceivables()
-                : [];
+            let pending = [];
+            try {
+                const fn = (typeof getDueOnBehalfReceivables === 'function')
+                    ? getDueOnBehalfReceivables
+                    : (window.getDueOnBehalfReceivables);
+                if (typeof fn === 'function') pending = fn() || [];
+            } catch (err) {
+                console.warn('getDueOnBehalfReceivables', err);
+                pending = [];
+            }
+            // Yedek: expenses içinde isOnBehalf olup listede yoksa düz ekle
+            if (!pending.length && typeof expenses !== 'undefined' && Array.isArray(expenses)) {
+                const today = (typeof todayDateStr === 'function') ? todayDateStr() : new Date().toISOString().slice(0, 10);
+                expenses.forEach(function(item) {
+                    if (!item || !(item.isOnBehalf || item.onBehalf)) return;
+                    if (item.onBehalfReimbursed) return;
+                    const d = String(item.date || '').slice(0, 10);
+                    if (!d || d > today) return;
+                    // Ay map kontrolü
+                    const mk = d.slice(0, 7);
+                    const map = item.onBehalfReimbursedByMonth || {};
+                    if (map[mk]) return;
+                    pending.push({
+                        expenseId: item.id,
+                        date: d,
+                        monthKey: mk,
+                        displayAmount: Number(item.amount) || 0,
+                        description: item.description || '',
+                        category: item.category || '',
+                        billSubtype: item.billSubtype || '',
+                        onBehalfOf: item.onBehalfOf || '',
+                        person: item.person || '',
+                        isRecurring: !!item.isRecurring,
+                        reimbursed: false
+                    });
+                });
+            }
             const sum = pending.reduce(function(s, e) {
                 return s + (Number(e.displayAmount) || 0);
             }, 0);

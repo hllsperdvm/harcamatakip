@@ -1636,16 +1636,17 @@ body.yuvam-app-open {
     padding-bottom: 0.5rem;
   }
 
+
 /* Filtre paneli: başlık büyük, değer daha sade */
 #filterPanel .filter-label,
 #filterPanel label {
-  font-size: 0.8rem !important;
+  font-size: 0.8125rem !important;
   font-weight: 800 !important;
-  color: #334155 !important;
+  color: #1e293b !important;
   text-transform: none !important;
   letter-spacing: 0 !important;
   margin-left: 0.15rem;
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.25rem;
 }
 #filterPanel .filter-control,
 #filterPanel select,
@@ -1653,54 +1654,50 @@ body.yuvam-app-open {
 #filterPanel input[type="date"] {
   width: 100%;
   background: #fff !important;
-  border: 1px solid #e2e8f0 !important;
+  border: 1.5px solid #cbd5e1 !important;
   border-radius: 0.85rem !important;
-  padding: 0.7rem 0.85rem !important;
-  font-size: 0.875rem !important;
+  padding: 0.75rem 0.9rem !important;
+  font-size: 0.8125rem !important;
   font-weight: 600 !important;
-  color: #475569 !important;
+  color: #64748b !important;
   box-shadow: none !important;
-  min-height: 2.75rem;
+  min-height: 2.85rem;
   outline: none;
 }
 #filterPanel .filter-control:focus,
 #filterPanel select:focus,
 #filterPanel input:focus {
   border-color: #6366f1 !important;
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.18) !important;
+  color: #0f172a !important;
 }
-/* Tarih: iOS boş alan + takvim görünürlüğü */
-#filterPanel input[type="date"].filter-date,
+/* Tarih alanı: takvim ikonu görünür, alan belirgin */
 #filterPanel input[type="date"] {
-  min-height: 3rem !important;
-  position: relative;
+  min-height: 3.1rem !important;
   color-scheme: light;
   -webkit-appearance: none;
   appearance: none;
-  line-height: 1.4;
 }
 #filterPanel input[type="date"]::-webkit-calendar-picker-indicator {
-  opacity: 1;
-  display: block;
-  width: 1.35rem;
-  height: 1.35rem;
+  opacity: 1 !important;
+  display: block !important;
+  width: 1.5rem;
+  height: 1.5rem;
   cursor: pointer;
-  margin-left: 0.25rem;
+  background: transparent;
 }
-#filterPanel input[type="date"]::-webkit-date-and-time-value {
-  text-align: left;
-  min-height: 1.25rem;
+#filterPanel input[type="date"]::-webkit-datetime-edit {
+  color: #64748b;
+  font-weight: 600;
 }
-html.theme-dark #filterPanel .filter-label,
 html.theme-dark #filterPanel label {
-  color: #e2e8f0 !important;
+  color: #f1f5f9 !important;
 }
-html.theme-dark #filterPanel .filter-control,
 html.theme-dark #filterPanel select,
 html.theme-dark #filterPanel input {
   background: #1e293b !important;
-  border-color: #334155 !important;
-  color: #e2e8f0 !important;
+  border-color: #475569 !important;
+  color: #cbd5e1 !important;
   color-scheme: dark;
 }
 
@@ -1834,4 +1831,104 @@ html.theme-dark .mnav-item.mnav-active {
   font-weight: 700 !important;
   border-radius: 1rem !important;
   box-shadow: 0 8px 20px rgba(79, 70, 229, 0.25) !important;
+}
+
+@media (max-width: 639px) {
+
+  #filterPanel label {
+    font-size: 0.9rem !important;
+    font-weight: 800 !important;
+    color: #0f172a !important;
+    text-transform: none !important;
+  }
+  #filterPanel select,
+  #filterPanel input[type="text"],
+  #filterPanel input[type="date"] {
+    font-size: 0.8125rem !important;
+    font-weight: 600 !important;
+    color: #64748b !important;
+    border: 1.5px solid #cbd5e1 !important;
+    min-height: 3rem !important;
+    background: #fff !important;
+  }
+  #filterPanel input[type="date"] {
+    min-height: 3.25rem !important;
+    padding-right: 0.5rem !important;
+  }
+  #filterPanel input[type="date"]::-webkit-calendar-picker-indicator {
+    opacity: 1 !important;
+    width: 1.6rem !important;
+    height: 1.6rem !important;
+    position: absolute;
+    right: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  #filterPanel .filter-date-wrap {
+    position: relative;
+    grid-column: 1 / -1;
+  }
+
+}
+
+
+/* İşlem geçmişi filtre — web estetik */
+#filterPanel {
+  align-items: end;
+}
+#filterPanel label,
+#filterPanel .filter-label {
+  display: block;
+  font-size: 0.7rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase !important;
+  color: #64748b !important;
+  margin-bottom: 0.35rem !important;
+  margin-left: 0 !important;
+}
+#filterPanel select,
+#filterPanel input[type="text"],
+#filterPanel input[type="date"],
+#filterPanel .filter-control {
+  font-size: 0.8125rem !important;
+  font-weight: 600 !important;
+  color: #334155 !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 0.75rem !important;
+  padding: 0.55rem 0.75rem !important;
+  min-height: 2.5rem;
+  background: #fff !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+#filterPanel select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2rem !important;
+}
+#filterPanel input[type="date"] {
+  min-height: 2.5rem !important;
+  color: #475569 !important;
+}
+#filterPanel .filter-sheet-actions button {
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+@media (min-width: 640px) {
+  #filterPanel {
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 0 0 1.25rem 1.25rem;
+  }
+}
+html.theme-dark #filterPanel label,
+html.theme-dark #filterPanel .filter-label {
+  color: #94a3b8 !important;
+}
+html.theme-dark #filterPanel select,
+html.theme-dark #filterPanel input {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
 }

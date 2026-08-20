@@ -67,7 +67,7 @@
             return String(ev.date).slice(0, 10);
         }
 
-        // ——— Altın yatırımları (goldprice.dev · 24 ayar TRY/gram) ———
+        // ——— Altın yatırımları (Harem via jina · Truncgil yedek) ———
         function formatGoldTL(n) {
             const v = Number(n);
             if (!isFinite(v)) return '—';
@@ -249,7 +249,7 @@
             const elMeta = document.getElementById('goldPriceMeta');
             try {
                 if (!force && goldQuotes.sell24 != null) {
-                    updateGoldPriceUI(); 
+                    updateGoldPriceUI();
                     renderGoldHoldings();
                     return;
                 }
@@ -257,41 +257,82 @@
 
                 let buy24 = null, sell24 = null, buy22 = null, sell22 = null;
                 let source = '';
-                let change = null;
 
+                // 1) Harem (Turkpidya) — tarayıcı CORS engeli nedeniyle jina.ai okuyucu üzerinden
                 try {
-                    const res = await fetch('https://finans.truncgil.com/v4/today.json', { cache: 'no-store' });
-                    if (!res.ok) throw new Error('truncgil ' + res.status);
-                    const data = await res.json();
-                    const has = data.HAS || data.GRAMHASALTIN || data.GramAltin || data['Gram Altın'] || data.altin || data.ALTIN;
-                    if (has) {
-                        buy24 = parseGoldNum(has.Buying != null ? has.Buying : has.Alis);
-                        sell24 = parseGoldNum(has.Selling != null ? has.Selling : has.Satis);
-                        if (!(buy24 > 0)) buy24 = sell24;
-                        if (!(sell24 > 0)) sell24 = buy24;
-                        if (has.Change != null && has.Change !== '') change = has.Change;
-                        source = 'Truncgil' + (data.Update_Date ? (' · ' + data.Update_Date) : '');
+                    const target = 'https://turkpidya.com/wp-json/turkpidya-data/v1/gold';
+                    const res = await fetch('https://r.jina.ai/' + target, {
+                        cache: 'no-store',
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    if (res.ok) {
+                        const wrap = await res.json();
+                        let inner = null;
+                        try {
+                            const content = wrap && wrap.data && wrap.data.content;
+                            if (typeof content === 'string') inner = JSON.parse(content);
+                            else if (content && typeof content === 'object') inner = content;
+                            else if (wrap && wrap.prices) inner = wrap;
+                        } catch (_) {}
+                        if (inner && Array.isArray(inner.prices)) {
+                            let p24 = null;
+                            inner.prices.forEach(function(row) {
+                                const typ = String(row.type || '').toLowerCase();
+                                if (typ === 'gram_24k') p24 = row;
+                            });
+                            if (p24) {
+                                buy24 = parseGoldNum(p24.buy);
+                                sell24 = parseGoldNum(p24.sell);
+                                if (!(buy24 > 0)) buy24 = sell24;
+                                if (!(sell24 > 0)) sell24 = buy24;
+                            }
+                            // 22 ayar: safiyet oranı (Turkpidya gram_22k bazen takı fiyatı — oran kullan)
+                            if (sell24 > 0) {
+                                sell22 = sell24 * (22 / 24);
+                                buy22 = (buy24 > 0 ? buy24 : sell24) * (22 / 24);
+                            }
+                            if (sell24 > 0) {
+                                source = 'Harem · Turkpidya';
+                                if (inner.price_date) source += ' · ' + inner.price_date;
+                            }
+                        }
                     }
-                    const a22 = data['22AYARALTIN'] || data['22AYAR'] || data.AYAR22 || data['22 Ayar Altın'];
-                    if (a22) {
-                        buy22 = parseGoldNum(a22.Buying != null ? a22.Buying : a22.Alis);
-                        sell22 = parseGoldNum(a22.Selling != null ? a22.Selling : a22.Satis);
-                        if (!(buy22 > 0)) buy22 = sell22;
-                        if (!(sell22 > 0)) sell22 = buy22;
-                    }
-                } catch (_) {}
+                } catch (e1) {
+                    console.warn('harem/jina', e1);
+                }
 
+                // 2) Truncgil yedek (CORS açık)
                 if (!(sell24 > 0)) {
                     try {
-                        const res2 = await fetch('https://api.goldprice.dev/v1/carat?currency=TRY', { cache: 'no-store' });
-                        if (res2.ok) {
-                            const data2 = await res2.json();
-                            const g24 = parseFloat(data2.price_gram_24k);
-                            const g22 = parseFloat(data2.price_gram_22k);
-                            if (g24 > 0) { sell24 = g24; buy24 = g24; source = source || 'goldprice.dev'; }
-                            if (g22 > 0) { sell22 = g22; buy22 = g22; }
+                        const res3 = await fetch('https://finans.truncgil.com/v4/today.json', { cache: 'no-store' });
+                        if (res3.ok) {
+                            const text = await res3.text();
+                            let data = null;
+                            try { data = JSON.parse(text); } catch (_) {
+                                const cut = text.lastIndexOf('}');
+                                if (cut > 0) try { data = JSON.parse(text.slice(0, cut + 1)); } catch (__) {}
+                            }
+                            if (data) {
+                                const has = data.HAS || data.GRAMHASALTIN;
+                                if (has) {
+                                    buy24 = parseGoldNum(has.Buying != null ? has.Buying : has.Alis);
+                                    sell24 = parseGoldNum(has.Selling != null ? has.Selling : has.Satis);
+                                    if (!(buy24 > 0)) buy24 = sell24;
+                                    if (!(sell24 > 0)) sell24 = buy24;
+                                    source = 'Truncgil' + (data.Update_Date ? (' · ' + data.Update_Date) : '');
+                                }
+                                const a22 = data['22AYARALTIN'] || data['22AYAR'];
+                                if (a22) {
+                                    buy22 = parseGoldNum(a22.Buying != null ? a22.Buying : a22.Alis);
+                                    sell22 = parseGoldNum(a22.Selling != null ? a22.Selling : a22.Satis);
+                                    if (!(buy22 > 0)) buy22 = sell22;
+                                    if (!(sell22 > 0)) sell22 = buy22;
+                                }
+                            }
                         }
-                    } catch (_) {}
+                    } catch (e3) {
+                        console.warn('truncgil', e3);
+                    }
                 }
 
                 if (!(sell24 > 0)) throw new Error('Fiyat alınamadı');
@@ -302,13 +343,9 @@
                 goldQuotes = { buy24: buy24, sell24: sell24, buy22: buy22, sell22: sell22 };
                 goldPricePerGram = sell24;
                 goldPricePerGram22 = sell22;
-                
+
                 updateGoldPriceUI();
-                if (elMeta) {
-                    let meta = source || 'Güncel';
-                    if (change != null && change !== '') meta += ' · ' + change + '%';
-                    elMeta.textContent = meta;
-                }
+                if (elMeta) elMeta.textContent = source || 'Güncel';
                 try {
                     localStorage.setItem('yuvam_gold_price', JSON.stringify({
                         quotes: goldQuotes, p: sell24, p22: sell22, at: Date.now(), source: source
@@ -317,6 +354,7 @@
                 renderGoldHoldings();
                 try { if (typeof updateHomeGoldCard === 'function') updateHomeGoldCard(); } catch (_) {}
             } catch (e) {
+                console.warn('refreshGoldPrice', e);
                 try {
                     const raw = localStorage.getItem('yuvam_gold_price');
                     if (raw) {
@@ -334,13 +372,13 @@
                             };
                         }
                         updateGoldPriceUI();
-                        if (elMeta) elMeta.textContent = 'Önbellek · elle de girebilirsiniz';
+                        if (elMeta) elMeta.textContent = 'Önbellek · yenilemeyi tekrar deneyin';
                         renderGoldHoldings();
                         try { if (typeof updateHomeGoldCard === 'function') updateHomeGoldCard(); } catch (_) {}
                         return;
                     }
                 } catch (_) {}
-                if (elMeta) elMeta.textContent = 'API yok — elle 24A satış ₺/g girin';
+                if (elMeta) elMeta.textContent = 'Fiyat alınamadı — elle 24A satış ₺/g girin';
             }
         };
 
@@ -1983,22 +2021,36 @@
             if (col && typeof col === 'object') col = col.key || col.value || '';
             collectApiKey = String(col || '').trim();
             try { window.collectApiKey = collectApiKey; } catch (_) {}
+            var alt = k.altinapi || k.altinApi || k.AltinAPI || k.altinAPI
+                || k.altin_api || k.altin_api_key || k.ALTINAPI || k.altin || k.hapi
+                || k.altinKey || k.goldApi || k.goldapi || '';
+            if (alt && typeof alt === 'object') alt = alt.key || alt.value || alt.token || alt.apiKey || '';
+            altinApiKey = String(alt || '').trim();
+            // Bazen key alanına hapi_ yazılmış olabilir (openrouter değilse)
+            if (!altinApiKey && typeof k.apiKey === 'string' && String(k.apiKey).indexOf('hapi_') === 0) {
+                altinApiKey = String(k.apiKey).trim();
+            }
+            try { window.altinApiKey = altinApiKey; } catch (_) {}
         }
 
         window.ensureApiKeysLoaded = async function() {
-            if (openrouterApiKey && String(openrouterApiKey).trim()) return openrouterApiKey;
+            // Memory'de varsa kullan ama Firestore'dan da güncelle (altinapi vs. yeni alanlar)
             if (typeof window.openrouterApiKey === 'string' && window.openrouterApiKey.trim()) {
                 openrouterApiKey = window.openrouterApiKey.trim();
-                return openrouterApiKey;
             }
-            if (!db || !auth || !auth.currentUser) return '';
+            if (typeof window.altinApiKey === 'string' && window.altinApiKey.trim()) {
+                altinApiKey = window.altinApiKey.trim();
+            }
+            if (!db || !auth || !auth.currentUser) {
+                return openrouterApiKey || altinApiKey || '';
+            }
             try {
                 const snap = await db.collection('settings').doc('apiKeys').get();
                 if (snap.exists) applyApiKeysFromDoc(snap.data());
             } catch (e) {
                 console.warn('ensureApiKeysLoaded', e);
             }
-            return openrouterApiKey || '';
+            return openrouterApiKey || altinApiKey || '';
         };
 
 
@@ -2007,6 +2059,8 @@
                         openrouterApiKey = '';
                         try { window.openrouterApiKey = ''; } catch (_) {}
                         collectApiKey = '';
+                        altinApiKey = '';
+                        try { window.altinApiKey = ''; } catch (_) {}
                         return;
                     }
                     if (d.exists && d.data()) {
@@ -2015,11 +2069,15 @@
                         openrouterApiKey = '';
                         try { window.openrouterApiKey = ''; } catch (_) {}
                         collectApiKey = '';
+                        altinApiKey = '';
+                        try { window.altinApiKey = ''; } catch (_) {}
                     }
                 }, err => {
                     openrouterApiKey = '';
                     try { window.openrouterApiKey = ''; } catch (_) {}
                     collectApiKey = '';
+                    altinApiKey = '';
+                    try { window.altinApiKey = ''; } catch (_) {}
                     console.warn('apiKeys okunamadı (rules?)', err);
                 });
             }, 600);
