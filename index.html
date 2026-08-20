@@ -263,8 +263,10 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         </div>
                     </div>
                     <p class="text-[11px] text-slate-400 font-semibold mb-3">Açık görevler ve yaklaşan ödemeler / hatırlatmalar</p>
-                    <div id="homeAgendaList" class="space-y-2 home-agenda-scroll"></div>
-                    <div id="homeAgendaMore" class="pt-1"></div>
+                    <div class="expense-history-scroll home-agenda-scroll-wrap">
+                        <div id="homeAgendaList" class="space-y-2 p-0.5"></div>
+                    </div>
+                    <div id="homeAgendaMore" class="pt-2"></div>
                 </div>
 
                 <button type="button" data-layout-block="homeQuickAdd" data-home-card="homeQuickAdd" onclick="switchTab('expense'); openExpenseModal();"
@@ -289,7 +291,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         <p class="text-[10px] text-slate-500 font-semibold mt-0.5">Nakit <span id="homePeriodCash">0</span> · KK <span id="homePeriodCard">0</span></p>
                         <p class="text-[11px] text-slate-400 font-semibold">29–28 ekstre</p>
                     </div>
-                    <button type="button" data-home-card="homeGold" onclick="switchTab('expense')" class="yuvam-card bg-white rounded-2xl p-4 card-shadow border border-amber-100 text-left col-span-2">
+                    <button type="button" data-home-card="homeGold" onclick="switchTab('expense')" class="yuvam-card stripe-gold bg-white rounded-2xl p-4 card-shadow border border-amber-100 text-left col-span-2">
                         <p class="text-[10px] font-black text-amber-700/80 uppercase tracking-wide">🥇 Altın Yatırımı</p>
                         <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 mt-1">
                             <p id="homeGoldPnL" class="text-xl font-black text-slate-800">—</p>
@@ -348,8 +350,10 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         <button type="button" onclick="setPlanFilter('task')" id="planFilterTask" class="text-[11px] font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-600">Görevler</button>
                         <button type="button" onclick="setPlanFilter('cal')" id="planFilterCal" class="text-[11px] font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-600">Takvim</button>
                     </div>
-                    <div id="familyPlanList" class="space-y-2 plan-list-scroll"></div>
-                    <div id="familyPlanMore" class="pt-1"></div>
+                    <div class="expense-history-scroll plan-list-scroll-wrap">
+                        <div id="familyPlanList" class="space-y-2 p-0.5"></div>
+                    </div>
+                    <div id="familyPlanMore" class="pt-2"></div>
                 </div>
 
                 <div data-layout-block="planNotesForm" data-stripe="plan" class="bg-white p-5 sm:p-8 rounded-[1.75rem] sm:rounded-[2.5rem] card-shadow border border-slate-100">
@@ -445,7 +449,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                 </div>
 
                 <!-- Aylık Bütçe Hedefi progress -->
-                <div id="budgetTargetCard" class="bg-white p-5 sm:p-6 rounded-3xl card-shadow border border-slate-100">
+                <div id="budgetTargetCard" class="bg-white p-5 sm:p-6 rounded-3xl card-shadow border border-slate-100" data-stripe="expense">
                     <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
                         <div data-layout-block="expenseBudget">
                             <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Dönem bütçe hedefi</p>
@@ -523,7 +527,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
 <!-- Kredi Kartları -->
                 <div data-layout-block="expenseCards" class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <!-- Bekir Kredi Kartı -->
-                    <div id="bekirDebtCard" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative overflow-hidden hidden">
+                    <div id="bekirDebtCard" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative overflow-hidden hidden" data-stripe="expense">
                         <div class="flex justify-between items-start mb-6">
                             <div>
                                 <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Bekir Kredi Kartı</p>
@@ -550,7 +554,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                     </div>
 
                     <!-- Duygu Kredi Kartı -->
-                    <div id="duyguDebtCard" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative overflow-hidden hidden">
+                    <div id="duyguDebtCard" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative overflow-hidden hidden" data-stripe="expense">
                         <div class="flex justify-between items-start mb-6">
                             <div>
                                 <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Duygu Kredi Kartı</p>
@@ -845,7 +849,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                     <p class="text-[11px] text-slate-400 font-semibold">Özet · Dilime / güne tıklayın</p>
                 </div>
 
-                <div class="chart-block max-w-5xl mx-auto w-full">
+                <div class="chart-block stripe-stats max-w-5xl mx-auto w-full">
                     <h2 id="chartTitle" class="chart-title text-center sm:text-left">Kategori Dağılımı</h2>
                     <p class="chart-sub text-center sm:text-left">Dönem bazlı · dilime tıklayın</p>
                     <div class="chart-wrap chart-box h-80 sm:h-[22rem] md:h-96 max-w-3xl mx-auto sm:max-w-none"><canvas id="expenseChart"></canvas></div>
@@ -855,7 +859,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                     </div>
                 </div>
 
-                <div class="chart-block">
+                <div class="chart-block stripe-stats">
                     <h2 class="chart-title">Haftalık Trend</h2>
                     <p class="chart-sub">Güne tıklayın · detay açılır</p>
                     <div class="chart-wrap chart-box h-56 sm:h-64"><canvas id="weeklyTrendChart"></canvas></div>
@@ -867,23 +871,23 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         <span id="statsExtraChevron" class="text-slate-400 font-bold">▸</span>
                     </button>
                     <div id="statsExtraCharts" class="hidden border-t border-slate-100 p-4 space-y-6">
-                        <div class="chart-block">
+                        <div class="chart-block stripe-stats">
                             <h2 class="chart-title">Faturalar (Aylık)</h2>
                             <p class="chart-sub">Elektrik · Su · Doğalgaz · Telefon · İnternet · Abonelik</p>
                             <div class="chart-wrap chart-box h-[26rem] sm:h-96"><canvas id="billsChart"></canvas></div>
                         </div>
-                        <div class="chart-block">
+                        <div class="chart-block stripe-stats">
                             <h2 class="chart-title">Ekstre Dönemi Trendi (29–28)</h2>
                             <p class="chart-sub">Dönem toplamları</p>
                             <div class="chart-wrap chart-box h-56 sm:h-64"><canvas id="monthlyTrendChart"></canvas></div>
                         </div>
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div class="chart-block">
+                            <div class="chart-block stripe-stats">
                                 <h2 class="chart-title">Bu Dönem vs Önceki</h2>
                                 <p id="monthCompareSummary" class="chart-sub">Karşılaştırma</p>
                                 <div class="chart-wrap chart-box h-56 sm:h-64"><canvas id="monthCompareChart"></canvas></div>
                             </div>
-                            <div class="chart-block">
+                            <div class="chart-block stripe-stats">
                                 <h2 class="chart-title">Kategori Trendi (3 Dönem)</h2>
                                 <p class="chart-sub">En yüksek 5 kategori</p>
                                 <div class="chart-wrap chart-box h-56 sm:h-72"><canvas id="categoryTrendChart"></canvas></div>
@@ -895,7 +899,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                 <div class="hidden" id="monthlySummaryReport"></div>
                 <div class="hidden" id="personSummaryReport"></div>
 
-                <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
+                <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100 overflow-hidden" data-stripe="stats">
                     <div class="flex justify-between items-center mb-6">
                         <h3 class="text-xl font-black">📊 Kredi Kartı Ekstreleri</h3>
                         <p class="text-[11px] text-slate-400 font-semibold uppercase">Güncel</p>
@@ -930,7 +934,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                 </div>
 
                 <!-- Canlı dönem özeti -->
-                <div id="periodLiveSummary" class="bg-white p-6 sm:p-8 rounded-[2rem] card-shadow border border-indigo-100">
+                <div id="periodLiveSummary" class="bg-white p-6 sm:p-8 rounded-[2rem] card-shadow border border-indigo-100 overflow-hidden" data-stripe="stats">
                     <div class="flex flex-wrap items-start justify-between gap-2 mb-4">
                         <div>
                             <h3 class="text-lg font-black text-slate-900">📋 Dönem Özeti</h3>

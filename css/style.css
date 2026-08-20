@@ -833,9 +833,24 @@ html.theme-dark .eh-btn-ghost {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   border-top: 1px solid #e2e8f0;
+  /* Sayfa uzamasın — kutu içinde kaydır */
+  min-height: 0;
 }
 html.theme-dark .expense-history-scroll {
   border-top-color: #334155;
+}
+/* Plan / Yaklaşanlar: işlem geçmişi ile aynı kaydırma */
+.plan-list-scroll-wrap,
+.home-agenda-scroll-wrap {
+  border-top: none;
+  border-radius: 1rem;
+  background: transparent;
+}
+.plan-list-scroll-wrap {
+  max-height: min(50vh, 420px);
+}
+.home-agenda-scroll-wrap {
+  max-height: min(50vh, 420px);
 }
 
 .expense-future-toggle {
@@ -988,26 +1003,86 @@ html.theme-dark .dyn-todo-due-input {
 }
 .home-quick-add:hover { filter: brightness(1.05); }
 
-.yuvam-card {
+/* Sol renk şeridi — kartın oval köşesine uyumlu (::before + overflow) */
+.yuvam-card,
+.card-shadow,
+.chart-block {
   position: relative;
   overflow: hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-.yuvam-card::before {
+.yuvam-card::before,
+.card-shadow::before,
+.chart-block::before {
   content: '';
   position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 4px;
-  border-radius: 4px 0 0 4px;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  /* Kart ovaliyle uyum: üst/alt sol köşe yumuşak */
+  border-top-left-radius: 1.75rem;
+  border-bottom-left-radius: 1.75rem;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
   background: #94a3b8;
+  z-index: 5;
+  pointer-events: none;
 }
-.stripe-tasks::before { background: #10b981; }
-.stripe-briefing::before { background: #8b5cf6; }
-.stripe-today::before { background: #0ea5e9; }
+/* Daha yuvarlak kartlar */
+.rounded-\[2rem\]::before,
+.rounded-\[2\.5rem\]::before,
+.rounded-\[1\.75rem\]::before {
+  border-radius: 1.75rem 0 0 1.75rem;
+}
+.rounded-3xl::before {
+  border-radius: 1.5rem 0 0 1.5rem;
+}
+.rounded-2xl::before {
+  border-radius: 1rem 0 0 1rem;
+}
+.stripe-tasks::before, [data-stripe="tasks"]::before { background: #10b981; }
+.stripe-briefing::before, [data-stripe="plan"]::before, .stripe-plan::before { background: #8b5cf6; }
+.stripe-today::before, [data-stripe="home"]::before { background: #0ea5e9; }
 .stripe-period::before { background: #f43f5e; }
-.stripe-notif::before { background: #f59e0b; }
-.stripe-budget::before { background: #0284c7; }
-.stripe-upcoming::before { background: #f59e0b; }
+.stripe-notif::before, .stripe-upcoming::before { background: #f59e0b; }
+.stripe-budget::before, .stripe-expense::before, [data-stripe="expense"]::before { background: #0284c7; }
+.stripe-vehicle::before, [data-stripe="vehicle"]::before { background: #f59e0b; }
+.stripe-stats::before, [data-stripe="stats"]::before { background: #6366f1; }
+.stripe-gold::before, [data-stripe="gold"]::before { background: #eab308; }
+.stripe-settings::before, [data-stripe="settings"]::before { background: #64748b; }
+.stripe-shop::before, [data-stripe="shop"]::before { background: #06b6d4; }
+.stripe-danger::before, [data-stripe="danger"]::before { background: #e11d48; }
+.stripe-success::before { background: #10b981; }
+/* Sekme varsayılanları */
+#tabContentHome .card-shadow:not([data-stripe]):not([class*="stripe-"])::before,
+#tabContentHome .chart-block:not([data-stripe]):not([class*="stripe-"])::before { background: #0ea5e9; }
+#tabContentExpense .card-shadow:not([data-stripe]):not([class*="stripe-"])::before,
+#tabContentExpense .chart-block:not([data-stripe]):not([class*="stripe-"])::before { background: #0284c7; }
+#tabContentPlan .card-shadow:not([data-stripe]):not([class*="stripe-"])::before,
+#tabContentPlan .chart-block:not([data-stripe]):not([class*="stripe-"])::before { background: #8b5cf6; }
+#tabContentShopping .card-shadow:not([data-stripe]):not([class*="stripe-"])::before { background: #06b6d4; }
+#tabContentVehicle .card-shadow:not([data-stripe]):not([class*="stripe-"])::before,
+#tabContentVehicle .chart-block:not([data-stripe]):not([class*="stripe-"])::before { background: #f59e0b; }
+#tabContentStats .card-shadow:not([data-stripe]):not([class*="stripe-"])::before,
+#tabContentStats .chart-block:not([data-stripe]):not([class*="stripe-"])::before { background: #6366f1; }
+#tabContentSettings .card-shadow:not([data-stripe]):not([class*="stripe-"])::before { background: #64748b; }
+#tabContentTrash .card-shadow:not([data-stripe]):not([class*="stripe-"])::before { background: #e11d48; }
+#tabContentCustom .card-shadow:not([data-stripe]):not([class*="stripe-"])::before { background: #a855f7; }
+/* Düz border-left şeritleri iptal (çirkin düz çizgi) */
+[data-stripe],
+.stripe-tasks,
+.stripe-plan,
+.stripe-expense,
+.stripe-vehicle,
+.stripe-stats,
+.stripe-gold,
+.stripe-budget,
+.stripe-today,
+.stripe-period {
+  border-left-width: 0 !important;
+  border-left-style: none !important;
+}
 
 .icon-ring {
   display: inline-flex;
@@ -1191,6 +1266,8 @@ header h1 {
   border: 1px solid #e2e8f0;
   padding: 1.25rem 1.25rem 1.5rem;
   box-shadow: 0 4px 20px -2px rgba(3, 105, 161, 0.06);
+  position: relative;
+  overflow: hidden;
 }
 .chart-block h2.chart-title,
 .chart-block h3,
@@ -1582,14 +1659,7 @@ body.yuvam-app-open {
   padding-right: env(safe-area-inset-right);
 }
 
-/* Kart renk şeritleri */
-[data-stripe="expense"], .stripe-expense { border-left: 4px solid #0284c7 !important; }
-[data-stripe="tasks"], .stripe-tasks { border-left: 4px solid #10b981 !important; }
-[data-stripe="plan"], .stripe-plan { border-left: 4px solid #8b5cf6 !important; }
-[data-stripe="vehicle"], .stripe-vehicle { border-left: 4px solid #f59e0b !important; }
-[data-stripe="stats"], .stripe-stats { border-left: 4px solid #6366f1 !important; }
-[data-stripe="gold"], .stripe-gold { border-left: 4px solid #eab308 !important; }
-[data-stripe="home"] { border-left: 4px solid #0ea5e9 !important; }
+/* Kart renk şeritleri → ::before (yukarıda) */
 
 .yuvam-card, .card-shadow {
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -1931,4 +2001,7 @@ html.theme-dark #filterPanel input {
   background: #1e293b !important;
   border-color: #334155 !important;
   color: #e2e8f0 !important;
+}
+
+
 }
