@@ -1343,6 +1343,7 @@
                     renderCardStatements('bekir');
                     renderCardStatements('duygu');
                 }
+                try { if (typeof renderOnBehalfReport === 'function') renderOnBehalfReport(); } catch (_) {}
                 Promise.resolve(typeof ensureChartJs === 'function' ? ensureChartJs() : null).then(function() {
                     try { updateStatsPanel(); } catch (_) {}
                     try { if (typeof renderMonthlyReports === 'function') renderMonthlyReports(); } catch (_) {}

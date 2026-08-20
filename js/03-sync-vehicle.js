@@ -71,7 +71,7 @@
                 rows.push({
                     expenseId: item.id,
                     installmentIndex: i,
-                    date: dateStr,
+                    date: String(dateStr || '').slice(0, 10),
                     monthKey: monthKey,
                     effectiveMonth: periodKey,
                     displayAmount: perAmt,
@@ -93,11 +93,34 @@
          */
         function getDueOnBehalfReceivables() {
             const today = todayYMD();
-            const list = (typeof expenses !== 'undefined' && expenses) ? expenses : [];
+            const list = (typeof expenses !== 'undefined' && Array.isArray(expenses)) ? expenses : [];
             const out = [];
             list.forEach(function(item) {
-                expandOnBehalfSchedule(item).forEach(function(row) {
-                    if (!row.date || row.date > today) return; // gelecek / henüz ödeme günü gelmemiş
+                if (!item || !(item.isOnBehalf || item.onBehalf)) return;
+                const rows = expandOnBehalfSchedule(item);
+                // expand boş dönerse (eski kayıt) tek satır üret
+                if (!rows.length) {
+                    const d0 = String(item.date || '').slice(0, 10);
+                    if (d0 && d0 <= today && !item.onBehalfReimbursed) {
+                        out.push({
+                            expenseId: item.id,
+                            date: d0,
+                            monthKey: d0.slice(0, 7),
+                            displayAmount: Number(item.amount) || 0,
+                            description: item.description || '',
+                            category: item.category || '',
+                            billSubtype: item.billSubtype || '',
+                            onBehalfOf: item.onBehalfOf || '',
+                            person: item.person || '',
+                            isRecurring: !!item.isRecurring,
+                            reimbursed: false
+                        });
+                    }
+                    return;
+                }
+                rows.forEach(function(row) {
+                    const d = String(row.date || '').slice(0, 10);
+                    if (!d || d > today) return;
                     if (row.reimbursed) return;
                     out.push(row);
                 });
@@ -107,6 +130,7 @@
             });
             return out;
         }
+        try { window.getDueOnBehalfReceivables = getDueOnBehalfReceivables; } catch (_) {}
 
         /** Ay bazlı geri alındı — tekrarlıda diğer aylar açık kalır */
         window.markOnBehalfReimbursed = async function(expenseId, monthKey, done) {
@@ -124,16 +148,52 @@
                     onBehalfReimbursedByMonth: map,
                     updatedAt: new Date().toISOString()
                 };
-                // Tek satırlık (tekrarlı değil) kayıtta eski bayrağı da senkronla
+                // Tek satır veya tüm vadesi gelmiş aylar kapandıysa global bayrak
                 const cnt = Math.max(1, parseInt(data.installmentCount, 10) || 1);
-                if (cnt <= 1 && !data.isRecurring) {
+                const isRec = !!data.isRecurring;
+                if (cnt <= 1 && !isRec) {
                     patch.onBehalfReimbursed = !!done;
+                } else if (done) {
+                    // Vadesi gelmiş tüm aylar map'te mi?
+                    try {
+                        const today = (typeof todayDateStr === 'function') ? todayDateStr() : new Date().toISOString().slice(0, 10);
+                        const base = String(data.date || '').slice(0, 10);
+                        const n = (cnt > 1 || isRec) ? cnt : 1;
+                        let allDueDone = true;
+                        for (let i = 0; i < n; i++) {
+                            const ds = (typeof shiftDateByMonths === 'function') ? shiftDateByMonths(base, i) : base;
+                            if (!ds || String(ds).slice(0, 10) > today) continue;
+                            const mk = String(ds).slice(0, 7);
+                            if (!map[mk]) { allDueDone = false; break; }
+                        }
+                        if (allDueDone) patch.onBehalfReimbursed = true;
+                    } catch (_) {}
+                } else {
+                    patch.onBehalfReimbursed = false;
                 }
                 await ref.update(patch);
+
+                // Yerel dizi anında güncelle (snapshot gecikmesin)
+                try {
+                    if (typeof expenses !== 'undefined' && Array.isArray(expenses)) {
+                        const ix = expenses.findIndex(function(e) { return e && e.id === expenseId; });
+                        if (ix >= 0) {
+                            expenses[ix] = Object.assign({}, expenses[ix], {
+                                onBehalfReimbursedByMonth: map,
+                                onBehalfReimbursed: patch.onBehalfReimbursed != null
+                                    ? patch.onBehalfReimbursed
+                                    : expenses[ix].onBehalfReimbursed
+                            });
+                        }
+                    }
+                } catch (_) {}
+
                 if (typeof showToast === 'function') {
                     showToast(done ? (monthKey + ' alacağı kapatıldı') : 'Alacak yeniden açıldı', 'success');
                 }
                 try { if (typeof renderOnBehalfReport === 'function') renderOnBehalfReport(); } catch (_) {}
+                try { if (typeof renderTable === 'function') renderTable(); } catch (_) {}
+                try { if (typeof updateDashboard === 'function') updateDashboard(); } catch (_) {}
             } catch (err) {
                 if (typeof showToast === 'function') showToast((err && err.message) || 'Güncellenemedi', 'error');
             }
@@ -1351,7 +1411,7 @@
                 })(),
                 onBehalfReimbursed: !!(document.getElementById('onBehalfReimbursed') && document.getElementById('onBehalfReimbursed').checked)
             };
-            // Ay bazlı alacak haritası
+            // Ay bazlı alacak haritası — kutucuk bu kaydın tarih ayını aç/kapatır
             (function() {
                 const onB = !!(document.getElementById('isOnBehalf') && document.getElementById('isOnBehalf').checked);
                 if (!onB) {
@@ -1370,7 +1430,41 @@
                         }
                     } catch (_) {}
                 }
-                if (data.onBehalfReimbursed && mk) map[mk] = true;
+                const cnt = Math.max(1, parseInt(data.installmentCount, 10) || 1);
+                const isRec = !!data.isRecurring;
+                if (data.onBehalfReimbursed) {
+                    if (mk) map[mk] = true;
+                    // Tek seferlik: tümünü kapatılmış say
+                    if (cnt <= 1 && !isRec) {
+                        data.onBehalfReimbursed = true;
+                    } else {
+                        // Tekrarlı: sadece bu ay; global yalnızca tüm vadesi gelenler doluysa
+                        data.onBehalfReimbursed = false;
+                        try {
+                            const today = (typeof todayDateStr === 'function') ? todayDateStr() : new Date().toISOString().slice(0, 10);
+                            const base = String(data.date || '').slice(0, 10);
+                            const n = cnt;
+                            let allDue = true;
+                            for (let i = 0; i < n; i++) {
+                                const ds = (typeof shiftDateByMonths === 'function') ? shiftDateByMonths(base, i) : base;
+                                if (!ds || String(ds).slice(0, 10) > today) continue;
+                                const mki = String(ds).slice(0, 7);
+                                if (!map[mki]) { allDue = false; break; }
+                            }
+                            if (allDue) data.onBehalfReimbursed = true;
+                        } catch (_) {}
+                    }
+                } else {
+                    // Kutu kapalı → bu ayı alacak yap (haritadan sil)
+                    if (mk) delete map[mk];
+                    try {
+                        if (typeof getPeriodKeyForDateStr === 'function') {
+                            const pk = getPeriodKeyForDateStr(String(data.date || '').slice(0, 10));
+                            if (pk) delete map[pk];
+                        }
+                    } catch (_) {}
+                    data.onBehalfReimbursed = false;
+                }
                 data.onBehalfReimbursedByMonth = map;
             })();
             
@@ -1532,7 +1626,25 @@
             const obOf = document.getElementById('onBehalfOf');
             if (obOf) obOf.value = e.onBehalfOf || '';
             const obR = document.getElementById('onBehalfReimbursed');
-            if (obR) obR.checked = !!e.onBehalfReimbursed;
+            if (obR) {
+                // Bu kaydın tarih ayı geri alınmış mı? (tekrarlıda global bayrak yanıltıcı olabilir)
+                const mk = String(e.date || '').slice(0, 7);
+                const map = e.onBehalfReimbursedByMonth || {};
+                const mapKeys = Object.keys(map);
+                let paid = false;
+                if (mapKeys.length) {
+                    paid = !!(mk && map[mk]);
+                    try {
+                        if (!paid && typeof getPeriodKeyForDateStr === 'function') {
+                            const pk = getPeriodKeyForDateStr(String(e.date || '').slice(0, 10));
+                            if (pk && map[pk]) paid = true;
+                        }
+                    } catch (_) {}
+                } else {
+                    paid = !!e.onBehalfReimbursed;
+                }
+                obR.checked = paid;
+            }
             if (typeof onOnBehalfToggle === 'function') onOnBehalfToggle();
             openExpenseModal();
         };
