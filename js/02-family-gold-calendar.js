@@ -1008,6 +1008,7 @@
 
         // ===== Birleşik Plan (görev + takvim) =====
         window._planFilter = 'all';
+        window._planLimit = 5;
 
         window.onPlanKindChange = function() {
             const kind = (document.getElementById('famPlanKind') || {}).value || 'task';
@@ -1024,12 +1025,18 @@
 
         window.setPlanFilter = function(f) {
             window._planFilter = f || 'all';
+            window._planLimit = 5; // filtre değişince başa dön
             ['all', 'task', 'cal'].forEach(function(k) {
                 const el = document.getElementById('planFilter' + (k === 'all' ? 'All' : (k === 'task' ? 'Task' : 'Cal')));
                 if (!el) return;
                 const on = window._planFilter === k;
                 el.className = 'text-[11px] font-bold px-3 py-1.5 rounded-full ' + (on ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600');
             });
+            try { renderPlanTab(); } catch (_) {}
+        };
+
+        window.loadMorePlan = function() {
+            window._planLimit = (window._planLimit || 5) + 5;
             try { renderPlanTab(); } catch (_) {}
         };
 
@@ -1196,6 +1203,8 @@
                 if (a.done !== b.done) return a.done ? 1 : -1;
                 return String(a.sort).localeCompare(String(b.sort));
             });
+            const moreHost = document.getElementById('familyPlanMore');
+            if (moreHost) moreHost.innerHTML = '';
             if (!items.length) {
                 list.innerHTML = f === 'task'
                     ? yuvamEmptyState('✅', 'Görev yok', 'Yeni görev ekleyin', null, null)
@@ -1203,7 +1212,9 @@
                         ? yuvamEmptyState('📅', 'Takvim boş', 'Etkinlik veya randevu ekleyin', null, null)
                         : yuvamEmptyState('📋', 'Plan boş', 'Görev veya etkinlik ekleyin', null, null));
             } else {
-                list.innerHTML = items.map(function(it) {
+                const limit = Math.max(5, window._planLimit || 5);
+                const shown = items.slice(0, limit);
+                let html = shown.map(function(it) {
                     const due = it.date ? formatDateTR(it.date) : 'Tarihsiz';
                     const days = it.date && typeof daysUntilYMD === 'function' ? daysUntilYMD(it.date) : null;
                     const overdue = !it.done && days != null && days < 0;
@@ -1222,6 +1233,11 @@
                     const del = '<button type="button" onclick="familyDelete(\'' + col + '\',\'' + escapeHtml(it.id) + '\')" class="text-xs font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50">Sil</button>';
                     return familyRow(title, sub, editB + tog + del);
                 }).join('');
+                list.innerHTML = html;
+                if (moreHost && items.length > limit) {
+                    const left = items.length - limit;
+                    moreHost.innerHTML = '<button type="button" onclick="loadMorePlan()" class="w-full py-2.5 rounded-xl text-xs font-black text-indigo-700 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 transition">Daha fazla göster (+5) · ' + left + ' kayıt kaldı</button>';
+                }
             }
             const dInp = document.getElementById('famPlanDate');
             if (dInp && !dInp.value) dInp.value = todayDateStr();

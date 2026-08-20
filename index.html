@@ -263,7 +263,8 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         </div>
                     </div>
                     <p class="text-[11px] text-slate-400 font-semibold mb-3">Açık görevler ve yaklaşan ödemeler / hatırlatmalar</p>
-                    <div id="homeAgendaList" class="space-y-2"></div>
+                    <div id="homeAgendaList" class="space-y-2 home-agenda-scroll"></div>
+                    <div id="homeAgendaMore" class="pt-1"></div>
                 </div>
 
                 <button type="button" data-layout-block="homeQuickAdd" data-home-card="homeQuickAdd" onclick="switchTab('expense'); openExpenseModal();"
@@ -347,7 +348,8 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         <button type="button" onclick="setPlanFilter('task')" id="planFilterTask" class="text-[11px] font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-600">Görevler</button>
                         <button type="button" onclick="setPlanFilter('cal')" id="planFilterCal" class="text-[11px] font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-600">Takvim</button>
                     </div>
-                    <div id="familyPlanList" class="space-y-2"></div>
+                    <div id="familyPlanList" class="space-y-2 plan-list-scroll"></div>
+                    <div id="familyPlanMore" class="pt-1"></div>
                 </div>
 
                 <div data-layout-block="planNotesForm" data-stripe="plan" class="bg-white p-5 sm:p-8 rounded-[1.75rem] sm:rounded-[2.5rem] card-shadow border border-slate-100">

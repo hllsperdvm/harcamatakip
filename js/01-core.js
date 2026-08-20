@@ -1401,7 +1401,17 @@
             }
         };
 
-        window.renderHomeTab = function() {
+        
+        window._homeUpcomingLimit = 5;
+        window.loadMoreHomeUpcoming = function() {
+            window._homeUpcomingLimit = (window._homeUpcomingLimit || 5) + 5;
+            try {
+                if (typeof renderHomeTab === 'function') renderHomeTab();
+                else if (typeof renderApp === 'function') renderApp();
+            } catch (_) {}
+        };
+
+window.renderHomeTab = function() {
             try {
                 // Fikstür boşsa arka planda yükle → yaklaşan maçlar gelsin
                 try {
@@ -1542,6 +1552,7 @@
                         }
 
                         let upcoming = [];
+                        let allUpcoming = [];
                         try {
                             const allN = (typeof collectAppNotifications === 'function')
                                 ? collectAppNotifications().filter(function(n) { return n && n.category !== 'activity'; })
@@ -1563,7 +1574,10 @@
                                 const sev = { critical: 0, warning: 1, info: 2 };
                                 return (sev[a.severity] != null ? sev[a.severity] : 3) - (sev[b.severity] != null ? sev[b.severity] : 3);
                             });
-                            upcoming = gs.concat(mesai).concat(rest).slice(0, 6);
+                            allUpcoming = gs.concat(mesai).concat(rest);
+                            try { window._homeUpcomingTotal = allUpcoming.length; } catch (_) {}
+                            const upLimit = Math.max(5, window._homeUpcomingLimit || 5);
+                            upcoming = allUpcoming.slice(0, upLimit);
                         } catch (_) {}
                         if (upcoming.length) {
                             html += '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mt-3 mb-1.5">Yaklaşanlar</p>';
@@ -1575,12 +1589,24 @@
                                     (msg ? ('<p class="text-[11px] text-slate-500 font-semibold">' + escapeHtml(msg) + '</p>') : '') +
                                     '</div></div>';
                             }).join('');
+                            const lim = Math.max(5, window._homeUpcomingLimit || 5);
+                            const totalUp = (typeof window._homeUpcomingTotal === 'number') ? window._homeUpcomingTotal : upcoming.length;
+                            window._homeUpcomingMoreHtml = (totalUp > lim)
+                                ? ('<button type="button" onclick="loadMoreHomeUpcoming()" class="w-full py-2 rounded-xl text-[11px] font-black text-amber-800 bg-amber-50 border border-amber-100 hover:bg-amber-100 transition">Daha fazla göster (+5) · ' + (totalUp - lim) + ' kaldı</button>')
+                                : '';
+                        } else {
+                            window._homeUpcomingMoreHtml = '';
                         }
 
+                        const agendaMore = document.getElementById('homeAgendaMore');
+                        if (agendaMore) agendaMore.innerHTML = '';
                         if (!html) {
                             agendaEl.innerHTML = yuvamEmptyState('✅', 'Görev veya yaklaşan yok', 'Görev eklemek için Görevler sekmesine gidin', 'Görevler', "switchTab('tasks')");
                         } else {
                             agendaEl.innerHTML = html;
+                            if (agendaMore && window._homeUpcomingMoreHtml) {
+                                agendaMore.innerHTML = window._homeUpcomingMoreHtml;
+                            }
                         }
                     }
                 } catch (_) {}
