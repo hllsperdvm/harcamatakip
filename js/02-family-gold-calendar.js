@@ -67,7 +67,7 @@
             return String(ev.date).slice(0, 10);
         }
 
-        // ——— Altın yatırımları (Turkpidya/Harem · goldprice.dev · Truncgil) ———
+        // ——— Altın yatırımları (Harem via jina · Truncgil yedek) ———
         function formatGoldTL(n) {
             const v = Number(n);
             if (!isFinite(v)) return '—';
@@ -258,95 +258,76 @@
                 let buy24 = null, sell24 = null, buy22 = null, sell22 = null;
                 let source = '';
 
-                // 1) Turkpidya — Harem Altın referansı (Kapalıçarşı bandına yakın, key yok, CORS var)
+                // 1) Harem (Turkpidya) — tarayıcı CORS engeli nedeniyle jina.ai okuyucu üzerinden
                 try {
-                    const res = await fetch('https://turkpidya.com/wp-json/turkpidya-data/v1/gold', { cache: 'no-store' });
+                    const target = 'https://turkpidya.com/wp-json/turkpidya-data/v1/gold';
+                    const res = await fetch('https://r.jina.ai/' + target, {
+                        cache: 'no-store',
+                        headers: { 'Accept': 'application/json' }
+                    });
                     if (res.ok) {
-                        const data = await res.json();
-                        const list = Array.isArray(data.prices) ? data.prices : [];
-                        let p24 = null, p22 = null;
-                        list.forEach(function(row) {
-                            const typ = String(row.type || row.name_tr || '').toLowerCase();
-                            if (typ === 'gram_24k' || typ.indexOf('24 ayar') >= 0) p24 = row;
-                            if (typ === 'gram_22k' || typ.indexOf('22 ayar') >= 0) p22 = row;
-                        });
-                        if (p24) {
-                            buy24 = parseGoldNum(p24.buy);
-                            sell24 = parseGoldNum(p24.sell);
-                            if (!(buy24 > 0)) buy24 = sell24;
-                            if (!(sell24 > 0)) sell24 = buy24;
-                        }
-                        // Turkpidya 22k bazen takı/farklı ürün; makul aralıkta değilse oran kullan
-                        if (p22 && sell24 > 0) {
-                            const b22 = parseGoldNum(p22.buy);
-                            const s22 = parseGoldNum(p22.sell);
-                            const ratioOk = s22 > 0 && s22 > sell24 * 0.85 && s22 < sell24 * 0.98;
-                            if (ratioOk) {
-                                buy22 = b22 > 0 ? b22 : s22;
-                                sell22 = s22;
+                        const wrap = await res.json();
+                        let inner = null;
+                        try {
+                            const content = wrap && wrap.data && wrap.data.content;
+                            if (typeof content === 'string') inner = JSON.parse(content);
+                            else if (content && typeof content === 'object') inner = content;
+                            else if (wrap && wrap.prices) inner = wrap;
+                        } catch (_) {}
+                        if (inner && Array.isArray(inner.prices)) {
+                            let p24 = null;
+                            inner.prices.forEach(function(row) {
+                                const typ = String(row.type || '').toLowerCase();
+                                if (typ === 'gram_24k') p24 = row;
+                            });
+                            if (p24) {
+                                buy24 = parseGoldNum(p24.buy);
+                                sell24 = parseGoldNum(p24.sell);
+                                if (!(buy24 > 0)) buy24 = sell24;
+                                if (!(sell24 > 0)) sell24 = buy24;
                             }
-                        }
-                        if (sell24 > 0) {
-                            source = 'Harem (Turkpidya)';
-                            if (data.price_date) source += ' · ' + data.price_date;
+                            // 22 ayar: safiyet oranı (Turkpidya gram_22k bazen takı fiyatı — oran kullan)
+                            if (sell24 > 0) {
+                                sell22 = sell24 * (22 / 24);
+                                buy22 = (buy24 > 0 ? buy24 : sell24) * (22 / 24);
+                            }
+                            if (sell24 > 0) {
+                                source = 'Harem · Turkpidya';
+                                if (inner.price_date) source += ' · ' + inner.price_date;
+                            }
                         }
                     }
                 } catch (e1) {
-                    console.warn('turkpidya gold', e1);
+                    console.warn('harem/jina', e1);
                 }
 
-                // 2) goldprice.dev — TRY/gram ayar bazlı (spot, key yok)
-                if (!(sell24 > 0)) {
-                    try {
-                        const res2 = await fetch('https://api.goldprice.dev/v1/carat?currency=TRY', { cache: 'no-store' });
-                        if (res2.ok) {
-                            const d2 = await res2.json();
-                            const g24 = parseFloat(d2.price_gram_24k);
-                            const g22 = parseFloat(d2.price_gram_22k);
-                            if (g24 > 0) {
-                                sell24 = g24; buy24 = g24;
-                                source = 'goldprice.dev';
-                                try {
-                                    if (d2.timestamp) source += ' · ' + String(d2.timestamp).replace('T', ' ').slice(0, 16);
-                                } catch (_) {}
-                            }
-                            if (g22 > 0) { sell22 = g22; buy22 = g22; }
-                        }
-                    } catch (e2) {
-                        console.warn('goldprice.dev', e2);
-                    }
-                } else if (!(sell22 > 0)) {
-                    // 24 geldi ama 22 yok → safiyet oranı
-                    try {
-                        const res2b = await fetch('https://api.goldprice.dev/v1/carat?currency=TRY', { cache: 'no-store' });
-                        if (res2b.ok) {
-                            const d2b = await res2b.json();
-                            const g22 = parseFloat(d2b.price_gram_22k);
-                            if (g22 > 0) { sell22 = g22; buy22 = g22; }
-                        }
-                    } catch (_) {}
-                }
-
-                // 3) Truncgil — son yedek
+                // 2) Truncgil yedek (CORS açık)
                 if (!(sell24 > 0)) {
                     try {
                         const res3 = await fetch('https://finans.truncgil.com/v4/today.json', { cache: 'no-store' });
                         if (res3.ok) {
-                            const data = await res3.json();
-                            const has = data.HAS || data.GRAMHASALTIN;
-                            if (has) {
-                                buy24 = parseGoldNum(has.Buying != null ? has.Buying : has.Alis);
-                                sell24 = parseGoldNum(has.Selling != null ? has.Selling : has.Satis);
-                                if (!(buy24 > 0)) buy24 = sell24;
-                                if (!(sell24 > 0)) sell24 = buy24;
-                                source = 'Truncgil' + (data.Update_Date ? (' · ' + data.Update_Date) : '');
+                            const text = await res3.text();
+                            let data = null;
+                            try { data = JSON.parse(text); } catch (_) {
+                                const cut = text.lastIndexOf('}');
+                                if (cut > 0) try { data = JSON.parse(text.slice(0, cut + 1)); } catch (__) {}
                             }
-                            const a22 = data['22AYARALTIN'] || data['22AYAR'];
-                            if (a22) {
-                                buy22 = parseGoldNum(a22.Buying != null ? a22.Buying : a22.Alis);
-                                sell22 = parseGoldNum(a22.Selling != null ? a22.Selling : a22.Satis);
-                                if (!(buy22 > 0)) buy22 = sell22;
-                                if (!(sell22 > 0)) sell22 = buy22;
+                            if (data) {
+                                const has = data.HAS || data.GRAMHASALTIN;
+                                if (has) {
+                                    buy24 = parseGoldNum(has.Buying != null ? has.Buying : has.Alis);
+                                    sell24 = parseGoldNum(has.Selling != null ? has.Selling : has.Satis);
+                                    if (!(buy24 > 0)) buy24 = sell24;
+                                    if (!(sell24 > 0)) sell24 = buy24;
+                                    source = 'Truncgil' + (data.Update_Date ? (' · ' + data.Update_Date) : '');
+                                }
+                                const a22 = data['22AYARALTIN'] || data['22AYAR'];
+                                if (a22) {
+                                    buy22 = parseGoldNum(a22.Buying != null ? a22.Buying : a22.Alis);
+                                    sell22 = parseGoldNum(a22.Selling != null ? a22.Selling : a22.Satis);
+                                    if (!(buy22 > 0)) buy22 = sell22;
+                                    if (!(sell22 > 0)) sell22 = buy22;
+                                }
                             }
                         }
                     } catch (e3) {
