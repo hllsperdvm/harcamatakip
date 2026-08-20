@@ -219,11 +219,10 @@ html.theme-dark .text-indigo-600, html.theme-dark .text-indigo-700 { color: #7dd
     color: #94a3b8;
     margin-top: 0.35rem;
   }
-  #filterPanel label,
   #filterPanel button,
   #filterPanel select,
   #filterPanel input {
-    min-height: 2.5rem;
+    min-height: 2.75rem;
   }
   button, .rounded-xl, .rounded-2xl {
     touch-action: manipulation;
@@ -1636,6 +1635,75 @@ body.yuvam-app-open {
     overscroll-behavior: contain;
     padding-bottom: 0.5rem;
   }
+
+/* Filtre paneli: başlık büyük, değer daha sade */
+#filterPanel .filter-label,
+#filterPanel label {
+  font-size: 0.8rem !important;
+  font-weight: 800 !important;
+  color: #334155 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  margin-left: 0.15rem;
+  margin-bottom: 0.2rem;
+}
+#filterPanel .filter-control,
+#filterPanel select,
+#filterPanel input[type="text"],
+#filterPanel input[type="date"] {
+  width: 100%;
+  background: #fff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 0.85rem !important;
+  padding: 0.7rem 0.85rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  color: #475569 !important;
+  box-shadow: none !important;
+  min-height: 2.75rem;
+  outline: none;
+}
+#filterPanel .filter-control:focus,
+#filterPanel select:focus,
+#filterPanel input:focus {
+  border-color: #6366f1 !important;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+}
+/* Tarih: iOS boş alan + takvim görünürlüğü */
+#filterPanel input[type="date"].filter-date,
+#filterPanel input[type="date"] {
+  min-height: 3rem !important;
+  position: relative;
+  color-scheme: light;
+  -webkit-appearance: none;
+  appearance: none;
+  line-height: 1.4;
+}
+#filterPanel input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 1;
+  display: block;
+  width: 1.35rem;
+  height: 1.35rem;
+  cursor: pointer;
+  margin-left: 0.25rem;
+}
+#filterPanel input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+  min-height: 1.25rem;
+}
+html.theme-dark #filterPanel .filter-label,
+html.theme-dark #filterPanel label {
+  color: #e2e8f0 !important;
+}
+html.theme-dark #filterPanel .filter-control,
+html.theme-dark #filterPanel select,
+html.theme-dark #filterPanel input {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+  color-scheme: dark;
+}
+
   /* Filtre bottom sheet — yüksek z-index, tıklanabilir */
   .filter-sheet-backdrop {
     position: fixed !important;

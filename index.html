@@ -633,11 +633,11 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         </div>
                         <div class="flex flex-col gap-1 sm:col-span-2">
                             <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Kelime ara</label>
-                            <input type="text" id="filterSearch" placeholder="ör. Sigara, market…" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none" onkeydown="if(event.key==='Enter'){event.preventDefault();applyFilters();}">
+                            <input type="text" id="filterSearch" placeholder="ör. Sigara, market…" class="filter-control" onkeydown="if(event.key==='Enter'){event.preventDefault();applyFilters();}">
                         </div>
                         <div class="flex flex-col gap-1">
                             <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Kişi</label>
-                            <select id="filterPerson" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500">
+                            <select id="filterPerson" class="filter-control">
                                 <option value="Tümü">Tümü</option>
                                 <option value="Bekir">Bekir</option>
                                 <option value="Duygu">Duygu</option>
@@ -645,15 +645,15 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         </div>
                         <div class="flex flex-col gap-1">
                             <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Kategori</label>
-                            <select id="filterCategory" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500"></select>
+                            <select id="filterCategory" class="filter-control"></select>
                         </div>
                         <div class="flex flex-col gap-1">
                             <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Ödeme</label>
-                            <select id="filterPayment" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500"></select>
+                            <select id="filterPayment" class="filter-control"></select>
                         </div>
                         <div class="flex flex-col gap-1">
                             <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Alışveriş türü</label>
-                            <select id="filterShopSubtype" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500">
+                            <select id="filterShopSubtype" class="filter-control">
                                 <option value="Tümü">Tümü</option>
                                 <option value="Market">Market</option>
                                 <option value="Gıda/Yemek">Gıda/Yemek</option>
@@ -666,19 +666,19 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         </div>
                         <div class="flex flex-col gap-1">
                             <label class="text-[10px] font-black text-slate-400 uppercase ml-1">E-ticaret</label>
-                            <select id="filterEcommerce" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500">
+                            <select id="filterEcommerce" class="filter-control">
                                 <option value="Tümü">Tümü</option>
                                 <option value="Evet">Sadece E-ticaret</option>
                                 <option value="Hayır">E-ticaret değil</option>
                             </select>
                         </div>
                         <div class="flex flex-col gap-1">
-                            <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Başlangıç</label>
-                            <input type="date" id="filterStartDate" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500">
+                            <label class="filter-label">📅 Başlangıç</label>
+                            <input type="date" id="filterStartDate" class="filter-control filter-date" placeholder="gg.aa.yyyy">
                         </div>
                         <div class="flex flex-col gap-1">
-                            <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Bitiş</label>
-                            <input type="date" id="filterEndDate" class="bg-white border-none rounded-xl py-2 px-3 text-xs font-bold shadow-sm focus:ring-2 focus:ring-indigo-500">
+                            <label class="filter-label">📅 Bitiş</label>
+                            <input type="date" id="filterEndDate" class="filter-control filter-date" placeholder="gg.aa.yyyy">
                         </div>
                         <div class="filter-sheet-actions flex flex-col gap-2 justify-center sm:col-span-1">
                             <button type="button" onclick="applyFilters()" class="w-full bg-indigo-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-indigo-700 transition">Uygula</button>
