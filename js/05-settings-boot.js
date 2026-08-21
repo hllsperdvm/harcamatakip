@@ -2363,3 +2363,8 @@
             }
         });
 
+
+
+try { if (typeof wireAllModalBackdropClose === 'function') setTimeout(wireAllModalBackdropClose, 0); } catch (_w) {}
+
+setTimeout(function(){ try { if (typeof wireAllModalBackdropClose==='function') wireAllModalBackdropClose(); } catch(_w){} }, 800);

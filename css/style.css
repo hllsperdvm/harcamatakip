@@ -2544,3 +2544,16 @@ html.theme-dark #budgetTargetPct {
 }
 html.theme-warm.theme-dark #budgetTargetPct { color: #fdba74 !important; }
 html.theme-forest.theme-dark #budgetTargetPct { color: #6ee7b7 !important; }
+
+
+/* Raporlar düzeni kilit — genişlik kayması olmasın */
+#tabContentStats {
+  max-width: 72rem;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
+#tabContentStats .chart-block {
+  width: 100%;
+  max-width: none;
+}

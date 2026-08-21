@@ -1424,7 +1424,9 @@ window.renderHomeTab = function() {
                 } catch (_) {}
                 try {
                     if (!(superLigFixturesCache && superLigFixturesCache.length)) {
-                        if (typeof ensureGsFixturesForHome === 'function') ensureGsFixturesForHome();
+                        setTimeout(function() {
+                            try { if (typeof ensureGsFixturesForHome === 'function') ensureGsFixturesForHome(); } catch (_) {}
+                        }, 1200);
                     }
                 } catch (_) {}
                 const greet = document.getElementById('homeGreeting');
@@ -1450,7 +1452,7 @@ window.renderHomeTab = function() {
                 }
                 setTimeout(function() {
                     try { if (typeof loadHomeWeather === 'function') loadHomeWeather(false); } catch (_) {}
-                }, 2000);
+                }, 5000);
 
                 const period = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
                 const badge = document.getElementById('homePeriodBadge');

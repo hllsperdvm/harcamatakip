@@ -280,7 +280,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                 </button>
 
                 <div data-layout-block="homeGrid" class="grid grid-cols-2 gap-3">
-                    <div data-home-card="homeToday" class="yuvam-card stripe-today bg-white rounded-2xl p-4 card-shadow border border-slate-100">
+                    <div data-home-card="homeToday" role="button" tabindex="0" onclick="showTodayExpenses()" class="yuvam-card stripe-today bg-white rounded-2xl p-4 card-shadow border border-slate-100 cursor-pointer active:scale-[0.98] transition" title="Bugünün harcamalarını göster">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Bugün Harcama</p>
                         <p id="homeTodaySpend" class="text-lg font-black text-slate-800 mt-1">0 TL</p>
                         <p id="homeTodayCount" class="text-[11px] text-slate-400 font-semibold">0 kayıt</p>
@@ -639,7 +639,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         </div>
                         <div class="flex flex-col gap-1 sm:col-span-2">
                             <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Kelime ara</label>
-                            <input type="text" id="filterSearch" placeholder="ör. Sigara, market…" class="filter-control" onkeydown="if(event.key==='Enter'){event.preventDefault();applyFilters();}">
+                            <input type="text" id="filterSearch" placeholder="ör. Sigara, 100, market…" class="filter-control" onkeydown="if(event.key==='Enter'){event.preventDefault();applyFilters();}">
                         </div>
                         <div class="flex flex-col gap-1">
                             <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Kişi</label>
@@ -849,7 +849,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                     <p class="text-[11px] text-slate-400 font-semibold">Özet · Dilime / güne tıklayın</p>
                 </div>
 
-                <div class="chart-block stripe-stats max-w-5xl mx-auto w-full">
+                <div class="chart-block stripe-stats w-full">
                     <h2 id="chartTitle" class="chart-title text-center sm:text-left">Kategori Dağılımı</h2>
                     <p class="chart-sub text-center sm:text-left">Dönem bazlı · dilime tıklayın</p>
                     <div class="chart-wrap chart-box h-80 sm:h-[22rem] md:h-96 max-w-3xl mx-auto sm:max-w-none"><canvas id="expenseChart"></canvas></div>
@@ -896,9 +896,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                     </div>
                 </div>
 
-                <div class="hidden" id="monthlySummaryReport"></div>
-                <div class="hidden" id="personSummaryReport"></div>
-
+                                
                 <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100 overflow-hidden" data-stripe="stats">
                     <div class="flex justify-between items-center mb-6">
                         <h3 class="text-xl font-black">📊 Kredi Kartı Ekstreleri</h3>
@@ -1400,7 +1398,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
     <!-- MODALLAR -->
 
     <div id="ibanModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[110] p-4">
-        <div class="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden slide-in">
+        <div class="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden slide-in" onclick="event.stopPropagation()">
             <div class="bg-indigo-600 p-6 text-white flex justify-between items-center">
                 <h2 class="text-2xl font-black">IBAN Ekle</h2>
                 <button type="button" onclick="closeIbanModal()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition text-2xl font-light">&times;</button>
@@ -1430,9 +1428,9 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
 
 
     <div id="siteSearchModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-start sm:items-center justify-center z-[130] p-4 pt-16 sm:pt-4">
-        <div class="bg-white w-full max-w-lg rounded-[1.75rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+        <div class="bg-white w-full max-w-lg rounded-[1.75rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
             <div class="p-4 border-b border-slate-100 flex gap-2 items-center">
-                <input type="search" id="siteSearchInput" placeholder="Ara… (örn. Corolla, sigorta, market)"
+                <input type="search" id="siteSearchInput" placeholder="Ara… (Corolla, sigorta, 100…)"
                     class="flex-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-sky-500"
                     oninput="runSiteSearch(this.value)">
                 <button type="button" onclick="closeSiteSearch()" class="w-10 h-10 rounded-xl bg-slate-100 font-bold text-slate-500">&times;</button>
@@ -1445,7 +1443,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
 
     <!-- Harcama Modalı -->
     <div id="expenseModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-end sm:items-center justify-center z-[110] p-0 sm:p-4">
-        <div class="expense-modal-sheet bg-white w-full max-w-lg rounded-t-[1.75rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden slide-in flex flex-col max-h-[92vh] sm:max-h-[90vh]">
+        <div class="expense-modal-sheet bg-white w-full max-w-lg rounded-t-[1.75rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden slide-in flex flex-col max-h-[92vh] sm:max-h-[90vh]" onclick="event.stopPropagation()">
             <div class="bg-indigo-600 px-5 py-4 sm:p-6 text-white flex justify-between items-center shrink-0">
                 <h2 id="formTitle" class="text-lg sm:text-2xl font-black">Harcama Kaydı</h2>
                 <button type="button" onclick="closeExpenseModal()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition text-2xl font-light">&times;</button>
@@ -1595,7 +1593,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
 
     
     <div id="categoryDetailModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
-        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
             <div class="bg-indigo-600 p-5 text-white flex justify-between items-center shrink-0">
                 <div>
                     <h2 id="categoryDetailTitle" class="text-lg font-black">Kategori</h2>
@@ -1610,7 +1608,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
     
     <!-- Kredi Kartı Ekstre Detay -->
     <div id="statementDetailModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
-        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
             <div class="bg-slate-900 p-5 text-white flex justify-between items-start shrink-0">
                 <div>
                     <h2 id="statementTitle" class="text-lg font-black">Kredi Kartı Ekstresi</h2>
@@ -1625,7 +1623,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
 
     <!-- Taksitler / Ay başlıkları -->
     <div id="installmentsModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
-        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
             <div class="bg-purple-600 p-5 text-white flex justify-between items-center shrink-0">
                 <h2 class="text-lg font-black">💳 Tüm Taksitler</h2>
                 <p class="text-[11px] text-slate-400 font-semibold mt-0.5">Bu dönem ve gelecek dönemler</p>
@@ -1650,7 +1648,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
     
     <!-- Sekme Düzenle Modal -->
     <div id="tabEditModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[130] p-4">
-        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden">
+        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
             <div class="bg-violet-600 p-5 text-white flex justify-between items-center">
                 <h2 class="text-lg font-black">Sekmeyi Düzenle</h2>
                 <button type="button" onclick="closeTabEditModal()" class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-xl leading-none">&times;</button>
@@ -1690,7 +1688,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
 
     <!-- Tüm bildirimler modal -->
     <div id="notifAllModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[130] p-4">
-        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
             <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-2">
                 <h2 class="text-lg font-black text-slate-900">Tüm bildirimler</h2>
                 <button type="button" onclick="closeNotifAllModal()" class="w-9 h-9 rounded-full bg-slate-100 font-bold text-slate-500">&times;</button>
@@ -1701,7 +1699,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
 
     <!-- Kredi Kartı Borç Giriş Modal -->
     <div id="cardDebtModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
-        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden">
+        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
             <div class="bg-amber-500 p-5 text-white flex justify-between items-center">
                 <h2 id="cardDebtModalTitle" class="text-lg font-black">Kredi Kartı Borcu</h2>
                 <button type="button" onclick="closeCardDebtModal()" class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-xl leading-none">&times;</button>
@@ -1793,7 +1791,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
 
 
     <div id="surahModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-[130] p-4" onclick="if(event.target===this)closeSurahModal()">
-        <div class="bg-white rounded-[1.75rem] shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden border border-slate-100">
+        <div class="bg-white rounded-[1.75rem] shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden border border-slate-100" onclick="event.stopPropagation()">
             <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3 shrink-0">
                 <h3 id="surahModalTitle" class="text-base font-black text-slate-900 truncate">Sure</h3>
                 <button type="button" onclick="closeSurahModal()" class="text-slate-400 hover:text-slate-700 font-black text-lg leading-none px-2">×</button>

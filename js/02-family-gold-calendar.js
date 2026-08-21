@@ -1479,6 +1479,8 @@
 
         window.applyPageLayout = function(page) {
             page = (page || currentLayoutPageId() || 'home').toLowerCase();
+            // Raporlar düzeni sabit — her güncellemede kaymasın
+            if (page === 'stats' || page === 'raporlar' || page === 'reports') return;
             const root = layoutContainer(page);
             if (!root) return;
 

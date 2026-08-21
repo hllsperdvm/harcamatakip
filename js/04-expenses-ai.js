@@ -182,6 +182,37 @@ function getProcessedExpenses() {
             return '<span class="inline-block text-[9px] font-black px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800">Alacak · ' + who + '</span>';
         }
 
+
+        function expenseMatchesTextQuery(item, qRaw) {
+            const q = String(qRaw || '').trim();
+            if (!q) return true;
+            const qLower = q.toLocaleLowerCase('tr-TR');
+            const qNumStr = q.replace(/\s/g, '').replace(',', '.');
+            const isNum = /^\d+(\.\d+)?$/.test(qNumStr);
+            if (isNum) {
+                const n = Number(qNumStr);
+                if (isFinite(n)) {
+                    const amounts = [item.displayAmount, item.amount, item.totalAmount]
+                        .map(function(x) { return Number(x); })
+                        .filter(function(x) { return isFinite(x); });
+                    for (let i = 0; i < amounts.length; i++) {
+                        const a = amounts[i];
+                        if (Math.abs(a - n) < 0.009) return true;
+                        if (Math.round(a) === Math.round(n)) return true;
+                    }
+                }
+            }
+            const amt = Math.round(Number(item.displayAmount != null ? item.displayAmount : item.amount) || 0);
+            const blob = [
+                item.category, item.description, item.person, item.paymentType,
+                item.vehicleSubtype, item.billSubtype, item.shopSubtype,
+                item.isEcommerce ? 'e-ticaret' : '', item.installmentLabel, item.fuelNote,
+                String(amt), String(amt).replace(/\B(?=(\d{3})+(?!\d))/g, '.'),
+                String(Number(item.displayAmount != null ? item.displayAmount : item.amount) || '')
+            ].map(function(x) { return String(x || ''); }).join(' ').toLocaleLowerCase('tr-TR');
+            return blob.indexOf(qLower) >= 0;
+        }
+
         function renderTable() {
             const tbody = document.getElementById('expenseTableBody');
             const cardsHost = document.getElementById('expenseCardsMobile');
@@ -217,13 +248,7 @@ function getProcessedExpenses() {
                 if (currentEndDateFilter && item.date > currentEndDateFilter) return false;
 
                 if (currentSearchFilter) {
-                    const q = currentSearchFilter.toLocaleLowerCase('tr-TR');
-                    const blob = [
-                        item.category, item.description, item.person, item.paymentType,
-                        item.vehicleSubtype, item.billSubtype, item.shopSubtype,
-                        item.isEcommerce ? 'e-ticaret' : '', item.installmentLabel, item.fuelNote
-                    ].map(x => String(x || '')).join(' ').toLocaleLowerCase('tr-TR');
-                    if (!blob.includes(q)) return false;
+                    if (!expenseMatchesTextQuery(item, currentSearchFilter)) return false;
                 }
 
                 return true;
@@ -426,6 +451,52 @@ function getProcessedExpenses() {
 
 
         // Raporlar paneli
+        window.showTodayExpenses = function() {
+            try {
+                const today = (typeof todayDateStr === 'function') ? todayDateStr() : new Date().toISOString().slice(0, 10);
+                const list = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : [];
+                const items = list.filter(function(e) {
+                    return String(e.date || '').slice(0, 10) === today;
+                }).sort(function(a, b) {
+                    return String(b.date || '').localeCompare(String(a.date || '')) || String(b.id || '').localeCompare(String(a.id || ''));
+                });
+                const modal = document.getElementById('categoryDetailModal');
+                const title = document.getElementById('categoryDetailTitle');
+                const body = document.getElementById('categoryDetailBody');
+                const totalEl = document.getElementById('categoryDetailTotal');
+                if (!modal || !body) return;
+                if (title) title.textContent = 'Bugün Harcama';
+                const total = items.reduce(function(s, e) { return s + (Number(e.displayAmount != null ? e.displayAmount : e.amount) || 0); }, 0);
+                if (totalEl) totalEl.textContent = Math.round(total).toLocaleString('tr-TR') + ' TL · ' + items.length + ' kayıt';
+                if (!items.length) {
+                    body.innerHTML = '<p class="text-sm text-slate-400 font-medium text-center py-6">Bugün harcama yok</p>';
+                } else {
+                    body.innerHTML = items.map(function(e) {
+                        const amt = Math.round(Number(e.displayAmount != null ? e.displayAmount : e.amount) || 0).toLocaleString('tr-TR');
+                        const sub = [
+                            e.person || '',
+                            e.category || '',
+                            e.shopSubtype || '',
+                            e.isEcommerce ? 'E-ticaret' : '',
+                            e.paymentType || '',
+                            e.installmentLabel || ''
+                        ].filter(Boolean).join(' · ');
+                        return '<div class="flex justify-between gap-3 items-start py-3 border-b border-slate-100 last:border-0">' +
+                            '<div class="min-w-0">' +
+                            '<p class="text-sm font-bold text-slate-800 truncate">' + escapeHtml(e.description || e.category || '-') + '</p>' +
+                            '<p class="text-[11px] text-slate-400 font-semibold mt-0.5">' + escapeHtml(sub) + '</p>' +
+                            '</div>' +
+                            '<p class="text-sm font-black text-rose-600 whitespace-nowrap">' + amt + ' TL</p>' +
+                            '</div>';
+                    }).join('');
+                }
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } catch (err) {
+                console.warn('showTodayExpenses', err);
+            }
+        };
+
         window.showCategoryExpenses = function(category) {
             const period = getCurrentPeriod();
             const cat = String(category || '');
@@ -1234,8 +1305,7 @@ function getProcessedExpenses() {
             }
             try {
                 getProcessedExpenses().filter(function(e) {
-                    const blob = [e.description, e.category, e.person, e.billSubtype, e.vehicleSubtype, e.paymentType].join(' ').toLowerCase();
-                    return blob.indexOf(q) >= 0;
+                    return expenseMatchesTextQuery(e, q);
                 }).slice(0, 25).forEach(function(e) {
                     hits.push({
                         cat: 'Harcama',
@@ -2439,3 +2509,45 @@ function renderCardStatements(person) {
         };
 
 
+
+
+        window.wireAllModalBackdropClose = function() {
+            const closeMap = {
+                categoryDetailModal: 'closeCategoryDetailModal',
+                statementDetailModal: 'closeStatementDetail',
+                installmentsModal: 'closeInstallmentsModal',
+                siteSearchModal: 'closeSiteSearch',
+                expenseModal: 'closeExpenseModal',
+                ibanModal: 'closeIbanModal',
+                tabEditModal: 'closeTabEditModal',
+                notifAllModal: 'closeNotifAllModal',
+                cardDebtModal: 'closeCardDebtModal',
+                weatherModal: 'closeWeatherModal',
+                fuelPriceModal: 'closeFuelPriceModal',
+                surahModal: 'closeSurahModal'
+            };
+            document.querySelectorAll('.fixed.inset-0').forEach(function(overlay) {
+                if (overlay.dataset.backdropWired === '1') return;
+                overlay.dataset.backdropWired = '1';
+                overlay.addEventListener('click', function(e) {
+                    if (e.target !== overlay) return;
+                    const id = overlay.id || '';
+                    const fn = closeMap[id];
+                    if (fn && typeof window[fn] === 'function') {
+                        try { window[fn](); } catch (_) {}
+                        return;
+                    }
+                    // generic fallback
+                    overlay.classList.add('hidden');
+                    overlay.classList.remove('flex');
+                });
+            });
+            // filter sheet
+            const fb = document.getElementById('filterSheetBackdrop');
+            if (fb && fb.dataset.backdropWired !== '1') {
+                fb.dataset.backdropWired = '1';
+                fb.addEventListener('click', function() {
+                    if (typeof closeFilterPanel === 'function') closeFilterPanel();
+                });
+            }
+        };
