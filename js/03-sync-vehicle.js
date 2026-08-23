@@ -25,12 +25,16 @@
             return !!(e.isOnBehalf || e.onBehalf);
         }
 
-        /** Multinet ve başkası adına ödemeler dönem/bütçe toplamına dahil değil */
+        /**
+         * Dönem / kişi / KK toplamına dahil mi?
+         * Multinet hariç (ayrı takip).
+         * Başkası adına KK/nakit HARCAMASI dahil — gerçek kart ekstresinde görünür.
+         * "Geri alındı" sadece alacak bayrağını değiştirir; toplamı düşürmez.
+         */
         function countsInPeriodTotals(e) {
             if (!e) return false;
             if (e.installmentLabel === 'Gelir') return false;
             if (isMultinetPayment(e.paymentType)) return false;
-            if (isOnBehalfExpense(e)) return false;
             return true;
         }
 

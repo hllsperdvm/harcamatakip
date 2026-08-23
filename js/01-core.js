@@ -1464,10 +1464,12 @@ window.renderHomeTab = function() {
                     const list = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : [];
                     list.forEach(function(e) {
                         if (!e || e.installmentLabel === 'Gelir') return;
-                        // Multinet / başkası adına — dönem toplamına dahil değil
-                        if (typeof isMultinetPayment === 'function' && isMultinetPayment(e.paymentType)) return;
-                        if (typeof isOnBehalfExpense === 'function' && isOnBehalfExpense(e)) return;
-                        if (e.isOnBehalf) return;
+                        // Multinet dönem toplamına dahil değil; başkası adına dahil (kart ekstresi)
+                        if (typeof countsInPeriodTotals === 'function') {
+                            if (!countsInPeriodTotals(e)) return;
+                        } else if (typeof isMultinetPayment === 'function' && isMultinetPayment(e.paymentType)) {
+                            return;
+                        }
                         const amt = Number(e.displayAmount) || 0;
                         if (e.effectiveMonth === period) {
                             periodSum += amt;
