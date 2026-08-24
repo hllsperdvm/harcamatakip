@@ -162,10 +162,10 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                     </div>
                     <div>
                         <label class="block text-[11px] font-black text-slate-400 uppercase tracking-wider mb-2 ml-1">Şifre</label>
-                        <input type="password" id="sifreInput" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="current-password" placeholder="••••••" class="w-full rounded-2xl border-none bg-slate-50 p-4 text-center text-2xl tracking-[0.35em] font-bold ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" onkeypress="handlePasswordKeyPress(event)">
+                        <input type="password" id="sifreInput" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="current-password" placeholder="••••••" class="w-full rounded-2xl border-none bg-slate-50 p-4 text-center text-2xl tracking-[0.35em] font-bold ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" onkeydown="if(event.key==='Enter'){event.preventDefault();if(typeof checkPassword==='function')checkPassword();}">
                     </div>
                     <p class="text-[10px] text-slate-400 font-semibold text-center">Sayısal şifre (Firebase Authentication · en az 6 rakam önerilir)</p>
-                    <button type="button" id="loginBtn" onclick="checkPassword()" class="w-full rounded-2xl bg-indigo-600 py-4 font-bold text-white shadow-lg shadow-indigo-100 transition hover:bg-indigo-700 active:scale-[0.98] mt-2">Giriş Yap</button>
+                    <button type="button" id="loginBtn" onclick="if(typeof checkPassword==='function')checkPassword(); else alert('Uygulama henüz yükleniyor, birkaç saniye bekleyin.');" class="w-full rounded-2xl bg-indigo-600 py-4 font-bold text-white shadow-lg shadow-indigo-100 transition hover:bg-indigo-700 active:scale-[0.98] mt-2">Giriş Yap</button>
                 </div>
             </div>
         </div>
@@ -918,16 +918,19 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                             <h4 class="font-black text-slate-800">🍽️ Multinet</h4>
                             <p id="multinetPeriodTotal" class="text-sm font-black text-emerald-700">0 TL</p>
                         </div>
-                        <p class="text-[11px] text-slate-400 font-semibold mb-3">Alışveriş · ayın 1'i → sonraki ayın 1'i · dönem harcamasına dahil değil</p>
-                        <div id="multinetStatements" class="space-y-2"></div>
+                        <p class="text-[11px] text-slate-400 font-semibold mb-2">Alışveriş · ayın 1'i → sonraki ayın 1'i · dönem harcamasına dahil değil</p>
+                        <div id="multinetStatements" class="report-list-scroll space-y-2"></div>
                     </div>
                     <div class="mt-4 pt-4 border-t border-slate-100">
-                        <div class="flex items-center justify-between gap-2 mb-2">
+                        <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
                             <h4 class="font-black text-slate-800">🤝 Başkası adına / Alacak</h4>
-                            <p id="onBehalfPendingTotal" class="text-sm font-black text-amber-700">0 TL</p>
+                            <div class="flex items-center gap-2">
+                                <p id="onBehalfPendingTotal" class="text-sm font-black text-amber-700">0 TL</p>
+                                <button type="button" onclick="openOnBehalfHistoryModal()" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200">Alınan borçlar</button>
+                            </div>
                         </div>
-                        <p class="text-[10px] text-slate-400 font-semibold mb-2">Yalnızca ödeme günü gelmiş, geri alınmamış aylar · gelecek gösterilmez</p>
-                        <div id="onBehalfStatements" class="space-y-2"></div>
+                        <p class="text-[10px] text-slate-400 font-semibold mb-2">Bekleyen alacaklar · gelecek ay gösterilmez</p>
+                        <div id="onBehalfStatements" class="report-list-scroll space-y-2"></div>
                     </div>
                 </div>
 
@@ -1592,6 +1595,21 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
 
 
     
+    
+    <!-- Alınan borçlar (başkası adına geçmiş) -->
+    <div id="onBehalfHistoryModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
+            <div class="bg-emerald-700 p-5 text-white flex justify-between items-start shrink-0 gap-3">
+                <div class="min-w-0">
+                    <h2 class="text-lg font-black">Alınan borçlar</h2>
+                    <p id="onBehalfHistoryTotal" class="text-sm text-emerald-100 font-bold mt-0.5">0 TL</p>
+                </div>
+                <button type="button" onclick="closeOnBehalfHistoryModal()" class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-xl leading-none shrink-0">&times;</button>
+            </div>
+            <div id="onBehalfHistoryBody" class="p-5 overflow-y-auto space-y-2 text-sm"></div>
+        </div>
+    </div>
+
     <div id="categoryDetailModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
         <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
             <div class="bg-indigo-600 p-5 text-white flex justify-between items-center shrink-0">

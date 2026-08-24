@@ -2085,6 +2085,90 @@ function getProcessedExpenses() {
             return d >= range.start && d < range.end;
         }
 
+
+        window.openOnBehalfHistoryModal = function() {
+            const modal = document.getElementById('onBehalfHistoryModal');
+            const body = document.getElementById('onBehalfHistoryBody');
+            const totalEl = document.getElementById('onBehalfHistoryTotal');
+            if (!modal || !body) return;
+            const rows = [];
+            try {
+                const list = (typeof expenses !== 'undefined' && expenses) ? expenses : [];
+                list.forEach(function(item) {
+                    if (!item || !(item.isOnBehalf || item.onBehalf)) return;
+                    let schedule = [];
+                    try {
+                        if (typeof expandOnBehalfSchedule === 'function') {
+                            schedule = expandOnBehalfSchedule(item) || [];
+                        }
+                    } catch (_) { schedule = []; }
+                    if (!schedule.length) {
+                        const map = item.onBehalfReimbursedByMonth || {};
+                        const mk = String(item.date || '').slice(0, 7);
+                        const done = !!(item.onBehalfReimbursed || map[mk]);
+                        if (done) {
+                            schedule = [{
+                                expenseId: item.id,
+                                date: String(item.date || '').slice(0, 10),
+                                monthKey: mk,
+                                displayAmount: Number(item.amount) || 0,
+                                description: item.description,
+                                person: item.person,
+                                category: item.category,
+                                onBehalfOf: item.onBehalfOf,
+                                reimbursed: true
+                            }];
+                        }
+                    }
+                    schedule.forEach(function(r) {
+                        if (r && r.reimbursed) rows.push(r);
+                    });
+                });
+            } catch (err) {
+                console.warn('onBehalf history', err);
+            }
+            rows.sort(function(a, b) {
+                return String(b.date || '').localeCompare(String(a.date || ''));
+            });
+            const sum = rows.reduce(function(s, e) { return s + (Number(e.displayAmount) || 0); }, 0);
+            if (totalEl) totalEl.textContent = Math.round(sum).toLocaleString('tr-TR') + ' TL · ' + rows.length + ' kayıt';
+            if (!rows.length) {
+                body.innerHTML = '<p class="text-sm text-slate-400 font-medium text-center py-8">Henüz geri alınmış borç yok</p>';
+            } else {
+                body.innerHTML = rows.map(function(e) {
+                    const amt = Math.round(Number(e.displayAmount) || 0).toLocaleString('tr-TR');
+                    const d = (typeof formatDateTR === 'function') ? formatDateTR(String(e.date || '').slice(0, 10)) : String(e.date || '').slice(0, 10);
+                    const who = escapeHtml(e.onBehalfOf || 'Başkası');
+                    const sub = [
+                        d,
+                        e.monthKey || '',
+                        who,
+                        e.person ? ('ödeyen ' + e.person) : '',
+                        e.category || ''
+                    ].filter(Boolean).join(' · ');
+                    return '<div class="report-row report-multinet">' +
+                        '<div class="min-w-0">' +
+                        '<p class="report-title truncate">' + escapeHtml(e.description || e.category || 'Ödeme') + '</p>' +
+                        '<p class="report-sub">' + escapeHtml(sub) + '</p>' +
+                        '</div>' +
+                        '<div class="shrink-0 text-right">' +
+                        '<p class="report-amt text-emerald-700">' + amt + ' TL</p>' +
+                        '<p class="text-[10px] font-bold text-emerald-600 mt-0.5">Alındı</p>' +
+                        '</div></div>';
+                }).join('');
+            }
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            try { if (typeof wireAllModalBackdropClose === 'function') wireAllModalBackdropClose(); } catch (_) {}
+        };
+
+        window.closeOnBehalfHistoryModal = function() {
+            const modal = document.getElementById('onBehalfHistoryModal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+
         window.renderMultinetReport = function() {
             const box = document.getElementById('multinetStatements');
             const totalEl = document.getElementById('multinetPeriodTotal');
@@ -2524,7 +2608,8 @@ function renderCardStatements(person) {
                 cardDebtModal: 'closeCardDebtModal',
                 weatherModal: 'closeWeatherModal',
                 fuelPriceModal: 'closeFuelPriceModal',
-                surahModal: 'closeSurahModal'
+                surahModal: 'closeSurahModal',
+                onBehalfHistoryModal: 'closeOnBehalfHistoryModal'
             };
             document.querySelectorAll('.fixed.inset-0').forEach(function(overlay) {
                 if (overlay.dataset.backdropWired === '1') return;
