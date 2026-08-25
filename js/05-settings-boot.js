@@ -2093,6 +2093,33 @@
             const selEl = document.getElementById('selectedMonthAmount');
             if (selEl) selEl.textContent = Math.round(totalCur).toLocaleString('tr-TR') + ' TL';
 
+            function isRecurringRow(i) {
+                if (!i) return false;
+                if (i.isRecurring) return true;
+                const lab = String(i.installmentLabel || '');
+                return lab.indexOf('Tekrar') >= 0 || lab.indexOf('tekrar') >= 0;
+            }
+            function lineRow(i) {
+                return '<div class="flex justify-between gap-2 text-xs text-slate-600">' +
+                    '<span class="min-w-0 truncate">' + escapeHtml(i.description || '-') +
+                    ' <span class="text-slate-400">(' + escapeHtml(i.person || '') + ' · ' +
+                    escapeHtml(i.installmentLabel || '') + ')</span></span>' +
+                    '<span class="font-bold shrink-0">' + Math.round(Number(i.displayAmount) || 0).toLocaleString('tr-TR') + ' TL</span></div>';
+            }
+            function sectionBlock(title, items, sum, tone) {
+                if (!items.length) return '';
+                const headCls = tone === 'rec'
+                    ? 'text-amber-700'
+                    : 'text-indigo-800';
+                const sumCls = tone === 'rec'
+                    ? 'text-amber-700'
+                    : 'text-indigo-700';
+                return '<div class="mt-3 first:mt-1">' +
+                    '<div class="flex justify-between items-center mb-1.5 gap-2">' +
+                    '<span class="text-sm font-black ' + headCls + '">' + title + '</span>' +
+                    '<span class="text-sm font-black ' + sumCls + '">' + Math.round(sum).toLocaleString('tr-TR') + ' TL</span></div>' +
+                    '<div class="space-y-1">' + items.map(lineRow).join('') + '</div></div>';
+            }
             function periodBlock(g, isCurrent) {
                 const label = (typeof formatPeriodLabel === 'function') ? formatPeriodLabel(g.month) : g.month;
                 const badge = isCurrent
@@ -2103,18 +2130,21 @@
                 const boxCls = isCurrent
                     ? 'bg-emerald-50/80 p-4 rounded-2xl border border-emerald-200'
                     : 'bg-slate-50 p-4 rounded-2xl border border-slate-200';
-                const lines = g.items.map(function(i) {
-                    return '<div class="flex justify-between gap-2 text-xs text-slate-600">' +
-                        '<span class="min-w-0 truncate">' + escapeHtml(i.description || '-') +
-                        ' <span class="text-slate-400">(' + escapeHtml(i.person || '') + ' · ' +
-                        escapeHtml(i.installmentLabel || '') + ')</span></span>' +
-                        '<span class="font-bold shrink-0">' + Math.round(Number(i.displayAmount) || 0).toLocaleString('tr-TR') + ' TL</span></div>';
-                }).join('');
+                const taksitItems = [];
+                const tekrarItems = [];
+                (g.items || []).forEach(function(i) {
+                    if (isRecurringRow(i)) tekrarItems.push(i);
+                    else taksitItems.push(i);
+                });
+                const taksitSum = taksitItems.reduce(function(s, x) { return s + (Number(x.displayAmount) || 0); }, 0);
+                const tekrarSum = tekrarItems.reduce(function(s, x) { return s + (Number(x.displayAmount) || 0); }, 0);
                 return '<div class="' + boxCls + '">' +
                     '<div class="flex justify-between items-center mb-2 gap-2">' +
                     '<span class="font-black text-slate-800 text-sm">' + escapeHtml(label) + badge + '</span>' +
                     '<span class="font-black text-indigo-600 text-sm">' + Math.round(g.sum).toLocaleString('tr-TR') + ' TL</span></div>' +
-                    '<div class="space-y-1">' + lines + '</div></div>';
+                    sectionBlock('Taksitler', taksitItems, taksitSum, 'ins') +
+                    sectionBlock('Tekrarlı ödemeler', tekrarItems, tekrarSum, 'rec') +
+                    '</div>';
             }
 
             let html = '';
