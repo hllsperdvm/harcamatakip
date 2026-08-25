@@ -3,9 +3,19 @@
  * GitHub: js/ klasörünün tamamını yükleyin.
  */
         // Firebase Compat (yerel file:// ile çalışır; modül gerekmez)
+        // Login handler'lar Firebase olmasa da tanımlı kalsın (ReferenceError olmasın)
+        window.handlePasswordKeyPress = function(event) {
+            if (event && (event.key === 'Enter' || event.keyCode === 13)) {
+                if (event.preventDefault) event.preventDefault();
+                if (typeof window.checkPassword === 'function') window.checkPassword();
+            }
+        };
         if (typeof firebase === 'undefined') {
             console.error('Firebase SDK henüz yok — bootstrap beklenmeli');
-            throw new Error('Firebase SDK yüklenmedi');
+            window.checkPassword = window.checkPassword || function() {
+                alert('Firebase henüz yüklenmedi. Birkaç saniye bekleyip tekrar deneyin veya Ctrl+F5 yapın.');
+            };
+            // throw etme — diğer dosyalar ve login UI çalışabilsin
         }
         // Firebase web apiKey kasıtlı olarak istemcidedir; koruma Firestore Rules + Auth ile sağlanır.
         const firebaseConfig = {
@@ -17,13 +27,21 @@
             appId: "1:1051789650081:web:3c7d4bc099eb7b5f0f68e0"
         };
 
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const auth = firebase.auth();
-        try { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch (_) {}
+        let db = null;
+        let auth = null;
+        try {
+            if (typeof firebase !== 'undefined') {
+                if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                auth = firebase.auth();
+            }
+        } catch (e) {
+            console.error('Firebase init', e);
+        }
+        try { if (auth) auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch (_) {}
         // Çevrimdışı önbellek: veri ekle/düzenle internet yokken de çalışır, sonra senkron
         try {
-            db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
+            if (db) db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
                 if (err && err.code === 'failed-precondition') {
                     console.warn('Firestore persistence: birden fazla sekme açık');
                 } else if (err && err.code === 'unimplemented') {
@@ -516,11 +534,11 @@
                 const amt = (Number(e.displayAmount) || Number(e.amount) || 0).toLocaleString('tr-TR') + ' TL';
                 const key = 'exp-' + d + '-' + (e.id || desc);
                 if (days === 0) {
-                    pushNotif(key, 'critical', '📌', 'Bugün: ' + desc, sub + ' · ' + amt + (e.person ? ' · ' + e.person : ''));
+                    pushNotif(key, 'critical', '💸', 'Bugün: ' + desc, sub + ' · ' + amt + (e.person ? ' · ' + e.person : ''));
                 } else if (days <= 3) {
-                    pushNotif(key, 'warning', '📅', days + ' gün sonra: ' + desc, formatDateTR(d) + ' · ' + amt);
+                    pushNotif(key, 'warning', '💸', days + ' gün sonra: ' + desc, formatDateTR(d) + ' · ' + amt);
                 } else {
-                    pushNotif(key, 'info', '🗓️', days + ' gün sonra: ' + desc, formatDateTR(d) + ' · ' + amt);
+                    pushNotif(key, 'info', '💳', days + ' gün sonra: ' + desc, formatDateTR(d) + ' · ' + amt);
                 }
             });
 

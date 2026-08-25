@@ -254,6 +254,27 @@ function getProcessedExpenses() {
                 return true;
             });
 
+            // Kelime araması sonucu toplamı
+            try {
+                const sumEl = document.getElementById('expenseSearchSum');
+                if (sumEl) {
+                    const q = String(currentSearchFilter || '').trim();
+                    if (q) {
+                        let sum = 0;
+                        filtered.forEach(function(e) {
+                            if (!e || e.installmentLabel === 'Gelir') return;
+                            sum += Number(e.displayAmount) || 0;
+                        });
+                        sumEl.textContent = '"' + q + '" · ' + filtered.length + ' kayıt · toplam ' +
+                            Math.round(sum).toLocaleString('tr-TR') + ' TL';
+                        sumEl.classList.remove('hidden');
+                    } else {
+                        sumEl.textContent = '';
+                        sumEl.classList.add('hidden');
+                    }
+                }
+            } catch (_) {}
+
             filtered.sort((a, b) => {
                 if (sortColumn === 'date') {
                     const dA = String(a.date || '');
