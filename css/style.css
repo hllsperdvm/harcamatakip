@@ -2573,3 +2573,16 @@ html.theme-forest.theme-dark #budgetTargetPct { color: #6ee7b7 !important; }
   border-radius: 999px;
 }
 html.theme-dark .report-list-scroll::-webkit-scrollbar-thumb { background: #64748b; }
+
+
+/* Dönem raporu modal — tam yükseklik, içeride kaydır */
+.period-report-sheet {
+  max-height: 92vh;
+  height: 92vh;
+}
+@media (min-width: 640px) {
+  .period-report-sheet {
+    height: min(92vh, 720px);
+    max-height: min(92vh, 720px);
+  }
+}

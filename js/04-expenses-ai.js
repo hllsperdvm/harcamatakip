@@ -2063,9 +2063,442 @@ function getProcessedExpenses() {
             }
         };
 
+
+        /** Belirli dönem anahtarı için işlenmiş harcamalar (taksit dilimleri dahil). asOfYmd verilirse o güne kadar (dahil). */
+        function getExpensesForPeriodKey(periodKey, asOfYmd) {
+            const out = [];
+            if (!periodKey) return out;
+            const asOf = asOfYmd ? String(asOfYmd).slice(0, 10) : '';
+            const list = (typeof expenses !== 'undefined' && expenses) ? expenses : [];
+            list.forEach(function(item) {
+                if (!item || item.installmentLabel === 'Gelir') return;
+                const count = Math.max(1, parseInt(item.installmentCount, 10) || 1);
+                const isRec = !!item.isRecurring;
+                const perAmount = isRec
+                    ? (item.amountPerInstallment != null ? Number(item.amountPerInstallment) : Number(item.amount) || 0)
+                    : (item.amountPerInstallment != null
+                        ? Number(item.amountPerInstallment)
+                        : ((Number(item.amount) || 0) / count));
+                const originalDate = item.date;
+                if (count <= 1 && !isRec) {
+                    const pk = (typeof getPeriodKeyForDateStr === 'function')
+                        ? getPeriodKeyForDateStr(originalDate)
+                        : String(originalDate || '').slice(0, 7);
+                    if (pk !== periodKey) return;
+                    const d0 = String(originalDate || '').slice(0, 10);
+                    if (asOf && d0 && d0 > asOf) return;
+                    out.push(Object.assign({}, item, {
+                        displayAmount: Number(item.amount) || 0,
+                        installmentLabel: 'Peşin',
+                        effectiveMonth: pk,
+                        date: originalDate
+                    }));
+                    return;
+                }
+                const n = count;
+                for (let i = 0; i < n; i++) {
+                    const dateStr = (typeof shiftDateByMonths === 'function')
+                        ? shiftDateByMonths(originalDate, i)
+                        : originalDate;
+                    const pk = (typeof getPeriodKeyForDateStr === 'function')
+                        ? getPeriodKeyForDateStr(dateStr)
+                        : String(dateStr || '').slice(0, 7);
+                    if (pk !== periodKey) continue;
+                    const d0 = String(dateStr || '').slice(0, 10);
+                    if (asOf && d0 && d0 > asOf) continue;
+                    const label = isRec
+                        ? ('Tekrar ' + (i + 1) + '/' + n)
+                        : ('Taksit ' + (i + 1) + '/' + n);
+                    out.push(Object.assign({}, item, {
+                        id: item.id + '_ins_' + i,
+                        displayAmount: perAmount,
+                        installmentLabel: label,
+                        effectiveMonth: pk,
+                        date: dateStr,
+                        installmentIndex: i
+                    }));
+                }
+            });
+            return out.filter(function(e) {
+                return typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e);
+            });
+        }
+
+        function buildClosedPeriodReportData(periodKey, opts) {
+            opts = opts || {};
+            const interim = !!opts.interim;
+            const asOf = opts.asOfYmd ? String(opts.asOfYmd).slice(0, 10) : (interim ? ((typeof todayDateStr === 'function') ? todayDateStr() : new Date().toISOString().slice(0, 10)) : '');
+            const label = (typeof formatPeriodLabel === 'function') ? formatPeriodLabel(periodKey) : periodKey;
+            const list = getExpensesForPeriodKey(periodKey, interim ? asOf : '');
+            const sum = function(arr, pred) {
+                return (arr || []).filter(pred || function() { return true; })
+                    .reduce(function(s, e) { return s + (Number(e.displayAmount) || 0); }, 0);
+            };
+            const isCard = function(e) {
+                return typeof isCreditPayment === 'function' ? isCreditPayment(e.paymentType) : /kredi/i.test(String(e.paymentType || ''));
+            };
+            const isCash = function(e) {
+                return typeof isCashPayment === 'function' ? isCashPayment(e.paymentType) : /nakit/i.test(String(e.paymentType || ''));
+            };
+            const total = sum(list);
+            const card = sum(list, isCard);
+            const cash = sum(list, isCash);
+            const bekir = sum(list, function(e) { return e.person === 'Bekir'; });
+            const duygu = sum(list, function(e) { return e.person === 'Duygu'; });
+            const bekirCard = sum(list, function(e) { return e.person === 'Bekir' && isCard(e); });
+            const duyguCard = sum(list, function(e) { return e.person === 'Duygu' && isCard(e); });
+
+            const byCat = {};
+            const shopSubs = {};
+            const billSubs = {};
+            let installSum = 0, recurSum = 0, cashCount = 0, cardCount = 0;
+            list.forEach(function(e) {
+                let cat = e.category || 'Diğer';
+                if (typeof isLegacyShopCategory === 'function' && isLegacyShopCategory(cat)) cat = 'Alışveriş';
+                if (cat === 'E-ticaret' || e.isEcommerce) cat = 'Alışveriş';
+                if (typeof isAlisverisCategory === 'function' && isAlisverisCategory(cat)) cat = 'Alışveriş';
+                byCat[cat] = (byCat[cat] || 0) + (Number(e.displayAmount) || 0);
+                if (cat === 'Alışveriş') {
+                    const st = String(e.shopSubtype || '').trim() || 'Belirtilmedi';
+                    const key = st + (e.isEcommerce ? ' · E-ticaret' : '');
+                    shopSubs[key] = (shopSubs[key] || 0) + (Number(e.displayAmount) || 0);
+                }
+                if (cat === 'Faturalar') {
+                    const bs = String(e.billSubtype || '').trim() || 'Belirtilmedi';
+                    billSubs[bs] = (billSubs[bs] || 0) + (Number(e.displayAmount) || 0);
+                }
+                const lab = String(e.installmentLabel || '');
+                if (lab.indexOf('Tekrar') >= 0 || e.isRecurring) recurSum += Number(e.displayAmount) || 0;
+                else if (lab.indexOf('Taksit') >= 0) installSum += Number(e.displayAmount) || 0;
+                if (isCard(e)) cardCount++;
+                if (isCash(e)) cashCount++;
+            });
+            const topCats = Object.keys(byCat).map(function(k) { return [k, byCat[k]]; })
+                .sort(function(a, b) { return b[1] - a[1]; }).slice(0, 10);
+
+            const topItems = list.slice().sort(function(a, b) {
+                return (Number(b.displayAmount) || 0) - (Number(a.displayAmount) || 0);
+            }).slice(0, 8).map(function(e) {
+                return {
+                    desc: e.description || e.category || '-',
+                    amount: Number(e.displayAmount) || 0,
+                    date: String(e.date || '').slice(0, 10),
+                    person: e.person || '',
+                    cat: e.category || ''
+                };
+            });
+
+            let prevKey = '';
+            try {
+                const parts = String(periodKey).split('-').map(Number);
+                if (parts.length === 2) {
+                    let y = parts[0], m = parts[1] - 1;
+                    if (m < 1) { m = 12; y -= 1; }
+                    prevKey = y + '-' + String(m).padStart(2, '0');
+                }
+            } catch (_) {}
+            const prevList = prevKey ? getExpensesForPeriodKey(prevKey, '') : [];
+            const prevTotal = sum(prevList);
+            const prevCard = sum(prevList, isCard);
+            const delta = total - prevTotal;
+            const deltaPct = prevTotal > 0 ? Math.round(delta / prevTotal * 100) : null;
+            const deltaCard = card - prevCard;
+            const deltaCardPct = prevCard > 0 ? Math.round(deltaCard / prevCard * 100) : null;
+
+            const target = Number(typeof monthlyBudgetTarget !== 'undefined' ? monthlyBudgetTarget : 0) || 0;
+            const targetPct = target > 0 ? Math.round(card / target * 100) : null;
+
+            // Dönem gün sayısı (ara rapor için bugüne kadar)
+            let daysInScope = 30;
+            try {
+                if (typeof getStatementPeriodForDate === 'function') {
+                    // periodKey kapanış ayı: örnek 2026-08 → 29 Tem–28 Ağu
+                    const [yy, mm] = String(periodKey).split('-').map(Number);
+                    const endProbe = new Date(yy, mm - 1, 15);
+                    const p = getStatementPeriodForDate(endProbe);
+                    if (p && p.startDate && p.endDate) {
+                        const start = p.startDate;
+                        const end = interim && asOf ? (typeof parseYMD === 'function' ? parseYMD(asOf) : new Date(asOf)) : p.endDate;
+                        if (start && end) {
+                            daysInScope = Math.max(1, Math.round((end - start) / 86400000) + 1);
+                        }
+                    }
+                }
+            } catch (_) {}
+            const dailyAvg = total / daysInScope;
+            const projected = interim ? Math.round(dailyAvg * 30) : total;
+
+            const payload = {
+                periodKey: periodKey,
+                label: label,
+                interim: interim,
+                asOfYmd: interim ? asOf : '',
+                generatedAt: new Date().toISOString(),
+                source: 'local',
+                totals: { total: total, card: card, cash: cash, bekir: bekir, duygu: duygu, bekirCard: bekirCard, duyguCard: duyguCard, count: list.length, installSum: installSum, recurSum: recurSum, cardCount: cardCount, cashCount: cashCount },
+                topCategories: topCats,
+                shopBreakdown: shopSubs,
+                billBreakdown: billSubs,
+                topItems: topItems,
+                compare: { prevKey: prevKey, prevTotal: prevTotal, prevCard: prevCard, delta: delta, deltaPct: deltaPct, deltaCard: deltaCard, deltaCardPct: deltaCardPct },
+                budget: { target: target, cardSpent: card, pct: targetPct },
+                pace: { daysInScope: daysInScope, dailyAvg: dailyAvg, projected: projected }
+            };
+            payload.text = buildClosedPeriodReportText(payload);
+            return payload;
+        }
+
+        function buildClosedPeriodReportText(d) {
+            const fmt = function(n) { return Math.round(Number(n) || 0).toLocaleString('tr-TR'); };
+            const lines = [];
+            const t = d.totals || {};
+            const c = d.compare || {};
+            const b = d.budget || {};
+            const p = d.pace || {};
+            lines.push('Sayın kullanıcı,');
+            lines.push('');
+            if (d.interim) {
+                lines.push(d.label + ' dönemi için ARA RAPOR (kapanmamış).');
+                lines.push('Kapsam: dönem başından ' + (d.asOfYmd || 'bugün') + ' tarihine kadar kaydedilmiş harcamalar.');
+            } else {
+                lines.push(d.label + ' ekstre dönemi (29–28) KAPANIŞ değerlendirmesi.');
+                lines.push('Rakamlar uygulama kayıtlarınıza dayanır; banka ekstresi yerine geçmez.');
+            }
+            lines.push('');
+            lines.push('1) Yönetici özeti');
+            lines.push('Toplam harcama: ' + fmt(t.total) + ' TL · ' + (t.count || 0) + ' kalem.');
+            lines.push('Kredi kartı: ' + fmt(t.card) + ' TL (' + (t.cardCount || 0) + ' işlem) · Nakit: ' + fmt(t.cash) + ' TL (' + (t.cashCount || 0) + ' işlem).');
+            if (t.total > 0) {
+                lines.push('KK payı %' + Math.round((t.card / t.total) * 100) + ' · Nakit payı %' + Math.round((t.cash / t.total) * 100) + '.');
+            }
+            lines.push('Bekir: ' + fmt(t.bekir) + ' TL (KK ' + fmt(t.bekirCard) + ') · Duygu: ' + fmt(t.duygu) + ' TL (KK ' + fmt(t.duyguCard) + ').');
+            lines.push('Bu dilimdeki taksit payı: ' + fmt(t.installSum) + ' TL · Tekrarlı pay: ' + fmt(t.recurSum) + ' TL.');
+            if (p.daysInScope) {
+                lines.push('Kapsamdaki gün: ~' + p.daysInScope + ' · Günlük ortalama: ' + fmt(p.dailyAvg) + ' TL.');
+                if (d.interim && p.projected) {
+                    lines.push('Aynı tempoyla dönem sonu tahmini (yaklaşık 30 gün): ' + fmt(p.projected) + ' TL.');
+                }
+            }
+            lines.push('');
+            lines.push('2) Kategori sıralaması');
+            if (d.topCategories && d.topCategories.length) {
+                d.topCategories.forEach(function(pair, i) {
+                    const share = t.total > 0 ? Math.round(pair[1] / t.total * 100) : 0;
+                    lines.push((i + 1) + '. ' + pair[0] + ': ' + fmt(pair[1]) + ' TL (%' + share + ')');
+                });
+            } else {
+                lines.push('Sınıflandırılmış harcama yok.');
+            }
+            const shopKeys = Object.keys(d.shopBreakdown || {});
+            if (shopKeys.length) {
+                lines.push('');
+                lines.push('Alışveriş alt kırılım:');
+                shopKeys.sort(function(a, b) { return (d.shopBreakdown[b] || 0) - (d.shopBreakdown[a] || 0); }).forEach(function(k) {
+                    lines.push('• ' + k + ': ' + fmt(d.shopBreakdown[k]) + ' TL');
+                });
+            }
+            const billKeys = Object.keys(d.billBreakdown || {});
+            if (billKeys.length) {
+                lines.push('');
+                lines.push('Fatura alt kırılım:');
+                billKeys.sort(function(a, b) { return (d.billBreakdown[b] || 0) - (d.billBreakdown[a] || 0); }).forEach(function(k) {
+                    lines.push('• ' + k + ': ' + fmt(d.billBreakdown[k]) + ' TL');
+                });
+            }
+            lines.push('');
+            lines.push('3) En yüksek kalemler');
+            if (d.topItems && d.topItems.length) {
+                d.topItems.forEach(function(it, i) {
+                    lines.push((i + 1) + '. ' + it.desc + ' — ' + fmt(it.amount) + ' TL (' + (it.date || '') + (it.person ? ', ' + it.person : '') + ')');
+                });
+            } else {
+                lines.push('Kayıt yok.');
+            }
+            lines.push('');
+            lines.push('4) Dönemler arası karşılaştırma');
+            if (c.prevTotal > 0 && c.deltaPct != null) {
+                lines.push('Önceki dönem toplamı: ' + fmt(c.prevTotal) + ' TL.');
+                lines.push('Fark: ' + fmt(Math.abs(c.delta)) + ' TL ' + (c.delta >= 0 ? 'artış' : 'azalış') + ' (%' + Math.abs(c.deltaPct) + ').');
+                if (c.prevCard > 0 && c.deltaCardPct != null) {
+                    lines.push('KK farkı: ' + fmt(Math.abs(c.deltaCard)) + ' TL (%' + Math.abs(c.deltaCardPct) + ').');
+                }
+                if (c.deltaPct >= 15) lines.push('Harcama temposu belirgin yükselmiş; en yüksek kategoriyi hedefleyin.');
+                else if (c.deltaPct <= -10) lines.push('Harcama gerilemiş; bu disiplin sürdürülebilir.');
+                else lines.push('Değişim ılımlı.');
+            } else {
+                lines.push('Karşılaştırma için yeterli önceki dönem verisi yok.');
+            }
+            lines.push('');
+            lines.push('5) Bütçe hedefi (KK)');
+            if (b.target > 0) {
+                lines.push('Hedef ' + fmt(b.target) + ' TL · gerçekleşen KK ' + fmt(b.cardSpent) + ' TL (%' + (b.pct != null ? b.pct : 0) + ').');
+                if (b.pct != null && b.pct > 100) lines.push('Hedef aşılmış. Sonraki dilimde sabit ve alışveriş kalemlerini sıkılaştırın.');
+                else if (b.pct != null && b.pct >= 90) lines.push('Hedefe çok yakınsınız.');
+                else lines.push('KK harcaması hedefin içinde.');
+            } else {
+                lines.push('Tanımlı KK hedefi yok. Ayarlar’dan hedef koymak analizi güçlendirir.');
+            }
+            lines.push('');
+            lines.push('6) Danışman notları');
+            const tips = [];
+            if (d.topCategories && d.topCategories[0] && t.total > 0 && d.topCategories[0][1] / t.total >= 0.35) {
+                tips.push('“' + d.topCategories[0][0] + '” dönemin büyük kısmını oluşturuyor; alt kırılımı netleştirin.');
+            }
+            if (t.installSum + t.recurSum > 0 && t.total > 0 && (t.installSum + t.recurSum) / t.total >= 0.25) {
+                tips.push('Taksit + tekrarlı yük toplamın dörtte birinden fazla; yeni taksit açmadan önce sabit yükü kontrol edin.');
+            }
+            if (d.interim && p.projected && b.target > 0 && p.projected > b.target) {
+                tips.push('Mevcut tempo dönem sonunda KK hedefini aşabilir; kalan günlerde KK kullanımını sınırlayın.');
+            }
+            if (c.deltaPct != null && c.deltaPct >= 20) {
+                tips.push('Artışın tek seferlik mi (tatil, elektronik) yoksa yapısal mı olduğunu ayırın.');
+            }
+            if (!tips.length) {
+                tips.push('Olağandışı sapma yok. Mevcut tempoyu koruyup bir sonraki dönem başında hedefi netleştirmeniz yeterli.');
+            }
+            tips.forEach(function(x, i) { lines.push((i + 1) + ') ' + x); });
+            lines.push('');
+            lines.push(d.interim
+                ? 'Not: Bu bir ara rapordur; dönem kapanınca nihai kapanış raporu ayrıca oluşur.'
+                : 'Bu rapor bilgilendirme amaçlıdır; kesin banka ekstresi yerine geçmez.');
+            return lines.join('\n');
+        }
+
+        window._closedPeriodReportsCache = window._closedPeriodReportsCache || {};
+
+        window.ensureClosedPeriodReports = async function(force) {
+            const listEl = document.getElementById('periodCloseReportsList');
+            try {
+                const current = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
+                const today = (typeof todayDateStr === 'function') ? todayDateStr() : new Date().toISOString().slice(0, 10);
+                const keys = (typeof getPreviousPeriodKeys === 'function') ? getPreviousPeriodKeys(6) : [];
+                const closed = [];
+                (keys || []).forEach(function(k) {
+                    if (k && k !== current && closed.indexOf(k) < 0) closed.push(k);
+                });
+                closed.sort().reverse();
+
+                // Kapanmış dönemler: otomatik (yoksa üret); force ile yeniden
+                for (let i = 0; i < closed.length; i++) {
+                    const pk = closed[i];
+                    if (!force && window._closedPeriodReportsCache[pk] && !window._closedPeriodReportsCache[pk].interim) continue;
+                    let loaded = null;
+                    try {
+                        if (typeof db !== 'undefined' && db) {
+                            const snap = await db.collection('settings').doc('periodReport_' + pk).get();
+                            if (snap.exists) loaded = snap.data();
+                        }
+                    } catch (_) {}
+                    if (!loaded || force) {
+                        const data = buildClosedPeriodReportData(pk, { interim: false });
+                        window._closedPeriodReportsCache[pk] = data;
+                        try {
+                            if (typeof db !== 'undefined' && db) {
+                                await db.collection('settings').doc('periodReport_' + pk).set(data, { merge: true });
+                            }
+                        } catch (err) { console.warn('period report save', err); }
+                    } else {
+                        window._closedPeriodReportsCache[pk] = loaded;
+                    }
+                }
+
+                // Aktif dönem: Yenile (force) veya ilk açılışta ara rapor
+                if (current) {
+                    if (force || !window._closedPeriodReportsCache[current]) {
+                        const data = buildClosedPeriodReportData(current, { interim: true, asOfYmd: today });
+                        window._closedPeriodReportsCache[current] = data;
+                        try {
+                            if (typeof db !== 'undefined' && db && force) {
+                                await db.collection('settings').doc('periodReport_' + current + '_interim').set(data, { merge: true });
+                            }
+                        } catch (_) {}
+                    }
+                }
+
+                renderClosedPeriodReportsList();
+                if (force && typeof showToast === 'function') showToast('Dönem raporları güncellendi', 'success');
+            } catch (err) {
+                console.warn('ensureClosedPeriodReports', err);
+                if (listEl) listEl.innerHTML = '<p class="text-sm text-slate-400 font-semibold text-center py-3">Raporlar yüklenemedi</p>';
+            }
+        };
+
+        window.renderClosedPeriodReportsList = function() {
+            const listEl = document.getElementById('periodCloseReportsList');
+            if (!listEl) return;
+            const cache = window._closedPeriodReportsCache || {};
+            const keys = Object.keys(cache).sort().reverse();
+            if (!keys.length) {
+                listEl.innerHTML = '<p class="text-sm text-slate-400 font-semibold text-center py-4">Henüz rapor yok. Yenile ile aktif dönem ara raporu oluşturabilirsiniz.</p>';
+                return;
+            }
+            listEl.innerHTML = keys.map(function(pk) {
+                const r = cache[pk] || {};
+                const tot = r.totals && r.totals.total != null ? Math.round(r.totals.total).toLocaleString('tr-TR') + ' TL' : '—';
+                const lab = r.label || pk;
+                const badge = r.interim
+                    ? '<span class="text-[9px] font-black text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded-md">ARA</span>'
+                    : '<span class="text-[9px] font-black text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded-md">KAPANIŞ</span>';
+                const sub = r.interim
+                    ? ('Ara rapor · ' + (r.asOfYmd || '') + ' tarihine kadar')
+                    : 'Kapanış raporu · yerel analiz';
+                return '<button type="button" onclick="openPeriodCloseReportModal(\'' + String(pk).replace(/'/g, "\\'") + '\')" class="w-full text-left p-3 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-100 flex justify-between items-center gap-3">' +
+                    '<div class="min-w-0">' +
+                    '<p class="text-sm font-black text-slate-800 truncate flex items-center gap-2 flex-wrap">' + (typeof escapeHtml === 'function' ? escapeHtml(lab) : lab) + ' ' + badge + '</p>' +
+                    '<p class="text-[11px] text-slate-400 font-semibold">' + (typeof escapeHtml === 'function' ? escapeHtml(sub) : sub) + '</p></div>' +
+                    '<span class="text-sm font-black text-indigo-700 whitespace-nowrap">' + tot + '</span></button>';
+            }).join('');
+        };
+
+        window.openPeriodCloseReportModal = function(periodKey) {
+            const modal = document.getElementById('periodCloseReportModal');
+            const title = document.getElementById('periodCloseReportTitle');
+            const sub = document.getElementById('periodCloseReportSub');
+            const body = document.getElementById('periodCloseReportBody');
+            if (!modal || !body) return;
+            let r = (window._closedPeriodReportsCache || {})[periodKey];
+            if (!r) {
+                const current = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
+                r = buildClosedPeriodReportData(periodKey, { interim: periodKey === current });
+                window._closedPeriodReportsCache[periodKey] = r;
+            }
+            if (title) title.textContent = r.interim ? 'Ara Dönem Raporu' : 'Dönem Kapanış Raporu';
+            if (sub) {
+                sub.textContent = (r.label || periodKey) + (r.interim && r.asOfYmd ? ' · ' + r.asOfYmd + ' tarihine kadar' : '') +
+                    (r.generatedAt ? ' · ' + String(r.generatedAt).slice(0, 16).replace('T', ' ') : '');
+            }
+            const text = r.text || '';
+            body.innerHTML = text.split(/\n/).map(function(line) {
+                const t = line.trim();
+                if (!t) return '<div class="h-2"></div>';
+                if (/^[1-6]\)/.test(t) || t.indexOf('Sayın') === 0) {
+                    return '<p class="font-black text-slate-900 mt-2">' + escapeHtml(line) + '</p>';
+                }
+                if (/^\d+\./.test(t) || t.charAt(0) === '•') {
+                    return '<p class="font-semibold text-slate-800 pl-1">' + escapeHtml(line) + '</p>';
+                }
+                return '<p class="text-slate-700">' + escapeHtml(line) + '</p>';
+            }).join('');
+            body.scrollTop = 0;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            try { if (typeof wireAllModalBackdropClose === 'function') wireAllModalBackdropClose(); } catch (_) {}
+        };
+
+        window.closePeriodCloseReportModal = function() {
+            const modal = document.getElementById('periodCloseReportModal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+
+
         window.renderMonthlyReports = function() {
             try { updateStatsPanel(); } catch (_) {}
             try { renderPeriodLiveSummary(); } catch (_) {}
+            try {
+                if (typeof ensureClosedPeriodReports === 'function') ensureClosedPeriodReports(false);
+            } catch (_) {}
         };
 
         window.markCardStatementUnpaid = async function(statementId) {
@@ -2674,7 +3107,8 @@ function renderCardStatements(person) {
                 weatherModal: 'closeWeatherModal',
                 fuelPriceModal: 'closeFuelPriceModal',
                 surahModal: 'closeSurahModal',
-                onBehalfHistoryModal: 'closeOnBehalfHistoryModal'
+                onBehalfHistoryModal: 'closeOnBehalfHistoryModal',
+                periodCloseReportModal: 'closePeriodCloseReportModal'
             };
             document.querySelectorAll('.fixed.inset-0').forEach(function(overlay) {
                 if (overlay.dataset.backdropWired === '1') return;
