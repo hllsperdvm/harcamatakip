@@ -1812,6 +1812,7 @@
                 filterSelect.innerHTML = `<option value="Tümü">Tümü</option>` + categories.map(c => `<option value="${c}">${c}</option>`).join('');
             }
             try { if (typeof refreshExpensePaymentOptions === 'function') refreshExpensePaymentOptions(); } catch (_) {}
+            try { if (typeof fillSubtypeSelects === 'function') fillSubtypeSelects(); } catch (_) {}
         }
 
         function normCatKey(cat) {

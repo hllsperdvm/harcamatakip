@@ -1302,6 +1302,7 @@
             const bill = document.getElementById('billSubtype');
             const veh = document.getElementById('vehicleSubtype');
             const shop = document.getElementById('shopSubtype');
+            const filterShop = document.getElementById('filterShopSubtype');
             if (bill) {
                 const opts = getSubtypesForCategory('Faturalar');
                 const cur = bill.value;
@@ -1326,7 +1327,22 @@
                 }).join('');
                 if (cur && opts.indexOf(cur) >= 0) shop.value = cur;
             }
+            // İşlem geçmişi filtresi — Ayarlar'daki alt türlerle senkron
+            if (filterShop) {
+                const opts = getSubtypesForCategory('Alışveriş');
+                const cur = filterShop.value || 'Tümü';
+                filterShop.innerHTML =
+                    '<option value="Tümü">Tümü</option>' +
+                    opts.map(function(o) {
+                        return '<option value="' + o.replace(/"/g, '&quot;') + '">' + o + '</option>';
+                    }).join('') +
+                    '<option value="__empty__">Alt tür yok</option>';
+                if (cur === 'Tümü' || cur === '__empty__' || opts.indexOf(cur) >= 0) filterShop.value = cur;
+                else filterShop.value = 'Tümü';
+            }
         }
+        window.fillSubtypeSelects = fillSubtypeSelects;
+        window.getSubtypesForCategory = getSubtypesForCategory;
 
         window.toggleCategorySubtypes = function(index) {
             const el = document.getElementById('catSubPanel_' + index);

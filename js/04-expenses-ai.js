@@ -518,22 +518,18 @@ function getProcessedExpenses() {
             }
         };
 
-        window.showCategoryExpenses = function(category) {
+                window.showCategoryExpenses = function(category) {
             const period = getCurrentPeriod();
             const cat = String(category || '');
-            const isEcom = cat === 'E-ticaret' || cat === 'Eticaret';
-            const isShop = !isEcom && ((typeof isAlisverisCategory === 'function' && isAlisverisCategory(cat)) || cat === 'Alışveriş');
+            const isShop = (typeof isAlisverisCategory === 'function' && isAlisverisCategory(cat)) || cat === 'Alışveriş' || cat === 'E-ticaret' || cat === 'Eticaret';
             const items = getProcessedExpenses().filter(function(e) {
                 if (!e || e.effectiveMonth !== period) return false;
                 if (typeof countsInPeriodTotals === 'function' && !countsInPeriodTotals(e)) return false;
-                if (isEcom) {
-                    return !!(e.isEcommerce) || e.category === 'E-ticaret';
-                }
                 if (isShop) {
-                    // Pasta dilimindeki Alışveriş = e-ticaret olmayan alışveriş
-                    if (e.isEcommerce) return false;
                     let c = e.category || '';
                     if (typeof isLegacyShopCategory === 'function' && isLegacyShopCategory(c)) c = 'Alışveriş';
+                    if (c === 'E-ticaret') c = 'Alışveriş';
+                    if (e.isEcommerce) return true;
                     return (typeof isAlisverisCategory === 'function' && isAlisverisCategory(c)) || c === 'Alışveriş';
                 }
                 return e.category === cat;
@@ -543,11 +539,59 @@ function getProcessedExpenses() {
             const body = document.getElementById('categoryDetailBody');
             const totalEl = document.getElementById('categoryDetailTotal');
             if (!modal || !body) return;
-            if (title) title.textContent = cat + ' — dönem harcamaları';
+            if (title) title.textContent = (isShop ? 'Alışveriş' : cat) + ' — dönem harcamaları';
             const total = items.reduce(function(s, e) { return s + (e.displayAmount || 0); }, 0);
             if (totalEl) totalEl.textContent = total.toLocaleString('tr-TR') + ' TL';
             if (!items.length) {
                 body.innerHTML = '<p class="text-sm text-slate-400 font-medium text-center py-6">Bu kategoride dönem harcaması yok</p>';
+            } else if (isShop) {
+                // Alt türe göre grupla (Market, Giyim, Sigara…) + E-ticaret notu
+                const groups = {};
+                items.forEach(function(e) {
+                    let st = String(e.shopSubtype || '').trim() || 'Belirtilmedi';
+                    if (e.isEcommerce) st = st + (st === 'Belirtilmedi' ? '' : '') ;
+                    const key = st + (e.isEcommerce ? ' · E-ticaret' : '');
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(e);
+                });
+                // Önce tanımlı alt tür sırası, sonra diğerleri
+                const order = (typeof getSubtypesForCategory === 'function')
+                    ? getSubtypesForCategory('Alışveriş')
+                    : [];
+                const keys = Object.keys(groups).sort(function(a, b) {
+                    const baseA = a.replace(' · E-ticaret', '');
+                    const baseB = b.replace(' · E-ticaret', '');
+                    const ia = order.indexOf(baseA);
+                    const ib = order.indexOf(baseB);
+                    if (ia >= 0 && ib >= 0) return ia - ib;
+                    if (ia >= 0) return -1;
+                    if (ib >= 0) return 1;
+                    return a.localeCompare(b, 'tr');
+                });
+                let html = '';
+                keys.forEach(function(key) {
+                    const list = groups[key].slice().sort(function(a, b) {
+                        return String(b.date).localeCompare(String(a.date));
+                    });
+                    const gSum = list.reduce(function(s, e) { return s + (e.displayAmount || 0); }, 0);
+                    html += '<div class="mb-4 last:mb-0">' +
+                        '<div class="flex justify-between items-center mb-1.5 gap-2">' +
+                        '<span class="text-sm font-black text-indigo-800">' + escapeHtml(key) + '</span>' +
+                        '<span class="text-sm font-black text-indigo-700">' + Math.round(gSum).toLocaleString('tr-TR') + ' TL</span></div>' +
+                        '<div class="space-y-0 rounded-xl bg-slate-50 border border-slate-100 px-3">';
+                    list.forEach(function(e) {
+                        html += '<div class="flex justify-between gap-3 items-start py-2.5 border-b border-slate-100 last:border-0">' +
+                            '<div class="min-w-0">' +
+                            '<p class="text-sm font-bold text-slate-800 truncate">' + escapeHtml(e.description || '-') + '</p>' +
+                            '<p class="text-[11px] text-slate-400 font-semibold mt-0.5">' + escapeHtml(e.date || '') + ' · ' +
+                            escapeHtml(e.person || '') + ' · ' + escapeHtml(e.installmentLabel || '') + '</p>' +
+                            '</div>' +
+                            '<p class="text-sm font-black text-rose-600 whitespace-nowrap">' + (e.displayAmount || 0).toLocaleString('tr-TR') + ' TL</p>' +
+                            '</div>';
+                    });
+                    html += '</div></div>';
+                });
+                body.innerHTML = html;
             } else {
                 body.innerHTML = items
                     .slice()
@@ -568,6 +612,7 @@ function getProcessedExpenses() {
             modal.classList.remove('hidden');
             modal.classList.add('flex');
         };
+
 
         window.closeCategoryDetailModal = function() {
             const modal = document.getElementById('categoryDetailModal');
@@ -1570,12 +1615,11 @@ function getProcessedExpenses() {
                 let cat = e.category || 'Diğer';
                 if (typeof isLegacyShopCategory === 'function' && isLegacyShopCategory(cat)) cat = 'Alışveriş';
                 if (cat === 'E-ticaret') cat = 'Alışveriş';
-                if (e.isEcommerce) {
-                    // E-ticaret pasta diliminde ayrı
-                    categoryData['E-ticaret'] = (categoryData['E-ticaret'] || 0) + (e.displayAmount || 0);
-                } else {
-                    categoryData[cat] = (categoryData[cat] || 0) + (e.displayAmount || 0);
+                // E-ticaret de Alışveriş diliminde birleşir
+                if (e.isEcommerce || (typeof isAlisverisCategory === 'function' && isAlisverisCategory(cat))) {
+                    cat = 'Alışveriş';
                 }
+                categoryData[cat] = (categoryData[cat] || 0) + (e.displayAmount || 0);
                 const isShop = (typeof isAlisverisCategory === 'function' && isAlisverisCategory(cat)) || cat === 'Alışveriş';
                 if (isShop || e.isEcommerce) {
                     const st = String(e.shopSubtype || '').trim() || 'Belirtilmedi';
