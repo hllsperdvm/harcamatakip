@@ -845,8 +845,16 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                 </div>
 
                 <div class="chart-block stripe-stats w-full">
-                    <h2 id="chartTitle" class="chart-title text-center sm:text-left">Kategori Dağılımı</h2>
-                    <p class="chart-sub text-center sm:text-left">Dönem bazlı · dilime tıklayın</p>
+                    <div class="flex flex-wrap items-start justify-between gap-2 mb-1">
+                        <div class="min-w-0">
+                            <h2 id="chartTitle" class="chart-title text-center sm:text-left">Kategori Dağılımı</h2>
+                            <p class="chart-sub text-center sm:text-left">Dönem seçin · dilime tıklayın</p>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <label class="text-[10px] font-black text-slate-400 uppercase hidden sm:inline">Dönem</label>
+                            <select id="statsCategoryPeriodSelect" onchange="onStatsCategoryPeriodChange()" class="text-xs font-bold border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800 shadow-sm max-w-[11rem] sm:max-w-[14rem]"></select>
+                        </div>
+                    </div>
                     <div class="chart-wrap chart-box h-80 sm:h-[22rem] md:h-96 max-w-3xl mx-auto sm:max-w-none"><canvas id="expenseChart"></canvas></div>
                     <div class="mt-5 pt-4 border-t border-slate-100 max-w-3xl mx-auto">
                         <h3 class="text-sm font-black text-slate-700 mb-2 text-center sm:text-left">Kategori Özeti</h3>

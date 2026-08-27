@@ -519,11 +519,14 @@ function getProcessedExpenses() {
         };
 
                 window.showCategoryExpenses = function(category) {
-            const period = getCurrentPeriod();
+            const period = (typeof getStatsCategoryPeriod === 'function') ? getStatsCategoryPeriod() : getCurrentPeriod();
             const cat = String(category || '');
             const isShop = (typeof isAlisverisCategory === 'function' && isAlisverisCategory(cat)) || cat === 'Alışveriş' || cat === 'E-ticaret' || cat === 'Eticaret';
-            const items = getProcessedExpenses().filter(function(e) {
-                if (!e || e.effectiveMonth !== period) return false;
+            const pool = (typeof getExpensesForPeriodKey === 'function')
+                ? getExpensesForPeriodKey(period, '')
+                : getProcessedExpenses().filter(function(e) { return e && e.effectiveMonth === period; });
+            const items = pool.filter(function(e) {
+                if (!e) return false;
                 if (typeof countsInPeriodTotals === 'function' && !countsInPeriodTotals(e)) return false;
                 if (isShop) {
                     let c = e.category || '';
@@ -539,7 +542,10 @@ function getProcessedExpenses() {
             const body = document.getElementById('categoryDetailBody');
             const totalEl = document.getElementById('categoryDetailTotal');
             if (!modal || !body) return;
-            if (title) title.textContent = (isShop ? 'Alışveriş' : cat) + ' — dönem harcamaları';
+            if (title) {
+                const plab = (typeof formatPeriodLabel === 'function') ? formatPeriodLabel(period) : period;
+                title.textContent = (isShop ? 'Alışveriş' : cat) + ' — ' + (plab || period || 'dönem');
+            }
             const total = items.reduce(function(s, e) { return s + (e.displayAmount || 0); }, 0);
             if (totalEl) totalEl.textContent = total.toLocaleString('tr-TR') + ' TL';
             if (!items.length) {
@@ -1600,12 +1606,65 @@ function getProcessedExpenses() {
             }
         };
 
-        function updateStatsPanel() {
-            const period = getCurrentPeriod();
-            const processedExpenses = getProcessedExpenses().filter(function(e) {
-                return e.effectiveMonth === period && (typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e));
+        // Kategori pastası / özet için seçili dönem (null = aktif)
+        window.statsCategoryPeriodKey = window.statsCategoryPeriodKey || null;
+
+        window.fillStatsCategoryPeriodSelect = function() {
+            const sel = document.getElementById('statsCategoryPeriodSelect');
+            if (!sel) return;
+            const current = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
+            const keys = (typeof getPreviousPeriodKeys === 'function') ? getPreviousPeriodKeys(8) : [];
+            const uniq = [];
+            (keys || []).forEach(function(k) {
+                if (k && uniq.indexOf(k) < 0) uniq.push(k);
             });
+            if (current && uniq.indexOf(current) < 0) uniq.push(current);
+            uniq.sort().reverse();
+            const prev = window.statsCategoryPeriodKey || current;
+            sel.innerHTML = uniq.map(function(k) {
+                const lab = (typeof formatPeriodLabel === 'function') ? formatPeriodLabel(k) : k;
+                const tag = (k === current) ? ' (aktif)' : '';
+                return '<option value="' + k + '">' + lab + tag + '</option>';
+            }).join('');
+            if (prev && uniq.indexOf(prev) >= 0) sel.value = prev;
+            else if (current) sel.value = current;
+            window.statsCategoryPeriodKey = sel.value || current;
+        };
+
+        window.onStatsCategoryPeriodChange = function() {
+            const sel = document.getElementById('statsCategoryPeriodSelect');
+            if (sel && sel.value) window.statsCategoryPeriodKey = sel.value;
+            try { updateStatsPanel(); } catch (_) {}
+        };
+
+        window.getStatsCategoryPeriod = function() {
+            if (window.statsCategoryPeriodKey) return window.statsCategoryPeriodKey;
+            return (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
+        };
+
+        function updateStatsPanel() {
+            try { fillStatsCategoryPeriodSelect(); } catch (_) {}
+            const period = (typeof getStatsCategoryPeriod === 'function') ? getStatsCategoryPeriod() : getCurrentPeriod();
+            // Geçmiş dönem taksit dilimleri için getExpensesForPeriodKey
+            let processedExpenses = [];
+            if (typeof getExpensesForPeriodKey === 'function') {
+                processedExpenses = getExpensesForPeriodKey(period, '');
+            } else {
+                processedExpenses = getProcessedExpenses().filter(function(e) {
+                    return e.effectiveMonth === period && (typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e));
+                });
+            }
             const total = processedExpenses.reduce(function(s, e) { return s + (e.displayAmount || 0); }, 0);
+            // Başlık: seçili dönem
+            try {
+                const title = document.getElementById('chartTitle');
+                const lab = (typeof formatPeriodLabel === 'function') ? formatPeriodLabel(period) : period;
+                if (title) title.textContent = 'Kategori Dağılımı';
+                const sub = title && title.parentElement ? title.parentElement.querySelector('.chart-sub') : null;
+                // sub zaten HTML'de
+                const sel = document.getElementById('statsCategoryPeriodSelect');
+                if (sel && period) sel.value = period;
+            } catch (_) {}
 
             // --- Kategori pasta ---
             const categoryData = {};
@@ -2147,11 +2206,15 @@ function getProcessedExpenses() {
             const duygu = sum(list, function(e) { return e.person === 'Duygu'; });
             const bekirCard = sum(list, function(e) { return e.person === 'Bekir' && isCard(e); });
             const duyguCard = sum(list, function(e) { return e.person === 'Duygu' && isCard(e); });
+            const bekirN = list.filter(function(e) { return e.person === 'Bekir'; }).length;
+            const duyguN = list.filter(function(e) { return e.person === 'Duygu'; }).length;
 
             const byCat = {};
             const shopSubs = {};
             const billSubs = {};
-            let installSum = 0, recurSum = 0, cashCount = 0, cardCount = 0;
+            const vehicleSubs = {};
+            let installSum = 0, recurSum = 0, cashCount = 0, cardCount = 0, multiSum = 0, multiN = 0;
+            let onBehalfSum = 0, onBehalfN = 0;
             list.forEach(function(e) {
                 let cat = e.category || 'Diğer';
                 if (typeof isLegacyShopCategory === 'function' && isLegacyShopCategory(cat)) cat = 'Alışveriş';
@@ -2167,27 +2230,122 @@ function getProcessedExpenses() {
                     const bs = String(e.billSubtype || '').trim() || 'Belirtilmedi';
                     billSubs[bs] = (billSubs[bs] || 0) + (Number(e.displayAmount) || 0);
                 }
+                if (cat === 'Araç' || cat === 'Ulaşım') {
+                    const vs = String(e.vehicleSubtype || '').trim() || 'Belirtilmedi';
+                    vehicleSubs[vs] = (vehicleSubs[vs] || 0) + (Number(e.displayAmount) || 0);
+                }
                 const lab = String(e.installmentLabel || '');
                 if (lab.indexOf('Tekrar') >= 0 || e.isRecurring) recurSum += Number(e.displayAmount) || 0;
                 else if (lab.indexOf('Taksit') >= 0) installSum += Number(e.displayAmount) || 0;
                 if (isCard(e)) cardCount++;
                 if (isCash(e)) cashCount++;
+                if (/multinet/i.test(String(e.paymentType || ''))) {
+                    multiSum += Number(e.displayAmount) || 0;
+                    multiN++;
+                }
+                if (e.isOnBehalf || e.onBehalf) {
+                    onBehalfSum += Number(e.displayAmount) || 0;
+                    onBehalfN++;
+                }
             });
             const topCats = Object.keys(byCat).map(function(k) { return [k, byCat[k]]; })
-                .sort(function(a, b) { return b[1] - a[1]; }).slice(0, 10);
+                .sort(function(a, b) { return b[1] - a[1]; });
 
             const topItems = list.slice().sort(function(a, b) {
                 return (Number(b.displayAmount) || 0) - (Number(a.displayAmount) || 0);
-            }).slice(0, 8).map(function(e) {
+            }).slice(0, 15).map(function(e) {
                 return {
                     desc: e.description || e.category || '-',
                     amount: Number(e.displayAmount) || 0,
                     date: String(e.date || '').slice(0, 10),
                     person: e.person || '',
-                    cat: e.category || ''
+                    cat: e.category || '',
+                    pay: e.paymentType || ''
                 };
             });
 
+            // --- İşyeri / açıklama tekrarı ---
+            function normMerchant(s) {
+                s = String(s || '').toLocaleLowerCase('tr-TR')
+                    .replace(/ı/g, 'i').replace(/İ/g, 'i')
+                    .replace(/ş/g, 's').replace(/ğ/g, 'g')
+                    .replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c');
+                s = s.replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+                // kısa gürültü kelimeleri at
+                s = s.replace(/\b(tr|as|san|tic|ltd|sti|a\.?s\.?|www|com|istanbul|ankara)\b/g, ' ').replace(/\s+/g, ' ').trim();
+                return s.slice(0, 40) || 'diger';
+            }
+            const merchantMap = {};
+            list.forEach(function(e) {
+                const amt = Number(e.displayAmount) || 0;
+                if (amt <= 0) return; // iadeleri frekansta sayma
+                const key = normMerchant(e.description || e.category || '');
+                if (!merchantMap[key]) merchantMap[key] = { key: key, count: 0, total: 0, sample: e.description || key };
+                merchantMap[key].count++;
+                merchantMap[key].total += amt;
+            });
+            const topMerchants = Object.keys(merchantMap).map(function(k) { return merchantMap[k]; })
+                .filter(function(m) { return m.count >= 1; })
+                .sort(function(a, b) {
+                    if (b.count !== a.count) return b.count - a.count;
+                    return b.total - a.total;
+                });
+            const repeatMerchants = topMerchants.filter(function(m) { return m.count >= 2; }).slice(0, 20);
+
+            // --- Alışkanlık anahtar kelimeleri ---
+            const HABITS = [
+                { id: 'dondurma', label: 'dondurma / tatlı', re: /dondurm|mado|mara[sş].*dondur|algida|magnum|cornetto/i },
+                { id: 'sigara', label: 'sigara / tütün', re: /sigara|tobacco|marlboro|parliament|winston|camel|lm\b|tekel/i },
+                { id: 'kahve', label: 'kahve / kafe', re: /kahve|starbucks|coffee|gloria|espresso|cafe|kafe/i },
+                { id: 'yemek', label: 'yemek / restoran', re: /pide|kebap|kebap|restoran|yemek|kofte|k[oö]fte|burger|pizza|doner|d[oö]ner|lahmacun|cigkofte/i },
+                { id: 'market', label: 'market / migros', re: /migros|a101|bim\b|sok\b|şok|carrefour|macro|gim at|gimat|market/i },
+                { id: 'akaryakit', label: 'akaryakıt / petrol', re: /shell|opet|bp\b|petrol|akaryakit|akaryakıt|total|po\b|aytemiz|demsa/i },
+                { id: 'online', label: 'online alışveriş', re: /trendyol|hepsiburada|n11|amazon|pazarama|ciceksepeti|[cç]ilek/i },
+                { id: 'ulasim', label: 'ulaşım / otopark', re: /otopark|uber|bitaksi|obi?let|bubilet|tav\b|telefer/i },
+                { id: 'saglik', label: 'sağlık / eczane', re: /eczane|medical|hastane|lab\b|freestyle|abbott/i },
+                { id: 'abone', label: 'dijital abonelik', re: /youtube|netflix|spotify|apple\.com|tod\s?tv|disney|prime/i }
+            ];
+            const habits = HABITS.map(function(h) {
+                let count = 0, total = 0;
+                list.forEach(function(e) {
+                    const blob = (e.description || '') + ' ' + (e.category || '') + ' ' + (e.shopSubtype || '');
+                    if (!h.re.test(blob)) return;
+                    const a = Number(e.displayAmount) || 0;
+                    if (a <= 0) return;
+                    count++;
+                    total += a;
+                });
+                return { id: h.id, label: h.label, count: count, total: total };
+            }).filter(function(h) { return h.count > 0; })
+              .sort(function(a, b) { return b.count - a.count || b.total - a.total; });
+
+            // --- Haftanın günü ---
+            const dayNames = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+            const byDow = {};
+            list.forEach(function(e) {
+                const ds = String(e.date || '').slice(0, 10);
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(ds)) return;
+                const dt = new Date(ds + 'T12:00:00');
+                if (isNaN(dt.getTime())) return;
+                const dn = dayNames[dt.getDay()];
+                if (!byDow[dn]) byDow[dn] = { count: 0, total: 0 };
+                byDow[dn].count++;
+                byDow[dn].total += Number(e.displayAmount) || 0;
+            });
+            const topDow = Object.keys(byDow).map(function(k) {
+                return { day: k, count: byDow[k].count, total: byDow[k].total };
+            }).sort(function(a, b) { return b.total - a.total; });
+
+            // --- Tutar dilimleri ---
+            let nSmall = 0, nMid = 0, nBig = 0, sSmall = 0, sMid = 0, sBig = 0;
+            list.forEach(function(e) {
+                const a = Math.abs(Number(e.displayAmount) || 0);
+                if (a < 200) { nSmall++; sSmall += a; }
+                else if (a < 1000) { nMid++; sMid += a; }
+                else { nBig++; sBig += a; }
+            });
+
+            // Önceki dönem
             let prevKey = '';
             try {
                 const parts = String(periodKey).split('-').map(Number);
@@ -2208,11 +2366,9 @@ function getProcessedExpenses() {
             const target = Number(typeof monthlyBudgetTarget !== 'undefined' ? monthlyBudgetTarget : 0) || 0;
             const targetPct = target > 0 ? Math.round(card / target * 100) : null;
 
-            // Dönem gün sayısı (ara rapor için bugüne kadar)
             let daysInScope = 30;
             try {
                 if (typeof getStatementPeriodForDate === 'function') {
-                    // periodKey kapanış ayı: örnek 2026-08 → 29 Tem–28 Ağu
                     const [yy, mm] = String(periodKey).split('-').map(Number);
                     const endProbe = new Date(yy, mm - 1, 15);
                     const p = getStatementPeriodForDate(endProbe);
@@ -2227,6 +2383,7 @@ function getProcessedExpenses() {
             } catch (_) {}
             const dailyAvg = total / daysInScope;
             const projected = interim ? Math.round(dailyAvg * 30) : total;
+            const avgTx = list.length ? total / list.length : 0;
 
             const payload = {
                 periodKey: periodKey,
@@ -2235,11 +2392,26 @@ function getProcessedExpenses() {
                 asOfYmd: interim ? asOf : '',
                 generatedAt: new Date().toISOString(),
                 source: 'local',
-                totals: { total: total, card: card, cash: cash, bekir: bekir, duygu: duygu, bekirCard: bekirCard, duyguCard: duyguCard, count: list.length, installSum: installSum, recurSum: recurSum, cardCount: cardCount, cashCount: cashCount },
+                totals: {
+                    total: total, card: card, cash: cash,
+                    bekir: bekir, duygu: duygu, bekirCard: bekirCard, duyguCard: duyguCard,
+                    bekirN: bekirN, duyguN: duyguN,
+                    count: list.length, installSum: installSum, recurSum: recurSum,
+                    cardCount: cardCount, cashCount: cashCount,
+                    multiSum: multiSum, multiN: multiN,
+                    onBehalfSum: onBehalfSum, onBehalfN: onBehalfN,
+                    avgTx: avgTx
+                },
                 topCategories: topCats,
                 shopBreakdown: shopSubs,
                 billBreakdown: billSubs,
+                vehicleBreakdown: vehicleSubs,
                 topItems: topItems,
+                topMerchants: topMerchants.slice(0, 25),
+                repeatMerchants: repeatMerchants,
+                habits: habits,
+                byDow: topDow,
+                buckets: { nSmall: nSmall, nMid: nMid, nBig: nBig, sSmall: sSmall, sMid: sMid, sBig: sBig },
                 compare: { prevKey: prevKey, prevTotal: prevTotal, prevCard: prevCard, delta: delta, deltaPct: deltaPct, deltaCard: deltaCard, deltaCardPct: deltaCardPct },
                 budget: { target: target, cardSpent: card, pct: targetPct },
                 pace: { daysInScope: daysInScope, dailyAvg: dailyAvg, projected: projected }
@@ -2255,112 +2427,205 @@ function getProcessedExpenses() {
             const c = d.compare || {};
             const b = d.budget || {};
             const p = d.pace || {};
-            lines.push('Sayın kullanıcı,');
+            const buckets = d.buckets || {};
+
+            lines.push('YUVAM DÖNEM ANALİZ RAPORU');
+            lines.push(d.interim ? 'Tür: ARA RAPOR (dönem henüz kapanmadı)' : 'Tür: KAPANIŞ RAPORU');
+            lines.push('Dönem: ' + (d.label || d.periodKey || ''));
+            if (d.interim && d.asOfYmd) lines.push('Veri kesim tarihi: ' + d.asOfYmd);
+            if (d.generatedAt) lines.push('Rapor oluşturulma: ' + String(d.generatedAt).slice(0, 16).replace('T', ' '));
             lines.push('');
-            if (d.interim) {
-                lines.push(d.label + ' dönemi için ARA RAPOR (kapanmamış).');
-                lines.push('Kapsam: dönem başından ' + (d.asOfYmd || 'bugün') + ' tarihine kadar kaydedilmiş harcamalar.');
-            } else {
-                lines.push(d.label + ' ekstre dönemi (29–28) KAPANIŞ değerlendirmesi.');
-                lines.push('Rakamlar uygulama kayıtlarınıza dayanır; banka ekstresi yerine geçmez.');
-            }
-            lines.push('');
-            lines.push('1) Yönetici özeti');
-            lines.push('Toplam harcama: ' + fmt(t.total) + ' TL · ' + (t.count || 0) + ' kalem.');
-            lines.push('Kredi kartı: ' + fmt(t.card) + ' TL (' + (t.cardCount || 0) + ' işlem) · Nakit: ' + fmt(t.cash) + ' TL (' + (t.cashCount || 0) + ' işlem).');
+            lines.push('────────────────────────────────');
+            lines.push('1) YÖNETİCİ ÖZETİ');
+            lines.push('────────────────────────────────');
+            lines.push('Toplam harcama: ' + fmt(t.total) + ' TL');
+            lines.push('İşlem adedi: ' + (t.count || 0) + ' · Ortalama işlem: ' + fmt(t.avgTx) + ' TL');
+            lines.push('Kredi kartı: ' + fmt(t.card) + ' TL (' + (t.cardCount || 0) + ' işlem)');
+            lines.push('Nakit: ' + fmt(t.cash) + ' TL (' + (t.cashCount || 0) + ' işlem)');
             if (t.total > 0) {
-                lines.push('KK payı %' + Math.round((t.card / t.total) * 100) + ' · Nakit payı %' + Math.round((t.cash / t.total) * 100) + '.');
+                lines.push('KK payı %' + Math.round((t.card / t.total) * 100) + ' · Nakit payı %' + Math.round((t.cash / t.total) * 100));
             }
-            lines.push('Bekir: ' + fmt(t.bekir) + ' TL (KK ' + fmt(t.bekirCard) + ') · Duygu: ' + fmt(t.duygu) + ' TL (KK ' + fmt(t.duyguCard) + ').');
-            lines.push('Bu dilimdeki taksit payı: ' + fmt(t.installSum) + ' TL · Tekrarlı pay: ' + fmt(t.recurSum) + ' TL.');
+            lines.push('Bekir: ' + fmt(t.bekir) + ' TL / ' + (t.bekirN || 0) + ' işlem (KK ' + fmt(t.bekirCard) + ' TL)');
+            lines.push('Duygu: ' + fmt(t.duygu) + ' TL / ' + (t.duyguN || 0) + ' işlem (KK ' + fmt(t.duyguCard) + ' TL)');
+            if (t.installSum) lines.push('Bu dilimdeki taksit payı: ' + fmt(t.installSum) + ' TL');
+            if (t.recurSum) lines.push('Tekrarlı ödeme payı: ' + fmt(t.recurSum) + ' TL');
+            if (t.multiN) lines.push('Multinet: ' + (t.multiN) + ' işlem · ' + fmt(t.multiSum) + ' TL (dönem toplamına dahil değilse ayrıca izlenir)');
+            if (t.onBehalfN) lines.push('Başkası adına: ' + t.onBehalfN + ' işlem · ' + fmt(t.onBehalfSum) + ' TL');
             if (p.daysInScope) {
-                lines.push('Kapsamdaki gün: ~' + p.daysInScope + ' · Günlük ortalama: ' + fmt(p.dailyAvg) + ' TL.');
+                lines.push('Kapsamdaki gün: ~' + p.daysInScope + ' · Günlük ortalama: ' + fmt(p.dailyAvg) + ' TL');
                 if (d.interim && p.projected) {
-                    lines.push('Aynı tempoyla dönem sonu tahmini (yaklaşık 30 gün): ' + fmt(p.projected) + ' TL.');
+                    lines.push('Aynı tempoyla dönem sonu tahmini: ~' + fmt(p.projected) + ' TL');
                 }
             }
             lines.push('');
-            lines.push('2) Kategori sıralaması');
+            lines.push('────────────────────────────────');
+            lines.push('2) TEKRARLAYAN HARCAMALAR (alışkanlık)');
+            lines.push('────────────────────────────────');
+            lines.push('Aynı veya benzer açıklamayla birden fazla kez yapılan işlemler:');
+            if (d.repeatMerchants && d.repeatMerchants.length) {
+                d.repeatMerchants.forEach(function(m, i) {
+                    lines.push((i + 1) + ') "' + (m.sample || m.key) + '" → ' + m.count + ' kez · toplam ' + fmt(m.total) + ' TL · ort. ' + fmt(m.total / m.count) + ' TL');
+                });
+            } else {
+                lines.push('Bu dönemde 2+ kez tekrarlayan belirgin işyeri bulunamadı (az veri veya her açıklama tekil).');
+            }
+            lines.push('');
+            lines.push('Tema bazlı özet (açıklama metninden):');
+            if (d.habits && d.habits.length) {
+                d.habits.forEach(function(h) {
+                    lines.push('• ' + h.label + ': ' + h.count + ' kez · ' + fmt(h.total) + ' TL');
+                });
+            } else {
+                lines.push('Tanımlı tema (dondurma, sigara, kahve, market…) eşleşmedi. Açıklamalara anahtar kelime ekledikçe burası zenginleşir.');
+            }
+            lines.push('');
+            lines.push('────────────────────────────────');
+            lines.push('3) KATEGORİ VE ALT KIRILIM');
+            lines.push('────────────────────────────────');
             if (d.topCategories && d.topCategories.length) {
                 d.topCategories.forEach(function(pair, i) {
                     const share = t.total > 0 ? Math.round(pair[1] / t.total * 100) : 0;
                     lines.push((i + 1) + '. ' + pair[0] + ': ' + fmt(pair[1]) + ' TL (%' + share + ')');
                 });
             } else {
-                lines.push('Sınıflandırılmış harcama yok.');
+                lines.push('Kategori verisi yok.');
             }
             const shopKeys = Object.keys(d.shopBreakdown || {});
             if (shopKeys.length) {
                 lines.push('');
-                lines.push('Alışveriş alt kırılım:');
+                lines.push('Alışveriş alt türleri:');
                 shopKeys.sort(function(a, b) { return (d.shopBreakdown[b] || 0) - (d.shopBreakdown[a] || 0); }).forEach(function(k) {
-                    lines.push('• ' + k + ': ' + fmt(d.shopBreakdown[k]) + ' TL');
+                    lines.push('  • ' + k + ': ' + fmt(d.shopBreakdown[k]) + ' TL');
                 });
             }
             const billKeys = Object.keys(d.billBreakdown || {});
             if (billKeys.length) {
                 lines.push('');
-                lines.push('Fatura alt kırılım:');
+                lines.push('Fatura türleri:');
                 billKeys.sort(function(a, b) { return (d.billBreakdown[b] || 0) - (d.billBreakdown[a] || 0); }).forEach(function(k) {
-                    lines.push('• ' + k + ': ' + fmt(d.billBreakdown[k]) + ' TL');
+                    lines.push('  • ' + k + ': ' + fmt(d.billBreakdown[k]) + ' TL');
+                });
+            }
+            const vehKeys = Object.keys(d.vehicleBreakdown || {});
+            if (vehKeys.length) {
+                lines.push('');
+                lines.push('Araç alt türleri:');
+                vehKeys.sort(function(a, b) { return (d.vehicleBreakdown[b] || 0) - (d.vehicleBreakdown[a] || 0); }).forEach(function(k) {
+                    lines.push('  • ' + k + ': ' + fmt(d.vehicleBreakdown[k]) + ' TL');
                 });
             }
             lines.push('');
-            lines.push('3) En yüksek kalemler');
+            lines.push('────────────────────────────────');
+            lines.push('4) EN YÜKSEK KALEMLER');
+            lines.push('────────────────────────────────');
             if (d.topItems && d.topItems.length) {
                 d.topItems.forEach(function(it, i) {
-                    lines.push((i + 1) + '. ' + it.desc + ' — ' + fmt(it.amount) + ' TL (' + (it.date || '') + (it.person ? ', ' + it.person : '') + ')');
+                    lines.push((i + 1) + '. ' + it.desc + ' — ' + fmt(it.amount) + ' TL');
+                    lines.push('    ' + (it.date || '') + (it.person ? ' · ' + it.person : '') + (it.cat ? ' · ' + it.cat : '') + (it.pay ? ' · ' + it.pay : ''));
                 });
             } else {
                 lines.push('Kayıt yok.');
             }
             lines.push('');
-            lines.push('4) Dönemler arası karşılaştırma');
-            if (c.prevTotal > 0 && c.deltaPct != null) {
-                lines.push('Önceki dönem toplamı: ' + fmt(c.prevTotal) + ' TL.');
-                lines.push('Fark: ' + fmt(Math.abs(c.delta)) + ' TL ' + (c.delta >= 0 ? 'artış' : 'azalış') + ' (%' + Math.abs(c.deltaPct) + ').');
-                if (c.prevCard > 0 && c.deltaCardPct != null) {
-                    lines.push('KK farkı: ' + fmt(Math.abs(c.deltaCard)) + ' TL (%' + Math.abs(c.deltaCardPct) + ').');
+            lines.push('────────────────────────────────');
+            lines.push('5) SIKLIK SIRASI (tüm işyerleri)');
+            lines.push('────────────────────────────────');
+            if (d.topMerchants && d.topMerchants.length) {
+                d.topMerchants.slice(0, 20).forEach(function(m, i) {
+                    lines.push((i + 1) + ') ' + (m.sample || m.key) + ' — ' + m.count + ' adet · ' + fmt(m.total) + ' TL');
+                });
+            } else {
+                lines.push('Veri yok.');
+            }
+            lines.push('');
+            lines.push('────────────────────────────────');
+            lines.push('6) ZAMAN VE TUTAR DAĞILIMI');
+            lines.push('────────────────────────────────');
+            if (d.byDow && d.byDow.length) {
+                lines.push('Haftanın gününe göre harcama:');
+                d.byDow.forEach(function(x) {
+                    lines.push('• ' + x.day + ': ' + fmt(x.total) + ' TL (' + x.count + ' işlem)');
+                });
+                if (d.byDow[0]) {
+                    lines.push('En yoğun gün: ' + d.byDow[0].day + ' (' + fmt(d.byDow[0].total) + ' TL).');
                 }
-                if (c.deltaPct >= 15) lines.push('Harcama temposu belirgin yükselmiş; en yüksek kategoriyi hedefleyin.');
-                else if (c.deltaPct <= -10) lines.push('Harcama gerilemiş; bu disiplin sürdürülebilir.');
-                else lines.push('Değişim ılımlı.');
-            } else {
-                lines.push('Karşılaştırma için yeterli önceki dönem verisi yok.');
             }
             lines.push('');
-            lines.push('5) Bütçe hedefi (KK)');
+            lines.push('Tutar dilimleri:');
+            lines.push('• 0–200 TL: ' + (buckets.nSmall || 0) + ' işlem · ' + fmt(buckets.sSmall) + ' TL');
+            lines.push('• 200–1000 TL: ' + (buckets.nMid || 0) + ' işlem · ' + fmt(buckets.sMid) + ' TL');
+            lines.push('• 1000+ TL: ' + (buckets.nBig || 0) + ' işlem · ' + fmt(buckets.sBig) + ' TL');
+            lines.push('');
+            lines.push('────────────────────────────────');
+            lines.push('7) ÖNCEKİ DÖNEM KARŞILAŞTIRMASI');
+            lines.push('────────────────────────────────');
+            if (c.prevTotal > 0 && c.deltaPct != null) {
+                lines.push('Önceki dönem toplamı: ' + fmt(c.prevTotal) + ' TL');
+                lines.push('Fark: ' + fmt(Math.abs(c.delta)) + ' TL ' + (c.delta >= 0 ? 'artış' : 'azalış') + ' (%' + Math.abs(c.deltaPct) + ')');
+                if (c.prevCard > 0 && c.deltaCardPct != null) {
+                    lines.push('KK farkı: ' + fmt(Math.abs(c.deltaCard)) + ' TL (%' + Math.abs(c.deltaCardPct) + ')');
+                }
+                if (c.deltaPct >= 15) lines.push('Yorum: Harcama temposu belirgin yükselmiş.');
+                else if (c.deltaPct <= -10) lines.push('Yorum: Harcama gerilemiş; disiplin korunmuş.');
+                else lines.push('Yorum: Değişim ılımlı.');
+            } else {
+                lines.push('Karşılaştırma için yeterli önceki dönem verisi yok (ilk dönemler normal).');
+            }
+            lines.push('');
+            lines.push('────────────────────────────────');
+            lines.push('8) BÜTÇE HEDEFİ (KK)');
+            lines.push('────────────────────────────────');
             if (b.target > 0) {
-                lines.push('Hedef ' + fmt(b.target) + ' TL · gerçekleşen KK ' + fmt(b.cardSpent) + ' TL (%' + (b.pct != null ? b.pct : 0) + ').');
-                if (b.pct != null && b.pct > 100) lines.push('Hedef aşılmış. Sonraki dilimde sabit ve alışveriş kalemlerini sıkılaştırın.');
-                else if (b.pct != null && b.pct >= 90) lines.push('Hedefe çok yakınsınız.');
-                else lines.push('KK harcaması hedefin içinde.');
+                lines.push('Hedef: ' + fmt(b.target) + ' TL');
+                lines.push('Gerçekleşen KK: ' + fmt(b.cardSpent) + ' TL (%' + (b.pct != null ? b.pct : 0) + ')');
+                if (b.pct != null && b.pct > 100) lines.push('Durum: Hedef aşılmış.');
+                else if (b.pct != null && b.pct >= 90) lines.push('Durum: Hedefe çok yakın.');
+                else lines.push('Durum: Hedef bandı içinde.');
             } else {
-                lines.push('Tanımlı KK hedefi yok. Ayarlar’dan hedef koymak analizi güçlendirir.');
+                lines.push('Tanımlı KK hedefi yok. Ayarlar’dan hedef koymak bu bölümü anlamlı kılar.');
             }
             lines.push('');
-            lines.push('6) Danışman notları');
+            lines.push('────────────────────────────────');
+            lines.push('9) DANIŞMAN NOTLARI VE ÖNERİLER');
+            lines.push('────────────────────────────────');
             const tips = [];
+            if (d.habits && d.habits.length) {
+                d.habits.slice(0, 4).forEach(function(h) {
+                    if (h.count >= 3) {
+                        tips.push(h.label + ' için bu dönemde ' + h.count + ' işlem ve ' + fmt(h.total) + ' TL görünüyor; sıklığı bilinçli tutmak tasarruf alanı açabilir.');
+                    } else if (h.count >= 1) {
+                        tips.push(h.label + ': ' + h.count + ' kez · ' + fmt(h.total) + ' TL.');
+                    }
+                });
+            }
+            if (d.repeatMerchants && d.repeatMerchants[0] && d.repeatMerchants[0].count >= 3) {
+                const m = d.repeatMerchants[0];
+                tips.push('En sık tekrar: "' + (m.sample || m.key) + '" (' + m.count + ' kez). Bu kalemi aylık limit ile sınırlamayı deneyin.');
+            }
             if (d.topCategories && d.topCategories[0] && t.total > 0 && d.topCategories[0][1] / t.total >= 0.35) {
-                tips.push('“' + d.topCategories[0][0] + '” dönemin büyük kısmını oluşturuyor; alt kırılımı netleştirin.');
+                tips.push('“' + d.topCategories[0][0] + '” tek başına dönemin %' + Math.round(d.topCategories[0][1] / t.total * 100) + 'ini oluşturuyor.');
             }
             if (t.installSum + t.recurSum > 0 && t.total > 0 && (t.installSum + t.recurSum) / t.total >= 0.25) {
-                tips.push('Taksit + tekrarlı yük toplamın dörtte birinden fazla; yeni taksit açmadan önce sabit yükü kontrol edin.');
+                tips.push('Taksit + tekrarlı yük toplamın dörtte birinden fazla; yeni taksit öncesi sabit yükü kontrol edin.');
             }
             if (d.interim && p.projected && b.target > 0 && p.projected > b.target) {
-                tips.push('Mevcut tempo dönem sonunda KK hedefini aşabilir; kalan günlerde KK kullanımını sınırlayın.');
+                tips.push('Mevcut tempo dönem sonunda KK hedefini aşabilir.');
             }
             if (c.deltaPct != null && c.deltaPct >= 20) {
-                tips.push('Artışın tek seferlik mi (tatil, elektronik) yoksa yapısal mı olduğunu ayırın.');
+                tips.push('Önceki döneme göre %' + c.deltaPct + ' artış var; tek seferlik mi yapısal mı ayırın.');
+            }
+            if (d.byDow && d.byDow[0] && t.total > 0 && d.byDow[0].total / t.total >= 0.25) {
+                tips.push('Harcamanın büyük kısmı ' + d.byDow[0].day + ' gününe yığılmış.');
             }
             if (!tips.length) {
-                tips.push('Olağandışı sapma yok. Mevcut tempoyu koruyup bir sonraki dönem başında hedefi netleştirmeniz yeterli.');
+                tips.push('Olağandışı sapma yok. Açıklamalara “sigara”, “dondurma” gibi net kelimeler yazdıkça tema analizi güçlenir.');
             }
             tips.forEach(function(x, i) { lines.push((i + 1) + ') ' + x); });
             lines.push('');
+            lines.push('────────────────────────────────');
             lines.push(d.interim
-                ? 'Not: Bu bir ara rapordur; dönem kapanınca nihai kapanış raporu ayrıca oluşur.'
-                : 'Bu rapor bilgilendirme amaçlıdır; kesin banka ekstresi yerine geçmez.');
+                ? 'Not: Ara rapordur; dönem kapanınca nihai kapanış raporu ayrıca üretilir. Yenile ile güncellenir.'
+                : 'Not: Bilgilendirme amaçlıdır; kesin banka ekstresi yerine geçmez.');
             return lines.join('\n');
         }
 
