@@ -2203,17 +2203,16 @@ function getProcessedExpenses() {
             function isInstallmentLike(e) {
                 const lab = String(e.installmentLabel || '');
                 if (/taksit|tekrar/i.test(lab)) return true;
-                if ((e.installmentCount || 1) > 1 || e.isRecurring) return true;
+                if (e.id && String(e.id).indexOf('_ins_') >= 0) return true;
                 return false;
             }
+            function isPesinLike(e) {
+                if (isInstallmentLike(e)) return false;
+                return true;
+            }
             function score(e) {
-                // Yüksek skor kazanır
                 let s = 0;
                 if (isInstallmentLike(e)) s += 100;
-                if (e.id && String(e.id).indexOf('_ins_') < 0) s += 10;
-                // Daha eski tarih biraz öne
-                const d = String(e.date || '').slice(0, 10);
-                if (d) s += 1;
                 return s;
             }
             const groups = {};
@@ -2231,9 +2230,16 @@ function getProcessedExpenses() {
                     keep.push(arr[0]);
                     return;
                 }
-                // Birden fazla: en yüksek skorlu
-                arr.sort(function(a, b) { return score(b.e) - score(a.e); });
-                keep.push(arr[0]);
+                const hasInst = arr.some(function(x) { return isInstallmentLike(x.e); });
+                const hasPesin = arr.some(function(x) { return isPesinLike(x.e); });
+                // Sadece peşin + taksit çifti: taksiti tut
+                if (hasInst && hasPesin) {
+                    arr.sort(function(a, b) { return score(b.e) - score(a.e); });
+                    keep.push(arr[0]);
+                    return;
+                }
+                // Hepsi peşin veya hepsi taksit: gerçek tekrarlar, hepsini koru
+                arr.forEach(function(x) { keep.push(x); });
             });
             keep.sort(function(a, b) { return a.idx - b.idx; });
             return keep.map(function(x) { return x.e; });
@@ -3210,18 +3216,22 @@ function renderCardStatements(person) {
                 return exp.person === 'Duygu' && inPeriod(exp);
             });
 
+            const bekirDedup = (typeof dedupePeriodExpenseRows === 'function')
+                ? dedupePeriodExpenseRows(bekirCreditExpenses) : bekirCreditExpenses;
+            const duyguDedup = (typeof dedupePeriodExpenseRows === 'function')
+                ? dedupePeriodExpenseRows(duyguCreditExpenses) : duyguCreditExpenses;
             currentStatements = [
                 {
                     person: 'Bekir',
-                    amount: bekirCreditExpenses.reduce((sum, exp) => sum + exp.displayAmount, 0),
-                    expenses: bekirCreditExpenses,
+                    amount: bekirDedup.reduce(function(sum, exp) { return sum + (Number(exp.displayAmount) || 0); }, 0),
+                    expenses: bekirDedup,
                     period: period,
                     color: 'blue'
                 },
                 {
                     person: 'Duygu',
-                    amount: duyguCreditExpenses.reduce((sum, exp) => sum + exp.displayAmount, 0),
-                    expenses: duyguCreditExpenses,
+                    amount: duyguDedup.reduce(function(sum, exp) { return sum + (Number(exp.displayAmount) || 0); }, 0),
+                    expenses: duyguDedup,
                     period: period,
                     color: 'pink'
                 }
