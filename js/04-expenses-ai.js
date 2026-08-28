@@ -3111,49 +3111,158 @@ function getProcessedExpenses() {
             }).join('');
         };
 
+
+        window.openConvertToStatementModal = function() {
+            try { calculateCurrentCardStatements(); } catch (_) {}
+            const modal = document.getElementById('convertStatementModal');
+            if (!modal) { alert('Modal yok — Ctrl+F5'); return; }
+            const sel = document.getElementById('convertStmtPerson');
+            if (sel && !sel.value) sel.value = 'bekir';
+            onConvertStmtPersonChange();
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+        window.closeConvertToStatementModal = function() {
+            const modal = document.getElementById('convertStatementModal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+        window.onConvertStmtPersonChange = function() {
+            const sel = document.getElementById('convertStmtPerson');
+            const key = (sel && sel.value) ? sel.value : 'bekir';
+            const personLabel = key === 'duygu' ? 'Duygu' : 'Bekir';
+            let stmt = null;
+            try {
+                if (typeof calculateCurrentCardStatements === 'function') calculateCurrentCardStatements();
+                stmt = (currentStatements || []).find(function(s) {
+                    return String(s.person || '').toLowerCase() === personLabel.toLowerCase() || String(s.person || '').toLowerCase() === key;
+                });
+            } catch (_) {}
+            const amt = stmt ? (Number(stmt.amount) || 0) : 0;
+            const period = (stmt && stmt.period) ? stmt.period : ((typeof getCardStatementPeriod === 'function') ? getCardStatementPeriod() : null);
+            const periodLab = (period && period.periodKey && typeof formatPeriodLabel === 'function')
+                ? formatPeriodLabel(period.periodKey)
+                : (period && period.label ? period.label : '-');
+            const periodEl = document.getElementById('convertStmtPeriod');
+            if (periodEl) periodEl.textContent = periodLab;
+            const amtEl = document.getElementById('convertStmtAmount');
+            if (amtEl) amtEl.value = amt ? String(Math.round(amt * 100) / 100) : '';
+                        let due = '';
+            try {
+                if (typeof getAutoCardDueDate === 'function') due = getAutoCardDueDate();
+            } catch (_) {}
+            const dueEl = document.getElementById('convertStmtDue');
+            if (dueEl) {
+                dueEl.value = due || '';
+            }
+            window._convertStmtPeriodKey = period && period.periodKey ? period.periodKey : ((typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '');
+
+        };
+        window.saveConvertToStatement = async function() {
+            const sel = document.getElementById('convertStmtPerson');
+            const key = (sel && sel.value) === 'duygu' ? 'duygu' : 'bekir';
+            const amtEl = document.getElementById('convertStmtAmount');
+            const amount = parseFloat(String(amtEl && amtEl.value != null ? amtEl.value : '').replace(',', '.'));
+            if (!(amount > 0)) {
+                if (typeof showToast === 'function') showToast('Geçerli bir tutar girin', 'error');
+                return;
+            }
+            const dueInp = document.getElementById('convertStmtDue');
+            const due = (dueInp && dueInp.value) ? String(dueInp.value).slice(0, 10)
+                : (typeof getAutoCardDueDate === 'function' ? getAutoCardDueDate() : '');
+            const periodKey = window._convertStmtPeriodKey || (typeof getCurrentPeriod === 'function' ? getCurrentPeriod() : '');
+            let debt = key === 'bekir' ? (typeof bekirDebt !== 'undefined' ? bekirDebt : null) : (typeof duyguDebt !== 'undefined' ? duyguDebt : null);
+            if (!debt || typeof debt !== 'object') debt = { amount: 0, paid: false, dueDate: '' };
+            debt.amount = amount;
+            debt.paid = false;
+            debt.dueDate = due;
+            debt.periodKey = periodKey;
+            debt.updatedAt = new Date().toISOString();
+            try {
+                if (typeof db === 'undefined' || !db) throw new Error('Firestore yok');
+                await db.collection('settings').doc(key + 'Debt').set(debt, { merge: true });
+                if (key === 'bekir') bekirDebt = debt; else duyguDebt = debt;
+                closeConvertToStatementModal();
+                if (typeof renderCardDebtUI === 'function') renderCardDebtUI(key);
+                if (typeof renderBudgetInfo === 'function') renderBudgetInfo();
+                if (typeof renderHomeTab === 'function') renderHomeTab();
+                if (typeof showToast === 'function') showToast((key === 'bekir' ? 'Bekir' : 'Duygu') + ' ekstre borcu kaydedildi', 'success');
+                if (typeof logActivity === 'function') logActivity('Diğer', 'Ekstreye çevrildi', (key === 'bekir' ? 'Bekir' : 'Duygu') + ' · ' + amount + ' TL');
+            } catch (err) {
+                console.error(err);
+                if (typeof showToast === 'function') showToast((typeof friendlyFirebaseError === 'function') ? friendlyFirebaseError(err) : String(err), 'error');
+            }
+        };
+
+
+
+        /** Ödenmiş ekstre etiket dönemi: periodKey varsa onu kullan; yoksa ödeme tarihinden geriye hesapla */
+        function resolveStatementPeriodKey(stmt) {
+            if (!stmt) return '';
+            if (stmt.periodKey) return String(stmt.periodKey);
+            const paid = String(stmt.paidDate || '').slice(0, 10);
+            if (paid && typeof getPeriodKeyForDateStr === 'function') {
+                try {
+                    const d = (typeof parseYMD === 'function') ? parseYMD(paid) : new Date(paid + 'T12:00:00');
+                    if (d && !isNaN(d.getTime())) {
+                        d.setDate(d.getDate() - 12);
+                        const ymd = (typeof formatYMD === 'function')
+                            ? formatYMD(d)
+                            : (d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'));
+                        return getPeriodKeyForDateStr(ymd) || String(stmt.month || '');
+                    }
+                } catch (_) {}
+            }
+            return String(stmt.month || '');
+        }
+
 function renderCardStatements(person) {
             const key = (person || '').toLowerCase();
-            const sortedStatements = cardStatements
-                .filter(s => String(s.person || '').toLowerCase() === key)
-                .sort((a, b) => String(b.month || '').localeCompare(String(a.month || '')));
+            const sortedStatements = (cardStatements || [])
+                .filter(function(s) { return String(s.person || '').toLowerCase() === key; })
+                .sort(function(a, b) { return String(b.month || '').localeCompare(String(a.month || '')); });
 
-            const container = document.getElementById(person === 'bekir' ? 'bekirCardStatements' : 'duyguCardStatements');
+            const container = document.getElementById(key === 'bekir' ? 'bekirCardStatements' : 'duyguCardStatements');
             if (!container) return;
             try { if (typeof renderMultinetReport === 'function') renderMultinetReport(); } catch (_) {}
             try { if (typeof renderOnBehalfReport === 'function') renderOnBehalfReport(); } catch (_) {}
-            if (sortedStatements.length === 0) {
-                container.innerHTML = '<div class="col-span-full text-center py-8 text-slate-400"><p class="text-sm">Henüz ekstre kaydı yok</p></div>';
+            if (!sortedStatements.length) {
+                container.innerHTML = '<p class="text-[11px] text-slate-400 font-medium py-3 text-center">Kayıt yok</p>';
                 return;
             }
 
-            const monthNames = ['Ocak', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+            const kind = key === 'bekir' ? 'stmt-bekir' : 'stmt-duygu';
 
             container.innerHTML = sortedStatements.map(function(stmt) {
-                const parts = String(stmt.month || '').split('-');
-                const year = parts[0] || '';
-                const month = parts[1] || '1';
-                const monthName = monthNames[parseInt(month, 10) - 1] || stmt.month || '';
-                const kind = key === 'bekir' ? 'stmt-bekir' : 'stmt-duygu';
+                const pKey = (typeof resolveStatementPeriodKey === 'function')
+                    ? resolveStatementPeriodKey(stmt)
+                    : String(stmt.periodKey || stmt.month || '');
+                const periodLab = (typeof formatPeriodLabel === 'function')
+                    ? formatPeriodLabel(pKey)
+                    : pKey;
                 const safeId = escapeHtml(String(stmt.id || ''));
-                const amt = (Number(stmt.amount) || 0).toLocaleString('tr-TR');
-                const paid = escapeHtml(stmt.paidDate || '');
+                const amt = (Number(stmt.amount) || 0).toLocaleString('tr-TR', { maximumFractionDigits: 2 });
+                const paid = stmt.paidDate ? String(stmt.paidDate).slice(0, 10) : '';
+                const paidShort = paid ? paid.split('-').reverse().join('.') : '';
 
                 return (
-                    '<div class="stmt-card ' + kind + ' transition">' +
-                      '<div class="stmt-month mb-1">' + escapeHtml(monthName + ' ' + year) + '</div>' +
-                      '<div class="stmt-amt">' + amt + '</div>' +
-                      '<div class="stmt-meta mb-1">TL</div>' +
-                      (paid ? '<div class="stmt-meta border-t border-white/10 pt-1.5 mt-1">Ödeme: ' + paid + '</div>' : '') +
-                      '<div class="stmt-actions flex gap-1.5 mt-3">' +
-                        '<button type="button" onclick="event.stopPropagation();markCardStatementUnpaid(\'' + safeId + '\')">Ödenmedi yap</button>' +
-                        '<button type="button" onclick="event.stopPropagation();deleteCardStatement(\'' + safeId + '\')">Sil</button>' +
+                    '<div class="stmt-row ' + kind + '">' +
+                      '<div class="stmt-row-main">' +
+                        '<span class="stmt-row-month">' + escapeHtml(periodLab) + '</span>' +
+                        '<span class="stmt-row-amt">' + amt + ' <span class="stmt-row-tl">TL</span></span>' +
+                      '</div>' +
+                      '<div class="stmt-row-side">' +
+                        (paidShort ? '<span class="stmt-row-paid" title="Ödeme tarihi">' + escapeHtml(paidShort) + '</span>' : '') +
+                        '<button type="button" class="stmt-row-btn" title="Ödenmedi yap" onclick="event.stopPropagation();markCardStatementUnpaid(\'' + safeId + '\')">↩</button>' +
+                        '<button type="button" class="stmt-row-btn stmt-row-btn-del" title="Sil" onclick="event.stopPropagation();deleteCardStatement(\'' + safeId + '\')">×</button>' +
                       '</div>' +
                     '</div>'
                 );
             }).join('');
         }
 
-        // OTOMATIK EKSTRE HESAPLAMA SISTEMI
+// OTOMATIK EKSTRE HESAPLAMA SISTEMI
         function getCardStatementPeriod(date = new Date()) {
             const p = getStatementPeriodForDate(date);
             return {
@@ -3339,7 +3448,6 @@ function renderCardStatements(person) {
             const container = document.getElementById('currentStatementsContainer');
             if (!container) return;
 
-            // Her zaman Bekir + Duygu kartlarını göster (0 olsa bile)
             const list = (currentStatements && currentStatements.length)
                 ? currentStatements
                 : [
@@ -3347,36 +3455,30 @@ function renderCardStatements(person) {
                     { person: 'Duygu', amount: 0, expenses: [], period: { label: '-' }, color: 'pink' }
                 ];
 
-            container.innerHTML = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">' + list.map(function(stmt) {
+            container.innerHTML = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">' + list.map(function(stmt) {
                 const amt = Number(stmt.amount) || 0;
                 const blue = stmt.color === 'blue' || stmt.person === 'Bekir';
-                const kind = blue ? 'stmt-bekir' : 'stmt-duygu';
+                const kind = blue ? 'current-stmt-bekir' : 'current-stmt-duygu';
                 const periodLab = (stmt.period && stmt.period.label) ? stmt.period.label : '-';
                 const n = (stmt.expenses && stmt.expenses.length) ? stmt.expenses.length : 0;
-                const clickable = amt > 0
-                    ? 'cursor-pointer hover:shadow-lg'
-                    : 'opacity-90';
+                const clickable = amt > 0 ? 'is-clickable' : '';
                 const onclick = amt > 0
-                    ? 'onclick="openStatementDetails(\'' + stmt.person + '\')"'
+                    ? 'onclick="openStatementDetails(\'' + String(stmt.person || '').replace(/'/g, "\\'") + '\')"'
                     : '';
                 return (
-                    '<div class="stmt-card ' + kind + ' p-5 ' + clickable + ' transition" ' + onclick + '>' +
-                      '<div class="flex justify-between items-start gap-2">' +
-                        '<div class="min-w-0 flex-1">' +
-                          '<p class="stmt-month">' + escapeHtml(stmt.person || '') + '</p>' +
-                          '<p class="stmt-amt text-3xl mt-1">' + amt.toLocaleString('tr-TR') + '</p>' +
-                          '<p class="stmt-meta mt-2">TL</p>' +
+                    '<div class="current-stmt ' + kind + ' ' + clickable + '" ' + onclick + '>' +
+                      '<div class="current-stmt-top">' +
+                        '<div class="min-w-0">' +
+                          '<p class="current-stmt-person">' + escapeHtml(stmt.person || '') + '</p>' +
+                          '<p class="current-stmt-amt">' + amt.toLocaleString('tr-TR') + ' <span style="font-size:0.65rem;font-weight:700;opacity:0.55">TL</span></p>' +
                         '</div>' +
-                        '<div class="text-right shrink-0">' +
-                          '<p class="stmt-meta mb-2 font-semibold">' + escapeHtml(periodLab) + '</p>' +
-                          '<p class="text-3xl">💳</p>' +
-                        '</div>' +
+                        '<p class="current-stmt-period">' + escapeHtml(periodLab) + '</p>' +
                       '</div>' +
-                      '<div class="mt-4 pt-3 border-t border-white/20">' +
-                        '<p class="stmt-meta mb-2">' + n + ' harcama</p>' +
+                      '<div class="current-stmt-foot">' +
+                        '<span class="current-stmt-count">' + n + ' harcama</span>' +
                         (amt > 0
-                          ? '<button type="button" onclick="event.stopPropagation(); openStatementDetails(\'' + stmt.person + '\')" class="w-full py-2 rounded-xl text-xs font-bold bg-black/10 hover:bg-black/15">Detayları Gör</button>'
-                          : '<p class="text-xs font-semibold opacity-70">Borç yok</p>') +
+                          ? '<button type="button" class="current-stmt-btn" onclick="event.stopPropagation();openStatementDetails(\'' + String(stmt.person || '').replace(/'/g, "\\'") + '\')">Detay</button>'
+                          : '<span class="current-stmt-count">Borç yok</span>') +
                       '</div>' +
                     '</div>'
                 );
@@ -3439,7 +3541,8 @@ function renderCardStatements(person) {
                 fuelPriceModal: 'closeFuelPriceModal',
                 surahModal: 'closeSurahModal',
                 onBehalfHistoryModal: 'closeOnBehalfHistoryModal',
-                periodCloseReportModal: 'closePeriodCloseReportModal'
+                periodCloseReportModal: 'closePeriodCloseReportModal',
+                convertStatementModal: 'closeConvertToStatementModal'
             };
             document.querySelectorAll('.fixed.inset-0').forEach(function(overlay) {
                 if (overlay.dataset.backdropWired === '1') return;

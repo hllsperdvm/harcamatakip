@@ -2303,140 +2303,106 @@ html.theme-dark .text-rose-700 {
 }
 
 /* Ekstre kartları (semantik) */
-.stmt-card {
-  border-radius: 1rem;
-  border-width: 1px;
-  padding: 1rem;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
-}
-.stmt-card.stmt-bekir {
-  background: linear-gradient(135deg, #eff6ff, #dbeafe);
-  border-color: #bfdbfe;
-}
-.stmt-card.stmt-duygu {
-  background: linear-gradient(135deg, #fdf2f8, #fce7f3);
-  border-color: #fbcfe8;
-}
-.stmt-card .stmt-month { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; }
-.stmt-card.stmt-bekir .stmt-amt { color: #2563eb; font-weight: 900; font-size: 1.25rem; }
-.stmt-card.stmt-duygu .stmt-amt { color: #db2777; font-weight: 900; font-size: 1.25rem; }
-.stmt-card .stmt-meta { font-size: 8px; color: #64748b; }
-.stmt-card .stmt-actions button {
-  flex: 1;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 0.5rem;
-  border-radius: 0.75rem;
-  background: rgba(255,255,255,0.85);
-  border: 1px solid rgba(148,163,184,0.35);
-}
-html.theme-dark .stmt-card.stmt-bekir {
-  background: #1e3a5f;
-  border-color: #1d4ed8;
-}
-html.theme-dark .stmt-card.stmt-duygu {
-  background: #4a1942;
-  border-color: #9d174d;
-}
-html.theme-dark .stmt-card .stmt-month,
-html.theme-dark .stmt-card .stmt-meta { color: #cbd5e1 !important; }
-html.theme-dark .stmt-card.stmt-bekir .stmt-amt { color: #93c5fd !important; }
-html.theme-dark .stmt-card.stmt-duygu .stmt-amt { color: #f9a8d4 !important; }
-html.theme-dark .stmt-card .stmt-actions button {
-  background: rgba(15, 23, 42, 0.55);
-  border-color: rgba(148, 163, 184, 0.35);
-  color: #e2e8f0;
-}
-
-/* Multinet / Alacak satırları */
-.report-row {
+/* Geçmiş ekstre — minimal satır + kaydırma */
+.stmt-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  padding: 0.75rem;
+  padding: 0.5rem 0.65rem;
   border-radius: 0.75rem;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
+  border: 1px solid transparent;
+  transition: background 0.15s ease;
 }
-.report-row.report-multinet { background: #ecfdf5; border-color: #a7f3d0; }
-.report-row.report-alacak { background: #fffbeb; border-color: #fde68a; }
-.report-row .report-title { font-size: 0.875rem; font-weight: 900; color: #0f172a; }
-.report-row .report-sub { font-size: 0.7rem; font-weight: 600; color: #64748b; }
-.report-row .report-amt { font-size: 0.875rem; font-weight: 900; }
-html.theme-dark .report-row {
-  background: #1e293b;
-  border-color: #334155;
+.stmt-row.stmt-bekir {
+  background: rgba(59, 130, 246, 0.06);
+  border-color: rgba(59, 130, 246, 0.12);
 }
-html.theme-dark .report-row.report-multinet {
-  background: #064e3b;
-  border-color: #047857;
+.stmt-row.stmt-duygu {
+  background: rgba(236, 72, 153, 0.06);
+  border-color: rgba(236, 72, 153, 0.12);
 }
-html.theme-dark .report-row.report-alacak {
-  background: #1c1917;
-  border-color: #a16207;
-}
-html.theme-dark .report-row .report-title { color: #f1f5f9 !important; }
-html.theme-dark .report-row .report-sub { color: #94a3b8 !important; }
-html.theme-dark .report-row.report-multinet .report-amt { color: #6ee7b7 !important; }
-html.theme-dark .report-row.report-alacak .report-amt { color: #fde68a !important; }
-
-/* Yaklaşanlar satırları */
-.agenda-item {
+.stmt-row-main {
   display: flex;
-  gap: 0.5rem;
-  align-items: flex-start;
-  padding: 0.65rem;
-  border-radius: 0.75rem;
-  border: 1px solid #fde68a;
-  background: #fffbeb;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
 }
-.agenda-item.agenda-task {
-  border-color: #e2e8f0;
-  background: #f8fafc;
+.stmt-row-month {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #64748b;
+  line-height: 1.3;
+  white-space: normal;
 }
-.agenda-item.agenda-task.is-overdue {
-  border-color: #fecdd3;
-  background: #fff1f2;
+.stmt-row-amt {
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #0f172a;
 }
-.agenda-item .agenda-title { font-size: 0.875rem; font-weight: 700; color: #0f172a; }
-.agenda-item .agenda-sub { font-size: 0.7rem; font-weight: 600; color: #64748b; }
-html.theme-dark .agenda-item {
-  background: #1c1917;
-  border-color: #a16207;
+.stmt-row.stmt-bekir .stmt-row-amt { color: #1d4ed8; }
+.stmt-row.stmt-duygu .stmt-row-amt { color: #be185d; }
+.stmt-row-tl {
+  font-size: 0.65rem;
+  font-weight: 700;
+  opacity: 0.55;
 }
-html.theme-dark .agenda-item.agenda-task {
+.stmt-row-side {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+.stmt-row-paid {
+  font-size: 9px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-right: 0.15rem;
+  white-space: nowrap;
+}
+.stmt-row-btn {
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.stmt-row-btn:hover { background: #f8fafc; color: #0f172a; }
+.stmt-row-btn-del:hover { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+
+html.theme-dark .stmt-row.stmt-bekir {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+html.theme-dark .stmt-row.stmt-duygu {
+  background: rgba(236, 72, 153, 0.12);
+  border-color: rgba(236, 72, 153, 0.2);
+}
+html.theme-dark .stmt-row-month,
+html.theme-dark .stmt-row-paid { color: #94a3b8 !important; }
+html.theme-dark .stmt-row.stmt-bekir .stmt-row-amt { color: #93c5fd !important; }
+html.theme-dark .stmt-row.stmt-duygu .stmt-row-amt { color: #f9a8d4 !important; }
+html.theme-dark .stmt-row-btn {
   background: #1e293b;
   border-color: #334155;
+  color: #cbd5e1;
 }
-html.theme-dark .agenda-item.agenda-task.is-overdue {
-  background: #4c0519;
-  border-color: #9f1239;
-}
-html.theme-dark .agenda-item .agenda-title { color: #fef3c7 !important; }
-html.theme-dark .agenda-item.agenda-task .agenda-title { color: #f1f5f9 !important; }
-html.theme-dark .agenda-item .agenda-sub { color: #94a3b8 !important; }
-
-/* İleri tarihli tablo satırı — iç yazılar */
+html.theme-dark .stmt-row-btn:hover { background: #334155; color: #f1f5f9; }
+html.theme-dark .stmt-row-btn-del:hover { background: #450a0a; color: #fca5a5; border-color: #7f1d1d; }
 
 
-html.theme-dark .stmt-card .text-slate-600,
-html.theme-dark .stmt-card .text-slate-500,
-html.theme-dark .stmt-card .text-slate-700 { color: #cbd5e1 !important; }
-html.theme-dark .stmt-card .stmt-amt { color: inherit; }
-html.theme-dark .stmt-card.stmt-bekir .stmt-amt { color: #93c5fd !important; }
-html.theme-dark .stmt-card.stmt-duygu .stmt-amt { color: #f9a8d4 !important; }
-html.theme-dark .stmt-card button { color: #e2e8f0 !important; }
 
-
-/* ===== İleri tarihli + not + bütçe bar koyu mod ===== */
-/* İleri tarihli: sarı zemin + soluk yazı sorununu bitir */
-html.theme-dark #expenseTableBody tr.row-future-expense,
-html.theme-dark #expenseTableBody tr.row-future-expense:hover {
-  background: #292524 !important;
-  background-image: none !important;
-  box-shadow: inset 4px 0 0 #f59e0b;
-}
 html.theme-dark #expenseTableBody tr.row-future-expense td,
 html.theme-dark #expenseTableBody tr.row-future-expense td * {
   color: #fde68a !important;
@@ -2586,3 +2552,185 @@ html.theme-dark .report-list-scroll::-webkit-scrollbar-thumb { background: #6474
     max-height: min(92vh, 720px);
   }
 }
+
+
+/* Rapor satırları — Multinet / Alacak */
+.report-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+.report-row + .report-row { margin-top: 0.35rem; }
+.report-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.25;
+}
+.report-sub {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-top: 0.1rem;
+}
+.report-amt {
+  font-size: 0.85rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.report-multinet { border-color: rgba(16, 185, 129, 0.2); background: rgba(16, 185, 129, 0.06); }
+.report-alacak { border-color: rgba(245, 158, 11, 0.25); background: rgba(245, 158, 11, 0.07); }
+html.theme-dark .report-row {
+  background: #1e293b;
+  border-color: #334155;
+}
+html.theme-dark .report-title { color: #f1f5f9 !important; }
+html.theme-dark .report-sub { color: #94a3b8 !important; }
+html.theme-dark .report-multinet { background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.25); }
+html.theme-dark .report-alacak { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.25); }
+
+
+/* Güncel KK ekstre kartları */
+.current-stmt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.9rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid transparent;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.current-stmt.is-clickable { cursor: pointer; }
+.current-stmt.is-clickable:hover { box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08); }
+.current-stmt-bekir {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.04));
+  border-color: rgba(59, 130, 246, 0.18);
+}
+.current-stmt-duygu {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.1), rgba(236, 72, 153, 0.04));
+  border-color: rgba(236, 72, 153, 0.18);
+}
+.current-stmt-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.current-stmt-person {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+.current-stmt-bekir .current-stmt-person { color: #1d4ed8; }
+.current-stmt-duygu .current-stmt-person { color: #be185d; }
+.current-stmt-amt {
+  font-size: 1.35rem;
+  font-weight: 900;
+  line-height: 1.15;
+  color: #0f172a;
+}
+.current-stmt-bekir .current-stmt-amt { color: #1d4ed8; }
+.current-stmt-duygu .current-stmt-amt { color: #be185d; }
+.current-stmt-period {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-align: right;
+}
+.current-stmt-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.25);
+}
+.current-stmt-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: #64748b;
+}
+.current-stmt-btn {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.5rem;
+  border: none;
+  background: rgba(15, 23, 42, 0.06);
+  color: #334155;
+  cursor: pointer;
+}
+.current-stmt-btn:hover { background: rgba(15, 23, 42, 0.1); }
+html.theme-dark .current-stmt-bekir {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.28);
+}
+html.theme-dark .current-stmt-duygu {
+  background: rgba(236, 72, 153, 0.15);
+  border-color: rgba(236, 72, 153, 0.28);
+}
+html.theme-dark .current-stmt-amt { color: #f1f5f9 !important; }
+html.theme-dark .current-stmt-bekir .current-stmt-amt { color: #93c5fd !important; }
+html.theme-dark .current-stmt-duygu .current-stmt-amt { color: #f9a8d4 !important; }
+html.theme-dark .current-stmt-person,
+html.theme-dark .current-stmt-period,
+html.theme-dark .current-stmt-count { color: #94a3b8 !important; }
+html.theme-dark .current-stmt-foot { border-top-color: #334155; }
+html.theme-dark .current-stmt-btn {
+  background: #334155;
+  color: #e2e8f0;
+}
+
+
+/* Anasayfa Görevler & Yaklaşanlar */
+.agenda-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.85rem;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+.agenda-item + .agenda-item { margin-top: 0.35rem; }
+.agenda-item.agenda-task {
+  border-color: rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.06);
+}
+.agenda-item.is-overdue {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(254, 226, 226, 0.55);
+}
+.agenda-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.3;
+}
+.agenda-sub {
+  font-size: 10px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-top: 0.15rem;
+}
+html.theme-dark .agenda-item {
+  background: #1e293b;
+  border-color: #334155;
+}
+html.theme-dark .agenda-item.agenda-task {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+html.theme-dark .agenda-item.is-overdue {
+  background: rgba(127, 29, 29, 0.35);
+  border-color: rgba(248, 113, 113, 0.35);
+}
+html.theme-dark .agenda-title { color: #f1f5f9 !important; }
+html.theme-dark .agenda-sub { color: #94a3b8 !important; }

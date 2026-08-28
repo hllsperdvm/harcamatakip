@@ -404,18 +404,34 @@
                     }
                     if (!confirm((key === 'bekir' ? 'Bekir' : 'Duygu') + ' kart borcu ödendi olarak işaretlensin mi? Ekstre kaydı oluşturulacak.')) return;
 
-                    let statementMonth;
-                    if (debt.dueDate) {
-                        statementMonth = getPeriodKeyForDateStr(debt.dueDate);
-                    } else {
-                        statementMonth = getCurrentPeriod();
+                    // Ekstre dönemi = harcama dönemi (29–28), son ödeme tarihinin dönemi değil
+                    let statementMonth = debt.periodKey || null;
+                    if (!statementMonth && debt.dueDate && typeof getPeriodKeyForDateStr === 'function') {
+                        // Son ödeme genelde dönem bitiminden ~7–10 gün sonra → 12 gün geriye git
+                        try {
+                            const d = (typeof parseYMD === 'function') ? parseYMD(debt.dueDate) : new Date(debt.dueDate);
+                            if (d && !isNaN(d.getTime())) {
+                                d.setDate(d.getDate() - 12);
+                                const ymd = (typeof formatYMD === 'function')
+                                    ? formatYMD(d)
+                                    : (d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'));
+                                statementMonth = getPeriodKeyForDateStr(ymd);
+                            }
+                        } catch (_) {}
                     }
+                    if (!statementMonth && typeof getPreviousPeriodKeys === 'function') {
+                        const keys = getPreviousPeriodKeys(2);
+                        // keys sorted oldest..? getPreviousPeriodKeys returns relative to current
+                        statementMonth = (keys && keys.length >= 2) ? keys[keys.length - 2] : (keys && keys[0]);
+                    }
+                    if (!statementMonth && typeof getCurrentPeriod === 'function') statementMonth = getCurrentPeriod();
                     if (!statementMonth) statementMonth = new Date().toISOString().slice(0, 7);
 
                     const docId = key + '_' + statementMonth + '_' + Date.now();
                     const statementData = {
                         person: key,
                         month: statementMonth,
+                        periodKey: statementMonth,
                         amount: Number(debt.amount) || 0,
                         dueDate: debt.dueDate || '',
                         paidDate: new Date().toISOString().split('T')[0],

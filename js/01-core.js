@@ -1137,10 +1137,23 @@
         function formatPeriodLabel(periodKey) {
             if (!periodKey) return '-';
             const [y, m] = periodKey.split('-').map(Number);
-            const end = new Date(y, m - 1, 28);
-            const start = new Date(y, m - 2, 29);
-            const months = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
-            return `${String(start.getDate()).padStart(2, '0')} ${months[start.getMonth()]} – ${String(end.getDate()).padStart(2, '0')} ${months[end.getMonth()]} ${end.getFullYear()}`;
+            if (!y || !m) return periodKey;
+            // periodConfig günlerine göre (varsayılan 29–28)
+            const startDay = Math.min(31, Math.max(1, Number((periodConfig && periodConfig.startDay) || 29)));
+            const endDay = Math.min(31, Math.max(1, Number((periodConfig && periodConfig.endDay) || 28)));
+            const end = new Date(y, m - 1, endDay);
+            const start = startDay > endDay
+                ? new Date(y, m - 2, startDay)
+                : new Date(y, m - 1, startDay);
+            const months = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+            const sd = start.getDate();
+            const ed = end.getDate();
+            const sy = start.getFullYear();
+            const ey = end.getFullYear();
+            if (sy === ey) {
+                return sd + ' ' + months[start.getMonth()] + ' – ' + ed + ' ' + months[end.getMonth()] + ' ' + ey;
+            }
+            return sd + ' ' + months[start.getMonth()] + ' ' + sy + ' – ' + ed + ' ' + months[end.getMonth()] + ' ' + ey;
         }
 
         function getPreviousPeriodKeys(count) {
