@@ -67,7 +67,9 @@ function getProcessedExpenses() {
                     }
                 }
             });
-            return processed;
+            return (typeof dedupePeriodExpenseRows === 'function')
+                ? dedupePeriodExpenseRows(processed)
+                : processed;
         }
 
         /** Tüm taksit/tekrar satırları (bu dönem + gelecek + geçmiş) — modal için */
@@ -2178,9 +2180,63 @@ function getProcessedExpenses() {
                     }));
                 }
             });
-            return out.filter(function(e) {
+            const filtered = out.filter(function(e) {
                 return typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e);
             });
+            return dedupePeriodExpenseRows(filtered);
+        }
+
+        /**
+         * Aynı dönem içinde peşin + taksit / CSV çift kayıtlarını tekilleştirir.
+         * Anahtar: kişi + tutar + normalize açıklama. Taksit/Tekrar satırı peşine tercih edilir.
+         */
+        function dedupePeriodExpenseRows(list) {
+            if (!list || !list.length) return list || [];
+            function normDesc(s) {
+                s = String(s || '').toLocaleLowerCase('tr-TR')
+                    .replace(/ı/g, 'i').replace(/İ/g, 'i')
+                    .replace(/ş/g, 's').replace(/ğ/g, 'g')
+                    .replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c');
+                s = s.replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+                return s.slice(0, 36);
+            }
+            function isInstallmentLike(e) {
+                const lab = String(e.installmentLabel || '');
+                if (/taksit|tekrar/i.test(lab)) return true;
+                if ((e.installmentCount || 1) > 1 || e.isRecurring) return true;
+                return false;
+            }
+            function score(e) {
+                // Yüksek skor kazanır
+                let s = 0;
+                if (isInstallmentLike(e)) s += 100;
+                if (e.id && String(e.id).indexOf('_ins_') < 0) s += 10;
+                // Daha eski tarih biraz öne
+                const d = String(e.date || '').slice(0, 10);
+                if (d) s += 1;
+                return s;
+            }
+            const groups = {};
+            list.forEach(function(e, idx) {
+                const amt = Math.round((Number(e.displayAmount) || 0) * 100);
+                const person = String(e.person || '');
+                const key = person + '|' + amt + '|' + normDesc(e.description || e.category || '');
+                if (!groups[key]) groups[key] = [];
+                groups[key].push({ e: e, idx: idx });
+            });
+            const keep = [];
+            Object.keys(groups).forEach(function(key) {
+                const arr = groups[key];
+                if (arr.length === 1) {
+                    keep.push(arr[0]);
+                    return;
+                }
+                // Birden fazla: en yüksek skorlu
+                arr.sort(function(a, b) { return score(b.e) - score(a.e); });
+                keep.push(arr[0]);
+            });
+            keep.sort(function(a, b) { return a.idx - b.idx; });
+            return keep.map(function(x) { return x.e; });
         }
 
         function buildClosedPeriodReportData(periodKey, opts) {
