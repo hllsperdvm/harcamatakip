@@ -306,9 +306,14 @@ function getProcessedExpenses() {
 
             // --- Web tablo ---
             if (tbody) {
-                slice.forEach(item => {
+                tbody.innerHTML = '';
+                const isInc = function(item) { return item && item.installmentLabel === 'Gelir'; };
+                const futures = slice.filter(function(item) { return !isInc(item) && isFutureDateStr(item.date); });
+                const normals = slice.filter(function(item) { return isInc(item) || !isFutureDateStr(item.date); });
+
+                function appendExpenseRow(item) {
                     const tr = document.createElement('tr');
-                    const isIncome = item.installmentLabel === 'Gelir';
+                    const isIncome = isInc(item);
                     const isFuture = !isIncome && isFutureDateStr(item.date);
                     if (isFuture) {
                         tr.className = 'row-future-expense';
@@ -316,48 +321,91 @@ function getProcessedExpenses() {
                     }
                     const safeId = escapeHtml(item.id);
                     const dateCell = isFuture
-                        ? `<td class="px-8 py-5"><span class="inline-flex items-center gap-1.5"><span class="opacity-80">${escapeHtml(item.date || '-')}</span><span class="text-[9px] font-black uppercase tracking-wide text-amber-700 bg-amber-100/80 px-1.5 py-0.5 rounded">İleri</span></span></td>`
-                        : `<td class="px-8 py-5 opacity-60">${escapeHtml(item.date || '-')}</td>`;
-                    tr.innerHTML = `
-                        ${dateCell}
-                        <td class="px-6 py-5">
-                            <span class="px-3 py-1 rounded-lg text-[10px] font-black ${item.person === 'Bekir' ? 'bg-blue-50 text-blue-600' : (item.person === 'Duygu' ? 'bg-pink-50 text-pink-600' : 'bg-emerald-50 text-emerald-600')}">
-                                ${escapeHtml((item.person || '').toUpperCase())}
-                            </span>
-                        </td>
-                        <td class="px-6 py-5"><span class="bg-slate-100 px-2 py-1 rounded text-[10px]">${escapeHtml(item.category)}${item.shopSubtype ? ' · ' + escapeHtml(item.shopSubtype) : ''}${item.isEcommerce ? ' · E-ticaret' : ''}${item.billSubtype ? ' · ' + escapeHtml(item.billSubtype) : ''}${item.vehicleSubtype ? ' · ' + escapeHtml(item.vehicleSubtype) : ''}${(item.isOnBehalf || item.onBehalf) ? (isOnBehalfMonthReimbursed(item) ? ' · Alındı' : ' · Alacak') + (item.onBehalfOf ? ' (' + escapeHtml(item.onBehalfOf) + ')' : '') : ''}</span></td>
-                        <td class="px-6 py-5 opacity-60">${escapeHtml(item.paymentType || '-')}</td>
-                        <td class="px-6 py-5">
-                            <div class="flex flex-col">
-                                <span>${escapeHtml(item.description)}</span>
-                                <span class="text-[9px] text-indigo-500 font-black tracking-tighter uppercase">${escapeHtml(item.installmentLabel)}</span>
-                            </div>
-                        </td>
-                        <td class="px-6 py-5 text-right font-black ${isIncome ? 'text-emerald-600' : 'text-rose-600'}">
-                            ${isIncome ? '+' : '-'}${item.displayAmount.toLocaleString('tr-TR')} TL
-                        </td>
-                        <td class="px-8 py-5 text-center space-x-2">
-                            ${!isIncome && !String(item.id).includes('_ins_') ? `<button onclick="editExpense('${safeId}')" class="text-indigo-600 hover:scale-110 transition">✏️</button>` : ''}
-                            <button onclick="${isIncome ? `deleteIncome('${safeId}')` : `deleteExpense('${safeId}')`}" class="text-rose-500 hover:scale-110 transition">🗑️</button>
-                        </td>
-                    `;
+                        ? '<td class="px-8 py-5"><span class="inline-flex items-center gap-1.5"><span class="opacity-80">' + escapeHtml(item.date || '-') + '</span><span class="text-[9px] font-black uppercase tracking-wide text-amber-700 bg-amber-100/80 px-1.5 py-0.5 rounded future-badge">İleri</span></span></td>'
+                        : '<td class="px-8 py-5 opacity-60">' + escapeHtml(item.date || '-') + '</td>';
+                    let catLabel = escapeHtml(item.category || '-');
+                    if (item.shopSubtype) catLabel += ' · ' + escapeHtml(item.shopSubtype);
+                    if (item.isEcommerce) catLabel += ' · E-ticaret';
+                    if (item.billSubtype) catLabel += ' · ' + escapeHtml(item.billSubtype);
+                    const personCls = item.person === 'Bekir' ? 'person-bekir' : (item.person === 'Duygu' ? 'person-duygu' : '');
+                    tr.innerHTML =
+                        dateCell +
+                        '<td class="px-6 py-5"><span class="px-3 py-1 rounded-lg text-[10px] font-black ' + (item.person === 'Bekir' ? 'bg-blue-50 text-blue-600' : (item.person === 'Duygu' ? 'bg-pink-50 text-pink-600' : 'bg-emerald-50 text-emerald-600')) + '">' + escapeHtml(item.person || '-') + '</span></td>' +
+                        '<td class="px-6 py-5 font-bold text-slate-800">' + catLabel + '</td>' +
+                        '<td class="px-6 py-5 text-slate-600">' + escapeHtml(item.description || '-') + (item.installmentLabel && item.installmentLabel !== 'Peşin' ? ' <span class="text-[10px] text-slate-400">(' + escapeHtml(item.installmentLabel) + ')</span>' : '') + '</td>' +
+                        '<td class="px-6 py-5 font-black ' + (isIncome ? 'text-emerald-600' : 'text-rose-600') + '">' + (isIncome ? '+' : '-') + (Number(item.displayAmount) || 0).toLocaleString('tr-TR') + ' TL</td>' +
+                        '<td class="px-6 py-5 text-center">' +
+                          (isIncome ? '' : ('<button type="button" onclick="editExpense(\'' + safeId + '\')" class="text-sky-600 hover:scale-110 mx-1">✏️</button>')) +
+                          '<button type="button" onclick="deleteExpense(\'' + safeId + '\')" class="text-rose-600 hover:scale-110 mx-1">🗑️</button>' +
+                        '</td>';
                     tbody.appendChild(tr);
-                });
+                }
+
+                if (futures.length) {
+                    const trToggle = document.createElement('tr');
+                    trToggle.className = 'row-future-toggle';
+                    trToggle.innerHTML = '<td colspan="6" class="px-6 py-3">' +
+                        '<button type="button" class="expense-future-toggle w-full text-left" onclick="this.classList.toggle(\'is-open\');var b=document.getElementById(\'webFutureBody\');if(b)b.classList.toggle(\'hidden\');">' +
+                        '<span>📅 İleri tarihli harcamalar <b>(' + futures.length + ')</b></span>' +
+                        '<span class="text-xs opacity-70">aç / kapa</span></button></td>';
+                    tbody.appendChild(trToggle);
+                    const bodyFrag = document.createElement('tbody');
+                    bodyFrag.id = 'webFutureBody';
+                    bodyFrag.className = 'hidden web-future-body';
+                    // can't nest tbody easily - use data attr rows with class
+                }
+                // Simpler: toggle rows with class web-future-row hidden
+                if (futures.length) {
+                    const trToggle = document.createElement('tr');
+                    trToggle.className = 'row-future-toggle';
+                    const btnId = 'webFutureToggleBtn';
+                    trToggle.innerHTML = '<td colspan="6" class="px-4 sm:px-6 py-2">' +
+                        '<button type="button" id="' + btnId + '" class="expense-future-toggle" onclick="window.toggleWebFutureRows && toggleWebFutureRows()">' +
+                        '<span>📅 İleri tarihli (' + futures.length + ')</span><span class="chev">▸</span></button></td>';
+                    tbody.appendChild(trToggle);
+                    futures.forEach(function(item) {
+                        const tr = document.createElement('tr');
+                        tr.className = 'row-future-expense web-future-row hidden';
+                        tr.title = 'İleri tarihli kayıt';
+                        const safeId = escapeHtml(item.id);
+                        let catLabel = escapeHtml(item.category || '-');
+                        if (item.shopSubtype) catLabel += ' · ' + escapeHtml(item.shopSubtype);
+                        if (item.isEcommerce) catLabel += ' · E-ticaret';
+                        if (item.billSubtype) catLabel += ' · ' + escapeHtml(item.billSubtype);
+                        tr.innerHTML =
+                            '<td class="px-8 py-5"><span class="inline-flex items-center gap-1.5"><span>' + escapeHtml(item.date || '-') + '</span><span class="text-[9px] font-black uppercase tracking-wide future-badge px-1.5 py-0.5 rounded">İleri</span></span></td>' +
+                            '<td class="px-6 py-5"><span class="px-3 py-1 rounded-lg text-[10px] font-black ' + (item.person === 'Bekir' ? 'bg-blue-50 text-blue-600' : 'bg-pink-50 text-pink-600') + '">' + escapeHtml(item.person || '-') + '</span></td>' +
+                            '<td class="px-6 py-5 font-bold">' + catLabel + '</td>' +
+                            '<td class="px-6 py-5">' + escapeHtml(item.description || '-') + '</td>' +
+                            '<td class="px-6 py-5 font-black text-rose-600">-' + (Number(item.displayAmount) || 0).toLocaleString('tr-TR') + ' TL</td>' +
+                            '<td class="px-6 py-5 text-center"><button type="button" onclick="editExpense(\'' + safeId + '\')" class="text-sky-600 mx-1">✏️</button><button type="button" onclick="deleteExpense(\'' + safeId + '\')" class="text-rose-600 mx-1">🗑️</button></td>';
+                        tbody.appendChild(tr);
+                    });
+                }
+                normals.forEach(appendExpenseRow);
 
                 if (totalRecords > displayedRecords) {
                     const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td colspan="7" class="p-4 text-center">
-                            <button onclick="loadMoreRecords()" class="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-indigo-700 transition">
-                                Daha Fazla Göster (${totalRecords - displayedRecords} kayıt kaldı)
-                            </button>
-                        </td>
-                    `;
+                    tr.innerHTML = '<td colspan="6" class="px-8 py-6 text-center">' +
+                        '<button type="button" onclick="loadMoreExpenses()" class="px-6 py-3 rounded-xl bg-indigo-50 text-indigo-700 font-black text-sm hover:bg-indigo-100">' +
+                        'Daha fazla göster (' + (totalRecords - displayedRecords) + ' kayıt kaldı)</button></td>';
                     tbody.appendChild(tr);
                 }
             }
 
-            // --- Mobil kartlar: ileri tarihli (açılır) + normal (max displayLimit) ---
+            window.toggleWebFutureRows = function() {
+                const rows = document.querySelectorAll('#expenseTableBody tr.web-future-row');
+                const btn = document.getElementById('webFutureToggleBtn');
+                let open = false;
+                rows.forEach(function(r) {
+                    r.classList.toggle('hidden');
+                    if (!r.classList.contains('hidden')) open = true;
+                });
+                if (btn) btn.classList.toggle('is-open', open);
+            };
+
+            
+// --- Mobil kartlar: ileri tarihli (açılır) + normal (max displayLimit) ---
             if (cardsHost) {
                 const isIncomeItem = function(item) { return item.installmentLabel === 'Gelir'; };
                 const futures = filtered.filter(function(item) {
@@ -781,7 +829,7 @@ function getProcessedExpenses() {
             const prevCats = prev ? (summary.byMonth[prev] || {}) : {};
             const curLabel = (summary.labels && summary.labels[cur]) || formatPeriodLabel(cur);
             const prevLabel = prev ? ((summary.labels && summary.labels[prev]) || formatPeriodLabel(prev)) : '';
-            const curItems = processed.filter(function(e) { return e.effectiveMonth === cur && (typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e)); });
+            const curItems = processed.filter(function(e) { return e.effectiveMonth === cur && (typeof countsInCharts === 'function' ? countsInCharts(e) : (typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e))); });
             const curTotal = (summary.period === cur && summary.currentTotal != null)
                 ? summary.currentTotal
                 : Object.values(curCats).reduce(function(a, b) { return a + b; }, 0);
@@ -1485,7 +1533,12 @@ function getProcessedExpenses() {
             all.forEach(function(e) {
                 if (!e) return;
                 if (e.category !== 'Faturalar') return;
-                if (typeof countsInPeriodTotals === 'function' && !countsInPeriodTotals(e)) return;
+                if (typeof countsInCharts === 'function') {
+                    if (!countsInCharts(e)) return;
+                } else {
+                    if (e.isOnBehalf || e.onBehalf) return;
+                    if (typeof countsInPeriodTotals === 'function' && !countsInPeriodTotals(e)) return;
+                }
                 const pk = e.effectiveMonth || (typeof getPeriodKeyForDateStr === 'function' ? getPeriodKeyForDateStr(e.date) : String(e.date || '').slice(0, 7));
                 if (!pk || periods.indexOf(pk) < 0) return;
                 let st = String(e.billSubtype || '').trim();
@@ -1644,16 +1697,29 @@ function getProcessedExpenses() {
             return (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
         };
 
-        function updateStatsPanel() {
+        
+        /** Grafiklerde: multinet + başkası adına hariç */
+        function countsInCharts(e) {
+            if (!e) return false;
+            if (e.installmentLabel === 'Gelir') return false;
+            if (typeof isMultinetPayment === 'function' && isMultinetPayment(e.paymentType)) return false;
+            if (e.isOnBehalf || e.onBehalf) return false;
+            if (typeof isOnBehalfExpense === 'function' && isOnBehalfExpense(e)) return false;
+            return true;
+        }
+
+function updateStatsPanel() {
             try { fillStatsCategoryPeriodSelect(); } catch (_) {}
             const period = (typeof getStatsCategoryPeriod === 'function') ? getStatsCategoryPeriod() : getCurrentPeriod();
             // Geçmiş dönem taksit dilimleri için getExpensesForPeriodKey
             let processedExpenses = [];
             if (typeof getExpensesForPeriodKey === 'function') {
-                processedExpenses = getExpensesForPeriodKey(period, '');
+                processedExpenses = getExpensesForPeriodKey(period, '').filter(function(e) {
+                    return typeof countsInCharts === 'function' ? countsInCharts(e) : !(e && (e.isOnBehalf || e.onBehalf));
+                });
             } else {
                 processedExpenses = getProcessedExpenses().filter(function(e) {
-                    return e.effectiveMonth === period && (typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e));
+                    return e.effectiveMonth === period && (typeof countsInCharts === 'function' ? countsInCharts(e) : (typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e)));
                 });
             }
             const total = processedExpenses.reduce(function(s, e) { return s + (e.displayAmount || 0); }, 0);
@@ -1783,7 +1849,8 @@ function getProcessedExpenses() {
                         days.push(lab);
                         dayYm.push(ymd);
                         const sum = getProcessedExpenses().filter(function(e) {
-                            if (typeof countsInPeriodTotals === 'function' && !countsInPeriodTotals(e)) return false;
+                            if (typeof countsInCharts === 'function') { if (!countsInCharts(e)) return false; }
+                            else if (typeof countsInPeriodTotals === 'function' && !countsInPeriodTotals(e)) return false;
                             return String(e.date || '').slice(0, 10) === ymd;
                         }).reduce(function(s, e) { return s + (e.displayAmount || 0); }, 0);
                         daySums.push(sum);
@@ -1824,7 +1891,7 @@ function getProcessedExpenses() {
                 const ctxM = document.getElementById('monthlyTrendChart');
                 if (ctxM) {
                     const all = getProcessedExpenses().filter(function(e) {
-                        return typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e);
+                        return typeof countsInCharts === 'function' ? countsInCharts(e) : (typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e));
                     });
                     const byP = {};
                     all.forEach(function(e) {
@@ -1855,59 +1922,8 @@ function getProcessedExpenses() {
             } catch (errM) { console.warn('monthlyTrend', errM); }
 
             // --- Bu dönem vs önceki ---
-            try {
-                const ctxC = document.getElementById('monthCompareChart');
-                const sumEl = document.getElementById('monthCompareSummary');
-                if (ctxC) {
-                    const keys2 = (typeof getPreviousPeriodKeys === 'function') ? getPreviousPeriodKeys(2) : [period];
-                    const prevKey = keys2.length >= 2 ? keys2[0] : '';
-                    const curKey = keys2.length >= 2 ? keys2[1] : period;
-                    const allP = getProcessedExpenses().filter(function(e) {
-                        return typeof countsInPeriodTotals !== 'function' || countsInPeriodTotals(e);
-                    });
-                    const sumFor = function(pk) {
-                        return allP.filter(function(e) { return e.effectiveMonth === pk; })
-                            .reduce(function(s, e) { return s + (e.displayAmount || 0); }, 0);
-                    };
-                    const prevSum = prevKey ? sumFor(prevKey) : 0;
-                    const curSum = sumFor(curKey);
-                    const delta = curSum - prevSum;
-                    const pct = prevSum > 0 ? Math.round((delta / prevSum) * 100) : (curSum > 0 ? 100 : 0);
-                    if (sumEl) {
-                        const labPrev = (typeof formatPeriodLabel === 'function') ? formatPeriodLabel(prevKey) : prevKey;
-                        const labCur = (typeof formatPeriodLabel === 'function') ? formatPeriodLabel(curKey) : curKey;
-                        const arrow = delta > 0 ? '▲' : (delta < 0 ? '▼' : '●');
-                        const col = delta > 0 ? 'text-rose-600' : (delta < 0 ? 'text-emerald-600' : 'text-slate-500');
-                        sumEl.innerHTML = '<span class="' + col + ' font-bold">' + arrow + ' ' +
-                            (delta >= 0 ? '+' : '') + Math.round(delta).toLocaleString('tr-TR') + ' TL (%' + pct + ')</span>' +
-                            ' · Önceki: ' + Math.round(prevSum).toLocaleString('tr-TR') + ' · Bu dönem: ' + Math.round(curSum).toLocaleString('tr-TR');
-                        sumEl.title = (labPrev || prevKey) + ' vs ' + (labCur || curKey);
-                    }
-                    if (monthCompareChart) { try { monthCompareChart.destroy(); } catch (_) {} }
-                    monthCompareChart = new Chart(ctxC, {
-                        type: 'bar',
-                        data: {
-                            labels: [
-                                (typeof formatPeriodLabel === 'function' ? formatPeriodLabel(prevKey) : prevKey) || 'Önceki',
-                                (typeof formatPeriodLabel === 'function' ? formatPeriodLabel(curKey) : curKey) || 'Bu dönem'
-                            ],
-                            datasets: [{
-                                label: 'Toplam harcama',
-                                data: [prevSum, curSum],
-                                backgroundColor: ['#94a3b8', '#6366f1'],
-                                borderRadius: 8,
-                                maxBarThickness: 48
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: { y: { beginAtZero: true } }
-                        }
-                    });
-                }
-            } catch (errC) { console.warn('monthCompare', errC); }
+            // Bu Dönem vs Önceki grafiği kaldırıldı
+
 
             // --- Kategori trendi (3 dönem, en yüksek 5) ---
             try {
@@ -2261,6 +2277,34 @@ function getProcessedExpenses() {
             const isCash = function(e) {
                 return typeof isCashPayment === 'function' ? isCashPayment(e.paymentType) : /nakit/i.test(String(e.paymentType || ''));
             };
+            // Multinet: takvim ayı değil, bu ekstre döneminin tarih aralığındaki Multinet
+            try {
+                const allRaw = (typeof expenses !== 'undefined' && expenses) ? expenses : [];
+                let pStart = '', pEnd = '';
+                if (typeof getStatementPeriodForDate === 'function' && periodKey) {
+                    const [yy, mm] = String(periodKey).split('-').map(Number);
+                    const probe = yy + '-' + String(mm).padStart(2, '0') + '-15';
+                    const pinfo = getStatementPeriodForDate(probe);
+                    if (pinfo && pinfo.startDate && pinfo.endDate) {
+                        const f = function(d) {
+                            if (typeof formatYMD === 'function') return formatYMD(d);
+                            return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+                        };
+                        pStart = f(pinfo.startDate);
+                        pEnd = f(pinfo.endDate);
+                    }
+                }
+                allRaw.forEach(function(e) {
+                    if (!e) return;
+                    const pt = String(e.paymentType || '').toLocaleLowerCase('tr-TR');
+                    if (pt.indexOf('multinet') < 0) return;
+                    const d = String(e.date || '').slice(0, 10);
+                    if (pStart && pEnd && (d < pStart || d > pEnd)) return;
+                    if (!pStart && e.effectiveMonth && e.effectiveMonth !== periodKey) return;
+                    multinetSum += Number(e.amount) || 0;
+                    multinetN++;
+                });
+            } catch (_) {}
             const total = sum(list);
             const card = sum(list, isCard);
             const cash = sum(list, isCash);
@@ -2277,6 +2321,7 @@ function getProcessedExpenses() {
             const vehicleSubs = {};
             let installSum = 0, recurSum = 0, cashCount = 0, cardCount = 0, multiSum = 0, multiN = 0;
             let onBehalfSum = 0, onBehalfN = 0;
+            let multinetSum = 0, multinetN = 0;
             list.forEach(function(e) {
                 let cat = e.category || 'Diğer';
                 if (typeof isLegacyShopCategory === 'function' && isLegacyShopCategory(cat)) cat = 'Alışveriş';
@@ -2462,6 +2507,7 @@ function getProcessedExpenses() {
                     cardCount: cardCount, cashCount: cashCount,
                     multiSum: multiSum, multiN: multiN,
                     onBehalfSum: onBehalfSum, onBehalfN: onBehalfN,
+                    multinetSum: multinetSum, multinetN: multinetN,
                     avgTx: avgTx
                 },
                 topCategories: topCats,
@@ -2492,6 +2538,12 @@ function getProcessedExpenses() {
             const buckets = d.buckets || {};
 
             lines.push('YUVAM DÖNEM ANALİZ RAPORU');
+            if ((d.multinetSum || 0) > 0) {
+                lines.push('Multinet: ' + Math.round(d.multinetSum).toLocaleString('tr-TR') + ' TL (' + (d.multinetN || 0) + ' kayıt · dönem toplamına dahil değil)');
+            } else {
+                lines.push('Multinet: 0 TL');
+            }
+
             lines.push(d.interim ? 'Tür: ARA RAPOR (dönem henüz kapanmadı)' : 'Tür: KAPANIŞ RAPORU');
             lines.push('Dönem: ' + (d.label || d.periodKey || ''));
             if (d.interim && d.asOfYmd) lines.push('Veri kesim tarihi: ' + d.asOfYmd);
@@ -2998,6 +3050,8 @@ function getProcessedExpenses() {
             const box = document.getElementById('multinetStatements');
             const totalEl = document.getElementById('multinetPeriodTotal');
             if (!box) return;
+            if (totalEl) totalEl.textContent = '0 TL';
+            box.innerHTML = '';
             const range = getMultinetMonthRange(new Date());
             let list = [];
             try {
@@ -3109,90 +3163,6 @@ function getProcessedExpenses() {
                     '<button type="button" onclick="markOnBehalfReimbursed(\'' + eid + '\',\'' + mk + '\', true)" class="text-[10px] font-bold text-emerald-700 mt-1">Geri alındı</button>' +
                     '</div></div>';
             }).join('');
-        };
-
-
-        window.openConvertToStatementModal = function() {
-            try { calculateCurrentCardStatements(); } catch (_) {}
-            const modal = document.getElementById('convertStatementModal');
-            if (!modal) { alert('Modal yok — Ctrl+F5'); return; }
-            const sel = document.getElementById('convertStmtPerson');
-            if (sel && !sel.value) sel.value = 'bekir';
-            onConvertStmtPersonChange();
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-        };
-        window.closeConvertToStatementModal = function() {
-            const modal = document.getElementById('convertStatementModal');
-            if (!modal) return;
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        };
-        window.onConvertStmtPersonChange = function() {
-            const sel = document.getElementById('convertStmtPerson');
-            const key = (sel && sel.value) ? sel.value : 'bekir';
-            const personLabel = key === 'duygu' ? 'Duygu' : 'Bekir';
-            let stmt = null;
-            try {
-                if (typeof calculateCurrentCardStatements === 'function') calculateCurrentCardStatements();
-                stmt = (currentStatements || []).find(function(s) {
-                    return String(s.person || '').toLowerCase() === personLabel.toLowerCase() || String(s.person || '').toLowerCase() === key;
-                });
-            } catch (_) {}
-            const amt = stmt ? (Number(stmt.amount) || 0) : 0;
-            const period = (stmt && stmt.period) ? stmt.period : ((typeof getCardStatementPeriod === 'function') ? getCardStatementPeriod() : null);
-            const periodLab = (period && period.periodKey && typeof formatPeriodLabel === 'function')
-                ? formatPeriodLabel(period.periodKey)
-                : (period && period.label ? period.label : '-');
-            const periodEl = document.getElementById('convertStmtPeriod');
-            if (periodEl) periodEl.textContent = periodLab;
-            const amtEl = document.getElementById('convertStmtAmount');
-            if (amtEl) amtEl.value = amt ? String(Math.round(amt * 100) / 100) : '';
-                        let due = '';
-            try {
-                if (typeof getAutoCardDueDate === 'function') due = getAutoCardDueDate();
-            } catch (_) {}
-            const dueEl = document.getElementById('convertStmtDue');
-            if (dueEl) {
-                dueEl.value = due || '';
-            }
-            window._convertStmtPeriodKey = period && period.periodKey ? period.periodKey : ((typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '');
-
-        };
-        window.saveConvertToStatement = async function() {
-            const sel = document.getElementById('convertStmtPerson');
-            const key = (sel && sel.value) === 'duygu' ? 'duygu' : 'bekir';
-            const amtEl = document.getElementById('convertStmtAmount');
-            const amount = parseFloat(String(amtEl && amtEl.value != null ? amtEl.value : '').replace(',', '.'));
-            if (!(amount > 0)) {
-                if (typeof showToast === 'function') showToast('Geçerli bir tutar girin', 'error');
-                return;
-            }
-            const dueInp = document.getElementById('convertStmtDue');
-            const due = (dueInp && dueInp.value) ? String(dueInp.value).slice(0, 10)
-                : (typeof getAutoCardDueDate === 'function' ? getAutoCardDueDate() : '');
-            const periodKey = window._convertStmtPeriodKey || (typeof getCurrentPeriod === 'function' ? getCurrentPeriod() : '');
-            let debt = key === 'bekir' ? (typeof bekirDebt !== 'undefined' ? bekirDebt : null) : (typeof duyguDebt !== 'undefined' ? duyguDebt : null);
-            if (!debt || typeof debt !== 'object') debt = { amount: 0, paid: false, dueDate: '' };
-            debt.amount = amount;
-            debt.paid = false;
-            debt.dueDate = due;
-            debt.periodKey = periodKey;
-            debt.updatedAt = new Date().toISOString();
-            try {
-                if (typeof db === 'undefined' || !db) throw new Error('Firestore yok');
-                await db.collection('settings').doc(key + 'Debt').set(debt, { merge: true });
-                if (key === 'bekir') bekirDebt = debt; else duyguDebt = debt;
-                closeConvertToStatementModal();
-                if (typeof renderCardDebtUI === 'function') renderCardDebtUI(key);
-                if (typeof renderBudgetInfo === 'function') renderBudgetInfo();
-                if (typeof renderHomeTab === 'function') renderHomeTab();
-                if (typeof showToast === 'function') showToast((key === 'bekir' ? 'Bekir' : 'Duygu') + ' ekstre borcu kaydedildi', 'success');
-                if (typeof logActivity === 'function') logActivity('Diğer', 'Ekstreye çevrildi', (key === 'bekir' ? 'Bekir' : 'Duygu') + ' · ' + amount + ' TL');
-            } catch (err) {
-                console.error(err);
-                if (typeof showToast === 'function') showToast((typeof friendlyFirebaseError === 'function') ? friendlyFirebaseError(err) : String(err), 'error');
-            }
         };
 
 
@@ -3542,8 +3512,7 @@ function renderCardStatements(person) {
                 surahModal: 'closeSurahModal',
                 onBehalfHistoryModal: 'closeOnBehalfHistoryModal',
                 periodCloseReportModal: 'closePeriodCloseReportModal',
-                convertStatementModal: 'closeConvertToStatementModal'
-            };
+                            };
             document.querySelectorAll('.fixed.inset-0').forEach(function(overlay) {
                 if (overlay.dataset.backdropWired === '1') return;
                 overlay.dataset.backdropWired = '1';

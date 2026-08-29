@@ -285,7 +285,7 @@
             }
             if (bar) {
                 bar.style.width = Math.min(100, pct) + '%';
-                bar.className = 'h-full rounded-full transition-all duration-700 ' + (pct >= 100 ? 'bg-rose-500' : pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500');
+                bar.className = 'h-full rounded-full transition-all duration-700 ' + (pct >= 100 ? 'bg-rose-600' : pct >= 85 ? 'bg-rose-500' : pct >= 70 ? 'bg-orange-500' : pct >= 50 ? 'bg-amber-500' : pct >= 30 ? 'bg-lime-500' : 'bg-emerald-500');
             }
             if (detail) {
                 const pl = periodInfo && periodInfo.label ? periodInfo.label + ' · ' : '';
@@ -540,11 +540,35 @@
             let percentage = Math.round(Math.min(100, Math.max(0, (elapsedMs / totalMs) * 100)));
             const diffDays = Math.ceil((dueMid - today) / (1000 * 60 * 60 * 24));
 
-            bar.style.width = percentage + '%';
-            if (diffDays < 0) percText.innerText = 'Günü geçti';
-            else if (diffDays === 0) percText.innerText = 'Bugün son gün';
-            else percText.innerText = diffDays + ' gün';
-            bar.className = 'h-full rounded-full transition-all duration-1000 ' + (diffDays <= 3 ? 'bg-rose-500' : 'bg-indigo-500');
+            // 1–10 gün penceresi: yaklaştıkça dolum artar, renk yeşil → kırmızı
+            let widthPct = 0;
+            let colorCls = 'bg-emerald-500';
+            if (diffDays < 0) {
+                widthPct = 100;
+                colorCls = 'bg-rose-600';
+                percText.innerText = 'Günü geçti';
+            } else if (diffDays === 0) {
+                widthPct = 100;
+                colorCls = 'bg-rose-500';
+                percText.innerText = 'Bugün son gün';
+            } else if (diffDays >= 10) {
+                widthPct = Math.max(8, Math.round(percentage * 0.25));
+                colorCls = 'bg-emerald-500';
+                percText.innerText = diffDays + ' gün';
+            } else {
+                // 1..9 gün: dolum (10-days)/10
+                widthPct = Math.round(((10 - diffDays) / 10) * 100);
+                if (diffDays >= 7) colorCls = 'bg-emerald-500';
+                else if (diffDays >= 5) colorCls = 'bg-lime-500';
+                else if (diffDays >= 3) colorCls = 'bg-amber-500';
+                else if (diffDays >= 2) colorCls = 'bg-orange-500';
+                else colorCls = 'bg-rose-500';
+                percText.innerText = diffDays + ' gün';
+            }
+            bar.style.width = widthPct + '%';
+            bar.className = 'h-full rounded-full transition-all duration-1000 ' + colorCls;
+            // bar görünür olsun
+            if (bar.parentElement) bar.parentElement.classList.add('debt-progress-track');
         }
 
         // Harcama İşlemleri
