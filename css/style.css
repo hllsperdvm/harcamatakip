@@ -2289,6 +2289,61 @@ html.theme-dark .text-emerald-700,
 html.theme-dark .text-emerald-800 {
   color: #6ee7b7 !important;
 }
+html.theme-dark .text-emerald-900 {
+  color: #d1fae5 !important;
+}
+html.theme-dark .text-emerald-500 {
+  color: #6ee7b7 !important;
+}
+/* Dönem özeti: Kredi kartı / Nakit / Multinet kutuları */
+html.theme-dark .bg-indigo-50,
+html.theme-dark [class*="bg-indigo-50"] {
+  background-color: #1e3a5f !important;
+  border-color: #3730a3 !important;
+}
+html.theme-dark .text-indigo-900,
+html.theme-dark .text-indigo-800 {
+  color: #e0e7ff !important;
+}
+html.theme-dark .text-indigo-400,
+html.theme-dark .text-indigo-500 {
+  color: #a5b4fc !important;
+}
+html.theme-dark .text-amber-900 {
+  color: #fde68a !important;
+}
+/* ARA / KAPANIŞ rozetleri — açık zemin + koyu yazı yerine koyu zemin + açık yazı */
+html.theme-dark .bg-emerald-100,
+html.theme-dark [class*="bg-emerald-100"] {
+  background-color: #064e3b !important;
+  color: #a7f3d0 !important;
+}
+html.theme-dark .bg-amber-100,
+html.theme-dark [class*="bg-amber-100"] {
+  background-color: #78350f !important;
+  color: #fde68a !important;
+}
+html.theme-dark .bg-amber-100.text-amber-800,
+html.theme-dark .bg-emerald-100.text-emerald-800 {
+  color: inherit !important;
+}
+/* Dönem raporları satır başlıkları */
+html.theme-dark #closedPeriodReportsList .text-slate-800,
+html.theme-dark #closedPeriodReportsList .text-slate-700,
+html.theme-dark #periodLiveBody .text-slate-900,
+html.theme-dark #periodLiveBody .text-slate-800,
+html.theme-dark #periodLiveAdvice .text-slate-500 {
+  color: #e2e8f0 !important;
+}
+html.theme-dark #periodLiveAdvice .text-indigo-500 {
+  color: #a5b4fc !important;
+}
+html.theme-dark #periodLiveBody .bg-slate-100 {
+  background-color: #334155 !important;
+}
+html.theme-dark #periodLiveBody .text-slate-700 {
+  color: #e2e8f0 !important;
+}
 html.theme-dark .text-blue-600,
 html.theme-dark .text-blue-700 {
   color: #93c5fd !important;
