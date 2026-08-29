@@ -2734,3 +2734,115 @@ html.theme-dark .agenda-item.is-overdue {
 }
 html.theme-dark .agenda-title { color: #f1f5f9 !important; }
 html.theme-dark .agenda-sub { color: #94a3b8 !important; }
+
+
+/* İleri tarihli — koyu temada okunabilir */
+html.theme-dark #expenseTableBody tr.row-future-expense,
+html.theme-dark tr.row-future-expense {
+  background: linear-gradient(90deg, rgba(120, 53, 15, 0.45) 0%, rgba(146, 64, 14, 0.35) 100%) !important;
+}
+html.theme-dark #expenseTableBody tr.row-future-expense td,
+html.theme-dark tr.row-future-expense td,
+html.theme-dark #expenseTableBody tr.row-future-expense .opacity-60,
+html.theme-dark #expenseTableBody tr.row-future-expense .opacity-80,
+html.theme-dark #expenseTableBody tr.row-future-expense .text-slate-600,
+html.theme-dark #expenseTableBody tr.row-future-expense .text-slate-800,
+html.theme-dark #expenseTableBody tr.row-future-expense .font-bold {
+  color: #fef3c7 !important;
+  opacity: 1 !important;
+}
+html.theme-dark .future-badge,
+html.theme-dark #expenseTableBody tr.row-future-expense .future-badge {
+  background: rgba(251, 191, 36, 0.25) !important;
+  color: #fde68a !important;
+}
+html.theme-dark .expense-future-toggle {
+  background: linear-gradient(135deg, rgba(120, 53, 15, 0.5), rgba(146, 64, 14, 0.35));
+  border-color: rgba(251, 191, 36, 0.35);
+  color: #fef3c7;
+}
+html.theme-dark .expense-future-toggle .text-amber-800,
+html.theme-dark .expense-future-section {
+  color: #fef3c7 !important;
+}
+
+/* KK son ödeme progress */
+.debt-progress-track {
+  background: #e2e8f0 !important;
+  min-height: 0.5rem;
+  height: 0.5rem !important;
+}
+html.theme-dark .debt-progress-track {
+  background: #334155 !important;
+}
+.debt-due-input {
+  min-height: 2.25rem;
+  color-scheme: light;
+  cursor: pointer;
+}
+html.theme-dark .debt-due-input {
+  color-scheme: dark;
+  background: #1e293b !important;
+  border-color: #475569 !important;
+  color: #f1f5f9 !important;
+}
+
+
+/* İşlem geçmişi kelime ara */
+.history-search-wrap {
+  width: 100%;
+}
+.history-search-input {
+  width: 100%;
+  max-width: 28rem;
+  display: block;
+  padding: 0.7rem 1rem;
+  border-radius: 0.9rem;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0f172a;
+  outline: none;
+}
+.history-search-input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  background: #fff;
+}
+html.theme-dark .history-search-input {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+html.theme-dark .history-search-input:focus {
+  border-color: #818cf8;
+  background: #0f172a;
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2);
+}
+.expense-future-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: linear-gradient(90deg, #fffbeb, #fef3c7);
+  color: #92400e;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.expense-future-toggle .chev {
+  transition: transform 0.15s ease;
+}
+.expense-future-toggle.is-open .chev {
+  transform: rotate(90deg);
+}
+html.theme-dark .expense-future-toggle {
+  background: linear-gradient(90deg, rgba(120, 53, 15, 0.55), rgba(146, 64, 14, 0.4));
+  border-color: rgba(251, 191, 36, 0.35);
+  color: #fef3c7;
+}

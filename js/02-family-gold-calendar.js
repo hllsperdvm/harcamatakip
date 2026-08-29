@@ -2192,6 +2192,7 @@
                         if (statsTab && !statsTab.classList.contains('hidden')) {
                             try { if (typeof renderCardStatements === 'function') { renderCardStatements('bekir'); renderCardStatements('duygu'); } } catch (_) {}
                             try { if (typeof renderCurrentStatements === 'function') renderCurrentStatements(); } catch (_) {}
+                            try { if (typeof updateStatsPanel === 'function') updateStatsPanel(); } catch (_) {}
                         }
                     }, function(e) { console.warn('cardStatements', e); });
                 }

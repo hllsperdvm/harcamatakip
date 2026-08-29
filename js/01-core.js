@@ -1036,7 +1036,7 @@
         const AMOUNT_MIN = 0.01;
         const AMOUNT_MAX = 999999;
 
-        let displayLimit = 10;
+        let displayLimit = 5;
         let renderTimeout = null;
 
         function escapeHtml(str) {
@@ -1546,7 +1546,7 @@ window.renderHomeTab = function() {
                     if (bar) {
                         const pctW = target > 0 ? Math.min(100, (periodCard / target) * 100) : 0;
                         bar.style.width = pctW + '%';
-                        bar.className = 'h-full rounded-full transition-all ' + (pctW >= 100 ? 'bg-rose-500' : pctW >= 80 ? 'bg-amber-500' : 'bg-sky-500');
+                        bar.className = 'h-full rounded-full transition-all ' + (pctW >= 100 ? 'bg-rose-600' : pctW >= 85 ? 'bg-rose-500' : pctW >= 70 ? 'bg-orange-500' : pctW >= 50 ? 'bg-amber-500' : pctW >= 30 ? 'bg-lime-500' : 'bg-emerald-500');
                     }
                 } catch (_) {}
 
