@@ -162,10 +162,10 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                     </div>
                     <div>
                         <label class="block text-[11px] font-black text-slate-400 uppercase tracking-wider mb-2 ml-1">Şifre</label>
-                        <input type="password" id="sifreInput" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="current-password" placeholder="••••••" class="w-full rounded-2xl border-none bg-slate-50 p-4 text-center text-2xl tracking-[0.35em] font-bold ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" onkeypress="handlePasswordKeyPress(event)">
+                        <input type="password" id="sifreInput" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="current-password" placeholder="••••••" class="w-full rounded-2xl border-none bg-slate-50 p-4 text-center text-2xl tracking-[0.35em] font-bold ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" onkeydown="if(event.key==='Enter'){event.preventDefault();if(typeof checkPassword==='function')checkPassword();}">
                     </div>
                     <p class="text-[10px] text-slate-400 font-semibold text-center">Sayısal şifre (Firebase Authentication · en az 6 rakam önerilir)</p>
-                    <button type="button" id="loginBtn" onclick="checkPassword()" class="w-full rounded-2xl bg-indigo-600 py-4 font-bold text-white shadow-lg shadow-indigo-100 transition hover:bg-indigo-700 active:scale-[0.98] mt-2">Giriş Yap</button>
+                    <button type="button" id="loginBtn" onclick="if(typeof checkPassword==='function')checkPassword(); else alert('Uygulama henüz yükleniyor, birkaç saniye bekleyin.');" class="w-full rounded-2xl bg-indigo-600 py-4 font-bold text-white shadow-lg shadow-indigo-100 transition hover:bg-indigo-700 active:scale-[0.98] mt-2">Giriş Yap</button>
                 </div>
             </div>
         </div>
@@ -263,7 +263,10 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         </div>
                     </div>
                     <p class="text-[11px] text-slate-400 font-semibold mb-3">Açık görevler ve yaklaşan ödemeler / hatırlatmalar</p>
-                    <div id="homeAgendaList" class="space-y-2"></div>
+                    <div class="expense-history-scroll home-agenda-scroll-wrap">
+                        <div id="homeAgendaList" class="space-y-2 p-0.5"></div>
+                    </div>
+                    <div id="homeAgendaMore" class="pt-2"></div>
                 </div>
 
                 <button type="button" data-layout-block="homeQuickAdd" data-home-card="homeQuickAdd" onclick="switchTab('expense'); openExpenseModal();"
@@ -277,7 +280,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                 </button>
 
                 <div data-layout-block="homeGrid" class="grid grid-cols-2 gap-3">
-                    <div data-home-card="homeToday" class="yuvam-card stripe-today bg-white rounded-2xl p-4 card-shadow border border-slate-100">
+                    <div data-home-card="homeToday" role="button" tabindex="0" onclick="showTodayExpenses()" class="yuvam-card stripe-today bg-white rounded-2xl p-4 card-shadow border border-slate-100 cursor-pointer active:scale-[0.98] transition" title="Bugünün harcamalarını göster">
                         <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Bugün Harcama</p>
                         <p id="homeTodaySpend" class="text-lg font-black text-slate-800 mt-1">0 TL</p>
                         <p id="homeTodayCount" class="text-[11px] text-slate-400 font-semibold">0 kayıt</p>
@@ -288,7 +291,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         <p class="text-[10px] text-slate-500 font-semibold mt-0.5">Nakit <span id="homePeriodCash">0</span> · KK <span id="homePeriodCard">0</span></p>
                         <p class="text-[11px] text-slate-400 font-semibold">29–28 ekstre</p>
                     </div>
-                    <button type="button" data-home-card="homeGold" onclick="switchTab('expense')" class="yuvam-card bg-white rounded-2xl p-4 card-shadow border border-amber-100 text-left col-span-2">
+                    <button type="button" data-home-card="homeGold" onclick="switchTab('expense')" class="yuvam-card stripe-gold bg-white rounded-2xl p-4 card-shadow border border-amber-100 text-left col-span-2">
                         <p class="text-[10px] font-black text-amber-700/80 uppercase tracking-wide">🥇 Altın Yatırımı</p>
                         <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 mt-1">
                             <p id="homeGoldPnL" class="text-xl font-black text-slate-800">—</p>
@@ -347,7 +350,10 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         <button type="button" onclick="setPlanFilter('task')" id="planFilterTask" class="text-[11px] font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-600">Görevler</button>
                         <button type="button" onclick="setPlanFilter('cal')" id="planFilterCal" class="text-[11px] font-bold px-3 py-1.5 rounded-full bg-slate-100 text-slate-600">Takvim</button>
                     </div>
-                    <div id="familyPlanList" class="space-y-2"></div>
+                    <div class="expense-history-scroll plan-list-scroll-wrap">
+                        <div id="familyPlanList" class="space-y-2 p-0.5"></div>
+                    </div>
+                    <div id="familyPlanMore" class="pt-2"></div>
                 </div>
 
                 <div data-layout-block="planNotesForm" data-stripe="plan" class="bg-white p-5 sm:p-8 rounded-[1.75rem] sm:rounded-[2.5rem] card-shadow border border-slate-100">
@@ -443,7 +449,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                 </div>
 
                 <!-- Aylık Bütçe Hedefi progress -->
-                <div id="budgetTargetCard" class="bg-white p-5 sm:p-6 rounded-3xl card-shadow border border-slate-100">
+                <div id="budgetTargetCard" class="bg-white p-5 sm:p-6 rounded-3xl card-shadow border border-slate-100" data-stripe="expense">
                     <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
                         <div data-layout-block="expenseBudget">
                             <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Dönem bütçe hedefi</p>
@@ -521,7 +527,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
 <!-- Kredi Kartları -->
                 <div data-layout-block="expenseCards" class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <!-- Bekir Kredi Kartı -->
-                    <div id="bekirDebtCard" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative overflow-hidden hidden">
+                    <div id="bekirDebtCard" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative overflow-hidden hidden" data-stripe="expense">
                         <div class="flex justify-between items-start mb-6">
                             <div>
                                 <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Bekir Kredi Kartı</p>
@@ -548,7 +554,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                     </div>
 
                     <!-- Duygu Kredi Kartı -->
-                    <div id="duyguDebtCard" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative overflow-hidden hidden">
+                    <div id="duyguDebtCard" class="bg-white p-6 rounded-3xl card-shadow border border-slate-100 relative overflow-hidden hidden" data-stripe="expense">
                         <div class="flex justify-between items-start mb-6">
                             <div>
                                 <p class="text-[10px] font-black text-slate-400 uppercase mb-1">Duygu Kredi Kartı</p>
@@ -623,6 +629,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                             <button type="button" onclick="downloadPeriodExcel()" class="eh-btn eh-btn-teal">📅 Dönem</button>
                             <button type="button" onclick="resetFilters()" class="eh-btn eh-btn-ghost">Temizle</button>
                         </div>
+                        <p id="expenseSearchSum" class="hidden text-sm font-black text-slate-700 mt-1"></p>
                     </div>
 
                     <!-- Filtreler (Gizli Panel) -->
@@ -633,7 +640,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         </div>
                         <div class="flex flex-col gap-1 sm:col-span-2">
                             <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Kelime ara</label>
-                            <input type="text" id="filterSearch" placeholder="ör. Sigara, market…" class="filter-control" onkeydown="if(event.key==='Enter'){event.preventDefault();applyFilters();}">
+                            <input type="text" id="filterSearch" placeholder="ör. Sigara, 100, market…" class="filter-control" onkeydown="if(event.key==='Enter'){event.preventDefault();applyFilters();}">
                         </div>
                         <div class="flex flex-col gap-1">
                             <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Kişi</label>
@@ -655,12 +662,6 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                             <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Alışveriş türü</label>
                             <select id="filterShopSubtype" class="filter-control">
                                 <option value="Tümü">Tümü</option>
-                                <option value="Market">Market</option>
-                                <option value="Gıda/Yemek">Gıda/Yemek</option>
-                                <option value="Giyim">Giyim</option>
-                                <option value="Elektronik">Elektronik</option>
-                                <option value="Ev & Yaşam">Ev &amp; Yaşam</option>
-                                <option value="Kişisel Bakım">Kişisel Bakım</option>
                                 <option value="__empty__">Alt tür yok</option>
                             </select>
                         </div>
@@ -839,13 +840,21 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
 
 <div id="tabContentStats" class="hidden space-y-6 fade-in">
                 <div class="flex flex-wrap items-center justify-between gap-2">
-                    <h2 class="text-lg font-black text-slate-800">Raporlar</h2>
+                    <h2 class="text-lg font-black text-slate-800 flex items-center gap-2"><span class="icon-ring icon-ring-indigo">📊</span> Raporlar</h2>
                     <p class="text-[11px] text-slate-400 font-semibold">Özet · Dilime / güne tıklayın</p>
                 </div>
 
-                <div class="chart-block max-w-5xl mx-auto w-full">
-                    <h2 id="chartTitle" class="chart-title text-center sm:text-left">Kategori Dağılımı</h2>
-                    <p class="chart-sub text-center sm:text-left">Dönem bazlı · dilime tıklayın</p>
+                <div class="chart-block stripe-stats w-full">
+                    <div class="flex flex-wrap items-start justify-between gap-2 mb-1">
+                        <div class="min-w-0">
+                            <h2 id="chartTitle" class="chart-title text-center sm:text-left">Kategori Dağılımı</h2>
+                            <p class="chart-sub text-center sm:text-left">Dönem seçin · dilime tıklayın</p>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <label class="text-[10px] font-black text-slate-400 uppercase hidden sm:inline">Dönem</label>
+                            <select id="statsCategoryPeriodSelect" onchange="onStatsCategoryPeriodChange()" class="text-xs font-bold border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-800 shadow-sm max-w-[11rem] sm:max-w-[14rem]"></select>
+                        </div>
+                    </div>
                     <div class="chart-wrap chart-box h-80 sm:h-[22rem] md:h-96 max-w-3xl mx-auto sm:max-w-none"><canvas id="expenseChart"></canvas></div>
                     <div class="mt-5 pt-4 border-t border-slate-100 max-w-3xl mx-auto">
                         <h3 class="text-sm font-black text-slate-700 mb-2 text-center sm:text-left">Kategori Özeti</h3>
@@ -853,7 +862,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                     </div>
                 </div>
 
-                <div class="chart-block">
+                <div class="chart-block stripe-stats">
                     <h2 class="chart-title">Haftalık Trend</h2>
                     <p class="chart-sub">Güne tıklayın · detay açılır</p>
                     <div class="chart-wrap chart-box h-56 sm:h-64"><canvas id="weeklyTrendChart"></canvas></div>
@@ -865,23 +874,23 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         <span id="statsExtraChevron" class="text-slate-400 font-bold">▸</span>
                     </button>
                     <div id="statsExtraCharts" class="hidden border-t border-slate-100 p-4 space-y-6">
-                        <div class="chart-block">
+                        <div class="chart-block stripe-stats">
                             <h2 class="chart-title">Faturalar (Aylık)</h2>
                             <p class="chart-sub">Elektrik · Su · Doğalgaz · Telefon · İnternet · Abonelik</p>
                             <div class="chart-wrap chart-box h-[26rem] sm:h-96"><canvas id="billsChart"></canvas></div>
                         </div>
-                        <div class="chart-block">
+                        <div class="chart-block stripe-stats">
                             <h2 class="chart-title">Ekstre Dönemi Trendi (29–28)</h2>
                             <p class="chart-sub">Dönem toplamları</p>
                             <div class="chart-wrap chart-box h-56 sm:h-64"><canvas id="monthlyTrendChart"></canvas></div>
                         </div>
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div class="chart-block">
+                            <div class="chart-block stripe-stats">
                                 <h2 class="chart-title">Bu Dönem vs Önceki</h2>
                                 <p id="monthCompareSummary" class="chart-sub">Karşılaştırma</p>
                                 <div class="chart-wrap chart-box h-56 sm:h-64"><canvas id="monthCompareChart"></canvas></div>
                             </div>
-                            <div class="chart-block">
+                            <div class="chart-block stripe-stats">
                                 <h2 class="chart-title">Kategori Trendi (3 Dönem)</h2>
                                 <p class="chart-sub">En yüksek 5 kategori</p>
                                 <div class="chart-wrap chart-box h-56 sm:h-72"><canvas id="categoryTrendChart"></canvas></div>
@@ -890,23 +899,24 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                     </div>
                 </div>
 
-                <div class="hidden" id="monthlySummaryReport"></div>
-                <div class="hidden" id="personSummaryReport"></div>
-
-                <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100">
-                    <div class="flex justify-between items-center mb-6">
+                                
+                <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100 overflow-hidden" data-stripe="stats">
+                    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
                         <h3 class="text-xl font-black">📊 Kredi Kartı Ekstreleri</h3>
-                        <p class="text-[11px] text-slate-400 font-semibold uppercase">Güncel</p>
+                        <button type="button" onclick="openConvertToStatementModal()" class="text-xs font-bold px-3 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm">Ekstreye Çevir</button>
                     </div>
-                    <div id="currentStatementsContainer" class="space-y-6"></div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-                        <div>
-                            <h4 class="font-black text-slate-800 mb-3">Bekir</h4>
-                            <div id="bekirCardStatements"></div>
-                        </div>
-                        <div>
-                            <h4 class="font-black text-slate-800 mb-3">Duygu</h4>
-                            <div id="duyguCardStatements"></div>
+                    <div id="currentStatementsContainer" class="space-y-3"></div>
+                    <div class="mt-6 pt-5 border-t border-slate-100">
+                        <p class="text-[11px] font-black text-slate-400 uppercase tracking-wider mb-3">Ödenmiş ekstreler</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <h4 class="text-xs font-black text-blue-600 mb-2">Bekir</h4>
+                                <div id="bekirCardStatements" class="report-list-scroll space-y-1.5"></div>
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-black text-pink-600 mb-2">Duygu</h4>
+                                <div id="duyguCardStatements" class="report-list-scroll space-y-1.5"></div>
+                            </div>
                         </div>
                     </div>
                     <div class="mt-8 pt-6 border-t border-slate-100">
@@ -914,21 +924,24 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                             <h4 class="font-black text-slate-800">🍽️ Multinet</h4>
                             <p id="multinetPeriodTotal" class="text-sm font-black text-emerald-700">0 TL</p>
                         </div>
-                        <p class="text-[11px] text-slate-400 font-semibold mb-3">Alışveriş · ayın 1'i → sonraki ayın 1'i · dönem harcamasına dahil değil</p>
-                        <div id="multinetStatements" class="space-y-2"></div>
+                        <p class="text-[11px] text-slate-400 font-semibold mb-2">Alışveriş · ayın 1'i → sonraki ayın 1'i · dönem harcamasına dahil değil</p>
+                        <div id="multinetStatements" class="report-list-scroll space-y-2"></div>
                     </div>
                     <div class="mt-4 pt-4 border-t border-slate-100">
-                        <div class="flex items-center justify-between gap-2 mb-2">
+                        <div class="flex items-center justify-between gap-2 mb-2 flex-wrap">
                             <h4 class="font-black text-slate-800">🤝 Başkası adına / Alacak</h4>
-                            <p id="onBehalfPendingTotal" class="text-sm font-black text-amber-700">0 TL</p>
+                            <div class="flex items-center gap-2">
+                                <p id="onBehalfPendingTotal" class="text-sm font-black text-amber-700">0 TL</p>
+                                <button type="button" onclick="openOnBehalfHistoryModal()" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200">Alınan borçlar</button>
+                            </div>
                         </div>
-                        <p class="text-[10px] text-slate-400 font-semibold mb-2">Yalnızca ödeme günü gelmiş, geri alınmamış aylar · gelecek gösterilmez</p>
-                        <div id="onBehalfStatements" class="space-y-2"></div>
+                        <p class="text-[10px] text-slate-400 font-semibold mb-2">Bekleyen alacaklar · gelecek ay gösterilmez</p>
+                        <div id="onBehalfStatements" class="report-list-scroll space-y-2"></div>
                     </div>
                 </div>
 
                 <!-- Canlı dönem özeti -->
-                <div id="periodLiveSummary" class="bg-white p-6 sm:p-8 rounded-[2rem] card-shadow border border-indigo-100">
+                <div id="periodLiveSummary" class="bg-white p-6 sm:p-8 rounded-[2rem] card-shadow border border-indigo-100 overflow-hidden" data-stripe="stats">
                     <div class="flex flex-wrap items-start justify-between gap-2 mb-4">
                         <div>
                             <h3 class="text-lg font-black text-slate-900">📋 Dönem Özeti</h3>
@@ -940,6 +953,20 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         <p class="text-slate-400 font-semibold text-center py-4">Yükleniyor…</p>
                     </div>
                     <div id="periodLiveAdvice" class="mt-4 pt-4 border-t border-slate-100 text-sm text-slate-600 font-medium leading-relaxed"></div>
+                </div>
+
+                <!-- Kapanış raporları (dönem bitince) -->
+                <div id="periodCloseReportsCard" class="bg-white p-6 sm:p-8 rounded-[2rem] card-shadow border border-slate-100 overflow-hidden" data-stripe="stats">
+                    <div class="flex flex-wrap items-start justify-between gap-2 mb-4">
+                        <div>
+                            <h3 class="text-lg font-black text-slate-900">📑 Dönem Raporları</h3>
+                            <p class="text-[11px] text-slate-400 font-semibold mt-0.5">Kapanış otomatik · Yenile = bugüne kadar ara rapor</p>
+                        </div>
+                        <button type="button" onclick="ensureClosedPeriodReports(true)" class="text-[11px] font-bold px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200">Yenile</button>
+                    </div>
+                    <div id="periodCloseReportsList" class="space-y-2">
+                        <p class="text-sm text-slate-400 font-semibold text-center py-4">Yükleniyor…</p>
+                    </div>
                 </div>
             </div>
 
@@ -1394,7 +1421,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
     <!-- MODALLAR -->
 
     <div id="ibanModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[110] p-4">
-        <div class="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden slide-in">
+        <div class="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden slide-in" onclick="event.stopPropagation()">
             <div class="bg-indigo-600 p-6 text-white flex justify-between items-center">
                 <h2 class="text-2xl font-black">IBAN Ekle</h2>
                 <button type="button" onclick="closeIbanModal()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition text-2xl font-light">&times;</button>
@@ -1424,9 +1451,9 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
 
 
     <div id="siteSearchModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-start sm:items-center justify-center z-[130] p-4 pt-16 sm:pt-4">
-        <div class="bg-white w-full max-w-lg rounded-[1.75rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+        <div class="bg-white w-full max-w-lg rounded-[1.75rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
             <div class="p-4 border-b border-slate-100 flex gap-2 items-center">
-                <input type="search" id="siteSearchInput" placeholder="Ara… (örn. Corolla, sigorta, market)"
+                <input type="search" id="siteSearchInput" placeholder="Ara… (Corolla, sigorta, 100…)"
                     class="flex-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200 focus:ring-2 focus:ring-sky-500"
                     oninput="runSiteSearch(this.value)">
                 <button type="button" onclick="closeSiteSearch()" class="w-10 h-10 rounded-xl bg-slate-100 font-bold text-slate-500">&times;</button>
@@ -1439,7 +1466,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
 
     <!-- Harcama Modalı -->
     <div id="expenseModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-end sm:items-center justify-center z-[110] p-0 sm:p-4">
-        <div class="expense-modal-sheet bg-white w-full max-w-lg rounded-t-[1.75rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden slide-in flex flex-col max-h-[92vh] sm:max-h-[90vh]">
+        <div class="expense-modal-sheet bg-white w-full max-w-lg rounded-t-[1.75rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden slide-in flex flex-col max-h-[92vh] sm:max-h-[90vh]" onclick="event.stopPropagation()">
             <div class="bg-indigo-600 px-5 py-4 sm:p-6 text-white flex justify-between items-center shrink-0">
                 <h2 id="formTitle" class="text-lg sm:text-2xl font-black">Harcama Kaydı</h2>
                 <button type="button" onclick="closeExpenseModal()" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition text-2xl font-light">&times;</button>
@@ -1588,8 +1615,41 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
 
 
     
+    
+    <!-- Alınan borçlar (başkası adına geçmiş) -->
+    <div id="onBehalfHistoryModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
+            <div class="bg-emerald-700 p-5 text-white flex justify-between items-start shrink-0 gap-3">
+                <div class="min-w-0">
+                    <h2 class="text-lg font-black">Alınan borçlar</h2>
+                    <p id="onBehalfHistoryTotal" class="text-sm text-emerald-100 font-bold mt-0.5">0 TL</p>
+                </div>
+                <button type="button" onclick="closeOnBehalfHistoryModal()" class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-xl leading-none shrink-0">&times;</button>
+            </div>
+            <div id="onBehalfHistoryBody" class="p-5 overflow-y-auto space-y-2 text-sm"></div>
+        </div>
+    </div>
+
+    
+    <!-- Dönem kapanış raporu -->
+    <div id="periodCloseReportModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-end sm:items-center justify-center z-[120] p-0 sm:p-4">
+        <div class="bg-white w-full sm:max-w-xl sm:rounded-[1.75rem] rounded-t-[1.5rem] shadow-2xl overflow-hidden flex flex-col period-report-sheet" onclick="event.stopPropagation()" style="max-height:92vh;height:92vh;">
+            <div class="bg-slate-900 px-5 py-4 text-white flex justify-between items-start shrink-0 gap-3">
+                <div class="min-w-0">
+                    <h2 id="periodCloseReportTitle" class="text-lg font-black">Dönem Raporu</h2>
+                    <p id="periodCloseReportSub" class="text-xs text-slate-300 font-semibold mt-1"></p>
+                </div>
+                <button type="button" onclick="closePeriodCloseReportModal()" class="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 text-xl leading-none shrink-0">&times;</button>
+            </div>
+            <div id="periodCloseReportBody" class="flex-1 min-h-0 overflow-y-auto overscroll-contain p-5 text-sm text-slate-700 leading-relaxed space-y-2" style="-webkit-overflow-scrolling:touch;"></div>
+            <div class="shrink-0 border-t border-slate-100 p-3 bg-slate-50">
+                <button type="button" onclick="closePeriodCloseReportModal()" class="w-full py-3 rounded-xl bg-slate-900 text-white text-sm font-bold">Kapat</button>
+            </div>
+        </div>
+    </div>
+
     <div id="categoryDetailModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
-        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
             <div class="bg-indigo-600 p-5 text-white flex justify-between items-center shrink-0">
                 <div>
                     <h2 id="categoryDetailTitle" class="text-lg font-black">Kategori</h2>
@@ -1604,7 +1664,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
     
     <!-- Kredi Kartı Ekstre Detay -->
     <div id="statementDetailModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
-        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
             <div class="bg-slate-900 p-5 text-white flex justify-between items-start shrink-0">
                 <div>
                     <h2 id="statementTitle" class="text-lg font-black">Kredi Kartı Ekstresi</h2>
@@ -1619,7 +1679,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
 
     <!-- Taksitler / Ay başlıkları -->
     <div id="installmentsModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
-        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
             <div class="bg-purple-600 p-5 text-white flex justify-between items-center shrink-0">
                 <h2 class="text-lg font-black">💳 Tüm Taksitler</h2>
                 <p class="text-[11px] text-slate-400 font-semibold mt-0.5">Bu dönem ve gelecek dönemler</p>
@@ -1644,7 +1704,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
     
     <!-- Sekme Düzenle Modal -->
     <div id="tabEditModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[130] p-4">
-        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden">
+        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
             <div class="bg-violet-600 p-5 text-white flex justify-between items-center">
                 <h2 class="text-lg font-black">Sekmeyi Düzenle</h2>
                 <button type="button" onclick="closeTabEditModal()" class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-xl leading-none">&times;</button>
@@ -1684,7 +1744,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
 
     <!-- Tüm bildirimler modal -->
     <div id="notifAllModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[130] p-4">
-        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
             <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-2">
                 <h2 class="text-lg font-black text-slate-900">Tüm bildirimler</h2>
                 <button type="button" onclick="closeNotifAllModal()" class="w-9 h-9 rounded-full bg-slate-100 font-bold text-slate-500">&times;</button>
@@ -1694,8 +1754,48 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
     </div>
 
     <!-- Kredi Kartı Borç Giriş Modal -->
+
+    <!-- Güncel harcamayı ekstre borcuna çevir -->
+    <div id="convertStatementModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 sm:p-6 border border-slate-100">
+            <div class="flex items-start justify-between gap-2 mb-4">
+                <div>
+                    <h2 class="text-lg font-black text-slate-900">Ekstreye Çevir</h2>
+                    <p class="text-[11px] text-slate-400 font-semibold mt-0.5">Güncel KK toplamını aktif borç olarak kaydet</p>
+                </div>
+                <button type="button" onclick="closeConvertToStatementModal()" class="text-slate-400 hover:text-slate-700 text-xl leading-none">×</button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase">Kişi</label>
+                    <select id="convertStmtPerson" onchange="onConvertStmtPersonChange()" class="w-full mt-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold">
+                        <option value="bekir">Bekir</option>
+                        <option value="duygu">Duygu</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase">Dönem</label>
+                    <p id="convertStmtPeriod" class="mt-1 text-sm font-bold text-slate-700">—</p>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase">Ekstre tutarı (TL)</label>
+                    <input type="number" step="0.01" min="0" id="convertStmtAmount" class="w-full mt-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold" placeholder="0,00">
+                    <p class="text-[10px] text-slate-400 mt-1">Hesaplanan tutarı düzenleyebilirsiniz</p>
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-slate-400 uppercase">Son ödeme tarihi</label>
+                    <input type="date" id="convertStmtDue" class="w-full mt-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-bold">
+                </div>
+            </div>
+            <div class="flex gap-2 mt-5">
+                <button type="button" onclick="closeConvertToStatementModal()" class="flex-1 py-2.5 rounded-xl text-sm font-bold bg-slate-100 text-slate-700">İptal</button>
+                <button type="button" onclick="saveConvertToStatement()" class="flex-1 py-2.5 rounded-xl text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700">Kaydet</button>
+            </div>
+        </div>
+    </div>
+
     <div id="cardDebtModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4">
-        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden">
+        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
             <div class="bg-amber-500 p-5 text-white flex justify-between items-center">
                 <h2 id="cardDebtModalTitle" class="text-lg font-black">Kredi Kartı Borcu</h2>
                 <button type="button" onclick="closeCardDebtModal()" class="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 text-xl leading-none">&times;</button>
@@ -1787,7 +1887,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
 
 
     <div id="surahModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center z-[130] p-4" onclick="if(event.target===this)closeSurahModal()">
-        <div class="bg-white rounded-[1.75rem] shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden border border-slate-100">
+        <div class="bg-white rounded-[1.75rem] shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden border border-slate-100" onclick="event.stopPropagation()">
             <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3 shrink-0">
                 <h3 id="surahModalTitle" class="text-base font-black text-slate-900 truncate">Sure</h3>
                 <button type="button" onclick="closeSurahModal()" class="text-slate-400 hover:text-slate-700 font-black text-lg leading-none px-2">×</button>

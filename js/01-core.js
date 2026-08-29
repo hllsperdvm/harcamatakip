@@ -3,9 +3,19 @@
  * GitHub: js/ klasörünün tamamını yükleyin.
  */
         // Firebase Compat (yerel file:// ile çalışır; modül gerekmez)
+        // Login handler'lar Firebase olmasa da tanımlı kalsın (ReferenceError olmasın)
+        window.handlePasswordKeyPress = function(event) {
+            if (event && (event.key === 'Enter' || event.keyCode === 13)) {
+                if (event.preventDefault) event.preventDefault();
+                if (typeof window.checkPassword === 'function') window.checkPassword();
+            }
+        };
         if (typeof firebase === 'undefined') {
             console.error('Firebase SDK henüz yok — bootstrap beklenmeli');
-            throw new Error('Firebase SDK yüklenmedi');
+            window.checkPassword = window.checkPassword || function() {
+                alert('Firebase henüz yüklenmedi. Birkaç saniye bekleyip tekrar deneyin veya Ctrl+F5 yapın.');
+            };
+            // throw etme — diğer dosyalar ve login UI çalışabilsin
         }
         // Firebase web apiKey kasıtlı olarak istemcidedir; koruma Firestore Rules + Auth ile sağlanır.
         const firebaseConfig = {
@@ -17,13 +27,21 @@
             appId: "1:1051789650081:web:3c7d4bc099eb7b5f0f68e0"
         };
 
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const auth = firebase.auth();
-        try { auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch (_) {}
+        let db = null;
+        let auth = null;
+        try {
+            if (typeof firebase !== 'undefined') {
+                if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                auth = firebase.auth();
+            }
+        } catch (e) {
+            console.error('Firebase init', e);
+        }
+        try { if (auth) auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL); } catch (_) {}
         // Çevrimdışı önbellek: veri ekle/düzenle internet yokken de çalışır, sonra senkron
         try {
-            db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
+            if (db) db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
                 if (err && err.code === 'failed-precondition') {
                     console.warn('Firestore persistence: birden fazla sekme açık');
                 } else if (err && err.code === 'unimplemented') {
@@ -516,11 +534,11 @@
                 const amt = (Number(e.displayAmount) || Number(e.amount) || 0).toLocaleString('tr-TR') + ' TL';
                 const key = 'exp-' + d + '-' + (e.id || desc);
                 if (days === 0) {
-                    pushNotif(key, 'critical', '📌', 'Bugün: ' + desc, sub + ' · ' + amt + (e.person ? ' · ' + e.person : ''));
+                    pushNotif(key, 'critical', '💸', 'Bugün: ' + desc, sub + ' · ' + amt + (e.person ? ' · ' + e.person : ''));
                 } else if (days <= 3) {
-                    pushNotif(key, 'warning', '📅', days + ' gün sonra: ' + desc, formatDateTR(d) + ' · ' + amt);
+                    pushNotif(key, 'warning', '💸', days + ' gün sonra: ' + desc, formatDateTR(d) + ' · ' + amt);
                 } else {
-                    pushNotif(key, 'info', '🗓️', days + ' gün sonra: ' + desc, formatDateTR(d) + ' · ' + amt);
+                    pushNotif(key, 'info', '💳', days + ' gün sonra: ' + desc, formatDateTR(d) + ' · ' + amt);
                 }
             });
 
@@ -636,7 +654,7 @@
                         if (!datePart) datePart = (typeof formatDateTR === 'function' ? formatDateTR(md) : md) + (dayLab ? (' ' + dayLab) : '');
                         const line = days === 0
                             ? ('Bugün mesai - ' + datePart)
-                            : (days + ' gün sonra mesai - ' + datePart);
+                            : (days + ' Gün Sonra Mesai - ' + datePart);
                         pushNotif(key, days === 0 ? 'critical' : (days <= 3 ? 'warning' : 'info'), '🏭', line, '');
                     }
                 }
@@ -1119,10 +1137,23 @@
         function formatPeriodLabel(periodKey) {
             if (!periodKey) return '-';
             const [y, m] = periodKey.split('-').map(Number);
-            const end = new Date(y, m - 1, 28);
-            const start = new Date(y, m - 2, 29);
-            const months = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
-            return `${String(start.getDate()).padStart(2, '0')} ${months[start.getMonth()]} – ${String(end.getDate()).padStart(2, '0')} ${months[end.getMonth()]} ${end.getFullYear()}`;
+            if (!y || !m) return periodKey;
+            // periodConfig günlerine göre (varsayılan 29–28)
+            const startDay = Math.min(31, Math.max(1, Number((periodConfig && periodConfig.startDay) || 29)));
+            const endDay = Math.min(31, Math.max(1, Number((periodConfig && periodConfig.endDay) || 28)));
+            const end = new Date(y, m - 1, endDay);
+            const start = startDay > endDay
+                ? new Date(y, m - 2, startDay)
+                : new Date(y, m - 1, startDay);
+            const months = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+            const sd = start.getDate();
+            const ed = end.getDate();
+            const sy = start.getFullYear();
+            const ey = end.getFullYear();
+            if (sy === ey) {
+                return sd + ' ' + months[start.getMonth()] + ' – ' + ed + ' ' + months[end.getMonth()] + ' ' + ey;
+            }
+            return sd + ' ' + months[start.getMonth()] + ' ' + sy + ' – ' + ed + ' ' + months[end.getMonth()] + ' ' + ey;
         }
 
         function getPreviousPeriodKeys(count) {
@@ -1401,7 +1432,17 @@
             }
         };
 
-        window.renderHomeTab = function() {
+        
+        window._homeUpcomingLimit = 5;
+        window.loadMoreHomeUpcoming = function() {
+            window._homeUpcomingLimit = (window._homeUpcomingLimit || 5) + 5;
+            try {
+                if (typeof renderHomeTab === 'function') renderHomeTab();
+                else if (typeof renderApp === 'function') renderApp();
+            } catch (_) {}
+        };
+
+window.renderHomeTab = function() {
             try {
                 // Fikstür boşsa arka planda yükle → yaklaşan maçlar gelsin
                 try {
@@ -1414,7 +1455,9 @@
                 } catch (_) {}
                 try {
                     if (!(superLigFixturesCache && superLigFixturesCache.length)) {
-                        if (typeof ensureGsFixturesForHome === 'function') ensureGsFixturesForHome();
+                        setTimeout(function() {
+                            try { if (typeof ensureGsFixturesForHome === 'function') ensureGsFixturesForHome(); } catch (_) {}
+                        }, 1200);
                     }
                 } catch (_) {}
                 const greet = document.getElementById('homeGreeting');
@@ -1422,6 +1465,13 @@
                 const hour = new Date().getHours();
                 const hi = hour < 12 ? 'Günaydın' : (hour < 18 ? 'İyi günler' : 'İyi akşamlar');
                 if (greet) greet.textContent = hi + (name ? ', ' + name : '');
+                try {
+                    const hero = document.getElementById('homeHeroBanner');
+                    if (hero) {
+                        hero.classList.remove('hero-morning', 'hero-day', 'hero-evening');
+                        hero.classList.add(hour < 12 ? 'hero-morning' : (hour < 18 ? 'hero-day' : 'hero-evening'));
+                    }
+                } catch (_) {}
 
                 try { if (typeof loadDailyAyah === 'function') loadDailyAyah(true); } catch (_) {}
 
@@ -1433,7 +1483,7 @@
                 }
                 setTimeout(function() {
                     try { if (typeof loadHomeWeather === 'function') loadHomeWeather(false); } catch (_) {}
-                }, 2000);
+                }, 5000);
 
                 const period = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
                 const badge = document.getElementById('homePeriodBadge');
@@ -1445,10 +1495,12 @@
                     const list = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : [];
                     list.forEach(function(e) {
                         if (!e || e.installmentLabel === 'Gelir') return;
-                        // Multinet / başkası adına — dönem toplamına dahil değil
-                        if (typeof isMultinetPayment === 'function' && isMultinetPayment(e.paymentType)) return;
-                        if (typeof isOnBehalfExpense === 'function' && isOnBehalfExpense(e)) return;
-                        if (e.isOnBehalf) return;
+                        // Multinet dönem toplamına dahil değil; başkası adına dahil (kart ekstresi)
+                        if (typeof countsInPeriodTotals === 'function') {
+                            if (!countsInPeriodTotals(e)) return;
+                        } else if (typeof isMultinetPayment === 'function' && isMultinetPayment(e.paymentType)) {
+                            return;
+                        }
                         const amt = Number(e.displayAmount) || 0;
                         if (e.effectiveMonth === period) {
                             periodSum += amt;
@@ -1532,16 +1584,16 @@
                                 const badge = overdue
                                     ? ' <span class="inline-flex items-center gap-0.5 text-[10px] font-black text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded-md">❗ GEÇTİ</span>'
                                     : '';
-                                return '<div class="flex gap-2 items-start p-2.5 rounded-xl ' +
-                                    (overdue ? 'bg-rose-50 border border-rose-200' : 'bg-slate-50 border border-slate-100') + '">' +
+                                return '<div class="agenda-item agenda-task' + (overdue ? ' is-overdue' : '') + '">' +
                                     '<span class="text-sm shrink-0">' + (overdue ? '❗' : '⬜') + '</span>' +
-                                    '<div class="min-w-0"><p class="text-sm font-bold text-slate-800">' + escapeHtml(t.text || '-') + badge + '</p>' +
-                                    (sub ? '<p class="text-[10px] text-slate-400 font-semibold">' + escapeHtml(sub) + '</p>' : '') +
+                                    '<div class="min-w-0"><p class="agenda-title">' + escapeHtml(t.text || '-') + badge + '</p>' +
+                                    (sub ? '<p class="agenda-sub">' + escapeHtml(sub) + '</p>' : '') +
                                     '</div></div>';
                             }).join('');
                         }
 
                         let upcoming = [];
+                        let allUpcoming = [];
                         try {
                             const allN = (typeof collectAppNotifications === 'function')
                                 ? collectAppNotifications().filter(function(n) { return n && n.category !== 'activity'; })
@@ -1563,24 +1615,39 @@
                                 const sev = { critical: 0, warning: 1, info: 2 };
                                 return (sev[a.severity] != null ? sev[a.severity] : 3) - (sev[b.severity] != null ? sev[b.severity] : 3);
                             });
-                            upcoming = gs.concat(mesai).concat(rest).slice(0, 6);
+                            allUpcoming = gs.concat(mesai).concat(rest);
+                            try { window._homeUpcomingTotal = allUpcoming.length; } catch (_) {}
+                            const upLimit = Math.max(5, window._homeUpcomingLimit || 5);
+                            upcoming = allUpcoming.slice(0, upLimit);
                         } catch (_) {}
                         if (upcoming.length) {
                             html += '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mt-3 mb-1.5">Yaklaşanlar</p>';
                             html += upcoming.map(function(n) {
                                 const msg = (n.message || '').trim();
-                                return '<div class="flex gap-2 items-start p-2.5 rounded-xl bg-amber-50/80 border border-amber-100">' +
+                                return '<div class="agenda-item">' +
                                     '<span class="text-base shrink-0">' + (n.icon || '🔔') + '</span>' +
-                                    '<div class="min-w-0"><p class="text-sm font-bold text-slate-800">' + escapeHtml(n.title || '') + '</p>' +
-                                    (msg ? ('<p class="text-[11px] text-slate-500 font-semibold">' + escapeHtml(msg) + '</p>') : '') +
+                                    '<div class="min-w-0"><p class="agenda-title">' + escapeHtml(n.title || '') + '</p>' +
+                                    (msg ? ('<p class="agenda-sub">' + escapeHtml(msg) + '</p>') : '') +
                                     '</div></div>';
                             }).join('');
+                            const lim = Math.max(5, window._homeUpcomingLimit || 5);
+                            const totalUp = (typeof window._homeUpcomingTotal === 'number') ? window._homeUpcomingTotal : upcoming.length;
+                            window._homeUpcomingMoreHtml = (totalUp > lim)
+                                ? ('<button type="button" onclick="loadMoreHomeUpcoming()" class="w-full py-2 rounded-xl text-[11px] font-black text-amber-800 bg-amber-50 border border-amber-100 hover:bg-amber-100 transition">Daha fazla göster (+5) · ' + (totalUp - lim) + ' kaldı</button>')
+                                : '';
+                        } else {
+                            window._homeUpcomingMoreHtml = '';
                         }
 
+                        const agendaMore = document.getElementById('homeAgendaMore');
+                        if (agendaMore) agendaMore.innerHTML = '';
                         if (!html) {
                             agendaEl.innerHTML = yuvamEmptyState('✅', 'Görev veya yaklaşan yok', 'Görev eklemek için Görevler sekmesine gidin', 'Görevler', "switchTab('tasks')");
                         } else {
                             agendaEl.innerHTML = html;
+                            if (agendaMore && window._homeUpcomingMoreHtml) {
+                                agendaMore.innerHTML = window._homeUpcomingMoreHtml;
+                            }
                         }
                     }
                 } catch (_) {}
