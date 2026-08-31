@@ -2163,12 +2163,41 @@
                 const lab = String(i.installmentLabel || '');
                 return lab.indexOf('Tekrar') >= 0 || lab.indexOf('tekrar') >= 0;
             }
+            function isLastInstallmentRow(i) {
+                if (!i) return false;
+                const count = Number(i.installmentCount) || 0;
+                if (count <= 1) return false;
+                const idx = (i.installmentIndex != null) ? Number(i.installmentIndex) : -1;
+                if (idx >= 0) return idx === count - 1;
+                // Etiket üzerinden: Taksit 4/4 veya Tekrar 12/12
+                const lab = String(i.installmentLabel || '');
+                const m = lab.match(/(\d+)\s*\/\s*(\d+)/);
+                if (m) return parseInt(m[1], 10) === parseInt(m[2], 10);
+                return false;
+            }
             function lineRow(i) {
-                return '<div class="flex justify-between gap-2 text-xs text-slate-600">' +
-                    '<span class="min-w-0 truncate">' + escapeHtml(i.description || '-') +
-                    ' <span class="text-slate-400">(' + escapeHtml(i.person || '') + ' · ' +
-                    escapeHtml(i.installmentLabel || '') + ')</span></span>' +
-                    '<span class="font-bold shrink-0">' + Math.round(Number(i.displayAmount) || 0).toLocaleString('tr-TR') + ' TL</span></div>';
+                const last = isLastInstallmentRow(i);
+                const dateStr = i.date
+                    ? ((typeof formatDateTR === 'function') ? formatDateTR(i.date) : String(i.date).slice(0, 10))
+                    : '';
+                const rowCls = last
+                    ? 'flex justify-between gap-2 text-xs text-rose-700 font-bold'
+                    : 'flex justify-between gap-2 text-xs text-slate-600';
+                const badge = last
+                    ? ' <span class="text-[9px] font-black uppercase tracking-wide text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded-md">Son</span>'
+                    : '';
+                return '<div class="' + rowCls + '">' +
+                    '<span class="min-w-0">' +
+                    '<span class="' + (last ? 'text-rose-800' : '') + '">' + escapeHtml(i.description || '-') + '</span>' +
+                    ' <span class="' + (last ? 'text-rose-500' : 'text-slate-400') + '">(' +
+                    escapeHtml(i.person || '') + ' · ' + escapeHtml(i.installmentLabel || '') + ')</span>' +
+                    badge +
+                    (dateStr
+                        ? '<span class="block text-[10px] font-semibold ' + (last ? 'text-rose-500' : 'text-slate-400') + ' mt-0.5">📅 ' + escapeHtml(dateStr) + '</span>'
+                        : '') +
+                    '</span>' +
+                    '<span class="font-bold shrink-0 ' + (last ? 'text-rose-700' : '') + '">' +
+                    Math.round(Number(i.displayAmount) || 0).toLocaleString('tr-TR') + ' TL</span></div>';
             }
             function sectionBlock(title, items, sum, tone) {
                 if (!items.length) return '';

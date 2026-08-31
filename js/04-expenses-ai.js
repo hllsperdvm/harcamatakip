@@ -306,6 +306,7 @@ function getProcessedExpenses() {
 
             const isInc = function(item) { return item && item.installmentLabel === 'Gelir'; };
             const curPeriodKey = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
+            const todayYmd = (typeof todayDateStr === 'function') ? todayDateStr() : '';
             const isCurrentPeriodItem = function(item) {
                 if (!item || !curPeriodKey) return true;
                 if (item.effectiveMonth) return String(item.effectiveMonth) === String(curPeriodKey);
@@ -314,12 +315,50 @@ function getProcessedExpenses() {
                 }
                 return true;
             };
-            // İleri tarihli: sadece aktif ekstre döneminde yapılacaklar
-            const futuresAll = filtered.filter(function(item) {
-                return !isInc(item) && isFutureDateStr(item.date) && isCurrentPeriodItem(item);
+            // Tarih bugünden sonra mı? (YYYY-MM-DD string karşılaştırma)
+            const isFutureForHistory = function(item) {
+                if (!item || !item.date) return false;
+                const s = String(item.date).slice(0, 10);
+                if (todayYmd) return s > todayYmd;
+                return (typeof isFutureDateStr === 'function') && isFutureDateStr(item.date);
+            };
+            // İleri tarihli: SADECE aktif dönem + gelecek tarih
+            let futuresAll = filtered.filter(function(item) {
+                return !isInc(item) && isFutureForHistory(item) && isCurrentPeriodItem(item);
             });
+            // Tüm Taksitler kaynağından eksik kalan (aktif dönem + gelecek tarih) dilimleri ekle
+            try {
+                if (typeof getInstallmentScheduleRows === 'function' && curPeriodKey) {
+                    const seen = {};
+                    futuresAll.forEach(function(e) { if (e && e.id != null) seen[String(e.id)] = true; });
+                    const passesFilters = function(item) {
+                        if (currentPersonFilter !== 'Tümü' && item.person !== currentPersonFilter) return false;
+                        if (currentCategoryFilter !== 'Tümü' && item.category !== currentCategoryFilter) return false;
+                        if (currentPaymentFilter !== 'Tümü' && item.paymentType !== currentPaymentFilter) return false;
+                        if (currentStartDateFilter && item.date < currentStartDateFilter) return false;
+                        if (currentEndDateFilter && item.date > currentEndDateFilter) return false;
+                        if (currentSearchFilter && typeof expenseMatchesTextQuery === 'function') {
+                            if (!expenseMatchesTextQuery(item, currentSearchFilter)) return false;
+                        }
+                        return true;
+                    };
+                    (getInstallmentScheduleRows() || []).forEach(function(row) {
+                        if (!row || isInc(row)) return;
+                        if (String(row.effectiveMonth || '') !== String(curPeriodKey)) return;
+                        if (!isFutureForHistory(row)) return;
+                        if (!passesFilters(row)) return;
+                        const id = String(row.id || '');
+                        if (id && seen[id]) return;
+                        if (id) seen[id] = true;
+                        futuresAll.push(row);
+                    });
+                }
+            } catch (_) {}
+            // Normal liste: gelecek tarihli satırlar HİÇ girmesin (sonraki dönem taksitleri üstte birikmesin)
             const normalsAll = filtered.filter(function(item) {
-                return isInc(item) || !isFutureDateStr(item.date);
+                if (isInc(item)) return true;
+                if (isFutureForHistory(item)) return false;
+                return true;
             });
             const limit = Math.max(5, Number(displayLimit) || 5);
             const normals = normalsAll.slice(0, limit);
@@ -334,7 +373,9 @@ function getProcessedExpenses() {
                 function appendExpenseRow(item, extraClass) {
                     const tr = document.createElement('tr');
                     const isIncome = isInc(item);
-                    const isFuture = !isIncome && isFutureDateStr(item.date);
+                    const isFuture = !isIncome && (typeof isFutureForHistory === 'function'
+                        ? isFutureForHistory(item)
+                        : isFutureDateStr(item.date));
                     tr.className = (extraClass || '') + (isFuture ? ' row-future-expense' : '');
                     tr.className = tr.className.trim();
                     if (isFuture) tr.title = 'İleri tarihli kayıt';
@@ -437,29 +478,17 @@ function getProcessedExpenses() {
 // --- Mobil kartlar: ileri tarihli (açılır) + normal (max displayLimit) ---
             if (cardsHost) {
                 const isIncomeItem = function(item) { return item.installmentLabel === 'Gelir'; };
-                const curPkM = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
-                const isCurPeriodM = function(item) {
-                    if (!item || !curPkM) return true;
-                    if (item.effectiveMonth) return String(item.effectiveMonth) === String(curPkM);
-                    if (typeof getPeriodKeyForDateStr === 'function') {
-                        return getPeriodKeyForDateStr(item.date) === curPkM;
-                    }
-                    return true;
-                };
-                // İleri tarihli: sadece bu dönem
-                const futures = filtered.filter(function(item) {
-                    return !isIncomeItem(item) && isFutureDateStr(item.date) && isCurPeriodM(item);
-                });
-                // Normal listeden ileri tarihlileri ayır; limit normal kayıtlara uygulanır
-                const normalsAll = filtered.filter(function(item) {
-                    return isIncomeItem(item) || !isFutureDateStr(item.date);
-                });
+                // Web tarafında hesaplanan futuresAll / normalsAll ile aynı listeyi kullan
+                const futures = futuresAll.slice();
+                // normalsAll zaten yukarıda ileri tarihliler çıkarılarak hesaplandı
                 const normalDisplayed = Math.min(displayLimit, normalsAll.length);
                 const normals = normalsAll.slice(0, normalDisplayed);
 
                 function buildMobileCard(item) {
                     const isIncome = isIncomeItem(item);
-                    const isFuture = !isIncome && isFutureDateStr(item.date);
+                    const isFuture = !isIncome && (typeof isFutureForHistory === 'function'
+                        ? isFutureForHistory(item)
+                        : isFutureDateStr(item.date));
                     const safeId = escapeHtml(String(item.id || ''));
                     const desc = escapeHtml(item.description || item.category || 'Harcama');
                     const amt = (isIncome ? '+' : '-') + (Number(item.displayAmount) || 0).toLocaleString('tr-TR') + ' TL';
