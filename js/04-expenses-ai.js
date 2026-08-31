@@ -305,8 +305,22 @@ function getProcessedExpenses() {
             });
 
             const isInc = function(item) { return item && item.installmentLabel === 'Gelir'; };
-            const futuresAll = filtered.filter(function(item) { return !isInc(item) && isFutureDateStr(item.date); });
-            const normalsAll = filtered.filter(function(item) { return isInc(item) || !isFutureDateStr(item.date); });
+            const curPeriodKey = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
+            const isCurrentPeriodItem = function(item) {
+                if (!item || !curPeriodKey) return true;
+                if (item.effectiveMonth) return String(item.effectiveMonth) === String(curPeriodKey);
+                if (typeof getPeriodKeyForDateStr === 'function') {
+                    return getPeriodKeyForDateStr(item.date) === curPeriodKey;
+                }
+                return true;
+            };
+            // İleri tarihli: sadece aktif ekstre döneminde yapılacaklar
+            const futuresAll = filtered.filter(function(item) {
+                return !isInc(item) && isFutureDateStr(item.date) && isCurrentPeriodItem(item);
+            });
+            const normalsAll = filtered.filter(function(item) {
+                return isInc(item) || !isFutureDateStr(item.date);
+            });
             const limit = Math.max(5, Number(displayLimit) || 5);
             const normals = normalsAll.slice(0, limit);
             const totalRecords = normalsAll.length;
@@ -363,7 +377,41 @@ function getProcessedExpenses() {
                         appendExpenseRow(item, 'web-future-row hidden');
                     });
                 }
-                normals.forEach(function(item) { appendExpenseRow(item, ''); });
+                function periodKeyOf(item) {
+                    if (!item) return '';
+                    if (item.effectiveMonth) return String(item.effectiveMonth);
+                    if (typeof getPeriodKeyForDateStr === 'function') {
+                        return getPeriodKeyForDateStr(item.date) || '';
+                    }
+                    return String(item.date || '').slice(0, 7);
+                }
+                function appendPeriodBoundary(newerPk, olderPk) {
+                    const lab = (typeof formatPeriodLabel === 'function' && newerPk)
+                        ? formatPeriodLabel(newerPk)
+                        : (newerPk || '');
+                    const tr = document.createElement('tr');
+                    tr.className = 'row-period-boundary';
+                    tr.innerHTML = '<td colspan="7">' +
+                        '<div class="period-boundary-banner">' +
+                        '<span class="period-boundary-line"></span>' +
+                        '<span class="period-boundary-text">Yeni dönem başlangıcı' +
+                        (lab ? ' · ' + lab : '') +
+                        '</span>' +
+                        '<span class="period-boundary-line"></span>' +
+                        '</div></td>';
+                    tbody.appendChild(tr);
+                }
+                let _prevPk = null;
+                normals.forEach(function(item) {
+                    const pk = periodKeyOf(item);
+                    if (_prevPk && pk && _prevPk !== pk) {
+                        // Sıra genelde yeni→eski: _prevPk daha yeni dönem
+                        const newer = (_prevPk > pk) ? _prevPk : pk;
+                        appendPeriodBoundary(newer, pk);
+                    }
+                    appendExpenseRow(item, '');
+                    _prevPk = pk || _prevPk;
+                });
 
                 if (totalRecords > displayedRecords) {
                     const tr = document.createElement('tr');
@@ -389,8 +437,18 @@ function getProcessedExpenses() {
 // --- Mobil kartlar: ileri tarihli (açılır) + normal (max displayLimit) ---
             if (cardsHost) {
                 const isIncomeItem = function(item) { return item.installmentLabel === 'Gelir'; };
+                const curPkM = (typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '';
+                const isCurPeriodM = function(item) {
+                    if (!item || !curPkM) return true;
+                    if (item.effectiveMonth) return String(item.effectiveMonth) === String(curPkM);
+                    if (typeof getPeriodKeyForDateStr === 'function') {
+                        return getPeriodKeyForDateStr(item.date) === curPkM;
+                    }
+                    return true;
+                };
+                // İleri tarihli: sadece bu dönem
                 const futures = filtered.filter(function(item) {
-                    return !isIncomeItem(item) && isFutureDateStr(item.date);
+                    return !isIncomeItem(item) && isFutureDateStr(item.date) && isCurPeriodM(item);
                 });
                 // Normal listeden ileri tarihlileri ayır; limit normal kayıtlara uygulanır
                 const normalsAll = filtered.filter(function(item) {
@@ -483,8 +541,33 @@ function getProcessedExpenses() {
                 if (!normals.length && !futures.length) {
                     cardsHost.innerHTML = '<p class="expense-m-empty">Kayıt yok</p>';
                 } else {
+                    function periodKeyOfM(item) {
+                        if (!item) return '';
+                        if (item.effectiveMonth) return String(item.effectiveMonth);
+                        if (typeof getPeriodKeyForDateStr === 'function') {
+                            return getPeriodKeyForDateStr(item.date) || '';
+                        }
+                        return String(item.date || '').slice(0, 7);
+                    }
+                    let _prevPkM = null;
                     normals.forEach(function(item) {
+                        const pk = periodKeyOfM(item);
+                        if (_prevPkM && pk && _prevPkM !== pk) {
+                            const newer = (_prevPkM > pk) ? _prevPkM : pk;
+                            const lab = (typeof formatPeriodLabel === 'function' && newer)
+                                ? formatPeriodLabel(newer)
+                                : (newer || '');
+                            const sep = document.createElement('div');
+                            sep.className = 'period-boundary-banner period-boundary-m';
+                            sep.innerHTML = '<span class="period-boundary-line"></span>' +
+                                '<span class="period-boundary-text">Yeni dönem başlangıcı' +
+                                (lab ? ' · ' + lab : '') +
+                                '</span>' +
+                                '<span class="period-boundary-line"></span>';
+                            cardsHost.appendChild(sep);
+                        }
                         cardsHost.appendChild(buildMobileCard(item));
+                        _prevPkM = pk || _prevPkM;
                     });
                     if (normalsAll.length > normalDisplayed) {
                         const more = document.createElement('div');

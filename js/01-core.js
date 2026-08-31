@@ -357,6 +357,7 @@
                     ? (currentUser.name + ' · Admin')
                     : currentUser.name;
             }
+            window._yuvamEnteredOnce = true;
             applyRoleAndTabs();
             if (typeof applyDashboardCards === 'function') applyDashboardCards();
             try { if (typeof updateAdminLayoutButtons === 'function') updateAdminLayoutButtons(); } catch (_) {}
@@ -365,7 +366,7 @@
             setTimeout(function() {
                 if (!currentUser || currentUser.uid !== uidEnter) return;
                 try { _bootRenderQuietUntil = Date.now() + 1500; } catch (_) {}
-                try { initRealtimeSync(); } catch (e) { console.error('sync', e); showToast('Veri bağlantısı kurulamadı', 'error'); }
+                try { initRealtimeSync(); window._yuvamSyncStarted = true; } catch (e) { console.error('sync', e); showToast('Veri bağlantısı kurulamadı', 'error'); }
                 try {
                     if (!opts.silent) {
                         logActivity('Giriş', 'Oturum açıldı', currentUser.role === 'admin' ? 'Admin girişi' : 'Kullanıcı girişi');

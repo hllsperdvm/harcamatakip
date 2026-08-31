@@ -826,26 +826,70 @@
                         <button type="button" onclick="removeTab(${idx})" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-600">Sil</button>
                     </div>
                 </div>
-            `).join('') + `
-                <button type="button" onclick="restoreDefaultTabs()" class="w-full mt-2 text-xs font-bold text-indigo-600 py-2 hover:underline">Silinen sistem sekmelerini geri yükle</button>
-            `;
+            `).join('');
+            const removedCore = (removedTabIds || []).map(function(id) {
+                return (DEFAULT_TABS || []).find(function(d) { return d && d.id === id; });
+            }).filter(Boolean);
+            if (removedCore.length) {
+                container.innerHTML += '<div class="mt-3 p-3 rounded-xl border border-amber-200 bg-amber-50 space-y-2">' +
+                    '<p class="text-[11px] font-black text-amber-800 uppercase">Silinen sistem sekmeleri</p>' +
+                    removedCore.map(function(d) {
+                        return '<button type="button" onclick="restoreCoreTab(\'' + d.id + '\')" class="w-full text-left text-sm font-bold px-3 py-2 rounded-lg bg-white border border-amber-100 text-slate-800 hover:border-indigo-300">' +
+                            escapeHtml((d.emoji || '') + ' ' + (d.label || d.id)) + ' · geri yükle</button>';
+                    }).join('') +
+                    '</div>';
+            }
+            container.innerHTML += '<button type="button" onclick="restoreDefaultTabs()" class="w-full mt-2 text-xs font-bold text-indigo-600 py-2 hover:underline">Tüm silinen sistem sekmelerini geri yükle</button>';
         };
 
         window.toggleTabVisible = async (index) => {
-            if (!isAdmin()) return;
+            if (!isAdmin()) {
+                if (typeof showToast === 'function') showToast('Sekme görünürlüğü için admin girişi gerekli', 'error');
+                return;
+            }
             const tab = tabsConfig[index];
             if (!tab) return;
-            // Sadece Ayarlar gizlenemesin (admin kilitlenmesi önlemi). Çöp gizlenebilir.
             if (tab.id === 'settings' && tab.visible) {
                 if (typeof showToast === 'function') {
                     showToast('Ayarlar gizlenemez. Kimlerin göreceğini Düzenle → Kimler görsün ile değiştirin.', 'error');
                 }
                 return;
             }
-            tab.visible = !tab.visible;
-            await saveTabsConfig();
-            applyRoleAndTabs();
-            renderTabsList();
+            try {
+                tab.visible = !tab.visible;
+                await saveTabsConfig();
+                applyRoleAndTabs();
+                renderTabsList();
+                if (typeof showToast === 'function') {
+                    showToast((tab.label || tab.id) + (tab.visible ? ' görünür' : ' gizli'), 'success');
+                }
+            } catch (err) {
+                console.error(err);
+                if (typeof showToast === 'function') showToast('Kaydedilemedi: ' + (err.message || err), 'error');
+            }
+        };
+
+        window.restoreCoreTab = async function(tabId) {
+            if (!isAdmin()) {
+                if (typeof showToast === 'function') showToast('Admin gerekli', 'error');
+                return;
+            }
+            const def = (DEFAULT_TABS || []).find(function(x) { return x && x.id === tabId; });
+            if (!def) return;
+            removedTabIds = (removedTabIds || []).filter(function(id) { return id !== tabId; });
+            if (!(tabsConfig || []).some(function(x) { return x && x.id === tabId; })) {
+                tabsConfig.push(Object.assign({}, def, { visible: true, content: '', widgetType: null }));
+            } else {
+                tabsConfig.forEach(function(x) { if (x && x.id === tabId) x.visible = true; });
+            }
+            try {
+                await saveTabsConfig();
+                applyRoleAndTabs();
+                renderTabsList();
+                if (typeof showToast === 'function') showToast((def.label || tabId) + ' geri yüklendi', 'success');
+            } catch (err) {
+                if (typeof showToast === 'function') showToast(String(err.message || err), 'error');
+            }
         };
 
         /** Konsoldan: Ayarlar sekmesini görünür yap */
@@ -1406,7 +1450,11 @@
         // ========== ADMIN PANEL ==========
         window.toggleAdminPanel = function(id) {
             const el = document.getElementById('adminPanel_' + id);
-            if (el) el.classList.toggle('hidden');
+            if (!el) {
+                console.warn('adminPanel yok:', id);
+                return;
+            }
+            el.classList.toggle('hidden');
         };
 
         window.savePasswordChange = async function() {
@@ -2371,36 +2419,48 @@
 
 
 
-        // Sayfa açılışında oturum varsa geri yükle ve veriyi çek
-        // Firebase Auth oturum dinleyicisi (sayfa yenilenince de giriş kalır)
+        // Otomatik giriş: oturum varsa enterAppAsUser mutlaka çalışsın
         let authBootDone = false;
-        // Mobil hizli giris: oturum varsa login'i aninda gizle + iskelet uygulamayi goster
+        let authEnterInFlight = false;
+
+        async function ensureEnteredFromAuth(fbUser) {
+            if (!fbUser) return;
+            if (authEnterInFlight) return;
+            // Uygulama zaten bu kullanıcı ile tam açıldıysa tekrarlama
+            if (currentUser && currentUser.uid === fbUser.uid
+                && document.documentElement.classList.contains('yuvam-app-open')
+                && window._yuvamEnteredOnce) {
+                return;
+            }
+            authEnterInFlight = true;
+            try {
+                const profile = (typeof loadUserProfile === 'function')
+                    ? await loadUserProfile(fbUser)
+                    : loadUserProfileFast(fbUser);
+                if (profile && typeof enterAppAsUser === 'function') {
+                    await enterAppAsUser(profile, { silent: true });
+                    window._yuvamEnteredOnce = true;
+                }
+            } catch (err) {
+                console.warn('ensureEnteredFromAuth', err);
+            } finally {
+                authEnterInFlight = false;
+            }
+        }
+
         try {
-            if (auth.currentUser) {
-                const loginEl = document.getElementById('errorContainer') || document.getElementById('loginScreen');
-                const appEl = document.getElementById('appContainer') || document.getElementById('app');
-                if (loginEl) { loginEl.classList.add('hidden'); loginEl.style.display = 'none'; }
-                if (appEl) { appEl.classList.remove('hidden'); appEl.style.display = ''; }
-                // Profili senkron beklemeden hizli yaz
-                try {
-                    currentUser = loadUserProfileFast(auth.currentUser);
-                    const label = document.getElementById('loggedInUserLabel') || document.getElementById('currentUserLabel');
-                    if (label && currentUser) {
-                        label.textContent = currentUser.role === 'admin' ? (currentUser.name + ' · Admin') : currentUser.name;
-                    }
-                } catch (_) {}
+            if (auth && auth.currentUser) {
+                ensureEnteredFromAuth(auth.currentUser);
             }
         } catch (_) {}
+
         auth.onAuthStateChanged(async function(fbUser) {
-            if (authBootDone && !fbUser) return;
             try {
                 if (fbUser) {
-                    if (currentUser && currentUser.uid === fbUser.uid) return;
-                    const profile = await loadUserProfile(fbUser);
-                    await enterAppAsUser(profile, { silent: true });
+                    await ensureEnteredFromAuth(fbUser);
                 } else if (!authBootDone) {
-                    // ilk yüklemede oturum yok → login ekranı
                     currentUser = null;
+                    window._yuvamEnteredOnce = false;
                 }
             } catch (err) {
                 console.warn('onAuthStateChanged', err);
