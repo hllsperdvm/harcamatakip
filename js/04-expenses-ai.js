@@ -391,14 +391,14 @@ function getProcessedExpenses() {
                         : (newerPk || '');
                     const tr = document.createElement('tr');
                     tr.className = 'row-period-boundary';
-                    tr.innerHTML = '<td colspan="7">' +
-                        '<div class="period-boundary-banner">' +
-                        '<span class="period-boundary-line"></span>' +
+                    const td = document.createElement('td');
+                    td.colSpan = 7;
+                    td.className = 'period-boundary-td';
+                    td.innerHTML = '<div class="period-boundary-banner" role="separator">' +
                         '<span class="period-boundary-text">Yeni dönem başlangıcı' +
-                        (lab ? ' · ' + lab : '') +
-                        '</span>' +
-                        '<span class="period-boundary-line"></span>' +
-                        '</div></td>';
+                        (lab ? '<span class="period-boundary-lab"> · ' + lab + '</span>' : '') +
+                        '</span></div>';
+                    tr.appendChild(td);
                     tbody.appendChild(tr);
                 }
                 let _prevPk = null;
@@ -559,11 +559,10 @@ function getProcessedExpenses() {
                                 : (newer || '');
                             const sep = document.createElement('div');
                             sep.className = 'period-boundary-banner period-boundary-m';
-                            sep.innerHTML = '<span class="period-boundary-line"></span>' +
-                                '<span class="period-boundary-text">Yeni dönem başlangıcı' +
-                                (lab ? ' · ' + lab : '') +
-                                '</span>' +
-                                '<span class="period-boundary-line"></span>';
+                            sep.setAttribute('role', 'separator');
+                            sep.innerHTML = '<span class="period-boundary-text">Yeni dönem başlangıcı' +
+                                (lab ? '<span class="period-boundary-lab"> · ' + lab + '</span>' : '') +
+                                '</span>';
                             cardsHost.appendChild(sep);
                         }
                         cardsHost.appendChild(buildMobileCard(item));
@@ -2194,9 +2193,25 @@ function updateStatsPanel() {
                 const isCash = function(e) {
                     return typeof isCashPayment === 'function' ? isCashPayment(e.paymentType) : /nakit/i.test(String(e.paymentType || ''));
                 };
-                const total = list.reduce(function(s, e) { return s + (Number(e.displayAmount) || 0); }, 0);
-                const card = sum(list, isCard);
+                // KK: Bütçe Takip / Ekstre ile aynı formül
+                let cardBreak = { bekir: 0, duygu: 0, total: 0 };
+                try {
+                    if (typeof getPeriodCardBreakdown === 'function') {
+                        cardBreak = getPeriodCardBreakdown() || cardBreak;
+                    } else if (typeof calculateCurrentCardStatements === 'function') {
+                        (calculateCurrentCardStatements() || []).forEach(function(s) {
+                            const a = Number(s.amount) || 0;
+                            if (s.person === 'Bekir') cardBreak.bekir = a;
+                            else if (s.person === 'Duygu') cardBreak.duygu = a;
+                        });
+                        cardBreak.total = cardBreak.bekir + cardBreak.duygu;
+                    }
+                } catch (_) {}
                 const cash = sum(list, isCash);
+                const card = Number(cardBreak.total) || 0;
+                const nonCard = (list || []).filter(function(e) { return !isCard(e); })
+                    .reduce(function(s, e) { return s + (Number(e.displayAmount) || 0); }, 0);
+                const total = nonCard + card;
 
                 // Multinet (ayın 1'i kuralı — dönem toplamına dahil değil)
                 let multi = 0;
@@ -2215,12 +2230,15 @@ function updateStatsPanel() {
                     }
                 } catch (_) {}
 
-                // Kişi
+                // Kişi: KK dışı listeden + ekstre KK (Bekir/Duygu)
                 const byPerson = {};
                 list.forEach(function(e) {
+                    if (isCard(e)) return;
                     const p = e.person || 'Diğer';
                     byPerson[p] = (byPerson[p] || 0) + (Number(e.displayAmount) || 0);
                 });
+                if (cardBreak.bekir) byPerson['Bekir'] = (byPerson['Bekir'] || 0) + cardBreak.bekir;
+                if (cardBreak.duygu) byPerson['Duygu'] = (byPerson['Duygu'] || 0) + cardBreak.duygu;
 
                 // Kategori top 3
                 const byCat = {};
