@@ -3349,38 +3349,56 @@ function renderCardStatements(person) {
         
         let currentStatements = [];
         
+        /** Tek kaynak: güncel ekstre dönemi KK harcamaları (Bekir / Duygu) */
         function calculateCurrentCardStatements() {
-            const period = getCardStatementPeriod();
-            const periodKey = period.periodKey;
+            const period = (typeof getCardStatementPeriod === 'function')
+                ? getCardStatementPeriod()
+                : { periodKey: (typeof getCurrentPeriod === 'function' ? getCurrentPeriod() : ''), label: '' };
+            const periodKey = period.periodKey || ((typeof getCurrentPeriod === 'function') ? getCurrentPeriod() : '');
 
             let allWithInstallments = [];
-            expenses.forEach(item => {
-                const count = item.installmentCount || 1;
-                const perAmount = item.isRecurring
-                    ? (item.amountPerInstallment != null ? item.amountPerInstallment : item.amount)
-                    : (item.amountPerInstallment != null ? item.amountPerInstallment : (item.amount / count));
+            const list = (typeof expenses !== 'undefined' && expenses) ? expenses : [];
+            list.forEach(function(item) {
+                if (!item) return;
+                if (item.installmentLabel === 'Gelir') return;
+                const count = Number(item.installmentCount) || 1;
+                const isRec = !!item.isRecurring;
                 const originalDate = item.date;
+                const totalAmt = Number(item.amount) || 0;
+                const perAmount = isRec
+                    ? (item.amountPerInstallment != null ? Number(item.amountPerInstallment) : totalAmt)
+                    : (item.amountPerInstallment != null ? Number(item.amountPerInstallment) : (totalAmt / Math.max(1, count)));
 
-                if (count <= 1) {
-                    allWithInstallments.push({
-                        ...item,
-                        displayAmount: item.amount,
+                if (count <= 1 && !isRec) {
+                    allWithInstallments.push(Object.assign({}, item, {
+                        displayAmount: totalAmt,
                         installmentLabel: 'Peşin',
-                        effectiveMonth: getPeriodKeyForDateStr(originalDate),
+                        effectiveMonth: (typeof getPeriodKeyForDateStr === 'function')
+                            ? getPeriodKeyForDateStr(originalDate)
+                            : String(originalDate || '').slice(0, 7),
                         date: originalDate
-                    });
-                } else {
-                    for (let i = 0; i < count; i++) {
-                        const dateStr = shiftDateByMonths(originalDate, i);
-                        allWithInstallments.push({
-                            ...item,
-                            id: item.id + '_ins_' + i,
-                            displayAmount: perAmount,
-                            installmentLabel: `Taksit ${i + 1}/${count}`,
-                            effectiveMonth: getPeriodKeyForDateStr(dateStr),
-                            date: dateStr
-                        });
-                    }
+                    }));
+                    return;
+                }
+                const n = Math.max(1, count);
+                for (let i = 0; i < n; i++) {
+                    const dateStr = (typeof shiftDateByMonths === 'function')
+                        ? shiftDateByMonths(originalDate, i)
+                        : originalDate;
+                    const pk = (typeof getPeriodKeyForDateStr === 'function')
+                        ? getPeriodKeyForDateStr(dateStr)
+                        : String(dateStr || '').slice(0, 7);
+                    const label = isRec
+                        ? ('Tekrar ' + (i + 1) + '/' + n)
+                        : ('Taksit ' + (i + 1) + '/' + n);
+                    allWithInstallments.push(Object.assign({}, item, {
+                        id: String(item.id || '') + '_ins_' + i,
+                        displayAmount: perAmount,
+                        installmentLabel: label,
+                        effectiveMonth: pk,
+                        date: dateStr,
+                        installmentIndex: i
+                    }));
                 }
             });
 
@@ -3389,32 +3407,40 @@ function renderCardStatements(person) {
                 const p = String(exp.paymentType || '').toLocaleLowerCase('tr-TR');
                 return p.indexOf('kredi') >= 0 || p.indexOf('kart') >= 0;
             };
-            const inPeriod = function(exp) {
-                return exp.effectiveMonth === periodKey && isCc(exp);
+            const inPeriodCc = function(exp) {
+                if (!exp || exp.effectiveMonth !== periodKey) return false;
+                if (!isCc(exp)) return false;
+                // Multinet zaten isCreditPayment dışı; gelir zaten elendi
+                return true;
             };
-            const bekirCreditExpenses = allWithInstallments.filter(function(exp) {
-                return exp.person === 'Bekir' && inPeriod(exp);
+            let bekirCreditExpenses = allWithInstallments.filter(function(exp) {
+                return exp.person === 'Bekir' && inPeriodCc(exp);
             });
-            const duyguCreditExpenses = allWithInstallments.filter(function(exp) {
-                return exp.person === 'Duygu' && inPeriod(exp);
+            let duyguCreditExpenses = allWithInstallments.filter(function(exp) {
+                return exp.person === 'Duygu' && inPeriodCc(exp);
             });
 
-            const bekirDedup = (typeof dedupePeriodExpenseRows === 'function')
-                ? dedupePeriodExpenseRows(bekirCreditExpenses) : bekirCreditExpenses;
-            const duyguDedup = (typeof dedupePeriodExpenseRows === 'function')
-                ? dedupePeriodExpenseRows(duyguCreditExpenses) : duyguCreditExpenses;
+            if (typeof dedupePeriodExpenseRows === 'function') {
+                bekirCreditExpenses = dedupePeriodExpenseRows(bekirCreditExpenses);
+                duyguCreditExpenses = dedupePeriodExpenseRows(duyguCreditExpenses);
+            }
+
+            const sumAmt = function(arr) {
+                return (arr || []).reduce(function(sum, exp) { return sum + (Number(exp.displayAmount) || 0); }, 0);
+            };
+
             currentStatements = [
                 {
                     person: 'Bekir',
-                    amount: bekirDedup.reduce(function(sum, exp) { return sum + (Number(exp.displayAmount) || 0); }, 0),
-                    expenses: bekirDedup,
+                    amount: sumAmt(bekirCreditExpenses),
+                    expenses: bekirCreditExpenses,
                     period: period,
                     color: 'blue'
                 },
                 {
                     person: 'Duygu',
-                    amount: duyguDedup.reduce(function(sum, exp) { return sum + (Number(exp.displayAmount) || 0); }, 0),
-                    expenses: duyguDedup,
+                    amount: sumAmt(duyguCreditExpenses),
+                    expenses: duyguCreditExpenses,
                     period: period,
                     color: 'pink'
                 }
@@ -3422,6 +3448,21 @@ function renderCardStatements(person) {
 
             return currentStatements;
         }
+
+        /** Bütçe kartları için: dönem KK tutarları (ekstre ile aynı kaynak) */
+        window.getPeriodCardBreakdown = function() {
+            const stmts = (typeof calculateCurrentCardStatements === 'function')
+                ? calculateCurrentCardStatements()
+                : (currentStatements || []);
+            const by = { bekir: 0, duygu: 0, total: 0 };
+            (stmts || []).forEach(function(s) {
+                const a = Number(s.amount) || 0;
+                if (s.person === 'Bekir') by.bekir = a;
+                else if (s.person === 'Duygu') by.duygu = a;
+            });
+            by.total = by.bekir + by.duygu;
+            return by;
+        };
 
         window.openStatementDetails = function(person) {
             calculateCurrentCardStatements();

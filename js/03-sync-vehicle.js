@@ -218,34 +218,63 @@
             const processedExpenses = getProcessedExpenses().filter(function(e) {
                 return e.effectiveMonth === period && countsInPeriodTotals(e);
             });
-            const totalSpent = processedExpenses.reduce((sum, e) => sum + e.displayAmount, 0);
-            const cardSpent = sumByPay(processedExpenses, function(e) { return isCreditPayment(e.paymentType); });
+
+            // KK tutarları: Kredi Kartı Ekstreleri ile AYNI kaynak
+            let cardBreak = { bekir: 0, duygu: 0, total: 0 };
+            try {
+                if (typeof getPeriodCardBreakdown === 'function') {
+                    cardBreak = getPeriodCardBreakdown() || cardBreak;
+                } else if (typeof calculateCurrentCardStatements === 'function') {
+                    const stmts = calculateCurrentCardStatements() || [];
+                    stmts.forEach(function(s) {
+                        const a = Number(s.amount) || 0;
+                        if (s.person === 'Bekir') cardBreak.bekir = a;
+                        else if (s.person === 'Duygu') cardBreak.duygu = a;
+                    });
+                    cardBreak.total = cardBreak.bekir + cardBreak.duygu;
+                }
+            } catch (_) {}
+
+            const bekirList = processedExpenses.filter(e => e.person === 'Bekir');
+            const duyguList = processedExpenses.filter(e => e.person === 'Duygu');
+
+            // Nakit: dönem listesinden; KK: ekstre hesabından
+            const cashOf = function(list) {
+                return sumByPay(list, function(e) { return isCashPayment(e.paymentType); });
+            };
+            const nonCardOf = function(list) {
+                return (list || []).filter(function(e) {
+                    return !isCreditPayment(e.paymentType);
+                }).reduce(function(s, e) { return s + (Number(e.displayAmount) || 0); }, 0);
+            };
+
+            const totalCash = cashOf(processedExpenses);
+            const bekirCash = cashOf(bekirList);
+            const duyguCash = cashOf(duyguList);
+
+            // Kişi / dönem toplam = (KK dışı dönem satırları) + (ekstre KK)
+            const bekirSum = nonCardOf(bekirList) + (Number(cardBreak.bekir) || 0);
+            const duyguSum = nonCardOf(duyguList) + (Number(cardBreak.duygu) || 0);
+            const totalSpent = nonCardOf(processedExpenses) + (Number(cardBreak.total) || 0);
+            const cardSpent = Number(cardBreak.total) || 0;
 
             const elTotal = document.getElementById('totalExpense');
             if (elTotal) elTotal.innerText = totalSpent.toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
 
-            const bekirList = processedExpenses.filter(e => e.person === 'Bekir');
-            const duyguList = processedExpenses.filter(e => e.person === 'Duygu');
-            const bekirSum = bekirList.reduce((s, e) => s + e.displayAmount, 0);
-            const duyguSum = duyguList.reduce((s, e) => s + e.displayAmount, 0);
             const elBekir = document.getElementById('bekirExpense');
             const elDuygu = document.getElementById('duyguExpense');
             if (elBekir) elBekir.innerText = bekirSum.toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
             if (elDuygu) elDuygu.innerText = duyguSum.toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
 
-            // Nakit / Kredi kartı kırılımı
-            const setPair = function(cashId, cardId, list) {
-                const cash = sumByPay(list, function(e) { return isCashPayment(e.paymentType); });
-                const card = sumByPay(list, function(e) { return isCreditPayment(e.paymentType); });
-                // diğer ödeme tipleri varsa kalanı kart+nakit dışında bırak; gösterimde sadece nakit+kk
+            const setCashCard = function(cashId, cardId, cashVal, cardVal) {
                 const cEl = document.getElementById(cashId);
                 const kEl = document.getElementById(cardId);
-                if (cEl) cEl.textContent = fmtShortTL(cash);
-                if (kEl) kEl.textContent = fmtShortTL(card);
+                if (cEl) cEl.textContent = fmtShortTL(cashVal);
+                if (kEl) kEl.textContent = fmtShortTL(cardVal);
             };
-            setPair('totalCashAmt', 'totalCardAmt', processedExpenses);
-            setPair('bekirCashAmt', 'bekirCardAmt', bekirList);
-            setPair('duyguCashAmt', 'duyguCardAmt', duyguList);
+            setCashCard('totalCashAmt', 'totalCardAmt', totalCash, cardSpent);
+            setCashCard('bekirCashAmt', 'bekirCardAmt', bekirCash, cardBreak.bekir);
+            setCashCard('duyguCashAmt', 'duyguCardAmt', duyguCash, cardBreak.duygu);
 
             const totalActiveDebt = (!bekirDebt.paid ? bekirDebt.amount : 0) + (!duyguDebt.paid ? duyguDebt.amount : 0);
             const elDebt = document.getElementById('totalCardDebtDisplay');
