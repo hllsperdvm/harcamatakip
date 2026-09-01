@@ -407,6 +407,16 @@ function getProcessedExpenses() {
                 }
 
                 if (futures.length) {
+                    // En uzak tarih üstte, en yakın (bugüne en yakın) altta
+                    futures.sort(function(a, b) {
+                        const dA = String(a.date || '');
+                        const dB = String(b.date || '');
+                        if (dA !== dB) return dA < dB ? 1 : -1;
+                        const tA = expenseTimeKey(a);
+                        const tB = expenseTimeKey(b);
+                        if (tA !== tB) return tA < tB ? 1 : -1;
+                        return String(b.id || '').localeCompare(String(a.id || ''));
+                    });
                     const trToggle = document.createElement('tr');
                     trToggle.className = 'row-future-toggle';
                     trToggle.innerHTML = '<td colspan="7" class="px-4 sm:px-6 py-2">' +
@@ -541,11 +551,15 @@ function getProcessedExpenses() {
 
                 // İleri tarihli bölüm (üstte, kapalı)
                 if (futures.length) {
-                    // futures: yakın tarihe göre sırala (artan tarih)
+                    // En uzak tarih üstte, en yakın (bugüne en yakın) altta
                     futures.sort(function(a, b) {
-                        const d = String(a.date || '').localeCompare(String(b.date || ''));
-                        if (d !== 0) return d;
-                        return expenseTimeKey(b).localeCompare(expenseTimeKey(a));
+                        const dA = String(a.date || '');
+                        const dB = String(b.date || '');
+                        if (dA !== dB) return dA < dB ? 1 : -1;
+                        const tA = expenseTimeKey(a);
+                        const tB = expenseTimeKey(b);
+                        if (tA !== tB) return tA < tB ? 1 : -1;
+                        return String(b.id || '').localeCompare(String(a.id || ''));
                     });
                     const wrap = document.createElement('div');
                     wrap.className = 'expense-future-section';
