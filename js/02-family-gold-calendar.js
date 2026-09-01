@@ -248,9 +248,9 @@
         window.refreshGoldPrice = async function(force) {
             const elMeta = document.getElementById('goldPriceMeta');
             try {
-                if (!force && goldQuotes.sell24 != null) {
+                if (!force && goldQuotes && goldQuotes.sell24 != null && goldQuotes.sell24 > 0) {
                     updateGoldPriceUI();
-                    renderGoldHoldings();
+                    if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
                     return;
                 }
                 if (elMeta) elMeta.textContent = 'Fiyat çekiliyor…';
@@ -258,80 +258,127 @@
                 let buy24 = null, sell24 = null, buy22 = null, sell22 = null;
                 let source = '';
 
-                // 1) Harem (Turkpidya) — tarayıcı CORS engeli nedeniyle jina.ai okuyucu üzerinden
+                // 1) Truncgil — CORS açık, tarayıcıdan doğrudan
                 try {
-                    const target = 'https://turkpidya.com/wp-json/turkpidya-data/v1/gold';
-                    const res = await fetch('https://r.jina.ai/' + target, {
+                    const res3 = await fetch('https://finans.truncgil.com/v4/today.json?_=' + Date.now(), {
                         cache: 'no-store',
-                        headers: { 'Accept': 'application/json' }
+                        mode: 'cors'
                     });
-                    if (res.ok) {
-                        const wrap = await res.json();
-                        let inner = null;
-                        try {
-                            const content = wrap && wrap.data && wrap.data.content;
-                            if (typeof content === 'string') inner = JSON.parse(content);
-                            else if (content && typeof content === 'object') inner = content;
-                            else if (wrap && wrap.prices) inner = wrap;
-                        } catch (_) {}
-                        if (inner && Array.isArray(inner.prices)) {
-                            let p24 = null;
-                            inner.prices.forEach(function(row) {
-                                const typ = String(row.type || '').toLowerCase();
-                                if (typ === 'gram_24k') p24 = row;
-                            });
-                            if (p24) {
-                                buy24 = parseGoldNum(p24.buy);
-                                sell24 = parseGoldNum(p24.sell);
+                    if (res3.ok) {
+                        const text = await res3.text();
+                        let data = null;
+                        try { data = JSON.parse(text); } catch (_) {
+                            const cut = text.lastIndexOf('}');
+                            if (cut > 0) try { data = JSON.parse(text.slice(0, cut + 1)); } catch (__) {}
+                        }
+                        if (data) {
+                            const has = data.HAS || data.GRAMHASALTIN || data['GRAM ALTIN'];
+                            if (has) {
+                                buy24 = parseGoldNum(has.Buying != null ? has.Buying : has.Alis);
+                                sell24 = parseGoldNum(has.Selling != null ? has.Selling : has.Satis);
                                 if (!(buy24 > 0)) buy24 = sell24;
                                 if (!(sell24 > 0)) sell24 = buy24;
+                                if (sell24 > 0) {
+                                    source = 'Truncgil' + (data.Update_Date ? (' · ' + data.Update_Date) : '');
+                                }
                             }
-                            // 22 ayar: safiyet oranı (Turkpidya gram_22k bazen takı fiyatı — oran kullan)
-                            if (sell24 > 0) {
-                                sell22 = sell24 * (22 / 24);
-                                buy22 = (buy24 > 0 ? buy24 : sell24) * (22 / 24);
-                            }
-                            if (sell24 > 0) {
-                                source = 'Harem · Turkpidya';
-                                if (inner.price_date) source += ' · ' + inner.price_date;
+                            const a22 = data['22AYARALTIN'] || data['22AYAR'] || data['22 Ayar'];
+                            if (a22) {
+                                buy22 = parseGoldNum(a22.Buying != null ? a22.Buying : a22.Alis);
+                                sell22 = parseGoldNum(a22.Selling != null ? a22.Selling : a22.Satis);
+                                if (!(buy22 > 0)) buy22 = sell22;
+                                if (!(sell22 > 0)) sell22 = buy22;
                             }
                         }
                     }
-                } catch (e1) {
-                    console.warn('harem/jina', e1);
+                } catch (e3) {
+                    console.warn('truncgil', e3);
                 }
 
-                // 2) Truncgil yedek (CORS açık)
+                // 2) AltınAPI (Firestore settings/apiKeys.altinapi — hapi_...)
                 if (!(sell24 > 0)) {
                     try {
-                        const res3 = await fetch('https://finans.truncgil.com/v4/today.json', { cache: 'no-store' });
-                        if (res3.ok) {
-                            const text = await res3.text();
-                            let data = null;
-                            try { data = JSON.parse(text); } catch (_) {
-                                const cut = text.lastIndexOf('}');
-                                if (cut > 0) try { data = JSON.parse(text.slice(0, cut + 1)); } catch (__) {}
-                            }
-                            if (data) {
-                                const has = data.HAS || data.GRAMHASALTIN;
-                                if (has) {
-                                    buy24 = parseGoldNum(has.Buying != null ? has.Buying : has.Alis);
-                                    sell24 = parseGoldNum(has.Selling != null ? has.Selling : has.Satis);
+                        let key = '';
+                        try {
+                            key = String(altinApiKey || window.altinApiKey || '').trim();
+                        } catch (_) {}
+                        if (key) {
+                            const url = 'https://altinapi.com/api/v1/prices?api_key=' + encodeURIComponent(key);
+                            const resA = await fetch(url, {
+                                cache: 'no-store',
+                                mode: 'cors',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'X-API-KEY': key
+                                }
+                            });
+                            if (resA.ok) {
+                                const dataA = await resA.json();
+                                const rows = Array.isArray(dataA)
+                                    ? dataA
+                                    : (Array.isArray(dataA.data) ? dataA.data
+                                        : (Array.isArray(dataA.prices) ? dataA.prices : []));
+                                const pick = function(symHints) {
+                                    for (let i = 0; i < rows.length; i++) {
+                                        const r = rows[i] || {};
+                                        const sym = String(r.symbol || r.code || r.name || r.Name || '').toUpperCase();
+                                        for (let h = 0; h < symHints.length; h++) {
+                                            if (sym.indexOf(symHints[h]) >= 0) return r;
+                                        }
+                                    }
+                                    return null;
+                                };
+                                const r24 = pick(['ALTIN', 'GRAM', 'HAS', 'KULCE']) || rows[0];
+                                if (r24) {
+                                    buy24 = parseGoldNum(r24.alis != null ? r24.alis : (r24.buy != null ? r24.buy : r24.Buying));
+                                    sell24 = parseGoldNum(r24.satis != null ? r24.satis : (r24.sell != null ? r24.sell : r24.Selling));
                                     if (!(buy24 > 0)) buy24 = sell24;
                                     if (!(sell24 > 0)) sell24 = buy24;
-                                    source = 'Truncgil' + (data.Update_Date ? (' · ' + data.Update_Date) : '');
+                                    if (sell24 > 0) source = 'AltınAPI';
                                 }
-                                const a22 = data['22AYARALTIN'] || data['22AYAR'];
-                                if (a22) {
-                                    buy22 = parseGoldNum(a22.Buying != null ? a22.Buying : a22.Alis);
-                                    sell22 = parseGoldNum(a22.Selling != null ? a22.Selling : a22.Satis);
+                                const r22 = pick(['22']);
+                                if (r22) {
+                                    buy22 = parseGoldNum(r22.alis != null ? r22.alis : (r22.buy != null ? r22.buy : r22.Buying));
+                                    sell22 = parseGoldNum(r22.satis != null ? r22.satis : (r22.sell != null ? r22.sell : r22.Selling));
                                     if (!(buy22 > 0)) buy22 = sell22;
                                     if (!(sell22 > 0)) sell22 = buy22;
                                 }
+                            } else {
+                                console.warn('altinapi status', resA.status);
                             }
                         }
-                    } catch (e3) {
-                        console.warn('truncgil', e3);
+                    } catch (eA) {
+                        console.warn('altinapi', eA);
+                    }
+                }
+
+                // 3) Turkpidya doğrudan (CORS izin verirse)
+                if (!(sell24 > 0)) {
+                    try {
+                        const resT = await fetch('https://turkpidya.com/wp-json/turkpidya-data/v1/gold?_=' + Date.now(), {
+                            cache: 'no-store',
+                            mode: 'cors'
+                        });
+                        if (resT.ok) {
+                            const inner = await resT.json();
+                            if (inner && Array.isArray(inner.prices)) {
+                                let p24 = null;
+                                inner.prices.forEach(function(row) {
+                                    if (String(row.type || '').toLowerCase() === 'gram_24k') p24 = row;
+                                });
+                                if (p24) {
+                                    buy24 = parseGoldNum(p24.buy);
+                                    sell24 = parseGoldNum(p24.sell);
+                                    if (!(buy24 > 0)) buy24 = sell24;
+                                    if (!(sell24 > 0)) sell24 = buy24;
+                                    if (sell24 > 0) {
+                                        source = 'Harem · Turkpidya' + (inner.price_date ? (' · ' + inner.price_date) : '');
+                                    }
+                                }
+                            }
+                        }
+                    } catch (eT) {
+                        console.warn('turkpidya', eT);
                     }
                 }
 
@@ -351,7 +398,7 @@
                         quotes: goldQuotes, p: sell24, p22: sell22, at: Date.now(), source: source
                     }));
                 } catch (_) {}
-                renderGoldHoldings();
+                if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
                 try { if (typeof updateHomeGoldCard === 'function') updateHomeGoldCard(); } catch (_) {}
             } catch (e) {
                 console.warn('refreshGoldPrice', e);
@@ -373,7 +420,7 @@
                         }
                         updateGoldPriceUI();
                         if (elMeta) elMeta.textContent = 'Önbellek · yenilemeyi tekrar deneyin';
-                        renderGoldHoldings();
+                        if (typeof renderGoldHoldings === 'function') renderGoldHoldings();
                         try { if (typeof updateHomeGoldCard === 'function') updateHomeGoldCard(); } catch (_) {}
                         return;
                     }

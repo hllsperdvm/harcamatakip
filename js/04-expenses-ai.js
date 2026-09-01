@@ -681,9 +681,39 @@ function getProcessedExpenses() {
             try {
                 const today = (typeof todayDateStr === 'function') ? todayDateStr() : new Date().toISOString().slice(0, 10);
                 const list = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : [];
-                const items = list.filter(function(e) {
-                    return String(e.date || '').slice(0, 10) === today;
-                }).sort(function(a, b) {
+                let items = list.filter(function(e) {
+                    return e && e.installmentLabel !== 'Gelir' && String(e.date || '').slice(0, 10) === today;
+                });
+                // Taksit/tekrar dilimleri (anasayfa tutarı ile aynı kaynak)
+                try {
+                    if (typeof getInstallmentScheduleRows === 'function') {
+                        const rowKey = function(e) {
+                            return [
+                                String(e.person || ''),
+                                String(e.date || '').slice(0, 10),
+                                String(Math.round((Number(e.displayAmount) || Number(e.amount) || 0) * 100)),
+                                String(e.description || '').toLocaleLowerCase('tr-TR').slice(0, 40),
+                                String(e.installmentLabel || '')
+                            ].join('|');
+                        };
+                        const seen = {};
+                        items.forEach(function(e) {
+                            if (e && e.id != null) seen['id:' + e.id] = true;
+                            seen[rowKey(e)] = true;
+                        });
+                        (getInstallmentScheduleRows() || []).forEach(function(row) {
+                            if (!row || row.installmentLabel === 'Gelir') return;
+                            if (String(row.date || '').slice(0, 10) !== today) return;
+                            const id = row.id != null ? ('id:' + row.id) : '';
+                            const rk = rowKey(row);
+                            if ((id && seen[id]) || seen[rk]) return;
+                            if (id) seen[id] = true;
+                            seen[rk] = true;
+                            items.push(row);
+                        });
+                    }
+                } catch (_) {}
+                items.sort(function(a, b) {
                     return String(b.date || '').localeCompare(String(a.date || '')) || String(b.id || '').localeCompare(String(a.id || ''));
                 });
                 const modal = document.getElementById('categoryDetailModal');

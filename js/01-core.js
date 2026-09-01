@@ -523,17 +523,18 @@
                 }
             });
 
-            const list = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : (expenses || []);
-            list.forEach(function(e) {
+            function pushExpenseDueNotif(e) {
                 if (!e || e.installmentLabel === 'Gelir') return;
                 const d = String(e.date || '').slice(0, 10);
                 if (!d) return;
                 const days = daysUntilYMD(d);
                 if (days == null || days < 0 || days > 7) return;
                 const desc = (e.description && e.description !== '-') ? e.description : (e.category || 'Harcama');
-                const sub = (e.billSubtype ? e.billSubtype + ' · ' : '') + (e.category || '');
+                const sub = (e.billSubtype ? e.billSubtype + ' · ' : '') +
+                    (e.installmentLabel && e.installmentLabel !== 'Peşin' ? e.installmentLabel + ' · ' : '') +
+                    (e.category || '');
                 const amt = (Number(e.displayAmount) || Number(e.amount) || 0).toLocaleString('tr-TR') + ' TL';
-                const key = 'exp-' + d + '-' + (e.id || desc);
+                const key = 'exp-' + d + '-' + (e.id || desc) + '-' + Math.round((Number(e.displayAmount) || 0) * 100);
                 if (days === 0) {
                     pushNotif(key, 'critical', '💸', 'Bugün: ' + desc, sub + ' · ' + amt + (e.person ? ' · ' + e.person : ''));
                 } else if (days <= 3) {
@@ -541,7 +542,15 @@
                 } else {
                     pushNotif(key, 'info', '💳', days + ' gün sonra: ' + desc, formatDateTR(d) + ' · ' + amt);
                 }
-            });
+            }
+            const list = (typeof getProcessedExpenses === 'function') ? getProcessedExpenses() : (expenses || []);
+            list.forEach(pushExpenseDueNotif);
+            // Taksit/tekrar: Tüm Taksitler kaynağından da yaklaşanlara ekle
+            try {
+                if (typeof getInstallmentScheduleRows === 'function') {
+                    (getInstallmentScheduleRows() || []).forEach(pushExpenseDueNotif);
+                }
+            } catch (_) {}
 
             try {
                 for (let i = 0; i < localStorage.length; i++) {
@@ -1522,6 +1531,31 @@ window.renderHomeTab = function() {
                             todayCount += 1;
                         }
                     });
+                    // Bugünkü taksit/tekrar dilimleri (işlem geçmişi ile aynı kaynak)
+                    try {
+                        if (today && typeof getInstallmentScheduleRows === 'function') {
+                            const seenToday = {};
+                            // getProcessedExpenses'ten gelenleri saymıştık; çift saymamak için anahtar
+                            (typeof getProcessedExpenses === 'function' ? getProcessedExpenses() : []).forEach(function(e) {
+                                if (!e || String(e.date || '').slice(0, 10) !== today) return;
+                                const k = [e.person, e.date, Math.round((Number(e.displayAmount) || 0) * 100), String(e.description || '').slice(0, 40)].join('|');
+                                seenToday[k] = true;
+                                if (e.id != null) seenToday['id:' + e.id] = true;
+                            });
+                            (getInstallmentScheduleRows() || []).forEach(function(row) {
+                                if (!row || row.installmentLabel === 'Gelir') return;
+                                if (String(row.date || '').slice(0, 10) !== today) return;
+                                if (typeof countsInPeriodTotals === 'function' && !countsInPeriodTotals(row)) return;
+                                const amt = Number(row.displayAmount) || Number(row.amount) || 0;
+                                const k = [row.person, row.date, Math.round(amt * 100), String(row.description || '').slice(0, 40)].join('|');
+                                if (seenToday[k] || (row.id != null && seenToday['id:' + row.id])) return;
+                                seenToday[k] = true;
+                                if (row.id != null) seenToday['id:' + row.id] = true;
+                                todaySum += amt;
+                                todayCount += 1;
+                            });
+                        }
+                    } catch (_) {}
                     // KK: Bütçe Takip / Kredi Kartı Ekstreleri ile aynı formül
                     let cardBreak = { total: 0 };
                     if (typeof getPeriodCardBreakdown === 'function') {
