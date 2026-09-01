@@ -315,51 +315,98 @@ function getProcessedExpenses() {
                 }
                 return true;
             };
-            // Tarih bugünden sonra mı? (YYYY-MM-DD string karşılaştırma)
+            // Vade günü kuralı:
+            // Ödeme tarihi 01.09 → 31.08 23:59'a kadar ileri tarihli
+            // 01.09 00:00'dan itibaren yapılmış (normal işlem geçmişi)
+            // Yani: date > bugün → ileri; date <= bugün → normal
             const isFutureForHistory = function(item) {
                 if (!item || !item.date) return false;
                 const s = String(item.date).slice(0, 10);
-                if (todayYmd) return s > todayYmd;
-                return (typeof isFutureDateStr === 'function') && isFutureDateStr(item.date);
+                if (!todayYmd) {
+                    return (typeof isFutureDateStr === 'function') && isFutureDateStr(item.date);
+                }
+                return s > todayYmd;
             };
-            // İleri tarihli: SADECE aktif dönem + gelecek tarih
+            const passesHistoryFilters = function(item) {
+                if (!item) return false;
+                if (currentPersonFilter !== 'Tümü' && item.person !== currentPersonFilter) return false;
+                if (currentCategoryFilter !== 'Tümü' && item.category !== currentCategoryFilter) return false;
+                if (currentPaymentFilter !== 'Tümü' && item.paymentType !== currentPaymentFilter) return false;
+                if (currentStartDateFilter && item.date < currentStartDateFilter) return false;
+                if (currentEndDateFilter && item.date > currentEndDateFilter) return false;
+                if (currentSearchFilter && typeof expenseMatchesTextQuery === 'function') {
+                    if (!expenseMatchesTextQuery(item, currentSearchFilter)) return false;
+                }
+                return true;
+            };
+            // İleri tarihli: aktif dönem + tarih > bugün
             let futuresAll = filtered.filter(function(item) {
                 return !isInc(item) && isFutureForHistory(item) && isCurrentPeriodItem(item);
             });
-            // Tüm Taksitler kaynağından eksik kalan (aktif dönem + gelecek tarih) dilimleri ekle
-            try {
-                if (typeof getInstallmentScheduleRows === 'function' && curPeriodKey) {
-                    const seen = {};
-                    futuresAll.forEach(function(e) { if (e && e.id != null) seen[String(e.id)] = true; });
-                    const passesFilters = function(item) {
-                        if (currentPersonFilter !== 'Tümü' && item.person !== currentPersonFilter) return false;
-                        if (currentCategoryFilter !== 'Tümü' && item.category !== currentCategoryFilter) return false;
-                        if (currentPaymentFilter !== 'Tümü' && item.paymentType !== currentPaymentFilter) return false;
-                        if (currentStartDateFilter && item.date < currentStartDateFilter) return false;
-                        if (currentEndDateFilter && item.date > currentEndDateFilter) return false;
-                        if (currentSearchFilter && typeof expenseMatchesTextQuery === 'function') {
-                            if (!expenseMatchesTextQuery(item, currentSearchFilter)) return false;
-                        }
-                        return true;
-                    };
-                    (getInstallmentScheduleRows() || []).forEach(function(row) {
-                        if (!row || isInc(row)) return;
-                        if (String(row.effectiveMonth || '') !== String(curPeriodKey)) return;
-                        if (!isFutureForHistory(row)) return;
-                        if (!passesFilters(row)) return;
-                        const id = String(row.id || '');
-                        if (id && seen[id]) return;
-                        if (id) seen[id] = true;
-                        futuresAll.push(row);
-                    });
-                }
-            } catch (_) {}
-            // Normal liste: gelecek tarihli satırlar HİÇ girmesin (sonraki dönem taksitleri üstte birikmesin)
-            const normalsAll = filtered.filter(function(item) {
+            // Normal: tarih <= bugün
+            let normalsAll = filtered.filter(function(item) {
                 if (isInc(item)) return true;
                 if (isFutureForHistory(item)) return false;
                 return true;
             });
+            // Tüm Taksitler kaynağından vadesi gelmiş/bugünkü dilimleri işlem geçmişine ekle
+            try {
+                if (typeof getInstallmentScheduleRows === 'function') {
+                    const rowKey = function(e) {
+                        if (!e) return '';
+                        return [
+                            String(e.person || ''),
+                            String(e.date || '').slice(0, 10),
+                            String(Math.round((Number(e.displayAmount) || Number(e.amount) || 0) * 100)),
+                            String(e.description || '').toLocaleLowerCase('tr-TR').slice(0, 40),
+                            String(e.installmentLabel || '')
+                        ].join('|');
+                    };
+                    const seenF = {};
+                    const seenN = {};
+                    futuresAll.forEach(function(e) {
+                        if (e && e.id != null) seenF[String(e.id)] = true;
+                        seenF[rowKey(e)] = true;
+                    });
+                    normalsAll.forEach(function(e) {
+                        if (e && e.id != null) seenN[String(e.id)] = true;
+                        seenN[rowKey(e)] = true;
+                    });
+                    (getInstallmentScheduleRows() || []).forEach(function(row) {
+                        if (!row || isInc(row)) return;
+                        if (!passesHistoryFilters(row)) return;
+                        // Aktif dönem dilimleri (veya tarih bugün/geçmiş)
+                        const inCur = isCurrentPeriodItem(row);
+                        const id = String(row.id || '');
+                        const rk = rowKey(row);
+                        if (isFutureForHistory(row)) {
+                            if (!inCur) return;
+                            if ((id && seenF[id]) || seenF[rk]) return;
+                            if (id) seenF[id] = true;
+                            seenF[rk] = true;
+                            futuresAll.push(row);
+                        } else {
+                            // Vadesi gelmiş (tarih <= bugün) → işlem geçmişi
+                            if ((id && seenN[id]) || seenN[rk]) return;
+                            if (id) seenN[id] = true;
+                            seenN[rk] = true;
+                            normalsAll.push(row);
+                        }
+                    });
+                }
+            } catch (_) {}
+            // Birleştirme sonrası tekrar sırala (eklenen dilimler sonda kalmasın)
+            const sortHist = function(a, b) {
+                const dA = String(a.date || '');
+                const dB = String(b.date || '');
+                if (dA !== dB) return dA < dB ? 1 : -1;
+                const tA = (typeof expenseTimeKey === 'function') ? expenseTimeKey(a) : '';
+                const tB = (typeof expenseTimeKey === 'function') ? expenseTimeKey(b) : '';
+                if (tA !== tB) return tA < tB ? 1 : -1;
+                return String(b.id || '').localeCompare(String(a.id || ''));
+            };
+            try { normalsAll.sort(sortHist); } catch (_) {}
+            try { futuresAll.sort(sortHist); } catch (_) {}
             const limit = Math.max(5, Number(displayLimit) || 5);
             const normals = normalsAll.slice(0, limit);
             const totalRecords = normalsAll.length;

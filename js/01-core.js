@@ -1504,13 +1504,17 @@ window.renderHomeTab = function() {
                         }
                         const amt = Number(e.displayAmount) || 0;
                         if (e.effectiveMonth === period) {
-                            periodSum += amt;
-                            if (typeof isCashPayment === 'function' && isCashPayment(e.paymentType)) periodCash += amt;
-                            else if (typeof isCreditPayment === 'function' && isCreditPayment(e.paymentType)) periodCard += amt;
-                            else {
-                                const pt = String(e.paymentType || '').toLowerCase();
-                                if (pt.indexOf('nakit') >= 0) periodCash += amt;
-                                else periodCard += amt;
+                            // KK hariç (nakit + diğer); KK aşağıda ekstre formülünden
+                            const isCc = (typeof isCreditPayment === 'function')
+                                ? isCreditPayment(e.paymentType)
+                                : /kredi|kart/i.test(String(e.paymentType || ''));
+                            if (!isCc) {
+                                periodSum += amt;
+                                if (typeof isCashPayment === 'function' && isCashPayment(e.paymentType)) periodCash += amt;
+                                else {
+                                    const pt = String(e.paymentType || '').toLowerCase();
+                                    if (pt.indexOf('nakit') >= 0) periodCash += amt;
+                                }
                             }
                         }
                         if (String(e.date || '').slice(0, 10) === today) {
@@ -1518,6 +1522,19 @@ window.renderHomeTab = function() {
                             todayCount += 1;
                         }
                     });
+                    // KK: Bütçe Takip / Kredi Kartı Ekstreleri ile aynı formül
+                    let cardBreak = { total: 0 };
+                    if (typeof getPeriodCardBreakdown === 'function') {
+                        cardBreak = getPeriodCardBreakdown() || cardBreak;
+                    } else if (typeof calculateCurrentCardStatements === 'function') {
+                        let t = 0;
+                        (calculateCurrentCardStatements() || []).forEach(function(s) {
+                            t += Number(s.amount) || 0;
+                        });
+                        cardBreak.total = t;
+                    }
+                    periodCard = Number(cardBreak.total) || 0;
+                    periodSum += periodCard;
                 } catch (_) {}
 
                 const elPeriod = document.getElementById('homePeriodSpend');
