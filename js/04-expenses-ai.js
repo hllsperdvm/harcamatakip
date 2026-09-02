@@ -1786,7 +1786,10 @@ function getProcessedExpenses() {
                     plugins: {
                         legend: {
                             position: 'bottom',
-                            labels: { boxWidth: 10, font: { size: 10 }, padding: 8 }
+                            labels: { boxWidth: 10, font: { size: 10 }, padding: 8 },
+                            onClick: function(e, item, leg) {
+                                if (typeof yuvamLegendSoloClick === 'function') yuvamLegendSoloClick(e, item, leg);
+                            }
                         },
                         tooltip: {
                             filter: function(item) {
@@ -1957,7 +1960,13 @@ function updateStatsPanel() {
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: {
-                            legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 }, padding: 10 } }
+                            legend: {
+                                position: 'right',
+                                labels: { boxWidth: 12, font: { size: 11 }, padding: 10 },
+                                onClick: function(e, item, leg) {
+                                    if (typeof yuvamLegendSoloClick === 'function') yuvamLegendSoloClick(e, item, leg);
+                                }
+                            }
                         },
                         onClick: function(evt, els) {
                             if (!els || !els.length) return;
@@ -2277,7 +2286,13 @@ function updateStatsPanel() {
                             responsive: true,
                             maintainAspectRatio: false,
                             plugins: {
-                                legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 }, padding: 8 } },
+                                legend: {
+                                    position: 'bottom',
+                                    labels: { boxWidth: 10, font: { size: 10 }, padding: 8 },
+                                    onClick: function(e, item, leg) {
+                                        if (typeof yuvamLegendSoloClick === 'function') yuvamLegendSoloClick(e, item, leg);
+                                    }
+                                },
                                 tooltip: {
                                     callbacks: {
                                         label: function(ctx) {

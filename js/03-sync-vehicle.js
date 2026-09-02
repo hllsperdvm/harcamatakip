@@ -563,6 +563,45 @@
             if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
         }
 
+
+        /** Legend tıklanınca: sadece o seri görünsün; tekrar tıklanınca hepsi açılsın */
+        window.yuvamLegendSoloClick = function(e, legendItem, legend) {
+            try {
+                const chart = legend.chart;
+                if (!chart) return;
+                const type = (chart.config && chart.config.type) || '';
+                if (type === 'pie' || type === 'doughnut') {
+                    const idx = legendItem.index;
+                    const n = (chart.data.labels || []).length;
+                    let onlyThis = true;
+                    for (let i = 0; i < n; i++) {
+                        const vis = chart.getDataVisibility(i);
+                        if (i === idx) { if (!vis) onlyThis = false; }
+                        else if (vis) onlyThis = false;
+                    }
+                    for (let i = 0; i < n; i++) {
+                        const want = onlyThis ? true : (i === idx);
+                        if (chart.getDataVisibility(i) !== want) chart.toggleDataVisibility(i);
+                    }
+                } else {
+                    const idx = legendItem.datasetIndex;
+                    const n = (chart.data.datasets || []).length;
+                    let onlyThis = true;
+                    for (let i = 0; i < n; i++) {
+                        const hidden = chart.getDatasetMeta(i).hidden === true;
+                        if (i === idx) { if (hidden) onlyThis = false; }
+                        else if (!hidden) onlyThis = false;
+                    }
+                    for (let i = 0; i < n; i++) {
+                        chart.getDatasetMeta(i).hidden = onlyThis ? false : (i !== idx);
+                    }
+                }
+                chart.update();
+            } catch (err) {
+                console.warn('yuvamLegendSoloClick', err);
+            }
+        };
+
         function updateProgressBar(person, dueDateStr) {
             const bar = document.getElementById(person + 'ProgressBar');
             const percText = document.getElementById(person + 'ProgressPercentage');
@@ -589,34 +628,34 @@
             let percentage = Math.round(Math.min(100, Math.max(0, (elapsedMs / totalMs) * 100)));
             const diffDays = Math.ceil((dueMid - today) / (1000 * 60 * 60 * 24));
 
-            // 1–10 gün penceresi: yaklaştıkça dolum artar, renk yeşil → kırmızı
+            // 1–10 gün: yaklaştıkça dolum artar, renk yeşil → kırmızı (inline style — Tailwind purge güvenli)
             let widthPct = 0;
-            let colorCls = 'bg-emerald-500';
+            let barColor = '#10b981'; // emerald
             if (diffDays < 0) {
                 widthPct = 100;
-                colorCls = 'bg-rose-600';
+                barColor = '#e11d48'; // rose-600
                 percText.innerText = 'Günü geçti';
             } else if (diffDays === 0) {
                 widthPct = 100;
-                colorCls = 'bg-rose-500';
+                barColor = '#f43f5e'; // rose-500
                 percText.innerText = 'Bugün son gün';
             } else if (diffDays >= 10) {
-                widthPct = Math.max(8, Math.round(percentage * 0.25));
-                colorCls = 'bg-emerald-500';
+                widthPct = Math.max(12, Math.round(percentage * 0.3));
+                barColor = '#10b981';
                 percText.innerText = diffDays + ' gün';
             } else {
-                // 1..9 gün: dolum (10-days)/10
+                // 1..9 gün: dolum ve renk
                 widthPct = Math.round(((10 - diffDays) / 10) * 100);
-                if (diffDays >= 7) colorCls = 'bg-emerald-500';
-                else if (diffDays >= 5) colorCls = 'bg-lime-500';
-                else if (diffDays >= 3) colorCls = 'bg-amber-500';
-                else if (diffDays >= 2) colorCls = 'bg-orange-500';
-                else colorCls = 'bg-rose-500';
+                if (diffDays >= 7) barColor = '#22c55e';      // green-500
+                else if (diffDays >= 5) barColor = '#eab308';  // yellow-500
+                else if (diffDays >= 3) barColor = '#f59e0b';  // amber-500
+                else if (diffDays >= 2) barColor = '#f97316';  // orange-500
+                else barColor = '#f43f5e';                     // rose-500
                 percText.innerText = diffDays + ' gün';
             }
             bar.style.width = widthPct + '%';
-            bar.className = 'h-full rounded-full transition-all duration-1000 ' + colorCls;
-            // bar görünür olsun
+            bar.style.backgroundColor = barColor;
+            bar.className = 'h-full rounded-full transition-all duration-1000';
             if (bar.parentElement) bar.parentElement.classList.add('debt-progress-track');
         }
 
@@ -1113,7 +1152,7 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { display: true, position: 'bottom' } },
+                        plugins: { legend: { display: true, position: 'bottom', onClick: function(e, item, leg) { if (typeof yuvamLegendSoloClick === 'function') yuvamLegendSoloClick(e, item, leg); } } },
                         scales: { y: { beginAtZero: true } }
                     }
                 });
@@ -1221,7 +1260,10 @@
                             legend: {
                                 display: true,
                                 position: 'bottom',
-                                labels: { boxWidth: 12, font: { size: fuelMobile ? 12 : 11 }, padding: fuelMobile ? 12 : 10 }
+                                labels: { boxWidth: 12, font: { size: fuelMobile ? 12 : 11 }, padding: fuelMobile ? 12 : 10 },
+                                onClick: function(e, item, leg) {
+                                    if (typeof yuvamLegendSoloClick === 'function') yuvamLegendSoloClick(e, item, leg);
+                                }
                             }
                         },
                         scales: fuelMobile ? {
@@ -1302,7 +1344,7 @@
                         responsive: true,
                         maintainAspectRatio: false,
                         interaction: { mode: 'index', intersect: false },
-                        plugins: { legend: { display: true, position: 'bottom' } },
+                        plugins: { legend: { display: true, position: 'bottom', onClick: function(e, item, leg) { if (typeof yuvamLegendSoloClick === 'function') yuvamLegendSoloClick(e, item, leg); } } },
                         scales: {
                             y: {
                                 beginAtZero: true,
@@ -1344,7 +1386,7 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { display: true, position: 'bottom' } },
+                        plugins: { legend: { display: true, position: 'bottom', onClick: function(e, item, leg) { if (typeof yuvamLegendSoloClick === 'function') yuvamLegendSoloClick(e, item, leg); } } },
                         scales: {
                             y: {
                                 beginAtZero: false,
