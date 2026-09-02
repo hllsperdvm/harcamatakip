@@ -699,6 +699,15 @@
             if (!league && comps && comps.league) league = comps.league.name || comps.league.abbreviation || '';
             if (!league && ev.league) league = ev.league.name || ev.league.abbreviation || '';
             const isGs = isGalatasarayName(home) || isGalatasarayName(away);
+            let venue = '';
+            try {
+                if (comps && comps.venue) {
+                    venue = comps.venue.fullName || comps.venue.name || '';
+                    if (comps.venue.address && comps.venue.address.city) {
+                        venue = (venue ? venue + ' · ' : '') + comps.venue.address.city;
+                    }
+                }
+            } catch (_) {}
             return {
                 home: home,
                 away: away,
@@ -707,6 +716,7 @@
                 status: status,
                 time: time,
                 league: league || 'Süper Lig',
+                venue: venue,
                 isGs: isGs,
                 key: matchDedupeKey(date, home, away),
                 source: 'espn'
@@ -825,6 +835,277 @@
 
 
         /** GS maçları 0–7 gün içindeyse aile takvimine ekle; çift kayıtları temizle */
+
+        window.closeGsMatchModal = function() {
+            const m = document.getElementById('gsMatchModal');
+            if (!m) return;
+            m.classList.add('hidden');
+            m.classList.remove('flex');
+        };
+
+        /** ESPN takım fikstüründen son 5 sonuç → G/B/M dizisi */
+        async function fetchEspnTeamFormLetters(teamId, leaguePath) {
+            if (!teamId) return '';
+            const path = leaguePath || 'tur.1';
+            try {
+                const url = 'https://site.api.espn.com/apis/site/v2/sports/soccer/' + path + '/teams/' + teamId + '/schedule';
+                const res = await fetch(url);
+                if (!res.ok) return '';
+                const data = await res.json();
+                const events = data.events || [];
+                const today = (typeof todayDateStr === 'function') ? todayDateStr() : '';
+                const finished = [];
+                events.forEach(function(ev) {
+                    const iso = String(ev.date || '');
+                    const d = iso.slice(0, 10);
+                    if (!d || (today && d > today)) return;
+                    const comps = (ev.competitions && ev.competitions[0]) ? ev.competitions[0] : null;
+                    if (!comps) return;
+                    const st = (ev.status && ev.status.type && (ev.status.type.name || ev.status.type.state)) || '';
+                    if (String(st).toUpperCase().indexOf('SCHED') >= 0) return;
+                    let myScore = null, oppScore = null;
+                    (comps.competitors || []).forEach(function(c) {
+                        const id = c.team && (c.team.id || c.id);
+                        const sc = c.score != null && c.score !== '' ? Number(c.score) : null;
+                        if (String(id) === String(teamId)) myScore = sc;
+                        else oppScore = sc;
+                    });
+                    if (myScore == null || oppScore == null || isNaN(myScore) || isNaN(oppScore)) return;
+                    let letter = 'B';
+                    if (myScore > oppScore) letter = 'G';
+                    else if (myScore < oppScore) letter = 'M';
+                    finished.push({ date: d, letter: letter });
+                });
+                finished.sort(function(a, b) { return String(b.date).localeCompare(String(a.date)); });
+                return finished.slice(0, 5).map(function(x) { return x.letter; }).join(' ');
+            } catch (e) {
+                console.warn('fetchEspnTeamFormLetters', e);
+                return '';
+            }
+        }
+
+        /** İki takım arasındaki son karşılaşmalar (aynı lig skorbord aralığı) */
+        async function fetchEspnH2H(homeName, awayName) {
+            try {
+                const ranges = ['20260801-20270531', '20250801-20260731'];
+                const hits = [];
+                const today = (typeof todayDateStr === 'function') ? todayDateStr() : '';
+                for (let r = 0; r < ranges.length; r++) {
+                    const events = await fetchEspnScoreboardRange(ranges[r]);
+                    (events || []).forEach(function(ev) {
+                        const fx = parseEspnEvent(ev, 'Süper Lig');
+                        if (!fx || !fx.date || !fx.score) return;
+                        if (today && fx.date >= today) return;
+                        const pair = matchDedupeKey(fx.date, fx.home, fx.away);
+                        const target = matchDedupeKey(fx.date, homeName, awayName);
+                        // aynı iki takım (tarih hariç)
+                        const a = normTeamName(fx.home) + '|' + normTeamName(fx.away);
+                        const b = [normTeamName(homeName), normTeamName(awayName)].sort().join('|');
+                        const a2 = [normTeamName(fx.home), normTeamName(fx.away)].sort().join('|');
+                        if (a2 !== b) return;
+                        hits.push(fx);
+                    });
+                }
+                hits.sort(function(a, b) { return String(b.date).localeCompare(String(a.date)); });
+                return hits.slice(0, 5);
+            } catch (e) {
+                console.warn('fetchEspnH2H', e);
+                return [];
+            }
+        }
+
+        window.openGsMatchModal = async function() {
+            const modal = document.getElementById('gsMatchModal');
+            const body = document.getElementById('gsMatchModalBody');
+            const titleEl = document.getElementById('gsMatchModalTitle');
+            if (!modal || !body) return;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            body.innerHTML = '<p class="text-sm text-slate-400 font-semibold text-center py-6">Yükleniyor…</p>';
+
+            let fx = null;
+            try {
+                let list = [];
+                if (typeof loadSuperLigFixtures === 'function') {
+                    list = await loadSuperLigFixtures(false) || [];
+                } else if (typeof superLigFixturesCache !== 'undefined' && superLigFixturesCache) {
+                    list = superLigFixturesCache;
+                }
+                const today = (typeof todayDateStr === 'function') ? todayDateStr() : '';
+                const upcoming = (list || []).filter(function(f) {
+                    if (!f || !f.isGs || !f.date) return false;
+                    return String(f.date).slice(0, 10) >= today;
+                }).sort(function(a, b) {
+                    return String(a.date).localeCompare(String(b.date)) || String(a.time || '').localeCompare(String(b.time || ''));
+                });
+                fx = upcoming[0] || null;
+            } catch (e) {
+                console.warn('openGsMatchModal load', e);
+            }
+
+            if (!fx) {
+                if (titleEl) titleEl.textContent = 'Galatasaray';
+                body.innerHTML = '<p class="text-sm text-slate-500 font-semibold text-center py-6">Yaklaşan maç bulunamadı</p>';
+                return;
+            }
+
+            const home = fx.home || '—';
+            const away = fx.away || '—';
+            if (titleEl) titleEl.textContent = '🦁 ' + home + ' – ' + away;
+
+            const dateLong = (typeof formatDateLongTR === 'function')
+                ? formatDateLongTR(fx.date)
+                : (typeof formatDateTR === 'function' ? formatDateTR(fx.date) : fx.date);
+            const days = (typeof daysUntilYMD === 'function') ? daysUntilYMD(fx.date) : null;
+            let countdown = '';
+            if (days == null) countdown = '';
+            else if (days < 0) countdown = 'Maç oynandı';
+            else if (days === 0) countdown = fx.time ? ('Bugün · ' + fx.time) : 'Bugün';
+            else if (days === 1) countdown = 'Yarın' + (fx.time ? (' · ' + fx.time) : '');
+            else countdown = days + ' gün sonra';
+
+            // Puan + takım id (form için)
+            let standHtml = '';
+            let homeId = null, awayId = null;
+            try {
+                if (/süper|super/i.test(String(fx.league || ''))) {
+                    const res = await fetch('https://site.api.espn.com/apis/v2/sports/soccer/tur.1/standings');
+                    if (res.ok) {
+                        const data = await res.json();
+                        const entries = ((((data || {}).children || [])[0] || {}).standings || {}).entries
+                            || (((data || {}).children || [])[0] || {}).standings
+                            || [];
+                        const rows = Array.isArray(entries) ? entries : [];
+                        function findTeam(name) {
+                            const n = String(name || '').toLowerCase();
+                            for (let i = 0; i < rows.length; i++) {
+                                const t = rows[i];
+                                const tn = String((t.team && (t.team.displayName || t.team.shortDisplayName)) || t.name || '').toLowerCase();
+                                if (tn && (n.indexOf(tn) >= 0 || tn.indexOf(n.slice(0, 6)) >= 0 || n.indexOf(tn.slice(0, 6)) >= 0)) return t;
+                            }
+                            return null;
+                        }
+                        function rankLine(t) {
+                            if (!t) return null;
+                            const rank = t.rank || (t.stats && (t.stats.find(function(s) { return s.name === 'rank'; }) || {}).value) || '—';
+                            let pts = '—';
+                            if (t.stats) {
+                                const p = t.stats.find(function(s) { return s.name === 'points' || s.abbreviation === 'P'; });
+                                if (p) pts = p.value != null ? p.value : (p.displayValue || '—');
+                            }
+                            const nm = (t.team && (t.team.shortDisplayName || t.team.displayName)) || '';
+                            const id = t.team && t.team.id;
+                            return { rank: rank, pts: pts, name: nm, id: id };
+                        }
+                        const h = rankLine(findTeam(home));
+                        const a = rankLine(findTeam(away));
+                        if (h && h.id) homeId = h.id;
+                        if (a && a.id) awayId = a.id;
+                        if (isGalatasarayName(home) && !homeId) homeId = '432';
+                        if (isGalatasarayName(away) && !awayId) awayId = '432';
+                        if (h || a) {
+                            standHtml = '<div class="rounded-xl bg-slate-50 border border-slate-100 p-3 space-y-1.5">' +
+                                '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Puan durumu</p>' +
+                                (h ? ('<p class="text-sm font-bold text-slate-800">' + escapeHtml(h.name || home) + ' · ' + h.rank + '. sıra · ' + h.pts + ' puan</p>') : '') +
+                                (a ? ('<p class="text-sm font-bold text-slate-800">' + escapeHtml(a.name || away) + ' · ' + a.rank + '. sıra · ' + a.pts + ' puan</p>') : '') +
+                                '</div>';
+                        }
+                    }
+                }
+            } catch (eS) {
+                console.warn('gs standings', eS);
+            }
+            if (isGalatasarayName(home) && !homeId) homeId = '432';
+            if (isGalatasarayName(away) && !awayId) awayId = '432';
+
+            // Form (son 5)
+            let formHtml = '';
+            try {
+                const leaguePath = /şampiyon|champion/i.test(String(fx.league || '')) ? 'uefa.champions'
+                    : /avrupa ligi|europa/i.test(String(fx.league || '')) ? 'uefa.europa'
+                    : /konferans/i.test(String(fx.league || '')) ? 'uefa.europa.conf'
+                    : 'tur.1';
+                const [formH, formA] = await Promise.all([
+                    fetchEspnTeamFormLetters(homeId, leaguePath),
+                    fetchEspnTeamFormLetters(awayId, leaguePath)
+                ]);
+                if (formH || formA) {
+                    formHtml = '<div class="rounded-xl bg-slate-50 border border-slate-100 p-3 space-y-2">' +
+                        '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Form (son 5)</p>' +
+                        (formH ? ('<p class="text-sm font-bold text-slate-800"><span class="text-slate-400 font-semibold">' + escapeHtml(home) + ':</span> ' + escapeHtml(formH) + '</p>') : '') +
+                        (formA ? ('<p class="text-sm font-bold text-slate-800"><span class="text-slate-400 font-semibold">' + escapeHtml(away) + ':</span> ' + escapeHtml(formA) + '</p>') : '') +
+                        '<p class="text-[10px] text-slate-400">G = Galibiyet · B = Beraberlik · M = Mağlubiyet</p>' +
+                        '</div>';
+                }
+            } catch (eF) {
+                console.warn('gs form', eF);
+            }
+
+            // H2H
+            let h2hHtml = '';
+            try {
+                const h2h = await fetchEspnH2H(home, away);
+                if (h2h && h2h.length) {
+                    let gsW = 0, oppW = 0, draw = 0;
+                    const lines = h2h.map(function(m) {
+                        const sc = String(m.score || '');
+                        const parts = sc.split(/\s*-\s*/);
+                        const hs = parseInt(parts[0], 10);
+                        const as = parseInt(parts[1], 10);
+                        if (!isNaN(hs) && !isNaN(as)) {
+                            if (hs === as) draw++;
+                            else {
+                                const homeWon = hs > as;
+                                if (isGalatasarayName(m.home)) {
+                                    if (homeWon) gsW++; else oppW++;
+                                } else if (isGalatasarayName(m.away)) {
+                                    if (!homeWon) gsW++; else oppW++;
+                                }
+                            }
+                        }
+                        const dlab = (typeof formatDateLongTR === 'function') ? formatDateLongTR(m.date) : m.date;
+                        return '<p class="text-[12px] font-semibold text-slate-700">' + escapeHtml(dlab) + ' · ' +
+                            escapeHtml(m.home) + ' ' + escapeHtml(sc) + ' ' + escapeHtml(m.away) + '</p>';
+                    }).join('');
+                    h2hHtml = '<div class="rounded-xl bg-slate-50 border border-slate-100 p-3 space-y-1.5">' +
+                        '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">H2H (son maçlar)</p>' +
+                        '<p class="text-sm font-bold text-slate-800">GS ' + gsW + ' · Ber ' + draw + ' · Rakip ' + oppW + '</p>' +
+                        lines +
+                        '</div>';
+                } else {
+                    h2hHtml = '<div class="rounded-xl bg-slate-50 border border-slate-100 p-3">' +
+                        '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">H2H</p>' +
+                        '<p class="text-sm text-slate-500 font-semibold">Kayıtlı karşılıklı maç bulunamadı</p></div>';
+                }
+            } catch (eH) {
+                console.warn('gs h2h', eH);
+            }
+
+            function row(label, value) {
+                if (!value || value === '—') return '';
+                return '<div class="flex justify-between gap-3 py-2 border-b border-slate-100 last:border-0">' +
+                    '<span class="text-[11px] font-bold text-slate-400 uppercase tracking-wide shrink-0">' + label + '</span>' +
+                    '<span class="text-sm font-bold text-slate-800 text-right">' + value + '</span></div>';
+            }
+
+            body.innerHTML =
+                '<div class="space-y-3">' +
+                '<div class="rounded-xl bg-amber-50 border border-amber-100 p-3 text-center">' +
+                '<p class="text-lg font-black text-slate-900">' + escapeHtml(home) + ' – ' + escapeHtml(away) + '</p>' +
+                (countdown ? ('<p class="text-sm font-bold text-amber-800 mt-1">' + escapeHtml(countdown) + '</p>') : '') +
+                '</div>' +
+                '<div class="rounded-xl bg-white border border-slate-100 p-3">' +
+                row('Zaman', escapeHtml(dateLong) + (fx.time ? (' · ' + escapeHtml(fx.time)) : '')) +
+                row('Yer', escapeHtml(fx.venue || '')) +
+                row('Lig', escapeHtml(fx.league || '')) +
+                '</div>' +
+                standHtml +
+                formHtml +
+                h2hHtml +
+                '<p class="text-[10px] text-slate-400 font-semibold text-center">Kaynak: ESPN</p>' +
+                '</div>';
+        };
+
         async function syncGsMatchesToCalendar(fixtures) {
             if (!currentUser || !db) return;
             const today = todayDateStr();

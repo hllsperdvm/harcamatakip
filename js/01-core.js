@@ -395,6 +395,16 @@
             return Math.round(ms / 86400000);
         }
 
+        /** 4 Eylül Cuma */
+        function formatDateLongTR(ymd) {
+            const d = (typeof parseYMD === 'function') ? parseYMD(ymd) : null;
+            if (!d || isNaN(d.getTime())) return String(ymd || '-');
+            const months = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+            const weekdays = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+            return d.getDate() + ' ' + months[d.getMonth()] + ' ' + weekdays[d.getDay()];
+        }
+        try { window.formatDateLongTR = formatDateLongTR; } catch (_) {}
+
         function getNotifSeenKeys() {
             try {
                 return new Set(JSON.parse(localStorage.getItem('yuvam_notif_seen') || '[]'));
@@ -636,10 +646,21 @@
                     const k = f.key || (typeof matchDedupeKey === 'function' ? matchDedupeKey(f.date, f.home, f.away) : (f.date + f.home + f.away));
                     const title = '🦁 ' + f.home + ' – ' + f.away;
                     const key = 'gsfx-next';
-                    const msg = formatDateTR(f.date) + (f.time ? ' · ' + f.time : '') + (f.league ? ' · ' + f.league : '');
+                    const dateLong = (typeof formatDateLongTR === 'function') ? formatDateLongTR(f.date) : formatDateTR(f.date);
+                    const msg = dateLong + (f.time ? ' · ' + f.time : '') + (f.league ? ' · ' + f.league : '');
+                    // fixtureKey: modal için
+                    const notifBase = { fixtureKey: f.key || '', fixtureDate: f.date || '' };
                     if (days === 0) pushNotif(key, 'critical', '⚽', 'Bugün: ' + title, msg);
                     else if (days <= 3) pushNotif(key, 'warning', '⚽', days + ' gün: ' + title, msg);
                     else pushNotif(key, 'info', '⚽', days + ' gün: ' + title, msg);
+                    try {
+                        const last = items[items.length - 1];
+                        if (last && last.key === key) {
+                            last.fixtureKey = f.key || '';
+                            last.fixtureDate = f.date || '';
+                            last.category = 'gs-match';
+                        }
+                    } catch (_) {}
                 }
             } catch (_) {}
 
@@ -1676,10 +1697,16 @@ window.renderHomeTab = function() {
                             html += '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mt-3 mb-1.5">Yaklaşanlar</p>';
                             html += upcoming.map(function(n) {
                                 const msg = (n.message || '').trim();
-                                return '<div class="agenda-item">' +
+                                const isGs = (n.category === 'gs-match') || (n.key === 'gsfx-next') ||
+                                    (n.icon === '⚽' && String(n.title || '').indexOf('🦁') >= 0);
+                                const click = isGs
+                                    ? ' role="button" tabindex="0" onclick="event.stopPropagation();if(typeof openGsMatchModal===\'function\')openGsMatchModal()" class="agenda-item agenda-gs cursor-pointer active:scale-[0.99] transition"'
+                                    : ' class="agenda-item"';
+                                return '<div' + click + '>' +
                                     '<span class="text-base shrink-0">' + (n.icon || '🔔') + '</span>' +
                                     '<div class="min-w-0"><p class="agenda-title">' + escapeHtml(n.title || '') + '</p>' +
                                     (msg ? ('<p class="agenda-sub">' + escapeHtml(msg) + '</p>') : '') +
+                                    (isGs ? '<p class="agenda-sub text-sky-600 font-bold">Detay için dokun</p>' : '') +
                                     '</div></div>';
                             }).join('');
                             const lim = Math.max(5, window._homeUpcomingLimit || 5);
