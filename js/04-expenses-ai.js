@@ -2097,7 +2097,7 @@ function updateStatsPanel() {
                         }
                     }
 
-                    // 1) Ödenmiş ekstreler — UI ile aynı dönem anahtarı
+                    // 1) Ödenmiş ekstreler — resolveStatementPeriodKey (harcama dönemi)
                     (cardStatements || []).forEach(function(s) {
                         if (!s) return;
                         const person = String(s.person || '').toLowerCase();
@@ -2108,14 +2108,19 @@ function updateStatsPanel() {
                                 pk = resolveStatementPeriodKey(s) || '';
                             }
                         } catch (_) {}
-                        if (!pk) {
-                            pk = String(s.periodKey || s.month || '');
-                        }
+                        if (!pk) pk = String(s.periodKey || s.month || s.spendPeriodKey || '');
                         if (!pk || !/^\d{4}-\d{2}$/.test(pk)) return;
                         setCell(person, pk, s.amount, s.paidDate || s.createdAt || '', false);
                     });
 
-                    // 2) Aktif (ödenmemiş) borç → GÜNCEL ekstre dönemi (29 Ağu–28 Eyl vb.)
+                    // 2) Aktif (ödenmemiş) borç → KAPALI ekstre dönemi (harcama dönemi)
+                    // Örn. 2 Eyl'de açık dönem 29 Ağu–28 Eyl; ödenmemiş 75k aslında 29 Tem–28 Ağu ekstresi
+                    function prevPeriodKeyOf(pk) {
+                        if (!pk || !/^\d{4}-\d{2}$/.test(String(pk))) return '';
+                        const parts = String(pk).split('-').map(Number);
+                        const d = new Date(parts[0], parts[1] - 2, 1);
+                        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+                    }
                     function applyActiveDebt(person, debt) {
                         if (!debt || debt.paid || !(Number(debt.amount) > 0)) return;
                         let pk = '';
@@ -2123,8 +2128,11 @@ function updateStatsPanel() {
                             pk = String(debt.periodKey);
                         } else if (debt.spendPeriodKey && /^\d{4}-\d{2}$/.test(String(debt.spendPeriodKey))) {
                             pk = String(debt.spendPeriodKey);
+                        } else if (debt.lastStatementMonth && /^\d{4}-\d{2}$/.test(String(debt.lastStatementMonth))) {
+                            pk = String(debt.lastStatementMonth);
                         } else {
-                            pk = curPk;
+                            // Kayıtlı dönem yoksa: bir önceki kapanmış 29–28 dönemi
+                            pk = prevPeriodKeyOf(curPk) || curPk;
                         }
                         if (!pk) return;
                         setCell(person, pk, debt.amount, '9999-active', true);
@@ -3489,25 +3497,58 @@ function updateStatsPanel() {
 
 
 
-        /** Ödenmiş ekstre etiket dönemi: periodKey varsa onu kullan; yoksa ödeme tarihinden geriye hesapla */
+        /** Ödenmiş ekstre → harcama dönemi (29–28). Ödeme ayı değil. */
         function resolveStatementPeriodKey(stmt) {
             if (!stmt) return '';
-            // Önce kayıtlı harcama dönemi (ödeme tarihi değil)
-            const direct = stmt.periodKey || stmt.month || stmt.spendPeriodKey || '';
-            if (direct && /^\d{4}-\d{2}$/.test(String(direct))) return String(direct);
-            if (direct) return String(direct);
-            const paid = String(stmt.paidDate || '').slice(0, 10);
-            if (paid && typeof getPeriodKeyForDateStr === 'function') {
+            function shiftBack(pk) {
+                if (!pk || !/^\d{4}-\d{2}$/.test(String(pk))) return '';
+                const parts = String(pk).split('-').map(Number);
+                const d = new Date(parts[0], parts[1] - 2, 1);
+                return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+            }
+            function pkFromDateMinusDays(ymd, days) {
+                if (!ymd || typeof getPeriodKeyForDateStr !== 'function') return '';
                 try {
-                    const d = (typeof parseYMD === 'function') ? parseYMD(paid) : new Date(paid + 'T12:00:00');
-                    if (d && !isNaN(d.getTime())) {
-                        d.setDate(d.getDate() - 12);
-                        const ymd = (typeof formatYMD === 'function')
-                            ? formatYMD(d)
-                            : (d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'));
-                        return getPeriodKeyForDateStr(ymd) || '';
+                    const d = (typeof parseYMD === 'function') ? parseYMD(ymd) : new Date(ymd + 'T12:00:00');
+                    if (!d || isNaN(d.getTime())) return '';
+                    d.setDate(d.getDate() - (days || 12));
+                    const out = (typeof formatYMD === 'function')
+                        ? formatYMD(d)
+                        : (d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'));
+                    return getPeriodKeyForDateStr(out) || '';
+                } catch (_) { return ''; }
+            }
+            // 1) Açıkça harcama dönemi
+            let pk = '';
+            if (stmt.spendPeriodKey && /^\d{4}-\d{2}$/.test(String(stmt.spendPeriodKey))) {
+                pk = String(stmt.spendPeriodKey);
+            } else if (stmt.periodKey && /^\d{4}-\d{2}$/.test(String(stmt.periodKey))) {
+                pk = String(stmt.periodKey);
+            } else if (stmt.month && /^\d{4}-\d{2}$/.test(String(stmt.month))) {
+                pk = String(stmt.month);
+            }
+            // 2) Eski hata: periodKey = ödeme tarihinin dönemi → bir dönem geri
+            const paid = String(stmt.paidDate || '').slice(0, 10);
+            if (pk && paid && typeof getPeriodKeyForDateStr === 'function') {
+                try {
+                    const paidPk = getPeriodKeyForDateStr(paid);
+                    if (paidPk && paidPk === pk) {
+                        const back = shiftBack(pk);
+                        if (back) pk = back;
                     }
                 } catch (_) {}
+            }
+            if (pk) return pk;
+            // 3) Son ödeme tarihinden harcama dönemi
+            const due = String(stmt.dueDate || '').slice(0, 10);
+            if (due) {
+                pk = pkFromDateMinusDays(due, 12);
+                if (pk) return pk;
+            }
+            // 4) Ödeme tarihinden geriye
+            if (paid) {
+                pk = pkFromDateMinusDays(paid, 12);
+                if (pk) return pk;
             }
             return '';
         }

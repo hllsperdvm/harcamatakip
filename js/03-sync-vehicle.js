@@ -357,10 +357,24 @@
                 }
                 const amount = amountCheck.amount;
                 const dueDate = getAutoCardDueDate();
+                // Ekstre dönemi = bir önceki kapanmış 29–28 (açık dönemdeki borç girişi önceki ekstreyi ifade eder)
+                let spendPk = '';
+                try {
+                    if (typeof getCurrentPeriod === 'function') {
+                        const cur = getCurrentPeriod();
+                        if (cur && /^\d{4}-\d{2}$/.test(cur)) {
+                            const parts = cur.split('-').map(Number);
+                            const d = new Date(parts[0], parts[1] - 2, 1);
+                            spendPk = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+                        }
+                    }
+                } catch (_) {}
                 const debt = {
                     amount: amount,
                     paid: false,
                     dueDate: dueDate,
+                    periodKey: spendPk || null,
+                    spendPeriodKey: spendPk || null,
                     lastStatementId: null,
                     lastStatementMonth: null
                 };
@@ -433,10 +447,10 @@
                     }
                     if (!confirm((key === 'bekir' ? 'Bekir' : 'Duygu') + ' kart borcu ödendi olarak işaretlensin mi? Ekstre kaydı oluşturulacak.')) return;
 
-                    // Ekstre dönemi = harcama dönemi (29–28), son ödeme tarihinin dönemi değil
-                    let statementMonth = debt.periodKey || null;
+                    // Ekstre dönemi = kapalı harcama dönemi (29–28). Örn. 7 Eyl vadeli borç → 29 Tem–28 Ağu
+                    let statementMonth = debt.spendPeriodKey || debt.periodKey || null;
+                    if (statementMonth && !/^\d{4}-\d{2}$/.test(String(statementMonth))) statementMonth = null;
                     if (!statementMonth && debt.dueDate && typeof getPeriodKeyForDateStr === 'function') {
-                        // Son ödeme genelde dönem bitiminden ~7–10 gün sonra → 12 gün geriye git
                         try {
                             const d = (typeof parseYMD === 'function') ? parseYMD(debt.dueDate) : new Date(debt.dueDate);
                             if (d && !isNaN(d.getTime())) {
@@ -448,12 +462,17 @@
                             }
                         } catch (_) {}
                     }
-                    if (!statementMonth && typeof getPreviousPeriodKeys === 'function') {
-                        const keys = getPreviousPeriodKeys(2);
-                        // keys sorted oldest..? getPreviousPeriodKeys returns relative to current
-                        statementMonth = (keys && keys.length >= 2) ? keys[keys.length - 2] : (keys && keys[0]);
+                    if (!statementMonth && typeof getCurrentPeriod === 'function') {
+                        // Bir önceki kapanmış dönem (asla açık dönem değil)
+                        try {
+                            const cur = getCurrentPeriod();
+                            if (cur && /^\d{4}-\d{2}$/.test(cur)) {
+                                const parts = cur.split('-').map(Number);
+                                const d = new Date(parts[0], parts[1] - 2, 1);
+                                statementMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+                            }
+                        } catch (_) {}
                     }
-                    if (!statementMonth && typeof getCurrentPeriod === 'function') statementMonth = getCurrentPeriod();
                     if (!statementMonth) statementMonth = new Date().toISOString().slice(0, 7);
 
                     const docId = key + '_' + statementMonth + '_' + Date.now();
@@ -461,6 +480,7 @@
                         person: key,
                         month: statementMonth,
                         periodKey: statementMonth,
+                        spendPeriodKey: statementMonth,
                         amount: Number(debt.amount) || 0,
                         dueDate: debt.dueDate || '',
                         paidDate: new Date().toISOString().split('T')[0],
