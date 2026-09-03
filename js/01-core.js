@@ -149,7 +149,8 @@
         let openrouterApiKey = ''; // Firestore settings/apiKeys.openrouter — koda yazılmaz
         let collectApiKey = ''; // Firestore settings/apiKeys.collectapi — CollectAPI spor
         let altinApiKey = ''; // Firestore settings/apiKeys.altinapi — altinapi.com
-        try { window.openrouterApiKey = ''; window.collectApiKey = ''; window.altinApiKey = ''; } catch (_) {}
+        let apiFootballKey = ''; // Firestore settings/apiKeys.apifootball — api-sports.io
+        try { window.openrouterApiKey = ''; window.collectApiKey = ''; window.altinApiKey = ''; window.apiFootballKey = ''; } catch (_) {}
         let superLigFixturesCache = []; // bellek önbelleği
         let publicHolidaysCache = [];
         let publicHolidaysAt = 0;
@@ -647,7 +648,7 @@
                     const title = '🦁 ' + f.home + ' – ' + f.away;
                     const key = 'gsfx-next';
                     const dateLong = (typeof formatDateLongTR === 'function') ? formatDateLongTR(f.date) : formatDateTR(f.date);
-                    const msg = dateLong + (f.time ? ' · ' + f.time : '') + (f.league ? ' · ' + f.league : '');
+                    const msg = dateLong + (f.time ? ' · ' + f.time : '') + (f.league ? ' · ' + String(f.league).replace(/Turkish\s*Super\s*Lig/ig, 'Süper Lig') : '');
                     // fixtureKey: modal için
                     const notifBase = { fixtureKey: f.key || '', fixtureDate: f.date || '' };
                     if (days === 0) pushNotif(key, 'critical', '⚽', 'Bugün: ' + title, msg);
@@ -874,6 +875,7 @@
             try { openrouterApiKey = ''; } catch (_) {}
             try { collectApiKey = ''; } catch (_) {}
             try { altinApiKey = ''; window.altinApiKey = ''; } catch (_) {}
+            try { apiFootballKey = ''; window.apiFootballKey = ''; } catch (_) {}
             try { stopActivityLogListener(); } catch (_) {}
             try { activityLog = []; } catch (_) {}
             // realtime flag
@@ -1706,7 +1708,7 @@ window.renderHomeTab = function() {
                                     '<span class="text-base shrink-0">' + (n.icon || '🔔') + '</span>' +
                                     '<div class="min-w-0"><p class="agenda-title">' + escapeHtml(n.title || '') + '</p>' +
                                     (msg ? ('<p class="agenda-sub">' + escapeHtml(msg) + '</p>') : '') +
-                                    (isGs ? '<p class="agenda-sub text-sky-600 font-bold">Detay için dokun</p>' : '') +
+                                    '' +
                                     '</div></div>';
                             }).join('');
                             const lim = Math.max(5, window._homeUpcomingLimit || 5);
