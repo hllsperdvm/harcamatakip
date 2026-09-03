@@ -872,9 +872,11 @@
 
         function getApiFootballKey() {
             try {
-                var k = '';
-                try { k = String(apiFootballKey || '').trim(); } catch (_) {}
-                if (!k) k = String(window.apiFootballKey || '').trim();
+                var k = String(window.apiFootballKey || '').trim();
+                if (!k) {
+                    try { k = String(apiFootballKey || '').trim(); } catch (_) {}
+                    if (k) window.apiFootballKey = k;
+                }
                 return k;
             } catch (_) {
                 return '';
@@ -970,167 +972,112 @@
             }
         }
 
-        async function apiFootballTeamForm(teamId) {
-            if (!teamId) return '';
-            try {
-                const data = await apiFootballGet('fixtures?team=' + teamId + '&last=5');
-                const rows = (data && data.response) || [];
-                const letters = [];
-                rows.forEach(function(row) {
-                    const goals = row.goals || {};
-                    const teams = row.teams || {};
-                    const st = (row.fixture && row.fixture.status && row.fixture.status.short) || '';
-                    if (st && st !== 'FT' && st !== 'AET' && st !== 'PEN') return;
-                    const isHome = teams.home && String(teams.home.id) === String(teamId);
-                    const gf = isHome ? goals.home : goals.away;
-                    const ga = isHome ? goals.away : goals.home;
-                    if (gf == null || ga == null) return;
-                    if (gf > ga) letters.push('G');
-                    else if (gf < ga) letters.push('M');
-                    else letters.push('B');
-                });
-                return letters.join(' ');
-            } catch (e) {
-                console.warn('apiFootballTeamForm', e);
-                return '';
-            }
+        function apiFootballCurrentSeason() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = now.getMonth() + 1;
+            return m >= 7 ? y : y - 1;
         }
 
-        async function apiFootballH2H(teamId1, teamId2) {
-            if (!teamId1 || !teamId2) return [];
-            try {
-                const data = await apiFootballGet('fixtures/headtohead?h2h=' + teamId1 + '-' + teamId2 + '&last=5');
-                const rows = (data && data.response) || [];
-                return rows.map(function(row) {
-                    const fx = row.fixture || {};
-                    const teams = row.teams || {};
-                    const goals = row.goals || {};
-                    let date = '';
-                    try {
-                        const d = new Date(fx.date);
-                        if (!isNaN(d.getTime())) {
-                            date = new Intl.DateTimeFormat('en-CA', {
-                                timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit'
-                            }).format(d);
-                        }
-                    } catch (_) {}
-                    if (!date && fx.date) date = String(fx.date).slice(0, 10);
-                    const home = (teams.home && teams.home.name) || '';
-                    const away = (teams.away && teams.away.name) || '';
-                    const score = (goals.home != null && goals.away != null) ? (goals.home + ' - ' + goals.away) : '';
-                    return { home: home, away: away, date: date, score: score, source: 'api-football' };
-                }).filter(function(x) { return x.date && x.score; });
-            } catch (e) {
-                console.warn('apiFootballH2H', e);
-                return [];
-            }
-        }
-
-        /** ESPN takım fikstüründen son 5 sonuç → G/B/M */
-        async function fetchEspnTeamFormLetters(teamId, leaguePath) {
-            if (!teamId) return '';
-            const paths = leaguePath ? [leaguePath, 'tur.1'] : ['tur.1'];
-            const seen = {};
+        function apiFootballParseFormRows(rows, teamId) {
             const finished = [];
-            const today = (typeof todayDateStr === 'function') ? todayDateStr() : '';
-            for (let p = 0; p < paths.length; p++) {
-                try {
-                    const url = 'https://site.api.espn.com/apis/site/v2/sports/soccer/' + paths[p] + '/teams/' + teamId + '/schedule';
-                    const res = await fetch(url);
-                    if (!res.ok) continue;
-                    const data = await res.json();
-                    (data.events || []).forEach(function(ev) {
-                        const iso = String(ev.date || '');
-                        let d = '';
-                        try {
-                            const dt = new Date(iso);
-                            if (!isNaN(dt.getTime())) {
-                                d = new Intl.DateTimeFormat('en-CA', {
-                                    timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit'
-                                }).format(dt);
-                            }
-                        } catch (_) {}
-                        if (!d) d = iso.slice(0, 10);
-                        if (!d || (today && d > today)) return;
-                        const comps = (ev.competitions && ev.competitions[0]) ? ev.competitions[0] : null;
-                        if (!comps) return;
-                        const stType = (ev.status && ev.status.type) ? ev.status.type : {};
-                        const completed = stType.completed === true ||
-                            /final|ft|full|sonuç|result/i.test(String(stType.name || stType.description || stType.state || ''));
-                        // skor yoksa atla
-                        let myScore = null, oppScore = null;
-                        (comps.competitors || []).forEach(function(c) {
-                            const id = c.team && (c.team.id || c.id);
-                            const sc = c.score != null && c.score !== '' ? Number(c.score) : null;
-                            if (String(id) === String(teamId)) myScore = sc;
-                            else if (sc != null && !isNaN(sc)) oppScore = sc;
-                        });
-                        if (myScore == null || oppScore == null || isNaN(myScore) || isNaN(oppScore)) return;
-                        if (!completed && myScore === 0 && oppScore === 0) return;
-                        const key = d + '|' + myScore + '|' + oppScore;
-                        if (seen[key]) return;
-                        seen[key] = true;
-                        let letter = 'B';
-                        if (myScore > oppScore) letter = 'G';
-                        else if (myScore < oppScore) letter = 'M';
-                        finished.push({ date: d, letter: letter });
-                    });
-                } catch (e) {
-                    console.warn('form path', paths[p], e);
+            (rows || []).forEach(function(row) {
+                const goals = row.goals || {};
+                const teams = row.teams || {};
+                const st = String((row.fixture && row.fixture.status && row.fixture.status.short) || '').toUpperCase();
+                if (st && st !== 'FT' && st !== 'AET' && st !== 'PEN') return;
+                const isHome = teams.home && String(teams.home.id) === String(teamId);
+                let gf = isHome ? goals.home : goals.away;
+                let ga = isHome ? goals.away : goals.home;
+                if ((gf == null || ga == null) && row.score && row.score.fulltime) {
+                    gf = isHome ? row.score.fulltime.home : row.score.fulltime.away;
+                    ga = isHome ? row.score.fulltime.away : row.score.fulltime.home;
                 }
-            }
+                if (gf == null || ga == null) return;
+                gf = Number(gf); ga = Number(ga);
+                if (isNaN(gf) || isNaN(ga)) return;
+                const iso = (row.fixture && row.fixture.date) ? String(row.fixture.date) : '';
+                let letter = 'B';
+                if (gf > ga) letter = 'G';
+                else if (gf < ga) letter = 'M';
+                finished.push({ date: iso, letter: letter });
+            });
             finished.sort(function(a, b) { return String(b.date).localeCompare(String(a.date)); });
             return finished.slice(0, 5).map(function(x) { return x.letter; }).join(' ');
         }
 
-        /** GS fikstüründen rakiple oynanan son maçlar (H2H) */
-        async function fetchEspnH2H(homeName, awayName) {
-            const hits = [];
-            const seen = {};
-            const today = (typeof todayDateStr === 'function') ? todayDateStr() : '';
-            const targetPair = [normTeamName(homeName), normTeamName(awayName)].sort().join('|');
-
-            async function absorbEvents(events, leagueLabel) {
-                (events || []).forEach(function(ev) {
-                    const fx = parseEspnEvent(ev, leagueLabel || 'Süper Lig');
-                    if (!fx || !fx.date || !fx.score) return;
-                    if (today && fx.date >= today) return;
-                    const pair = [normTeamName(fx.home), normTeamName(fx.away)].sort().join('|');
-                    if (pair !== targetPair) return;
-                    const k = fx.date + '|' + fx.score;
-                    if (seen[k]) return;
-                    seen[k] = true;
-                    hits.push(fx);
-                });
-            }
-
-            // 1) GS takım fikstürü (daha zengin geçmiş)
-            try {
-                const res = await fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/tur.1/teams/432/schedule');
-                if (res.ok) {
-                    const data = await res.json();
-                    await absorbEvents(data.events || [], 'Süper Lig');
+        async function apiFootballTeamForm(teamId) {
+            if (!teamId) return '';
+            // Free plan: last yok; güncel sezon da kapalı olabilir → 2024/2023/2022 dene
+            const cur = apiFootballCurrentSeason();
+            const seasons = [cur, cur - 1, cur - 2, 2024, 2023, 2022];
+            const tried = {};
+            let lastErr = null;
+            for (let i = 0; i < seasons.length; i++) {
+                const s = seasons[i];
+                if (s == null || tried[s]) continue;
+                tried[s] = true;
+                try {
+                    const data = await apiFootballGet('fixtures?team=' + teamId + '&season=' + s);
+                    const letters = apiFootballParseFormRows(data && data.response, teamId);
+                    if (letters) return letters;
+                } catch (e) {
+                    lastErr = e;
+                    // sezon yoksa sonrakine geç
+                    continue;
                 }
-            } catch (e1) {
-                console.warn('h2h schedule', e1);
             }
-
-            // 2) Skorbord aralıkları (yedek / geniş sezon)
+            // Sezonsuz dene
             try {
-                const ranges = ['20260801-20270531', '20250801-20260731', '20240801-20250731'];
-                for (let r = 0; r < ranges.length; r++) {
-                    const events = await fetchEspnScoreboardRange(ranges[r]);
-                    await absorbEvents(events, 'Süper Lig');
-                }
+                const data = await apiFootballGet('fixtures?team=' + teamId);
+                const letters = apiFootballParseFormRows(data && data.response, teamId);
+                if (letters) return letters;
             } catch (e2) {
-                console.warn('h2h scoreboard', e2);
+                lastErr = e2;
             }
+            if (lastErr) throw lastErr;
+            return '';
+        }
 
-            hits.sort(function(a, b) { return String(b.date).localeCompare(String(a.date)); });
-            return hits.slice(0, 5);
+        async function apiFootballH2H(teamId1, teamId2) {
+            if (!teamId1 || !teamId2) return [];
+            // Free plan: last parametresi yok
+            const data = await apiFootballGet('fixtures/headtohead?h2h=' + teamId1 + '-' + teamId2);
+            const rows = (data && data.response) || [];
+            const out = [];
+            rows.forEach(function(row) {
+                const fx = row.fixture || {};
+                const teams = row.teams || {};
+                const goals = row.goals || {};
+                const st = String((fx.status && fx.status.short) || '').toUpperCase();
+                if (st && st !== 'FT' && st !== 'AET' && st !== 'PEN') return;
+                let date = '';
+                try {
+                    const d = new Date(fx.date);
+                    if (!isNaN(d.getTime())) {
+                        date = new Intl.DateTimeFormat('en-CA', {
+                            timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit'
+                        }).format(d);
+                    }
+                } catch (_) {}
+                if (!date && fx.date) date = String(fx.date).slice(0, 10);
+                const home = (teams.home && teams.home.name) || '';
+                const away = (teams.away && teams.away.name) || '';
+                let gh = goals.home, ga = goals.away;
+                if ((gh == null || ga == null) && row.score && row.score.fulltime) {
+                    gh = row.score.fulltime.home;
+                    ga = row.score.fulltime.away;
+                }
+                if (gh == null || ga == null) return;
+                const score = gh + ' - ' + ga;
+                out.push({ home: home, away: away, date: date, score: score, source: 'api-football', _iso: fx.date || date });
+            });
+            out.sort(function(a, b) { return String(b._iso || b.date).localeCompare(String(a._iso || a.date)); });
+            return out.slice(0, 5);
         }
 
         window.openGsMatchModal = async function() {
+            return; // modal iptal — sadece yaklaşanlar
             const modal = document.getElementById('gsMatchModal');
             const body = document.getElementById('gsMatchModalBody');
             const titleEl = document.getElementById('gsMatchModalTitle');
@@ -1242,30 +1189,47 @@
                 }
                 let formH = '', formA = '';
                 window._afLastError = '';
-                if (getApiFootballKey()) {
+                var afKeyNow = getApiFootballKey();
+                console.info('[YUVAM] AF key len=', afKeyNow ? afKeyNow.length : 0);
+                if (afKeyNow) {
                     try {
-                        let afHome = await apiFootballFindTeamId(home);
-                        let afAway = await apiFootballFindTeamId(away);
+                        let afHome = isGalatasarayName(home) ? 645 : await apiFootballFindTeamId(home);
+                        let afAway = isGalatasarayName(away) ? 645 : await apiFootballFindTeamId(away);
                         if (isGalatasarayName(home)) afHome = 645;
                         if (isGalatasarayName(away)) afAway = 645;
+                        if (!afHome && /basak|başak/i.test(String(home))) afHome = 564;
+                        if (!afAway && /basak|başak/i.test(String(away))) afAway = 564;
                         if (!afHome || !afAway) {
-                            throw new Error('Takım id bulunamadı (home=' + afHome + ' away=' + afAway + ')');
+                            throw new Error('Takım id yok (home=' + afHome + ' away=' + afAway + ')');
                         }
-                        const pair = await Promise.all([
-                            apiFootballTeamForm(afHome),
-                            apiFootballTeamForm(afAway)
-                        ]);
-                        formH = pair[0] || '';
-                        formA = pair[1] || '';
-                        if (formH || formA) formSource = 'API-Football';
                         window._afHomeId = afHome;
                         window._afAwayId = afAway;
+                        // Bir takım hata verse diğerini yine al
+                        try { formH = await apiFootballTeamForm(afHome) || ''; } catch (eH) {
+                            console.warn('form home', eH);
+                            if (!window._afLastError) window._afLastError = (eH && eH.message) || String(eH);
+                        }
+                        try { formA = await apiFootballTeamForm(afAway) || ''; } catch (eA) {
+                            console.warn('form away', eA);
+                            if (!window._afLastError) window._afLastError = (eA && eA.message) || String(eA);
+                        }
+                        if (formH || formA) {
+                            formSource = 'API-Football';
+                            window._afLastError = '';
+                        } else if (!window._afLastError) {
+                            window._afLastError = 'AF boş form (id ' + afHome + '/' + afAway + ')';
+                        }
                     } catch (eAf) {
-                        window._afLastError = (eAf && eAf.message) ? eAf.message : String(eAf);
+                        var msg = (eAf && eAf.message) ? eAf.message : String(eAf);
+                        // Free plan sezon uyarısını kısalt
+                        if (/season|last parameter|free plan/i.test(msg)) {
+                            msg = 'Form: ücretsiz planda sınırlı sezon';
+                        }
+                        window._afLastError = msg;
                         console.warn('form apifootball', eAf);
                     }
                 } else {
-                    window._afLastError = 'Anahtar yok — Firestore settings/apiKeys → alan: apifootball';
+                    window._afLastError = 'Anahtar yok (apifootball okunamadı)';
                 }
                 if (!formH && !formA) {
                     const leaguePath = /şampiyon|champion/i.test(String(fx.league || '')) ? 'uefa.champions'
@@ -1310,6 +1274,7 @@
                         h2h = await apiFootballH2H(afHome, afAway);
                         if (h2h && h2h.length) h2hSource = 'API-Football';
                     } catch (eAf2) {
+                        if (!window._afLastError) window._afLastError = (eAf2 && eAf2.message) ? eAf2.message : String(eAf2);
                         console.warn('h2h apifootball', eAf2);
                     }
                 }
@@ -1357,6 +1322,11 @@
             }
 
 
+            if (h2hSource === 'API-Football' && formSource === 'API-Football') window._afLastError = '';
+            if (h2hSource === 'API-Football' && !formSource && window._afLastError && /sezon|season|free plan/i.test(window._afLastError)) {
+                window._afLastError = 'Form için ücretsiz planda güncel sezon yok';
+            }
+
             function row(label, value) {
                 if (!value || value === '—') return '';
                 return '<div class="flex justify-between gap-3 py-2 border-b border-slate-100 last:border-0">' +
@@ -1378,7 +1348,7 @@
                 standHtml +
                 formHtml +
                 h2hHtml +
-                '<p class="text-[10px] text-slate-400 font-semibold text-center">Kaynak: ' + (formSource || h2hSource || 'ESPN') + ' · Türkiye saati' + (window._afLastError ? (' · AF: ' + escapeHtml(String(window._afLastError).slice(0, 80))) : '') + '</p>' +
+                '<p class="text-[10px] text-slate-400 font-semibold text-center">Kaynak: ' + (formSource || h2hSource || 'ESPN') + ' · TR' + (getApiFootballKey() ? (' · AFkey:' + getApiFootballKey().length) : ' · AFkey:0') + (window._afLastError ? (' · ' + escapeHtml(String(window._afLastError).slice(0, 60))) : '') + '</p>' +
                 '</div>';
         };
 
@@ -2689,14 +2659,15 @@
                     af = v;
                 });
             }
-            apiFootballKey = String(af || '').trim();
-            try { window.apiFootballKey = apiFootballKey; } catch (_) {}
-            if (apiFootballKey) {
-                try { localStorage.setItem('yuvam_af_key_len', String(apiFootballKey.length)); } catch (_) {}
-                console.info('[YUVAM] API-Football key yüklendi (' + apiFootballKey.length + ' karakter)');
-            } else {
-                console.warn('[YUVAM] API-Football key bulunamadı. Firestore settings/apiKeys içine apifootball alanını ekleyin.');
+            var afStr = String(af || '').trim();
+            if ((afStr.charAt(0) === '"' && afStr.charAt(afStr.length - 1) === '"') ||
+                (afStr.charAt(0) === "'" && afStr.charAt(afStr.length - 1) === "'")) {
+                afStr = afStr.slice(1, -1).trim();
             }
+            try { apiFootballKey = afStr; } catch (_) {}
+            window.apiFootballKey = afStr;
+            if (afStr) console.info('[YUVAM] API-Football key yüklendi (' + afStr.length + ' karakter)');
+            else console.warn('[YUVAM] API-Football key yok');
         }
 
         window.ensureApiKeysLoaded = async function() {

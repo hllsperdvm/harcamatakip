@@ -649,8 +649,6 @@
                     const key = 'gsfx-next';
                     const dateLong = (typeof formatDateLongTR === 'function') ? formatDateLongTR(f.date) : formatDateTR(f.date);
                     const msg = dateLong + (f.time ? ' · ' + f.time : '') + (f.league ? ' · ' + String(f.league).replace(/Turkish\s*Super\s*Lig/ig, 'Süper Lig') : '');
-                    // fixtureKey: modal için
-                    const notifBase = { fixtureKey: f.key || '', fixtureDate: f.date || '' };
                     if (days === 0) pushNotif(key, 'critical', '⚽', 'Bugün: ' + title, msg);
                     else if (days <= 3) pushNotif(key, 'warning', '⚽', days + ' gün: ' + title, msg);
                     else pushNotif(key, 'info', '⚽', days + ' gün: ' + title, msg);
@@ -1699,12 +1697,7 @@ window.renderHomeTab = function() {
                             html += '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mt-3 mb-1.5">Yaklaşanlar</p>';
                             html += upcoming.map(function(n) {
                                 const msg = (n.message || '').trim();
-                                const isGs = (n.category === 'gs-match') || (n.key === 'gsfx-next') ||
-                                    (n.icon === '⚽' && String(n.title || '').indexOf('🦁') >= 0);
-                                const click = isGs
-                                    ? ' role="button" tabindex="0" onclick="event.stopPropagation();if(typeof openGsMatchModal===\'function\')openGsMatchModal()" class="agenda-item agenda-gs cursor-pointer active:scale-[0.99] transition"'
-                                    : ' class="agenda-item"';
-                                return '<div' + click + '>' +
+                                return '<div class="agenda-item">' +
                                     '<span class="text-base shrink-0">' + (n.icon || '🔔') + '</span>' +
                                     '<div class="min-w-0"><p class="agenda-title">' + escapeHtml(n.title || '') + '</p>' +
                                     (msg ? ('<p class="agenda-sub">' + escapeHtml(msg) + '</p>') : '') +
