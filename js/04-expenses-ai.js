@@ -1611,23 +1611,58 @@ function getProcessedExpenses() {
                 hits.push({ cat: 'Muayene', title: 'Araç muayenesi', sub: v.inspectionDate ? formatDateTR(v.inspectionDate) : '—', tab: 'vehicle' });
             }
             try {
-                getProcessedExpenses().filter(function(e) {
+                const expHits = getProcessedExpenses().filter(function(e) {
                     return expenseMatchesTextQuery(e, q);
-                }).slice(0, 25).forEach(function(e) {
+                });
+                // Tarihe göre yeniden eskiye; aynı günde tutar büyük olan üstte
+                expHits.sort(function(a, b) {
+                    const da = String(a.date || a.effectiveDate || '').slice(0, 10);
+                    const db = String(b.date || b.effectiveDate || '').slice(0, 10);
+                    if (da !== db) return db.localeCompare(da);
+                    const aa = Number(a.displayAmount != null ? a.displayAmount : a.amount) || 0;
+                    const bb = Number(b.displayAmount != null ? b.displayAmount : b.amount) || 0;
+                    return bb - aa;
+                });
+                // Aynı ana kayıt (taksit dilimleri) tekrarı azalt
+                const seenExp = {};
+                expHits.forEach(function(e) {
+                    let eid = String(e.id || '');
+                    if (eid.indexOf('_ins_') >= 0) eid = eid.split('_ins_')[0];
+                    if (eid.indexOf('_rec_') >= 0) eid = eid.split('_rec_')[0];
+                    if (!eid || seenExp[eid]) return;
+                    seenExp[eid] = true;
+                    if (Object.keys(seenExp).length > 40) return;
                     hits.push({
                         cat: 'Harcama',
                         title: e.description || e.category || 'Harcama',
                         sub: formatDateTR(e.date) + ' · ' + (Number(e.displayAmount != null ? e.displayAmount : e.amount) || 0).toLocaleString('tr-TR') + ' TL · ' + (e.category || ''),
-                        tab: 'expense'
+                        tab: 'expense',
+                        expenseId: eid,
+                        dateYmd: String(e.date || '').slice(0, 10)
                     });
                 });
             } catch (_) {}
+            // Tarihli sonuçlar önce (yeni → eski), tarihsizler sonda
+            hits.sort(function(a, b) {
+                const da = a.dateYmd || '';
+                const db = b.dateYmd || '';
+                if (da && db) return db.localeCompare(da);
+                if (da && !db) return -1;
+                if (!da && db) return 1;
+                return 0;
+            });
             if (!hits.length) {
                 box.innerHTML = '<p class="text-xs text-slate-400 font-semibold text-center py-6">Sonuç yok</p>';
                 return;
             }
             box.innerHTML = hits.map(function(h) {
-                return '<button type="button" onclick="closeSiteSearch(); switchTab(\'' + h.tab + '\')" class="w-full text-left p-3 rounded-xl bg-slate-50 hover:bg-sky-50 border border-slate-100">' +
+                var click;
+                if (h.expenseId) {
+                    click = "closeSiteSearch();if(typeof editExpense==='function')editExpense('" + String(h.expenseId).replace(/'/g, "\\'") + "')";
+                } else {
+                    click = "closeSiteSearch();switchTab('" + String(h.tab || 'home') + "')";
+                }
+                return '<button type="button" onclick="' + click + '" class="w-full text-left p-3 rounded-xl bg-slate-50 hover:bg-sky-50 border border-slate-100">' +
                     '<span class="text-[10px] font-black text-sky-600 uppercase">' + escapeHtml(h.cat) + '</span>' +
                     '<p class="text-sm font-bold text-slate-800">' + escapeHtml(h.title) + '</p>' +
                     '<p class="text-[11px] text-slate-500 font-semibold">' + escapeHtml(h.sub) + '</p></button>';
