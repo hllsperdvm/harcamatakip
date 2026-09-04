@@ -218,34 +218,63 @@
             const processedExpenses = getProcessedExpenses().filter(function(e) {
                 return e.effectiveMonth === period && countsInPeriodTotals(e);
             });
-            const totalSpent = processedExpenses.reduce((sum, e) => sum + e.displayAmount, 0);
-            const cardSpent = sumByPay(processedExpenses, function(e) { return isCreditPayment(e.paymentType); });
+
+            // KK tutarları: Kredi Kartı Ekstreleri ile AYNI kaynak
+            let cardBreak = { bekir: 0, duygu: 0, total: 0 };
+            try {
+                if (typeof getPeriodCardBreakdown === 'function') {
+                    cardBreak = getPeriodCardBreakdown() || cardBreak;
+                } else if (typeof calculateCurrentCardStatements === 'function') {
+                    const stmts = calculateCurrentCardStatements() || [];
+                    stmts.forEach(function(s) {
+                        const a = Number(s.amount) || 0;
+                        if (s.person === 'Bekir') cardBreak.bekir = a;
+                        else if (s.person === 'Duygu') cardBreak.duygu = a;
+                    });
+                    cardBreak.total = cardBreak.bekir + cardBreak.duygu;
+                }
+            } catch (_) {}
+
+            const bekirList = processedExpenses.filter(e => e.person === 'Bekir');
+            const duyguList = processedExpenses.filter(e => e.person === 'Duygu');
+
+            // Nakit: dönem listesinden; KK: ekstre hesabından
+            const cashOf = function(list) {
+                return sumByPay(list, function(e) { return isCashPayment(e.paymentType); });
+            };
+            const nonCardOf = function(list) {
+                return (list || []).filter(function(e) {
+                    return !isCreditPayment(e.paymentType);
+                }).reduce(function(s, e) { return s + (Number(e.displayAmount) || 0); }, 0);
+            };
+
+            const totalCash = cashOf(processedExpenses);
+            const bekirCash = cashOf(bekirList);
+            const duyguCash = cashOf(duyguList);
+
+            // Kişi / dönem toplam = (KK dışı dönem satırları) + (ekstre KK)
+            const bekirSum = nonCardOf(bekirList) + (Number(cardBreak.bekir) || 0);
+            const duyguSum = nonCardOf(duyguList) + (Number(cardBreak.duygu) || 0);
+            const totalSpent = nonCardOf(processedExpenses) + (Number(cardBreak.total) || 0);
+            const cardSpent = Number(cardBreak.total) || 0;
 
             const elTotal = document.getElementById('totalExpense');
             if (elTotal) elTotal.innerText = totalSpent.toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
 
-            const bekirList = processedExpenses.filter(e => e.person === 'Bekir');
-            const duyguList = processedExpenses.filter(e => e.person === 'Duygu');
-            const bekirSum = bekirList.reduce((s, e) => s + e.displayAmount, 0);
-            const duyguSum = duyguList.reduce((s, e) => s + e.displayAmount, 0);
             const elBekir = document.getElementById('bekirExpense');
             const elDuygu = document.getElementById('duyguExpense');
             if (elBekir) elBekir.innerText = bekirSum.toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
             if (elDuygu) elDuygu.innerText = duyguSum.toLocaleString('tr-TR', {style:'currency', currency:'TRY'});
 
-            // Nakit / Kredi kartı kırılımı
-            const setPair = function(cashId, cardId, list) {
-                const cash = sumByPay(list, function(e) { return isCashPayment(e.paymentType); });
-                const card = sumByPay(list, function(e) { return isCreditPayment(e.paymentType); });
-                // diğer ödeme tipleri varsa kalanı kart+nakit dışında bırak; gösterimde sadece nakit+kk
+            const setCashCard = function(cashId, cardId, cashVal, cardVal) {
                 const cEl = document.getElementById(cashId);
                 const kEl = document.getElementById(cardId);
-                if (cEl) cEl.textContent = fmtShortTL(cash);
-                if (kEl) kEl.textContent = fmtShortTL(card);
+                if (cEl) cEl.textContent = fmtShortTL(cashVal);
+                if (kEl) kEl.textContent = fmtShortTL(cardVal);
             };
-            setPair('totalCashAmt', 'totalCardAmt', processedExpenses);
-            setPair('bekirCashAmt', 'bekirCardAmt', bekirList);
-            setPair('duyguCashAmt', 'duyguCardAmt', duyguList);
+            setCashCard('totalCashAmt', 'totalCardAmt', totalCash, cardSpent);
+            setCashCard('bekirCashAmt', 'bekirCardAmt', bekirCash, cardBreak.bekir);
+            setCashCard('duyguCashAmt', 'duyguCardAmt', duyguCash, cardBreak.duygu);
 
             const totalActiveDebt = (!bekirDebt.paid ? bekirDebt.amount : 0) + (!duyguDebt.paid ? duyguDebt.amount : 0);
             const elDebt = document.getElementById('totalCardDebtDisplay');
@@ -328,10 +357,24 @@
                 }
                 const amount = amountCheck.amount;
                 const dueDate = getAutoCardDueDate();
+                // Ekstre dönemi = bir önceki kapanmış 29–28 (açık dönemdeki borç girişi önceki ekstreyi ifade eder)
+                let spendPk = '';
+                try {
+                    if (typeof getCurrentPeriod === 'function') {
+                        const cur = getCurrentPeriod();
+                        if (cur && /^\d{4}-\d{2}$/.test(cur)) {
+                            const parts = cur.split('-').map(Number);
+                            const d = new Date(parts[0], parts[1] - 2, 1);
+                            spendPk = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+                        }
+                    }
+                } catch (_) {}
                 const debt = {
                     amount: amount,
                     paid: false,
                     dueDate: dueDate,
+                    periodKey: spendPk || null,
+                    spendPeriodKey: spendPk || null,
                     lastStatementId: null,
                     lastStatementMonth: null
                 };
@@ -404,10 +447,10 @@
                     }
                     if (!confirm((key === 'bekir' ? 'Bekir' : 'Duygu') + ' kart borcu ödendi olarak işaretlensin mi? Ekstre kaydı oluşturulacak.')) return;
 
-                    // Ekstre dönemi = harcama dönemi (29–28), son ödeme tarihinin dönemi değil
-                    let statementMonth = debt.periodKey || null;
+                    // Ekstre dönemi = kapalı harcama dönemi (29–28). Örn. 7 Eyl vadeli borç → 29 Tem–28 Ağu
+                    let statementMonth = debt.spendPeriodKey || debt.periodKey || null;
+                    if (statementMonth && !/^\d{4}-\d{2}$/.test(String(statementMonth))) statementMonth = null;
                     if (!statementMonth && debt.dueDate && typeof getPeriodKeyForDateStr === 'function') {
-                        // Son ödeme genelde dönem bitiminden ~7–10 gün sonra → 12 gün geriye git
                         try {
                             const d = (typeof parseYMD === 'function') ? parseYMD(debt.dueDate) : new Date(debt.dueDate);
                             if (d && !isNaN(d.getTime())) {
@@ -419,12 +462,17 @@
                             }
                         } catch (_) {}
                     }
-                    if (!statementMonth && typeof getPreviousPeriodKeys === 'function') {
-                        const keys = getPreviousPeriodKeys(2);
-                        // keys sorted oldest..? getPreviousPeriodKeys returns relative to current
-                        statementMonth = (keys && keys.length >= 2) ? keys[keys.length - 2] : (keys && keys[0]);
+                    if (!statementMonth && typeof getCurrentPeriod === 'function') {
+                        // Bir önceki kapanmış dönem (asla açık dönem değil)
+                        try {
+                            const cur = getCurrentPeriod();
+                            if (cur && /^\d{4}-\d{2}$/.test(cur)) {
+                                const parts = cur.split('-').map(Number);
+                                const d = new Date(parts[0], parts[1] - 2, 1);
+                                statementMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+                            }
+                        } catch (_) {}
                     }
-                    if (!statementMonth && typeof getCurrentPeriod === 'function') statementMonth = getCurrentPeriod();
                     if (!statementMonth) statementMonth = new Date().toISOString().slice(0, 7);
 
                     const docId = key + '_' + statementMonth + '_' + Date.now();
@@ -432,6 +480,7 @@
                         person: key,
                         month: statementMonth,
                         periodKey: statementMonth,
+                        spendPeriodKey: statementMonth,
                         amount: Number(debt.amount) || 0,
                         dueDate: debt.dueDate || '',
                         paidDate: new Date().toISOString().split('T')[0],
@@ -514,6 +563,45 @@
             if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
         }
 
+
+        /** Legend tıklanınca: sadece o seri görünsün; tekrar tıklanınca hepsi açılsın */
+        window.yuvamLegendSoloClick = function(e, legendItem, legend) {
+            try {
+                const chart = legend.chart;
+                if (!chart) return;
+                const type = (chart.config && chart.config.type) || '';
+                if (type === 'pie' || type === 'doughnut') {
+                    const idx = legendItem.index;
+                    const n = (chart.data.labels || []).length;
+                    let onlyThis = true;
+                    for (let i = 0; i < n; i++) {
+                        const vis = chart.getDataVisibility(i);
+                        if (i === idx) { if (!vis) onlyThis = false; }
+                        else if (vis) onlyThis = false;
+                    }
+                    for (let i = 0; i < n; i++) {
+                        const want = onlyThis ? true : (i === idx);
+                        if (chart.getDataVisibility(i) !== want) chart.toggleDataVisibility(i);
+                    }
+                } else {
+                    const idx = legendItem.datasetIndex;
+                    const n = (chart.data.datasets || []).length;
+                    let onlyThis = true;
+                    for (let i = 0; i < n; i++) {
+                        const hidden = chart.getDatasetMeta(i).hidden === true;
+                        if (i === idx) { if (hidden) onlyThis = false; }
+                        else if (!hidden) onlyThis = false;
+                    }
+                    for (let i = 0; i < n; i++) {
+                        chart.getDatasetMeta(i).hidden = onlyThis ? false : (i !== idx);
+                    }
+                }
+                chart.update();
+            } catch (err) {
+                console.warn('yuvamLegendSoloClick', err);
+            }
+        };
+
         function updateProgressBar(person, dueDateStr) {
             const bar = document.getElementById(person + 'ProgressBar');
             const percText = document.getElementById(person + 'ProgressPercentage');
@@ -540,34 +628,34 @@
             let percentage = Math.round(Math.min(100, Math.max(0, (elapsedMs / totalMs) * 100)));
             const diffDays = Math.ceil((dueMid - today) / (1000 * 60 * 60 * 24));
 
-            // 1–10 gün penceresi: yaklaştıkça dolum artar, renk yeşil → kırmızı
+            // 1–10 gün: yaklaştıkça dolum artar, renk yeşil → kırmızı (inline style — Tailwind purge güvenli)
             let widthPct = 0;
-            let colorCls = 'bg-emerald-500';
+            let barColor = '#10b981'; // emerald
             if (diffDays < 0) {
                 widthPct = 100;
-                colorCls = 'bg-rose-600';
+                barColor = '#e11d48'; // rose-600
                 percText.innerText = 'Günü geçti';
             } else if (diffDays === 0) {
                 widthPct = 100;
-                colorCls = 'bg-rose-500';
+                barColor = '#f43f5e'; // rose-500
                 percText.innerText = 'Bugün son gün';
             } else if (diffDays >= 10) {
-                widthPct = Math.max(8, Math.round(percentage * 0.25));
-                colorCls = 'bg-emerald-500';
+                widthPct = Math.max(12, Math.round(percentage * 0.3));
+                barColor = '#10b981';
                 percText.innerText = diffDays + ' gün';
             } else {
-                // 1..9 gün: dolum (10-days)/10
+                // 1..9 gün: dolum ve renk
                 widthPct = Math.round(((10 - diffDays) / 10) * 100);
-                if (diffDays >= 7) colorCls = 'bg-emerald-500';
-                else if (diffDays >= 5) colorCls = 'bg-lime-500';
-                else if (diffDays >= 3) colorCls = 'bg-amber-500';
-                else if (diffDays >= 2) colorCls = 'bg-orange-500';
-                else colorCls = 'bg-rose-500';
+                if (diffDays >= 7) barColor = '#22c55e';      // green-500
+                else if (diffDays >= 5) barColor = '#eab308';  // yellow-500
+                else if (diffDays >= 3) barColor = '#f59e0b';  // amber-500
+                else if (diffDays >= 2) barColor = '#f97316';  // orange-500
+                else barColor = '#f43f5e';                     // rose-500
                 percText.innerText = diffDays + ' gün';
             }
             bar.style.width = widthPct + '%';
-            bar.className = 'h-full rounded-full transition-all duration-1000 ' + colorCls;
-            // bar görünür olsun
+            bar.style.backgroundColor = barColor;
+            bar.className = 'h-full rounded-full transition-all duration-1000';
             if (bar.parentElement) bar.parentElement.classList.add('debt-progress-track');
         }
 
@@ -1064,7 +1152,7 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { display: true, position: 'bottom' } },
+                        plugins: { legend: { display: true, position: 'bottom', onClick: function(e, item, leg) { if (typeof yuvamLegendSoloClick === 'function') yuvamLegendSoloClick(e, item, leg); } } },
                         scales: { y: { beginAtZero: true } }
                     }
                 });
@@ -1172,7 +1260,10 @@
                             legend: {
                                 display: true,
                                 position: 'bottom',
-                                labels: { boxWidth: 12, font: { size: fuelMobile ? 12 : 11 }, padding: fuelMobile ? 12 : 10 }
+                                labels: { boxWidth: 12, font: { size: fuelMobile ? 12 : 11 }, padding: fuelMobile ? 12 : 10 },
+                                onClick: function(e, item, leg) {
+                                    if (typeof yuvamLegendSoloClick === 'function') yuvamLegendSoloClick(e, item, leg);
+                                }
                             }
                         },
                         scales: fuelMobile ? {
@@ -1253,7 +1344,7 @@
                         responsive: true,
                         maintainAspectRatio: false,
                         interaction: { mode: 'index', intersect: false },
-                        plugins: { legend: { display: true, position: 'bottom' } },
+                        plugins: { legend: { display: true, position: 'bottom', onClick: function(e, item, leg) { if (typeof yuvamLegendSoloClick === 'function') yuvamLegendSoloClick(e, item, leg); } } },
                         scales: {
                             y: {
                                 beginAtZero: true,
@@ -1295,7 +1386,7 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { display: true, position: 'bottom' } },
+                        plugins: { legend: { display: true, position: 'bottom', onClick: function(e, item, leg) { if (typeof yuvamLegendSoloClick === 'function') yuvamLegendSoloClick(e, item, leg); } } },
                         scales: {
                             y: {
                                 beginAtZero: false,

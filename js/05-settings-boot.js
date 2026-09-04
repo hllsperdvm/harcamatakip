@@ -826,26 +826,70 @@
                         <button type="button" onclick="removeTab(${idx})" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-600">Sil</button>
                     </div>
                 </div>
-            `).join('') + `
-                <button type="button" onclick="restoreDefaultTabs()" class="w-full mt-2 text-xs font-bold text-indigo-600 py-2 hover:underline">Silinen sistem sekmelerini geri yükle</button>
-            `;
+            `).join('');
+            const removedCore = (removedTabIds || []).map(function(id) {
+                return (DEFAULT_TABS || []).find(function(d) { return d && d.id === id; });
+            }).filter(Boolean);
+            if (removedCore.length) {
+                container.innerHTML += '<div class="mt-3 p-3 rounded-xl border border-amber-200 bg-amber-50 space-y-2">' +
+                    '<p class="text-[11px] font-black text-amber-800 uppercase">Silinen sistem sekmeleri</p>' +
+                    removedCore.map(function(d) {
+                        return '<button type="button" onclick="restoreCoreTab(\'' + d.id + '\')" class="w-full text-left text-sm font-bold px-3 py-2 rounded-lg bg-white border border-amber-100 text-slate-800 hover:border-indigo-300">' +
+                            escapeHtml((d.emoji || '') + ' ' + (d.label || d.id)) + ' · geri yükle</button>';
+                    }).join('') +
+                    '</div>';
+            }
+            container.innerHTML += '<button type="button" onclick="restoreDefaultTabs()" class="w-full mt-2 text-xs font-bold text-indigo-600 py-2 hover:underline">Tüm silinen sistem sekmelerini geri yükle</button>';
         };
 
         window.toggleTabVisible = async (index) => {
-            if (!isAdmin()) return;
+            if (!isAdmin()) {
+                if (typeof showToast === 'function') showToast('Sekme görünürlüğü için admin girişi gerekli', 'error');
+                return;
+            }
             const tab = tabsConfig[index];
             if (!tab) return;
-            // Sadece Ayarlar gizlenemesin (admin kilitlenmesi önlemi). Çöp gizlenebilir.
             if (tab.id === 'settings' && tab.visible) {
                 if (typeof showToast === 'function') {
                     showToast('Ayarlar gizlenemez. Kimlerin göreceğini Düzenle → Kimler görsün ile değiştirin.', 'error');
                 }
                 return;
             }
-            tab.visible = !tab.visible;
-            await saveTabsConfig();
-            applyRoleAndTabs();
-            renderTabsList();
+            try {
+                tab.visible = !tab.visible;
+                await saveTabsConfig();
+                applyRoleAndTabs();
+                renderTabsList();
+                if (typeof showToast === 'function') {
+                    showToast((tab.label || tab.id) + (tab.visible ? ' görünür' : ' gizli'), 'success');
+                }
+            } catch (err) {
+                console.error(err);
+                if (typeof showToast === 'function') showToast('Kaydedilemedi: ' + (err.message || err), 'error');
+            }
+        };
+
+        window.restoreCoreTab = async function(tabId) {
+            if (!isAdmin()) {
+                if (typeof showToast === 'function') showToast('Admin gerekli', 'error');
+                return;
+            }
+            const def = (DEFAULT_TABS || []).find(function(x) { return x && x.id === tabId; });
+            if (!def) return;
+            removedTabIds = (removedTabIds || []).filter(function(id) { return id !== tabId; });
+            if (!(tabsConfig || []).some(function(x) { return x && x.id === tabId; })) {
+                tabsConfig.push(Object.assign({}, def, { visible: true, content: '', widgetType: null }));
+            } else {
+                tabsConfig.forEach(function(x) { if (x && x.id === tabId) x.visible = true; });
+            }
+            try {
+                await saveTabsConfig();
+                applyRoleAndTabs();
+                renderTabsList();
+                if (typeof showToast === 'function') showToast((def.label || tabId) + ' geri yüklendi', 'success');
+            } catch (err) {
+                if (typeof showToast === 'function') showToast(String(err.message || err), 'error');
+            }
         };
 
         /** Konsoldan: Ayarlar sekmesini görünür yap */
@@ -1406,7 +1450,11 @@
         // ========== ADMIN PANEL ==========
         window.toggleAdminPanel = function(id) {
             const el = document.getElementById('adminPanel_' + id);
-            if (el) el.classList.toggle('hidden');
+            if (!el) {
+                console.warn('adminPanel yok:', id);
+                return;
+            }
+            el.classList.toggle('hidden');
         };
 
         window.savePasswordChange = async function() {
@@ -2115,12 +2163,41 @@
                 const lab = String(i.installmentLabel || '');
                 return lab.indexOf('Tekrar') >= 0 || lab.indexOf('tekrar') >= 0;
             }
+            function isLastInstallmentRow(i) {
+                if (!i) return false;
+                const count = Number(i.installmentCount) || 0;
+                if (count <= 1) return false;
+                const idx = (i.installmentIndex != null) ? Number(i.installmentIndex) : -1;
+                if (idx >= 0) return idx === count - 1;
+                // Etiket üzerinden: Taksit 4/4 veya Tekrar 12/12
+                const lab = String(i.installmentLabel || '');
+                const m = lab.match(/(\d+)\s*\/\s*(\d+)/);
+                if (m) return parseInt(m[1], 10) === parseInt(m[2], 10);
+                return false;
+            }
             function lineRow(i) {
-                return '<div class="flex justify-between gap-2 text-xs text-slate-600">' +
-                    '<span class="min-w-0 truncate">' + escapeHtml(i.description || '-') +
-                    ' <span class="text-slate-400">(' + escapeHtml(i.person || '') + ' · ' +
-                    escapeHtml(i.installmentLabel || '') + ')</span></span>' +
-                    '<span class="font-bold shrink-0">' + Math.round(Number(i.displayAmount) || 0).toLocaleString('tr-TR') + ' TL</span></div>';
+                const last = isLastInstallmentRow(i);
+                const dateStr = i.date
+                    ? ((typeof formatDateTR === 'function') ? formatDateTR(i.date) : String(i.date).slice(0, 10))
+                    : '';
+                const rowCls = last
+                    ? 'flex justify-between gap-2 text-xs text-rose-700 font-bold'
+                    : 'flex justify-between gap-2 text-xs text-slate-600';
+                const badge = last
+                    ? ' <span class="text-[9px] font-black uppercase tracking-wide text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded-md">Son</span>'
+                    : '';
+                return '<div class="' + rowCls + '">' +
+                    '<span class="min-w-0">' +
+                    '<span class="' + (last ? 'text-rose-800' : '') + '">' + escapeHtml(i.description || '-') + '</span>' +
+                    ' <span class="' + (last ? 'text-rose-500' : 'text-slate-400') + '">(' +
+                    escapeHtml(i.person || '') + ' · ' + escapeHtml(i.installmentLabel || '') + ')</span>' +
+                    badge +
+                    (dateStr
+                        ? '<span class="block text-[10px] font-semibold ' + (last ? 'text-rose-500' : 'text-slate-400') + ' mt-0.5">📅 ' + escapeHtml(dateStr) + '</span>'
+                        : '') +
+                    '</span>' +
+                    '<span class="font-bold shrink-0 ' + (last ? 'text-rose-700' : '') + '">' +
+                    Math.round(Number(i.displayAmount) || 0).toLocaleString('tr-TR') + ' TL</span></div>';
             }
             function sectionBlock(title, items, sum, tone) {
                 if (!items.length) return '';
@@ -2371,36 +2448,48 @@
 
 
 
-        // Sayfa açılışında oturum varsa geri yükle ve veriyi çek
-        // Firebase Auth oturum dinleyicisi (sayfa yenilenince de giriş kalır)
+        // Otomatik giriş: oturum varsa enterAppAsUser mutlaka çalışsın
         let authBootDone = false;
-        // Mobil hizli giris: oturum varsa login'i aninda gizle + iskelet uygulamayi goster
+        let authEnterInFlight = false;
+
+        async function ensureEnteredFromAuth(fbUser) {
+            if (!fbUser) return;
+            if (authEnterInFlight) return;
+            // Uygulama zaten bu kullanıcı ile tam açıldıysa tekrarlama
+            if (currentUser && currentUser.uid === fbUser.uid
+                && document.documentElement.classList.contains('yuvam-app-open')
+                && window._yuvamEnteredOnce) {
+                return;
+            }
+            authEnterInFlight = true;
+            try {
+                const profile = (typeof loadUserProfile === 'function')
+                    ? await loadUserProfile(fbUser)
+                    : loadUserProfileFast(fbUser);
+                if (profile && typeof enterAppAsUser === 'function') {
+                    await enterAppAsUser(profile, { silent: true });
+                    window._yuvamEnteredOnce = true;
+                }
+            } catch (err) {
+                console.warn('ensureEnteredFromAuth', err);
+            } finally {
+                authEnterInFlight = false;
+            }
+        }
+
         try {
-            if (auth.currentUser) {
-                const loginEl = document.getElementById('errorContainer') || document.getElementById('loginScreen');
-                const appEl = document.getElementById('appContainer') || document.getElementById('app');
-                if (loginEl) { loginEl.classList.add('hidden'); loginEl.style.display = 'none'; }
-                if (appEl) { appEl.classList.remove('hidden'); appEl.style.display = ''; }
-                // Profili senkron beklemeden hizli yaz
-                try {
-                    currentUser = loadUserProfileFast(auth.currentUser);
-                    const label = document.getElementById('loggedInUserLabel') || document.getElementById('currentUserLabel');
-                    if (label && currentUser) {
-                        label.textContent = currentUser.role === 'admin' ? (currentUser.name + ' · Admin') : currentUser.name;
-                    }
-                } catch (_) {}
+            if (auth && auth.currentUser) {
+                ensureEnteredFromAuth(auth.currentUser);
             }
         } catch (_) {}
+
         auth.onAuthStateChanged(async function(fbUser) {
-            if (authBootDone && !fbUser) return;
             try {
                 if (fbUser) {
-                    if (currentUser && currentUser.uid === fbUser.uid) return;
-                    const profile = await loadUserProfile(fbUser);
-                    await enterAppAsUser(profile, { silent: true });
+                    await ensureEnteredFromAuth(fbUser);
                 } else if (!authBootDone) {
-                    // ilk yüklemede oturum yok → login ekranı
                     currentUser = null;
+                    window._yuvamEnteredOnce = false;
                 }
             } catch (err) {
                 console.warn('onAuthStateChanged', err);

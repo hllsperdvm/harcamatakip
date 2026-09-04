@@ -620,9 +620,8 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                 <div data-layout-block="expenseHistory" data-stripe="expense" class="bg-white rounded-[2.5rem] card-shadow border border-slate-100 overflow-hidden">
                     <div class="p-4 sm:p-8 border-b border-slate-50 flex flex-col gap-3">
                         <h2 class="text-xl font-black text-slate-900">İşlem Geçmişi</h2>
-                        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                            <label class="sr-only" for="filterSearch">Kelime ara</label>
-                            <input type="search" id="filterSearch" placeholder="Kelime veya tutar ara… (Enter)" class="filter-control w-full sm:max-w-md" autocomplete="off"
+                        <div class="history-search-wrap">
+                            <input type="search" id="filterSearch" placeholder="Kelime veya tutar ara… (Enter)" class="history-search-input" autocomplete="off"
                                 onkeydown="if(event.key==='Enter'){event.preventDefault();if(typeof applyFilters==='function')applyFilters();}"
                                 oninput="if(typeof onHistorySearchInput==='function')onHistorySearchInput(this.value)">
                         </div>
@@ -835,7 +834,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         <div id="vehicleMaintList"></div>
                     </div>
                 </div>
-                </div>
+            </div>
             </div>
 
 <div id="tabContentStats" class="hidden space-y-6 fade-in">
@@ -881,7 +880,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         </div>
                         <div class="chart-block stripe-stats">
                             <h2 class="chart-title">Ekstre Dönemi Trendi (29–28)</h2>
-                            <p class="chart-sub">Dönem toplamları</p>
+                            <p class="chart-sub">Bekir + Duygu KK borcu / ödenen ekstre</p>
                             <div class="chart-wrap chart-box h-56 sm:h-64"><canvas id="monthlyTrendChart"></canvas></div>
                         </div>
                         <div class="chart-block stripe-stats">
@@ -889,11 +888,9 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                             <p class="chart-sub">En yüksek 5 kategori</p>
                             <div class="chart-wrap chart-box h-56 sm:h-72"><canvas id="categoryTrendChart"></canvas></div>
                         </div>
-                        </div>
                     </div>
                 </div>
 
-                                
                 <div class="bg-white p-8 rounded-[2.5rem] card-shadow border border-slate-100 overflow-hidden" data-stripe="stats">
                     <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
                         <h3 class="text-xl font-black">📊 Kredi Kartı Ekstreleri</h3>
@@ -1811,6 +1808,8 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
 
 
     <!-- 7 günlük hava (Ankara/Keçiören) -->
+</div>
+
     <div id="weatherModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[120] p-4" onclick="if(event.target===this)closeWeatherModal()">
         <div class="bg-white w-full max-w-md rounded-[1.75rem] shadow-2xl overflow-hidden max-h-[85vh] flex flex-col" onclick="event.stopPropagation()">
             <div class="flex items-center justify-between p-4 border-b border-slate-100">
