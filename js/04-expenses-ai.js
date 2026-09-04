@@ -2493,26 +2493,161 @@ function updateStatsPanel() {
 
                 // Yerel uyarı / öneri
                 const tips = [];
+                const todayYmd = (typeof todayDateStr === 'function') ? todayDateStr() : new Date().toISOString().slice(0, 10);
+
+                // Dönem günü (29 → 1. gün) ve kümülatif harcama
+                const fmtDay = function(n) { return Math.round(n).toLocaleString('tr-TR') + ' TL'; };
+                let periodDay = 0, periodLen = 30, daysLeft = 0;
+                let periodStartYmd = '', periodEndYmd = '';
+                try {
+                    const pr = (typeof getCurrentStatementPeriod === 'function')
+                        ? getCurrentStatementPeriod()
+                        : (typeof getStatementPeriodForDate === 'function' ? getStatementPeriodForDate(new Date()) : null);
+                    if (pr && pr.startDate && pr.endDate) {
+                        const s = pr.startDate instanceof Date ? pr.startDate : new Date(pr.startDate);
+                        const en = pr.endDate instanceof Date ? pr.endDate : new Date(pr.endDate);
+                        const td = (typeof parseYMD === 'function') ? parseYMD(todayYmd) : new Date(todayYmd + 'T12:00:00');
+                        const s0 = new Date(s.getFullYear(), s.getMonth(), s.getDate());
+                        const e0 = new Date(en.getFullYear(), en.getMonth(), en.getDate());
+                        const t0 = new Date(td.getFullYear(), td.getMonth(), td.getDate());
+                        periodLen = Math.max(1, Math.round((e0 - s0) / 86400000) + 1);
+                        periodDay = Math.max(1, Math.min(periodLen, Math.round((t0 - s0) / 86400000) + 1));
+                        daysLeft = Math.max(0, periodLen - periodDay);
+                        periodStartYmd = (typeof formatYMD === 'function') ? formatYMD(s0) : todayYmd;
+                        periodEndYmd = (typeof formatYMD === 'function') ? formatYMD(e0) : todayYmd;
+                    }
+                } catch (_) {}
+
+                // Bu dönemde dönem başından bugüne (dahil) kümülatif
+                function sumThroughDay(periodKey, throughYmd, allRows) {
+                    let s = 0, n = 0;
+                    (allRows || []).forEach(function(e) {
+                        if (!e) return;
+                        if (e.effectiveMonth !== periodKey) return;
+                        if (typeof countsInPeriodTotals === 'function' && !countsInPeriodTotals(e)) return;
+                        const d = String(e.date || e.effectiveDate || '').slice(0, 10);
+                        if (!d || d > throughYmd) return;
+                        s += Number(e.displayAmount != null ? e.displayAmount : e.amount) || 0;
+                        n++;
+                    });
+                    return { sum: s, count: n };
+                }
+
+                // Dönem günü N için tarih = dönem başlangıcı + (N-1) gün
+                function ymdAfterStart(startYmd, dayIndex1) {
+                    try {
+                        const d = (typeof parseYMD === 'function') ? parseYMD(startYmd) : new Date(startYmd + 'T12:00:00');
+                        d.setDate(d.getDate() + (Math.max(1, dayIndex1) - 1));
+                        return (typeof formatYMD === 'function') ? formatYMD(d) : startYmd;
+                    } catch (_) { return startYmd; }
+                }
+
+                const curThrough = sumThroughDay(period, todayYmd, all);
+                const dailyAvg = periodDay > 0 ? (curThrough.sum / periodDay) : 0;
+
+                // Önceki dönem: aynı dönem gününe kadar kümülatif
+                let prevThrough = { sum: 0, count: 0 };
+                let prevThroughYmd = '';
+                try {
+                    if (prevKey && periodDay > 0) {
+                        // Önceki dönem başlangıcı = mevcut başlangıç − 1 ay (29–28)
+                        let prevStart = '';
+                        if (periodStartYmd) {
+                            const sd = (typeof parseYMD === 'function') ? parseYMD(periodStartYmd) : new Date(periodStartYmd + 'T12:00:00');
+                            sd.setMonth(sd.getMonth() - 1);
+                            prevStart = (typeof formatYMD === 'function') ? formatYMD(sd) : '';
+                        }
+                        if (!prevStart && typeof getStatementPeriodForDate === 'function') {
+                            // prevKey'in ortasından bir tarih ile dene
+                            const [py, pm] = String(prevKey).split('-').map(Number);
+                            const mid = new Date(py, (pm || 1) - 1, 15);
+                            const pp = getStatementPeriodForDate(mid);
+                            if (pp && pp.startDate) {
+                                prevStart = (typeof formatYMD === 'function') ? formatYMD(pp.startDate) : '';
+                            }
+                        }
+                        if (prevStart) {
+                            prevThroughYmd = ymdAfterStart(prevStart, periodDay);
+                            prevThrough = sumThroughDay(prevKey, prevThroughYmd, all);
+                        }
+                    }
+                } catch (_) {}
+
+                // Kümülatifte top kategori (dönem başı → bugün)
+                const cumByCat = {};
+                (all || []).forEach(function(e) {
+                    if (!e || e.effectiveMonth !== period) return;
+                    if (typeof countsInPeriodTotals === 'function' && !countsInPeriodTotals(e)) return;
+                    const d = String(e.date || '').slice(0, 10);
+                    if (!d || d > todayYmd) return;
+                    let c = e.category || 'Diğer';
+                    if (typeof isLegacyShopCategory === 'function' && isLegacyShopCategory(c)) c = 'Alışveriş';
+                    if (c === 'E-ticaret') c = 'Alışveriş';
+                    cumByCat[c] = (cumByCat[c] || 0) + (Number(e.displayAmount != null ? e.displayAmount : e.amount) || 0);
+                });
+                const cumTop = Object.entries(cumByCat).sort(function(a, b) { return b[1] - a[1]; });
+
+                // 1) Dönem günü + kümülatif
+                if (periodDay > 0) {
+                    tips.push('Bugün dönemin ' + periodDay + '. günü: bugüne kadar ' + fmtDay(curThrough.sum) +
+                        ' harcadınız (' + curThrough.count + ' işlem)' +
+                        (cumTop[0] ? (' · en çok “' + cumTop[0][0] + '” (' + fmtDay(cumTop[0][1]) + ')') : '') + '.');
+                }
+
+                // 2) Geçen dönem aynı gün kümülatif karşılaştırma
+                if (periodDay > 0 && prevKey) {
+                    const diff = curThrough.sum - prevThrough.sum;
+                    let cmp = '';
+                    if (prevThrough.sum > 0 || curThrough.sum > 0) {
+                        if (diff > 0) cmp = ' · durum: +' + fmtDay(diff) + ' (bu dönem daha fazla)';
+                        else if (diff < 0) cmp = ' · durum: ' + fmtDay(-diff) + ' daha az';
+                        else cmp = ' · durum: aynı seviye';
+                    }
+                    tips.push('Geçen dönem dönemin ' + periodDay + '. gününde toplam ' + fmtDay(prevThrough.sum) +
+                        (prevThrough.count ? (' (' + prevThrough.count + ' işlem)') : '') + ' harcama vardı' + cmp + '.');
+                }
+
+                // 3) Tempo
+                if (curThrough.sum > 0 && periodDay > 0) {
+                    tips.push('Günlük ortalama ' + fmtDay(dailyAvg) +
+                        (daysLeft ? (' · kalan ~' + daysLeft + ' gün') : '') +
+                        (target > 0 ? (' · bu tempoyla dönem sonu tahmini ~' + fmtDay(dailyAvg * periodLen)) : '') + '.');
+                }
+
+                // 4) Top kategori (tüm dönem listesi — zaten dönem içi)
+                if (topCats.length && total > 0) {
+                    const share = Math.round(topCats[0][1] / total * 100);
+                    tips.push('Dönem kategorisi: “' + topCats[0][0] + '” ' + fmtDay(topCats[0][1]) + ' (%' + share + ')' +
+                        (topCats[1] ? (' · ikinci “' + topCats[1][0] + '” ' + fmtDay(topCats[1][1])) : '') + '.');
+                }
+
+                // 5) KK hedef
                 if (target > 0) {
-                    if (targetPct >= 100) tips.push('Kredi kartı harcaması aylık hedefini aştı (%' + targetPct + '). Kalan günlerde KK kullanımını sınırlamak iyi olur.');
-                    else if (targetPct >= 85) tips.push('KK hedefinin %' + targetPct + 'ine ulaşıldı. Dönem bitmeden dikkatli ilerleyin.');
-                    else if (targetPct <= 50 && total > 0) tips.push('KK hedefinin henüz yarısındasınız; bu tempoyu korumak mümkün.');
+                    if (targetPct >= 100) tips.push('Kredi kartı harcaması aylık hedefini aştı (%' + targetPct + '). Kalan günlerde KK kullanımını sınırlayın.');
+                    else if (targetPct >= 85) tips.push('KK hedefinin %' + targetPct + 'ine ulaşıldı (' + fmtDay(card) + ' / ' + fmtDay(target) + ').');
+                    else if (targetPct != null) tips.push('KK hedefi: ' + fmtDay(card) + ' / ' + fmtDay(target) + ' (%' + targetPct + ').');
                 }
-                if (prevSum > 0 && deltaPct >= 15) tips.push('Bu dönem önceki döneme göre belirgin arttı (%' + deltaPct + '). En şişkin kategoriyi aşağıdan kontrol edin.');
-                if (prevSum > 0 && deltaPct <= -10) tips.push('Önceki döneme göre harcama geriledi (%' + deltaPct + '). İyi bir tempo.');
-                if (topCats.length && total > 0 && topCats[0][1] / total >= 0.4) {
-                    tips.push('“' + topCats[0][0] + '” tek başına dönemin %' + Math.round(topCats[0][1] / total * 100) + 'ini oluşturuyor; kırılımı incelemeye değer.');
+
+                // 6) Önceki dönem toplamı
+                if (prevSum > 0) {
+                    if (deltaPct >= 15) tips.push('Önceki dönemin tamamına göre şimdiden %' + deltaPct + ' bandında fark birikiyor (şimdi ' + fmtDay(total) + ' / önceki dönem sonu ' + fmtDay(prevSum) + ').');
+                    else if (deltaPct <= -10) tips.push('Önceki dönem sonuna göre geridesiniz (%' + deltaPct + ').');
                 }
+
                 if (cash > 0 && card > 0 && cash / Math.max(total, 1) >= 0.25) {
-                    tips.push('Nakit payı görece yüksek; nakit fişlerini de düzenli işlediğinizden emin olun.');
+                    tips.push('Nakit payı %' + Math.round(cash / Math.max(total, 1) * 100) + ' — nakit fişlerinin de girildiğinden emin olun.');
                 }
                 if (!list.length) tips.push('Bu dönemde henüz dönem toplamına giren harcama yok.');
                 if (!tips.length) tips.push('Dönem dengeli görünüyor. Büyük sapma yok; mevcut tempoyu sürdürebilirsiniz.');
 
                 if (adviceEl) {
-                    adviceEl.innerHTML = '<p class="text-[10px] font-black text-indigo-500 uppercase tracking-wider mb-1">Yerel uyarı</p><p>' + escapeHtml(tips[0]) + '</p>' +
-                        (tips[1] ? '<p class="mt-1.5 text-slate-500">' + escapeHtml(tips[1]) + '</p>' : '');
+                    const shown = tips.slice(0, 5);
+                    adviceEl.innerHTML = '<p class="text-[10px] font-black text-indigo-500 uppercase tracking-wider mb-1">Yerel uyarı</p>' +
+                        shown.map(function(tx, i) {
+                            return '<p class="' + (i === 0 ? 'text-slate-700 font-semibold' : 'mt-1.5 text-slate-500') + '">' + escapeHtml(tx) + '</p>';
+                        }).join('');
                 }
+
             } catch (err) {
                 console.warn('periodLiveSummary', err);
                 body.innerHTML = '<p class="text-slate-400 font-semibold text-center py-3">Özet hesaplanamadı</p>';
@@ -3096,23 +3231,77 @@ function updateStatsPanel() {
                 const m = d.repeatMerchants[0];
                 tips.push('En sık tekrar: "' + (m.sample || m.key) + '" (' + m.count + ' kez). Bu kalemi aylık limit ile sınırlamayı deneyin.');
             }
-            if (d.topCategories && d.topCategories[0] && t.total > 0 && d.topCategories[0][1] / t.total >= 0.35) {
-                tips.push('“' + d.topCategories[0][0] + '” tek başına dönemin %' + Math.round(d.topCategories[0][1] / t.total * 100) + 'ini oluşturuyor.');
+            // Ara rapor: dönem günü + kümülatif (29’dan itibaren)
+            if (d.interim && d.asOfYmd) {
+                const asOf = String(d.asOfYmd).slice(0, 10);
+                let pDay = 0, pStart = '';
+                try {
+                    const pr = (typeof getStatementPeriodForDate === 'function') ? getStatementPeriodForDate(asOf) : null;
+                    if (pr && pr.startDate) {
+                        const s0 = pr.startDate instanceof Date ? pr.startDate : new Date(pr.startDate);
+                        const t0 = (typeof parseYMD === 'function') ? parseYMD(asOf) : new Date(asOf + 'T12:00:00');
+                        pDay = Math.max(1, Math.round((new Date(t0.getFullYear(), t0.getMonth(), t0.getDate()) - new Date(s0.getFullYear(), s0.getMonth(), s0.getDate())) / 86400000) + 1);
+                        pStart = (typeof formatYMD === 'function') ? formatYMD(s0) : '';
+                    }
+                } catch (_) {}
+                // Bu dönem kesim tarihine kadar kümülatif = rapor total
+                const curCum = Number(t.total) || 0;
+                const curCnt = (d.list || []).length;
+                if (pDay > 0) {
+                    tips.push('Dönemin ' + pDay + '. günü (kesim): bugüne kadar ' + Math.round(curCum).toLocaleString('tr-TR') + ' TL · ' + curCnt + ' işlem.');
+                }
+                // Önceki dönem aynı dönem-gününe kadar
+                try {
+                    const prevKeys = (typeof getPreviousPeriodKeys === 'function') ? getPreviousPeriodKeys(2) : [];
+                    const prevK = (prevKeys && prevKeys[0] && prevKeys[0] !== d.periodKey) ? prevKeys[0] : (prevKeys && prevKeys[1]);
+                    if (prevK && pDay > 0 && pStart) {
+                        const sd = (typeof parseYMD === 'function') ? parseYMD(pStart) : new Date(pStart + 'T12:00:00');
+                        sd.setMonth(sd.getMonth() - 1);
+                        const prevStart = (typeof formatYMD === 'function') ? formatYMD(sd) : '';
+                        const pd = (typeof parseYMD === 'function') ? parseYMD(prevStart) : new Date(prevStart + 'T12:00:00');
+                        pd.setDate(pd.getDate() + (pDay - 1));
+                        const prevThrough = (typeof formatYMD === 'function') ? formatYMD(pd) : '';
+                        let prevCum = 0;
+                        try {
+                            const rows = (typeof getExpensesForPeriodKey === 'function') ? getExpensesForPeriodKey(prevK, prevThrough) : [];
+                            rows.forEach(function(e) {
+                                if (typeof countsInPeriodTotals === 'function' && !countsInPeriodTotals(e)) return;
+                                prevCum += Number(e.displayAmount != null ? e.displayAmount : e.amount) || 0;
+                            });
+                        } catch (_) {}
+                        const diff = curCum - prevCum;
+                        let cmp = '';
+                        if (diff > 0) cmp = ' · durum: +' + Math.round(diff).toLocaleString('tr-TR') + ' TL daha fazla';
+                        else if (diff < 0) cmp = ' · durum: ' + Math.round(-diff).toLocaleString('tr-TR') + ' TL daha az';
+                        else cmp = ' · durum: aynı seviye';
+                        tips.push('Geçen dönem dönemin ' + pDay + '. gününde toplam ' + Math.round(prevCum).toLocaleString('tr-TR') + ' TL harcanmıştı' + cmp + '.');
+                    }
+                } catch (_) {}
             }
-            if (t.installSum + t.recurSum > 0 && t.total > 0 && (t.installSum + t.recurSum) / t.total >= 0.25) {
-                tips.push('Taksit + tekrarlı yük toplamın dörtte birinden fazla; yeni taksit öncesi sabit yükü kontrol edin.');
+            if (d.topCategories && d.topCategories[0] && t.total > 0) {
+                tips.push('“' + d.topCategories[0][0] + '” ' + Math.round(d.topCategories[0][1]).toLocaleString('tr-TR') + ' TL ile dönemin %' +
+                    Math.round(d.topCategories[0][1] / t.total * 100) + 'ini oluşturuyor' +
+                    (d.topCategories[1] ? ('; · ikinci “' + d.topCategories[1][0] + '”') : '') + '.');
+            }
+            if (t.installSum + t.recurSum > 0 && t.total > 0 && (t.installSum + t.recurSum) / t.total >= 0.2) {
+                tips.push('Taksit + tekrarlı yük: ' + Math.round(t.installSum + t.recurSum).toLocaleString('tr-TR') + ' TL (toplamın %' +
+                    Math.round((t.installSum + t.recurSum) / t.total * 100) + 'i).');
             }
             if (d.interim && p.projected && b.target > 0 && p.projected > b.target) {
-                tips.push('Mevcut tempo dönem sonunda KK hedefini aşabilir.');
+                tips.push('Mevcut tempo dönem sonunda KK hedefini aşabilir (tahmini ' + Math.round(p.projected).toLocaleString('tr-TR') + ' TL).');
             }
-            if (c.deltaPct != null && c.deltaPct >= 20) {
-                tips.push('Önceki döneme göre %' + c.deltaPct + ' artış var; tek seferlik mi yapısal mı ayırın.');
+            if (c.deltaPct != null && Math.abs(c.deltaPct) >= 10) {
+                tips.push('Önceki döneme göre %' + c.deltaPct + ' değişim var; tek seferlik mi yapısal mı ayırın.');
             }
-            if (d.byDow && d.byDow[0] && t.total > 0 && d.byDow[0].total / t.total >= 0.25) {
-                tips.push('Harcamanın büyük kısmı ' + d.byDow[0].day + ' gününe yığılmış.');
+            if (d.byDow && d.byDow[0] && t.total > 0 && d.byDow[0].total / t.total >= 0.22) {
+                tips.push('Harcamanın büyük kısmı ' + d.byDow[0].day + ' gününe yığılmış (%' + Math.round(d.byDow[0].total / t.total * 100) + ').');
+            }
+            if (p.dailyAvg > 0) {
+                tips.push('Günlük ortalama ' + Math.round(p.dailyAvg).toLocaleString('tr-TR') + ' TL' +
+                    (d.interim && p.projected ? (' · dönem sonu projeksiyon ~' + Math.round(p.projected).toLocaleString('tr-TR') + ' TL') : '') + '.');
             }
             if (!tips.length) {
-                tips.push('Olağandışı sapma yok. Açıklamalara “sigara”, “dondurma” gibi net kelimeler yazdıkça tema analizi güçlenir.');
+                tips.push('Olağandışı sapma yok. Açıklamalara net kelimeler yazdıkça tema analizi güçlenir.');
             }
             tips.forEach(function(x, i) { lines.push((i + 1) + ') ' + x); });
             lines.push('');
