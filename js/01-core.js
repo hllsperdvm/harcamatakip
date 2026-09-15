@@ -648,7 +648,8 @@
                     const title = '🦁 ' + f.home + ' – ' + f.away;
                     const key = 'gsfx-next';
                     const dateLong = (typeof formatDateLongTR === 'function') ? formatDateLongTR(f.date) : formatDateTR(f.date);
-                    const msg = dateLong + (f.time ? ' · ' + f.time : '') + (f.league ? ' · ' + String(f.league).replace(/Turkish\s*Super\s*Lig/ig, 'Süper Lig') : '');
+                    const tShow = f.time ? String(f.time).replace('.', ':').trim() : '';
+                    const msg = dateLong + (tShow ? ' · ' + tShow : '') + (f.league ? ' · ' + String(f.league).replace(/Turkish\s*Super\s*Lig/ig, 'Süper Lig') : '');
                     if (days === 0) pushNotif(key, 'critical', '⚽', 'Bugün: ' + title, msg);
                     else if (days <= 3) pushNotif(key, 'warning', '⚽', days + ' gün: ' + title, msg);
                     else pushNotif(key, 'info', '⚽', days + ' gün: ' + title, msg);

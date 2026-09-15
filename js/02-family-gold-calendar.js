@@ -696,25 +696,43 @@
                 const m = String(ev.name).split(' at ');
                 if (m.length === 2) { away = m[0].trim(); home = m[1].trim(); }
             }
-            const iso = String(ev.date || '');
+            // Maç anı: competition.date öncelikli (ESPN bazen ev.date kaydırır)
+            let iso = '';
+            try {
+                if (comps && comps.date) iso = String(comps.date);
+            } catch (_) {}
+            if (!iso) iso = String(ev.date || '');
             if (!home || !away || !iso) return null;
             let date = '';
             let time = '';
             try {
                 const d = new Date(iso);
                 if (!isNaN(d.getTime())) {
-                    // Türkiye saati (cihaz dilinden bağımsız)
+                    // Zorunlu: Europe/Istanbul — cihaz saat dilimine bakılmaz
                     date = new Intl.DateTimeFormat('en-CA', {
                         timeZone: 'Europe/Istanbul',
                         year: 'numeric', month: '2-digit', day: '2-digit'
                     }).format(d);
+                    // hourCycle h23: bazı tarayıcılarda hour12:false yine 15:00 gibi sapabiliyor
                     time = new Intl.DateTimeFormat('tr-TR', {
                         timeZone: 'Europe/Istanbul',
-                        hour: '2-digit', minute: '2-digit', hour12: false
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false,
+                        hourCycle: 'h23'
                     }).format(d);
+                    // "15.00" / "15:00" normalize
+                    time = String(time).replace('.', ':').replace(/\s/g, '');
+                    if (time.length === 4 && time.indexOf(':') < 0) {
+                        time = time.slice(0, 2) + ':' + time.slice(2);
+                    }
                 }
             } catch (_) {}
-            if (!date) date = iso.slice(0, 10);
+            if (!date) {
+                // ISO'dan yalnizca tarih (saat UTC yaniltmasin)
+                const m = String(iso).match(/(\d{4}-\d{2}-\d{2})/);
+                if (m) date = m[1];
+            }
             if (!date) return null;
             let score = '';
             if (homeScore !== '' && awayScore !== '') score = homeScore + ' - ' + awayScore;
@@ -759,7 +777,7 @@
                     if (raw) {
                         const parsed = JSON.parse(raw);
                         // sadece GS odaklı önbellek (v2)
-                        if (parsed && parsed.v === 3 && parsed.at && (Date.now() - parsed.at) < CACHE_MS && Array.isArray(parsed.list) && parsed.list.length) {
+                        if (parsed && parsed.v === 4 && parsed.at && (Date.now() - parsed.at) < CACHE_MS && Array.isArray(parsed.list) && parsed.list.length) {
                             superLigFixturesCache = parsed.list;
                             superLigLastFetch = parsed.at;
                             if (parsed.source) superLigFixturesCache._source = parsed.source;
@@ -852,7 +870,7 @@
             superLigFixturesCache = fixtures;
             superLigLastFetch = Date.now();
             try {
-                localStorage.setItem('yuvam_superlig_fx', JSON.stringify({ v: 3, at: superLigLastFetch, list: fixtures, source: 'ESPN' }));
+                localStorage.setItem('yuvam_superlig_fx', JSON.stringify({ v: 4, at: superLigLastFetch, list: fixtures, source: 'ESPN' }));
             } catch (_) {}
             superLigFixturesCache._source = 'ESPN';
             return fixtures;
