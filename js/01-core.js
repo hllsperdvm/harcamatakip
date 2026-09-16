@@ -1448,14 +1448,17 @@
         window._gsHomeLoading = false;
         window.ensureGsFixturesForHome = async function() {
             if (window._gsHomeLoading) return;
-            if (superLigFixturesCache && superLigFixturesCache.length) return;
-            // Başarısız denemeyi 2 dk tekrarlama (sonsuz döngü engeli)
-            if (window._gsHomeTriedAt && (Date.now() - window._gsHomeTriedAt) < 120000) return;
+            // API-Football kaynaklı taze veri varsa tekrar çekme
+            if (superLigFixturesCache && superLigFixturesCache.length && (superLigFixturesCache._source === 'api-football' || superLigFixturesCache._source === 'thesportsdb' || superLigFixturesCache._source === 'mixed')) return;
+            if (window._gsHomeTriedAt && (Date.now() - window._gsHomeTriedAt) < 120000) {
+                if (superLigFixturesCache && superLigFixturesCache.length) return;
+            }
             window._gsHomeLoading = true;
             window._gsHomeTriedAt = Date.now();
             try {
                 if (typeof refreshSuperLigFixtures === 'function') {
-                    await refreshSuperLigFixtures(false);
+                    // Eski ESPN önbelleğini kır — force true
+                    await refreshSuperLigFixtures(true);
                 }
             } catch (e) {
                 console.warn('GS fikstür (anasayfa)', e);
