@@ -662,29 +662,26 @@
 
 
         async function fetchViaCorsProxy(url) {
-            // ESPN tarayıcıdan CORS engelliyor (Vercel origin) — proxy yedekleri
+            // ESPN CORS engelli — kısa timeout, uzun bekletme
             const proxies = [
                 function(u) { return 'https://corsproxy.io/?' + encodeURIComponent(u); },
                 function(u) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); }
             ];
             let lastErr = null;
             for (let i = 0; i < proxies.length; i++) {
+                const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+                const to = ctrl ? setTimeout(function() { try { ctrl.abort(); } catch (_) {} }, 2500) : null;
                 try {
-                    const res = await fetch(proxies[i](url));
+                    const res = await fetch(proxies[i](url), ctrl ? { signal: ctrl.signal } : undefined);
                     if (!res.ok) { lastErr = new Error('proxy HTTP ' + res.status); continue; }
                     return await res.json();
                 } catch (e) {
                     lastErr = e;
+                } finally {
+                    if (to) clearTimeout(to);
                 }
             }
-            // Son çare: doğrudan (bazı ortamlarda açık olabilir)
-            try {
-                const res = await fetch(url);
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                return await res.json();
-            } catch (e2) {
-                throw lastErr || e2;
-            }
+            throw lastErr || new Error('CORS proxy failed');
         }
 
         async function fetchEspnScoreboardRange(dates) {
@@ -879,7 +876,7 @@
         }
 
         async function loadSuperLigFixtures(force) {
-            const CACHE_MS = 2 * 60 * 60 * 1000;
+            const CACHE_MS = 6 * 60 * 60 * 1000;
             if (!force && superLigFixturesCache.length && (Date.now() - superLigLastFetch) < CACHE_MS) {
                 return superLigFixturesCache;
             }
@@ -939,10 +936,19 @@
                     'https://www.thesportsdb.com/api/v1/json/3/eventsnext.php?id=133804',
                     'https://www.thesportsdb.com/api/v1/json/3/eventslast.php?id=133804'
                 ];
-                for (let i = 0; i < urls.length; i++) {
-                    const res = await fetch(urls[i]);
-                    if (!res.ok) continue;
-                    const data = await res.json();
+                const fetchTsdb = async function(url) {
+                    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+                    const to = ctrl ? setTimeout(function() { try { ctrl.abort(); } catch (_) {} }, 4000) : null;
+                    try {
+                        const res = await fetch(url, ctrl ? { signal: ctrl.signal } : undefined);
+                        if (!res.ok) return null;
+                        return await res.json();
+                    } catch (_) { return null; }
+                    finally { if (to) clearTimeout(to); }
+                };
+                const tsdbResults = await Promise.all(urls.map(fetchTsdb));
+                tsdbResults.forEach(function(data) {
+                    if (!data) return;
                     (data.events || []).forEach(function(ev) {
                         const home = ev.strHomeTeam || '';
                         const away = ev.strAwayTeam || '';
@@ -991,23 +997,24 @@
                             source: 'thesportsdb'
                         });
                     });
-                }
+                });
                 console.info('[YUVAM] TheSportsDB GS →', fixtures.length, 'maç');
             } catch (eTs) {
                 console.warn('TheSportsDB', eTs);
             }
 
-            // 2) API-Football
-            try {
-                const afList = await fetchApiFootballGsFixtures();
-                (afList || []).forEach(pushFx);
-                console.info('[YUVAM] AF sonrası toplam', fixtures.length);
-            } catch (eAf) {
-                console.warn('AF GS fixtures', eAf);
+            // 2) API-Football — sadece TheSportsDB boşsa (ücretsiz planda fikstür yok)
+            if (fixtures.length < 1) {
+                try {
+                    const afList = await fetchApiFootballGsFixtures();
+                    (afList || []).forEach(pushFx);
+                } catch (eAf) {
+                    console.warn('AF GS fixtures', eAf);
+                }
             }
 
-            // 3) ESPN (proxy) — sadece hâlâ az maç varsa
-            if (fixtures.length < 2) {
+            // 3) ESPN — sadece hiç maç yoksa (timeout yavaşlatmasın)
+            if (fixtures.length < 1) {
                 try {
                     const ranges = ['20260801-20270531', '20250801-20260731'];
                     for (let i = 0; i < ranges.length; i++) {

@@ -1448,17 +1448,35 @@
         window._gsHomeLoading = false;
         window.ensureGsFixturesForHome = async function() {
             if (window._gsHomeLoading) return;
-            // API-Football kaynaklı taze veri varsa tekrar çekme
-            if (superLigFixturesCache && superLigFixturesCache.length && (superLigFixturesCache._source === 'api-football' || superLigFixturesCache._source === 'thesportsdb' || superLigFixturesCache._source === 'mixed')) return;
-            if (window._gsHomeTriedAt && (Date.now() - window._gsHomeTriedAt) < 120000) {
-                if (superLigFixturesCache && superLigFixturesCache.length) return;
-            }
+            // Bellekte taze veri varsa bitir
+            if (superLigFixturesCache && superLigFixturesCache.length) return;
+            // localStorage'dan anında yükle (ağ beklemeden)
+            try {
+                const raw = localStorage.getItem('yuvam_superlig_fx');
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed && parsed.v >= 7 && Array.isArray(parsed.list) && parsed.list.length) {
+                        superLigFixturesCache = parsed.list;
+                        superLigFixturesCache._source = parsed.source || 'cache';
+                        if (typeof superLigLastFetch !== 'undefined') superLigLastFetch = parsed.at || Date.now();
+                        try {
+                            if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
+                            if (typeof renderHomeTab === 'function') renderHomeTab();
+                        } catch (_) {}
+                        // Arka planda sessiz yenile (UI bloklamadan)
+                        if (typeof refreshSuperLigFixtures === 'function') {
+                            setTimeout(function() { refreshSuperLigFixtures(false); }, 50);
+                        }
+                        return;
+                    }
+                }
+            } catch (_) {}
+            if (window._gsHomeTriedAt && (Date.now() - window._gsHomeTriedAt) < 60000) return;
             window._gsHomeLoading = true;
             window._gsHomeTriedAt = Date.now();
             try {
                 if (typeof refreshSuperLigFixtures === 'function') {
-                    // Eski ESPN önbelleğini kır — force true
-                    await refreshSuperLigFixtures(true);
+                    await refreshSuperLigFixtures(false);
                 }
             } catch (e) {
                 console.warn('GS fikstür (anasayfa)', e);
