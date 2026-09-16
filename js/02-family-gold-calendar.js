@@ -885,7 +885,7 @@
                     const raw = localStorage.getItem('yuvam_superlig_fx');
                     if (raw) {
                         const parsed = JSON.parse(raw);
-                        if (parsed && parsed.v === 7 && parsed.at && (Date.now() - parsed.at) < CACHE_MS && Array.isArray(parsed.list) && parsed.list.length) {
+                        if (parsed && parsed.at && (Date.now() - parsed.at) < CACHE_MS && Array.isArray(parsed.list) && parsed.list.length) {
                             superLigFixturesCache = parsed.list;
                             superLigLastFetch = parsed.at;
                             if (parsed.source) superLigFixturesCache._source = parsed.source;

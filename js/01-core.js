@@ -158,6 +158,19 @@
         let _weatherDailyAt = 0;
 
         let superLigLastFetch = 0;
+        // Fikstürü sayfa açılır açılmaz senkron yükle (ağ bekleme)
+        (function hydrateGsFixturesSync() {
+            try {
+                const raw = localStorage.getItem('yuvam_superlig_fx');
+                if (!raw) return;
+                const parsed = JSON.parse(raw);
+                if (parsed && Array.isArray(parsed.list) && parsed.list.length) {
+                    superLigFixturesCache = parsed.list;
+                    superLigFixturesCache._source = parsed.source || 'cache';
+                    superLigLastFetch = parsed.at || Date.now();
+                }
+            } catch (_) {}
+        })();
 
         let currentUser = null; // { name, role }
         let onboardingPending = false;
@@ -1448,24 +1461,31 @@
         window._gsHomeLoading = false;
         window.ensureGsFixturesForHome = async function() {
             if (window._gsHomeLoading) return;
-            // Bellekte taze veri varsa bitir
-            if (superLigFixturesCache && superLigFixturesCache.length) return;
-            // localStorage'dan anında yükle (ağ beklemeden)
+            // Bellekte veri varsa sadece arka plan yenilemesi düşün
+            if (superLigFixturesCache && superLigFixturesCache.length) {
+                if (window._gsHomeTriedAt && (Date.now() - window._gsHomeTriedAt) < 300000) return;
+                window._gsHomeTriedAt = Date.now();
+                if (typeof refreshSuperLigFixtures === 'function') {
+                    setTimeout(function() { try { refreshSuperLigFixtures(false); } catch (_) {} }, 100);
+                }
+                return;
+            }
+            // localStorage (her sürüm) — anında
             try {
                 const raw = localStorage.getItem('yuvam_superlig_fx');
                 if (raw) {
                     const parsed = JSON.parse(raw);
-                    if (parsed && parsed.v >= 7 && Array.isArray(parsed.list) && parsed.list.length) {
+                    if (parsed && Array.isArray(parsed.list) && parsed.list.length) {
                         superLigFixturesCache = parsed.list;
                         superLigFixturesCache._source = parsed.source || 'cache';
-                        if (typeof superLigLastFetch !== 'undefined') superLigLastFetch = parsed.at || Date.now();
+                        superLigLastFetch = parsed.at || Date.now();
                         try {
                             if (typeof refreshAppNotifications === 'function') refreshAppNotifications();
                             if (typeof renderHomeTab === 'function') renderHomeTab();
                         } catch (_) {}
-                        // Arka planda sessiz yenile (UI bloklamadan)
+                        window._gsHomeTriedAt = Date.now();
                         if (typeof refreshSuperLigFixtures === 'function') {
-                            setTimeout(function() { refreshSuperLigFixtures(false); }, 50);
+                            setTimeout(function() { try { refreshSuperLigFixtures(false); } catch (_) {} }, 100);
                         }
                         return;
                     }
@@ -1507,10 +1527,25 @@ window.renderHomeTab = function() {
                     }
                 } catch (_) {}
                 try {
+                    // Senkron: localStorage → bellek (ilk boyamada maç görünsün)
                     if (!(superLigFixturesCache && superLigFixturesCache.length)) {
+                        try {
+                            const raw = localStorage.getItem('yuvam_superlig_fx');
+                            if (raw) {
+                                const parsed = JSON.parse(raw);
+                                if (parsed && Array.isArray(parsed.list) && parsed.list.length) {
+                                    superLigFixturesCache = parsed.list;
+                                    superLigFixturesCache._source = parsed.source || 'cache';
+                                    superLigLastFetch = parsed.at || Date.now();
+                                }
+                            }
+                        } catch (_) {}
+                    }
+                    // Ağ yenilemesi arka planda (UI'ı bekletme)
+                    if (typeof ensureGsFixturesForHome === 'function') {
                         setTimeout(function() {
-                            try { if (typeof ensureGsFixturesForHome === 'function') ensureGsFixturesForHome(); } catch (_) {}
-                        }, 1200);
+                            try { ensureGsFixturesForHome(); } catch (_) {}
+                        }, 0);
                     }
                 } catch (_) {}
                 const greet = document.getElementById('homeGreeting');
