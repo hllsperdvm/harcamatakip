@@ -764,10 +764,9 @@
             const toD = new Date(today);
             toD.setMonth(toD.getMonth() + 4);
             const to = toD.toISOString().slice(0, 10);
-            const queries = [
-                'fixtures?team=645&next=15',
-                'fixtures?team=645&from=' + from + '&to=' + to
-            ];
+            // Free plan: next/last yok, from/to season zorunlu ve sezon kısıtlı → atla
+            // Fikstür TheSportsDB'den geliyor; AF sadece H2H/form için
+            const queries = [];
             for (let i = 0; i < queries.length; i++) {
                 try {
                     const data = await apiFootballGet(queries[i]);
@@ -889,7 +888,7 @@
                     const raw = localStorage.getItem('yuvam_superlig_fx');
                     if (raw) {
                         const parsed = JSON.parse(raw);
-                        if (parsed && parsed.v === 6 && parsed.at && (Date.now() - parsed.at) < CACHE_MS && Array.isArray(parsed.list) && parsed.list.length) {
+                        if (parsed && parsed.v === 7 && parsed.at && (Date.now() - parsed.at) < CACHE_MS && Array.isArray(parsed.list) && parsed.list.length) {
                             superLigFixturesCache = parsed.list;
                             superLigLastFetch = parsed.at;
                             if (parsed.source) superLigFixturesCache._source = parsed.source;
@@ -947,17 +946,39 @@
                     (data.events || []).forEach(function(ev) {
                         const home = ev.strHomeTeam || '';
                         const away = ev.strAwayTeam || '';
-                        const date = String(ev.dateEvent || '').slice(0, 10);
+                        // dateEvent = resmi maç günü (UTC günü); local alanlar TSDB'de hatalı olabiliyor
+                        let date = String(ev.dateEvent || '').slice(0, 10);
                         if (!home || !away || !date) return;
                         const score = (ev.intHomeScore != null && ev.intAwayScore != null)
                             ? (ev.intHomeScore + ' - ' + ev.intAwayScore) : '';
-                        // strTimeLocal varsa o yerel; yoksa strTime UTC kabul et → TR
+                        // SAAT: strTimestamp (UTC) > strTime (UTC). strTimeLocal GÜVENİLMEZ (15:00 hatası)
                         var time = '';
-                        if (ev.strTimeLocal) {
-                            time = String(ev.strTimeLocal).slice(0, 5);
-                        } else if (ev.strTime) {
-                            time = trTimeFromParts(date, ev.strTime, true);
-                        }
+                        try {
+                            var ts = String(ev.strTimestamp || '').trim();
+                            var d = null;
+                            if (ts) {
+                                // "2026-09-19T17:00:00" → UTC olarak işle
+                                if (!/Z$|[+-]\d{2}:?\d{2}$/.test(ts)) ts = ts + 'Z';
+                                d = new Date(ts);
+                            }
+                            if ((!d || isNaN(d.getTime())) && ev.strTime) {
+                                var isoT = date + 'T' + String(ev.strTime).trim();
+                                if (/^\d{2}:\d{2}$/.test(String(ev.strTime).trim())) isoT += ':00';
+                                if (!/Z$|[+-]\d{2}/.test(isoT)) isoT += 'Z';
+                                d = new Date(isoT);
+                            }
+                            if (d && !isNaN(d.getTime())) {
+                                date = new Intl.DateTimeFormat('en-CA', {
+                                    timeZone: 'Europe/Istanbul',
+                                    year: 'numeric', month: '2-digit', day: '2-digit'
+                                }).format(d);
+                                time = new Intl.DateTimeFormat('tr-TR', {
+                                    timeZone: 'Europe/Istanbul',
+                                    hour: '2-digit', minute: '2-digit',
+                                    hour12: false, hourCycle: 'h23'
+                                }).format(d).replace('.', ':');
+                            }
+                        } catch (_) {}
                         pushFx({
                             home: home, away: away, date: date, score: score,
                             status: ev.strStatus || '',
@@ -1023,7 +1044,7 @@
             else if (fixtures.some(function(f) { return f.source === 'thesportsdb'; })) src = 'thesportsdb';
             else if (fixtures.some(function(f) { return f.source === 'espn'; })) src = 'espn';
             try {
-                localStorage.setItem('yuvam_superlig_fx', JSON.stringify({ v: 6, at: superLigLastFetch, list: fixtures, source: src }));
+                localStorage.setItem('yuvam_superlig_fx', JSON.stringify({ v: 7, at: superLigLastFetch, list: fixtures, source: src }));
             } catch (_) {}
             superLigFixturesCache._source = src;
             return fixtures;
