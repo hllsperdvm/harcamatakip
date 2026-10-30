@@ -302,6 +302,21 @@
                 setBusy(false);
             }
         };
+        // Gerçek login hazır (02–05 beklenmez) — hücreselde erken giriş
+        window.__yuvamRealCheckPassword = window.checkPassword;
+        window.__yuvamLoginReady = true;
+        try {
+            var _lb = document.getElementById('loginBtn');
+            if (_lb && !(_lb.textContent && _lb.textContent.indexOf('Giriş yapılıyor') >= 0)) {
+                _lb.disabled = false;
+                _lb.textContent = 'Giriş Yap';
+                _lb.style.opacity = '';
+            }
+            if (window.__yuvamLoginQueue) {
+                window.__yuvamLoginQueue = null;
+                setTimeout(function() { try { window.checkPassword(); } catch (_) {} }, 0);
+            }
+        } catch (_) {}
 
         function loadUserProfileFast(fbUser) {
             const email = ((fbUser && fbUser.email) || '').toLowerCase();

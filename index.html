@@ -8,6 +8,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="mobile-web-app-capable" content="yes">
+    
+    <!-- Hücresel: kritik scriptleri erken indir -->
+    <link rel="preload" href="vendor/firebase-app-compat.js" as="script">
+    <link rel="preload" href="vendor/firebase-auth-compat.js" as="script">
+    <link rel="preload" href="vendor/firebase-firestore-compat.js" as="script">
+    <link rel="preload" href="js/01-core.js" as="script">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#4f46e5">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -121,6 +127,57 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
       });
     })();
     </script>
+
+    <script>
+    /* Login: scriptler yüklenene kadar güvenli stub (hücresel yavaş ağ) */
+    window.__yuvamLoginReady = false;
+    window.__yuvamLoginQueue = null;
+    window.checkPassword = function() {
+      if (window.__yuvamLoginReady && window.__yuvamRealCheckPassword) {
+        return window.__yuvamRealCheckPassword.apply(this, arguments);
+      }
+      var btn = document.getElementById('loginBtn');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Yükleniyor…';
+        btn.style.opacity = '0.7';
+      }
+      window.__yuvamLoginQueue = true;
+      var tries = 0;
+      var timer = setInterval(function() {
+        tries++;
+        if (window.__yuvamLoginReady && typeof window.__yuvamRealCheckPassword === 'function') {
+          clearInterval(timer);
+          if (btn) { btn.disabled = false; btn.textContent = 'Giriş Yap'; btn.style.opacity = ''; }
+          if (window.__yuvamLoginQueue) {
+            window.__yuvamLoginQueue = null;
+            window.__yuvamRealCheckPassword();
+          }
+          return;
+        }
+        if (tries >= 40) {
+          clearInterval(timer);
+          if (btn) { btn.disabled = false; btn.textContent = 'Giriş Yap'; btn.style.opacity = ''; }
+          alert('Bağlantı yavaş veya scriptler yüklenemedi. Wi‑Fi deneyin veya sayfayı yenileyin.');
+        }
+      }, 500);
+    };
+    window.handlePasswordKeyPress = function(event) {
+      if (event && (event.key === 'Enter' || event.keyCode === 13)) {
+        if (event.preventDefault) event.preventDefault();
+        if (typeof window.checkPassword === 'function') window.checkPassword();
+      }
+    };
+    document.addEventListener('DOMContentLoaded', function() {
+      var btn = document.getElementById('loginBtn');
+      if (btn && !window.__yuvamLoginReady) {
+        btn.textContent = 'Yükleniyor…';
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+      }
+    });
+    </script>
+
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
     <noscript><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
 
@@ -165,7 +222,7 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         <input type="password" id="sifreInput" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" autocomplete="current-password" placeholder="••••••" class="w-full rounded-2xl border-none bg-slate-50 p-4 text-center text-2xl tracking-[0.35em] font-bold ring-1 ring-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none" onkeydown="if(event.key==='Enter'){event.preventDefault();if(typeof checkPassword==='function')checkPassword();}">
                     </div>
                     <p class="text-[10px] text-slate-400 font-semibold text-center">Sayısal şifre (Firebase Authentication · en az 6 rakam önerilir)</p>
-                    <button type="button" id="loginBtn" onclick="if(typeof checkPassword==='function')checkPassword(); else alert('Uygulama henüz yükleniyor, birkaç saniye bekleyin.');" class="w-full rounded-2xl bg-indigo-600 py-4 font-bold text-white shadow-lg shadow-indigo-100 transition hover:bg-indigo-700 active:scale-[0.98] mt-2">Giriş Yap</button>
+                    <button type="button" id="loginBtn" onclick="checkPassword();" class="w-full rounded-2xl bg-indigo-600 py-4 font-bold text-white shadow-lg shadow-indigo-100 transition hover:bg-indigo-700 active:scale-[0.98] mt-2">Giriş Yap</button>
                 </div>
             </div>
         </div>
@@ -1789,14 +1846,16 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
     </div>
 
     <!-- Firebase: yerel → hata olursa CDN -->
-    <script src="vendor/firebase-app-compat.js" onerror="this.onerror=null;this.src='https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js'"></script>
-    <script src="vendor/firebase-firestore-compat.js" onerror="this.onerror=null;this.src='https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js'"></script>
-    <script src="vendor/firebase-auth-compat.js" onerror="this.onerror=null;this.src='https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js'"></script>
-    <script src="js/01-core.js"></script>
-    <script src="js/02-family-gold-calendar.js"></script>
-    <script src="js/03-sync-vehicle.js"></script>
-    <script src="js/04-expenses-ai.js"></script>
-    <script src="js/05-settings-boot.js"></script>
+    <!-- defer: hücreselde paralel indirme, sıra korunur -->
+    <script defer src="vendor/firebase-app-compat.js" onerror="this.onerror=null;this.src='https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js'"></script>
+    <script defer src="vendor/firebase-auth-compat.js" onerror="this.onerror=null;this.src='https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js'"></script>
+    <script defer src="vendor/firebase-firestore-compat.js" onerror="this.onerror=null;this.src='https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js'"></script>
+    <script defer src="js/01-core.js"></script>
+    <script defer src="js/02-family-gold-calendar.js"></script>
+    <script defer src="js/03-sync-vehicle.js"></script>
+    <script defer src="js/04-expenses-ai.js"></script>
+    <script defer src="js/05-settings-boot.js"
+      onload="(function(){window.__yuvamLoginReady=true;var b=document.getElementById('loginBtn');if(b&&b.textContent.indexOf('Yüklen')>=0){b.disabled=false;b.textContent='Giriş Yap';b.style.opacity='';}})();"></script>
 
     <!-- EYVAH easter egg -->
     <div id="eyvahOverlay" class="eyvah-overlay hidden" aria-hidden="true">
