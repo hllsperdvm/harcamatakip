@@ -936,17 +936,6 @@
                         '<p class="text-[10px] font-black text-slate-400 uppercase">Son bakım</p>' +
                         '<p class="text-sm font-bold text-slate-800 mt-1">' + (v.maintDate ? formatDateTR(v.maintDate) : '—') +
                         ' · ' + (Number(v.maintKm) || 0).toLocaleString('tr-TR') + ' km</p>' +
-                        (function() {
-                            var notes = getMaintNotesList().sort(function(a, b) {
-                                return String(b.date || '').localeCompare(String(a.date || ''));
-                            });
-                            if (!notes.length) return '';
-                            return '<div class="mt-2 space-y-1.5 max-h-40 overflow-y-auto">' + notes.map(function(n) {
-                                return '<div class="rounded-lg bg-white border border-slate-100 px-2 py-1.5">' +
-                                    '<p class="text-[10px] text-slate-400 font-semibold">' + escapeHtml(formatMaintNoteDate(n.date)) + '</p>' +
-                                    '<p class="text-[11px] text-slate-600 whitespace-pre-wrap">' + escapeHtml(n.text || '') + '</p></div>';
-                            }).join('') + '</div>';
-                        })() +
                         '<p class="text-[11px] font-bold text-indigo-600 mt-1">Bakım harcamaları (bu araç): ' + maintTotal.toLocaleString('tr-TR') + ' TL</p></div>' +
                         '<div class="bg-slate-50 rounded-2xl p-3 border border-slate-100">' +
                         '<p class="text-[10px] font-black text-slate-400 uppercase">Muayene — sonraki tarih</p>' +
@@ -1130,8 +1119,10 @@
                 return '<div class="bg-slate-50 border border-slate-100 rounded-xl p-3 relative">' +
                     '<div class="flex justify-between items-start gap-2 mb-1">' +
                     '<p class="text-[11px] text-slate-400 font-semibold">' + escapeHtml(formatMaintNoteDate(n.date)) + '</p>' +
-                    '<button type="button" onclick="deleteVehicleMaintNote(\'' + id + '\')" class="text-[11px] text-rose-500 font-bold shrink-0">Sil</button>' +
-                    '</div>' +
+                    '<div class="flex gap-2 shrink-0">' +
+                    '<button type="button" onclick="editVehicleMaintNote(\'' + id + '\')" class="text-[11px] text-sky-600 font-bold">Düzenle</button>' +
+                    '<button type="button" onclick="deleteVehicleMaintNote(\'' + id + '\')" class="text-[11px] text-rose-500 font-bold">Sil</button>' +
+                    '</div></div>' +
                     '<p class="text-sm font-medium text-slate-700 whitespace-pre-wrap">' + escapeHtml(n.text || '') + '</p>' +
                     '</div>';
             }).join('');
@@ -1145,12 +1136,34 @@
             }
             if (!vehicleProfile) vehicleProfile = {};
             if (!Array.isArray(vehicleProfile.maintNotesList)) vehicleProfile.maintNotesList = [];
-            vehicleProfile.maintNotesList.push({
-                id: 'mn_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-                date: new Date().toISOString(),
-                text: text
-            });
-            // Eski tek alan boş kalsın
+            const eid = document.getElementById('editMaintNoteId');
+            const editId = eid ? String(eid.value || '').trim() : '';
+            if (editId) {
+                var found = false;
+                vehicleProfile.maintNotesList = vehicleProfile.maintNotesList.map(function(n) {
+                    if (String(n.id) === editId) {
+                        found = true;
+                        return Object.assign({}, n, { text: text });
+                    }
+                    return n;
+                });
+                if (!found) {
+                    vehicleProfile.maintNotesList.push({
+                        id: editId,
+                        date: new Date().toISOString(),
+                        text: text
+                    });
+                }
+                if (eid) eid.value = '';
+                const btn = document.querySelector('#vehicleMaintNotesModal button[onclick="addVehicleMaintNote()"]');
+                if (btn) btn.textContent = '+ Not Ekle';
+            } else {
+                vehicleProfile.maintNotesList.push({
+                    id: 'mn_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+                    date: new Date().toISOString(),
+                    text: text
+                });
+            }
             vehicleProfile.maintNotes = '';
             if (el) el.value = '';
             try {
@@ -1159,13 +1172,12 @@
                     maintNotes: '',
                     updatedAt: new Date().toISOString()
                 }, { merge: true });
-                if (typeof showToast === 'function') showToast('Bakım notu eklendi', 'success');
+                if (typeof showToast === 'function') showToast(editId ? 'Not güncellendi' : 'Bakım notu eklendi', 'success');
             } catch (err) {
                 console.error(err);
                 alert('Kaydedilemedi: ' + (err.message || err));
             }
             try { renderMaintNotesListUI(); } catch (_) {}
-            try { renderVehicleProfileUI(); } catch (_) {}
         };
         window.deleteVehicleMaintNote = async function(id) {
             if (!id || !vehicleProfile) return;
@@ -1185,6 +1197,49 @@
             try { renderMaintNotesListUI(); } catch (_) {}
             try { renderVehicleProfileUI(); } catch (_) {}
         };
+
+        window.openVehicleMaintNotesModal = function() {
+            const modal = document.getElementById('vehicleMaintNotesModal');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            const ta = document.getElementById('vehicleMaintNotes');
+            if (ta) ta.value = '';
+            const eid = document.getElementById('editMaintNoteId');
+            if (eid) eid.value = '';
+            const btn = document.getElementById('vehicleMaintNoteSubmitBtn');
+            if (btn) btn.textContent = '+ Not Ekle';
+            try { renderMaintNotesListUI(); } catch (_) {}
+        };
+        window.closeVehicleMaintNotesModal = function() {
+            const modal = document.getElementById('vehicleMaintNotesModal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            const eid = document.getElementById('editMaintNoteId');
+            if (eid) eid.value = '';
+            const ta = document.getElementById('vehicleMaintNotes');
+            if (ta) ta.value = '';
+        };
+        window.editVehicleMaintNote = function(id) {
+            const n = getMaintNotesList().find(function(x) { return String(x.id) === String(id); });
+            if (!n) return;
+            const ta = document.getElementById('vehicleMaintNotes');
+            if (ta) ta.value = n.text || '';
+            let eid = document.getElementById('editMaintNoteId');
+            if (!eid) {
+                eid = document.createElement('input');
+                eid.type = 'hidden';
+                eid.id = 'editMaintNoteId';
+                const modal = document.getElementById('vehicleMaintNotesModal');
+                if (modal) modal.appendChild(eid);
+            }
+            eid.value = id;
+            const btn = document.querySelector('#vehicleMaintNotesModal button[onclick="addVehicleMaintNote()"]');
+            if (btn) btn.textContent = 'Güncelle';
+            if (ta) { try { ta.focus(); } catch (_) {} }
+        };
+
 
         function getVehicleCutoverDate() {
             try {
