@@ -723,11 +723,13 @@
         function fillVehicleEditForm() {
             const v = vehicleProfile || {};
             const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val != null ? val : ''; };
-            set('vehicleNameInput', v.name || 'Toyota Corolla');
+            set('vehicleNameInput', v.name || 'Araç');
+            set('vehiclePlateInput', v.plate || '06 GGL 764');
             set('vehicleKmInput', v.totalKm != null ? v.totalKm : 184900);
             set('vehicleMaintDate', v.maintDate || '');
             set('vehicleMaintKm', v.maintKm != null ? v.maintKm : '');
-            set('vehicleMaintNotes', v.maintNotes || '');
+            set('vehicleMaintNotes', '');
+            try { renderMaintNotesListUI(); } catch (_) {}
             set('vehicleInspectionDate', v.inspectionDate || '');
             set('vehicleInsuranceDate', v.insuranceDate || '');
             // MTV kaldırıldı
@@ -743,19 +745,26 @@
                 const el = document.getElementById(id);
                 return el ? String(el.value || '').trim() : '';
             };
-            vehicleProfile = Object.assign({}, vehicleProfile, {
-                name: str('vehicleNameInput') || 'Toyota Corolla',
+            vehicleProfile = Object.assign({}, vehicleProfile, normalizeVehicleProfile({
+                name: str('vehicleNameInput') || (vehicleProfile.name || 'Araç'),
+                plate: (function() {
+                    const el = document.getElementById('vehiclePlateInput');
+                    return (el && el.value.trim()) ? el.value.trim().toUpperCase() : (vehicleProfile.plate || '06 GGL 764');
+                })(),
+                previousPlate: vehicleProfile.previousPlate || '06 BVE 638',
+                activeVehicleView: vehicleProfile.activeVehicleView === 'old' ? 'old' : 'new',
                 totalKm: num('vehicleKmInput') || 0,
                 maintDate: str('vehicleMaintDate'),
                 maintKm: num('vehicleMaintKm') || 0,
-                maintNotes: str('vehicleMaintNotes'),
+                maintNotes: '',
+                maintNotesList: Array.isArray(vehicleProfile.maintNotesList) ? vehicleProfile.maintNotesList : [],
                 inspectionDate: str('vehicleInspectionDate'),
                 insuranceDate: str('vehicleInsuranceDate'),
                 mtvDate: '',
                 mtvAmount: 0,
-                maintIntervalKm: vehicleProfile.maintIntervalKm || 10000,
+                maintIntervalKm: 15000,
                 updatedAt: new Date().toISOString()
-            });
+            }));
             try {
                 await db.collection('settings').doc('vehicleProfile').set(vehicleProfile, { merge: true });
                 showToast('Araç bilgileri kaydedildi', 'success');
@@ -767,6 +776,7 @@
             try { refreshAppNotifications(); } catch (_) {}
             const p = document.getElementById('vehicleEditPanel');
             if (p) p.classList.add('hidden');
+            try { renderMaintNotesListUI(); } catch (_) {}
         };
 
         async function addVehicleKmFromFuel(km) {
@@ -849,11 +859,16 @@
             return items;
         }
 
-        function getMaintExpenseTotal() {
+        function getMaintExpenseTotal(view) {
             try {
-                return getProcessedExpenses().filter(function(e) {
+                view = view || ((typeof getActiveVehicleView === 'function') ? getActiveVehicleView() : 'new');
+                var list = getProcessedExpenses().filter(function(e) {
                     return isVehicleExpense(e) && (e.vehicleSubtype === 'Bakım' || e.vehicleSubtype === 'Bakim');
-                }).reduce(function(s, e) {
+                });
+                if (typeof expenseMatchesVehicleView === 'function') {
+                    list = list.filter(function(e) { return expenseMatchesVehicleView(e, view); });
+                }
+                return list.reduce(function(s, e) {
                     return s + (Number(e.displayAmount != null ? e.displayAmount : e.amount) || 0);
                 }, 0);
             } catch (_) { return 0; }
@@ -861,47 +876,87 @@
 
         function renderVehicleProfileUI() {
             const v = vehicleProfile || {};
+            const view = (typeof getActiveVehicleView === 'function') ? getActiveVehicleView() : 'new';
+            const isOld = view === 'old';
+            const plate = isOld ? (v.previousPlate || '06 BVE 638') : (v.plate || '06 GGL 764');
             const nameEl = document.getElementById('vehicleNameDisplay');
             const kmEl = document.getElementById('vehicleKmDisplay');
-            if (nameEl) nameEl.textContent = v.name || 'Toyota Corolla';
-            if (kmEl) kmEl.textContent = (Number(v.totalKm) || 0).toLocaleString('tr-TR');
+            if (nameEl) {
+                // Profil kartı her zaman yeni araç bilgisi taşır; eski plaka seçiliyse sadece etiket
+                nameEl.textContent = isOld
+                    ? ('Eski araç · ' + plate)
+                    : ((v.name || 'Araç') + ' · ' + plate);
+            }
+            try { if (typeof updateVehicleSwitcherUI === 'function') updateVehicleSwitcherUI(); } catch (_) {}
+
+            // KM + yaklaşanlar + detay kartları: sadece YENİ araç
+            if (kmEl) {
+                if (isOld) {
+                    kmEl.textContent = '—';
+                    kmEl.classList.add('opacity-40');
+                } else {
+                    kmEl.textContent = (Number(v.totalKm) || 0).toLocaleString('tr-TR');
+                    kmEl.classList.remove('opacity-40');
+                }
+            }
 
             const up = document.getElementById('vehicleUpcomingBox');
             if (up) {
-                const items = getVehicleUpcomingItems();
-                if (!items.length) {
-                    up.innerHTML = '<p class="text-xs text-slate-400 font-semibold">Yaklaşan araç hatırlatması yok</p>';
+                if (isOld) {
+                    up.innerHTML = '<p class="text-xs text-slate-400 font-semibold">Eski araç seçili · profil/hatırlatma yok. Aşağıdan yakıt ve bakım grafiklerini açabilirsiniz.</p>';
                 } else {
-                    up.innerHTML = '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Yaklaşanlar</p>' +
-                        items.map(function(it) {
-                            const col = it.severity === 'critical' ? 'text-rose-600' : (it.severity === 'warning' ? 'text-amber-600' : 'text-slate-700');
-                            return '<div class="flex items-center justify-between gap-2 py-1.5 px-2 rounded-xl bg-slate-50 border border-slate-100">' +
-                                '<span class="text-sm font-bold text-slate-800">' + it.icon + ' ' + it.title + '</span>' +
-                                '<span class="text-sm font-black ' + col + '">' + it.detail + '</span></div>';
-                        }).join('');
+                    const items = getVehicleUpcomingItems();
+                    if (!items.length) {
+                        up.innerHTML = '<p class="text-xs text-slate-400 font-semibold">Yaklaşan araç hatırlatması yok</p>';
+                    } else {
+                        up.innerHTML = '<p class="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Yaklaşanlar</p>' +
+                            items.map(function(it) {
+                                const col = it.severity === 'critical' ? 'text-rose-600' : (it.severity === 'warning' ? 'text-amber-600' : 'text-slate-700');
+                                return '<div class="flex items-center justify-between gap-2 py-1.5 px-2 rounded-xl bg-slate-50 border border-slate-100">' +
+                                    '<span class="text-sm font-bold text-slate-800">' + it.icon + ' ' + it.title + '</span>' +
+                                    '<span class="text-sm font-black ' + col + '">' + it.detail + '</span></div>';
+                            }).join('');
+                    }
                 }
             }
 
             const cards = document.getElementById('vehicleDetailCards');
             if (cards) {
-                const maintTotal = getMaintExpenseTotal();
-                const nextInsp = v.inspectionDate ? addMonthsYMD(v.inspectionDate, 24) : '—';
-                const nextIns = v.insuranceDate ? addMonthsYMD(v.insuranceDate, 12) : '—';
-                cards.innerHTML =
-                    '<div class="bg-slate-50 rounded-2xl p-3 border border-slate-100">' +
-                    '<p class="text-[10px] font-black text-slate-400 uppercase">Son bakım</p>' +
-                    '<p class="text-sm font-bold text-slate-800 mt-1">' + (v.maintDate ? formatDateTR(v.maintDate) : '—') +
-                    ' · ' + (Number(v.maintKm) || 0).toLocaleString('tr-TR') + ' km</p>' +
-                    (v.maintNotes ? '<p class="text-[11px] text-slate-500 mt-1">' + escapeHtml(v.maintNotes) + '</p>' : '') +
-                    '<p class="text-[11px] font-bold text-indigo-600 mt-1">Bakım harcamaları: ' + maintTotal.toLocaleString('tr-TR') + ' TL</p></div>' +
-                    '<div class="bg-slate-50 rounded-2xl p-3 border border-slate-100">' +
-                    '<p class="text-[10px] font-black text-slate-400 uppercase">Muayene — sonraki tarih</p>' +
-                    '<p class="text-lg font-black text-slate-900 mt-1">' + (nextInsp !== '—' ? formatDateTR(nextInsp) : '—') + '</p>' +
-                    '<p class="text-[11px] text-slate-400 mt-0.5">Son: ' + (v.inspectionDate ? formatDateTR(v.inspectionDate) : '—') + '</p></div>' +
-                    '<div class="bg-slate-50 rounded-2xl p-3 border border-slate-100">' +
-                    '<p class="text-[10px] font-black text-slate-400 uppercase">Sigorta / Kasko — sonraki tarih</p>' +
-                    '<p class="text-lg font-black text-slate-900 mt-1">' + (nextIns !== '—' ? formatDateTR(nextIns) : '—') + '</p>' +
-                    '<p class="text-[11px] text-slate-400 mt-0.5">Son: ' + (v.insuranceDate ? formatDateTR(v.insuranceDate) : '—') + '</p></div>';
+                if (isOld) {
+                    // Eski araç: üst profil kartları boş — sadece grafikler
+                    cards.innerHTML = '';
+                    cards.classList.add('hidden');
+                } else {
+                    cards.classList.remove('hidden');
+                    const maintTotal = getMaintExpenseTotal('new');
+                    const nextInsp = v.inspectionDate ? addMonthsYMD(v.inspectionDate, 24) : '—';
+                    const nextIns = v.insuranceDate ? addMonthsYMD(v.insuranceDate, 12) : '—';
+                    cards.innerHTML =
+                        '<div class="bg-slate-50 rounded-2xl p-3 border border-slate-100">' +
+                        '<p class="text-[10px] font-black text-slate-400 uppercase">Son bakım</p>' +
+                        '<p class="text-sm font-bold text-slate-800 mt-1">' + (v.maintDate ? formatDateTR(v.maintDate) : '—') +
+                        ' · ' + (Number(v.maintKm) || 0).toLocaleString('tr-TR') + ' km</p>' +
+                        (function() {
+                            var notes = getMaintNotesList().sort(function(a, b) {
+                                return String(b.date || '').localeCompare(String(a.date || ''));
+                            });
+                            if (!notes.length) return '';
+                            return '<div class="mt-2 space-y-1.5 max-h-40 overflow-y-auto">' + notes.map(function(n) {
+                                return '<div class="rounded-lg bg-white border border-slate-100 px-2 py-1.5">' +
+                                    '<p class="text-[10px] text-slate-400 font-semibold">' + escapeHtml(formatMaintNoteDate(n.date)) + '</p>' +
+                                    '<p class="text-[11px] text-slate-600 whitespace-pre-wrap">' + escapeHtml(n.text || '') + '</p></div>';
+                            }).join('') + '</div>';
+                        })() +
+                        '<p class="text-[11px] font-bold text-indigo-600 mt-1">Bakım harcamaları (bu araç): ' + maintTotal.toLocaleString('tr-TR') + ' TL</p></div>' +
+                        '<div class="bg-slate-50 rounded-2xl p-3 border border-slate-100">' +
+                        '<p class="text-[10px] font-black text-slate-400 uppercase">Muayene — sonraki tarih</p>' +
+                        '<p class="text-lg font-black text-slate-900 mt-1">' + (nextInsp !== '—' ? formatDateTR(nextInsp) : '—') + '</p>' +
+                        '<p class="text-[11px] text-slate-400 mt-0.5">Son: ' + (v.inspectionDate ? formatDateTR(v.inspectionDate) : '—') + '</p></div>' +
+                        '<div class="bg-slate-50 rounded-2xl p-3 border border-slate-100">' +
+                        '<p class="text-[10px] font-black text-slate-400 uppercase">Sigorta / Kasko — sonraki tarih</p>' +
+                        '<p class="text-lg font-black text-slate-900 mt-1">' + (nextIns !== '—' ? formatDateTR(nextIns) : '—') + '</p>' +
+                        '<p class="text-[11px] text-slate-400 mt-0.5">Son: ' + (v.insuranceDate ? formatDateTR(v.insuranceDate) : '—') + '</p></div>';
+                }
             }
         }
 
@@ -1015,9 +1070,196 @@
         };
 
 
+
+        
+        function normalizeVehicleProfile(p) {
+            p = p || {};
+            if (!p.plate) p.plate = '06 GGL 764';
+            if (!p.previousPlate) p.previousPlate = '06 BVE 638';
+            if (p.activeVehicleView !== 'old') p.activeVehicleView = 'new';
+            p.maintIntervalKm = 15000;
+            // Tek string not → liste
+            if (!Array.isArray(p.maintNotesList)) {
+                p.maintNotesList = [];
+                if (p.maintNotes && String(p.maintNotes).trim()) {
+                    p.maintNotesList.push({
+                        id: 'legacy_' + Date.now(),
+                        date: p.maintDate || new Date().toISOString().slice(0, 10),
+                        text: String(p.maintNotes).trim()
+                    });
+                }
+            }
+            return p;
+        }
+        function getMaintNotesList() {
+            const v = vehicleProfile || {};
+            if (Array.isArray(v.maintNotesList)) return v.maintNotesList.slice();
+            if (v.maintNotes && String(v.maintNotes).trim()) {
+                return [{ id: 'legacy', date: v.maintDate || '', text: String(v.maintNotes).trim() }];
+            }
+            return [];
+        }
+        function formatMaintNoteDate(d) {
+            if (!d) return '';
+            const s = String(d);
+            if (s.length >= 16) {
+                try {
+                    const dt = new Date(s);
+                    if (!isNaN(dt.getTime())) {
+                        return dt.toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    }
+                } catch (_) {}
+            }
+            try {
+                if (typeof formatDateTR === 'function') return formatDateTR(s.slice(0, 10));
+            } catch (_) {}
+            return s.slice(0, 10);
+        }
+        function renderMaintNotesListUI() {
+            const box = document.getElementById('vehicleMaintNotesList');
+            if (!box) return;
+            const list = getMaintNotesList().sort(function(a, b) {
+                return String(b.date || '').localeCompare(String(a.date || ''));
+            });
+            if (!list.length) {
+                box.innerHTML = '<p class="text-[11px] text-slate-400 font-semibold py-2">Henüz bakım notu yok</p>';
+                return;
+            }
+            box.innerHTML = list.map(function(n) {
+                const id = escapeHtml(String(n.id || ''));
+                return '<div class="bg-slate-50 border border-slate-100 rounded-xl p-3 relative">' +
+                    '<div class="flex justify-between items-start gap-2 mb-1">' +
+                    '<p class="text-[11px] text-slate-400 font-semibold">' + escapeHtml(formatMaintNoteDate(n.date)) + '</p>' +
+                    '<button type="button" onclick="deleteVehicleMaintNote(\'' + id + '\')" class="text-[11px] text-rose-500 font-bold shrink-0">Sil</button>' +
+                    '</div>' +
+                    '<p class="text-sm font-medium text-slate-700 whitespace-pre-wrap">' + escapeHtml(n.text || '') + '</p>' +
+                    '</div>';
+            }).join('');
+        }
+        window.addVehicleMaintNote = async function() {
+            const el = document.getElementById('vehicleMaintNotes');
+            const text = el ? String(el.value || '').trim() : '';
+            if (!text) {
+                alert('Not yazın');
+                return;
+            }
+            if (!vehicleProfile) vehicleProfile = {};
+            if (!Array.isArray(vehicleProfile.maintNotesList)) vehicleProfile.maintNotesList = [];
+            vehicleProfile.maintNotesList.push({
+                id: 'mn_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+                date: new Date().toISOString(),
+                text: text
+            });
+            // Eski tek alan boş kalsın
+            vehicleProfile.maintNotes = '';
+            if (el) el.value = '';
+            try {
+                await db.collection('settings').doc('vehicleProfile').set({
+                    maintNotesList: vehicleProfile.maintNotesList,
+                    maintNotes: '',
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+                if (typeof showToast === 'function') showToast('Bakım notu eklendi', 'success');
+            } catch (err) {
+                console.error(err);
+                alert('Kaydedilemedi: ' + (err.message || err));
+            }
+            try { renderMaintNotesListUI(); } catch (_) {}
+            try { renderVehicleProfileUI(); } catch (_) {}
+        };
+        window.deleteVehicleMaintNote = async function(id) {
+            if (!id || !vehicleProfile) return;
+            if (!confirm('Bu bakım notu silinsin mi?')) return;
+            if (!Array.isArray(vehicleProfile.maintNotesList)) vehicleProfile.maintNotesList = [];
+            vehicleProfile.maintNotesList = vehicleProfile.maintNotesList.filter(function(n) {
+                return String(n.id) !== String(id);
+            });
+            try {
+                await db.collection('settings').doc('vehicleProfile').set({
+                    maintNotesList: vehicleProfile.maintNotesList,
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+            } catch (err) {
+                console.error(err);
+            }
+            try { renderMaintNotesListUI(); } catch (_) {}
+            try { renderVehicleProfileUI(); } catch (_) {}
+        };
+
+        function getVehicleCutoverDate() {
+            try {
+                if (typeof VEHICLE_CUTOVER_DATE !== 'undefined' && VEHICLE_CUTOVER_DATE) return String(VEHICLE_CUTOVER_DATE).slice(0, 10);
+            } catch (_) {}
+            return '2026-11-02';
+        }
+        function getActiveVehicleView() {
+            const v = (typeof vehicleProfile !== 'undefined' && vehicleProfile) ? vehicleProfile : {};
+            return (v.activeVehicleView === 'old') ? 'old' : 'new';
+        }
+        function expenseMatchesVehicleView(e, view) {
+            if (!e) return false;
+            const cut = getVehicleCutoverDate();
+            const d = String(e.date || e.effectiveDate || '').slice(0, 10);
+            const plate = String(e.vehiclePlate || '').toUpperCase().replace(/\s+/g, ' ').trim();
+            const v = (typeof vehicleProfile !== 'undefined' && vehicleProfile) ? vehicleProfile : {};
+            const newP = String(v.plate || '06 GGL 764').toUpperCase().replace(/\s+/g, ' ').trim();
+            const oldP = String(v.previousPlate || '06 BVE 638').toUpperCase().replace(/\s+/g, ' ').trim();
+            if (plate) {
+                if (view === 'old') return plate === oldP || plate.indexOf('BVE') >= 0;
+                return plate === newP || plate.indexOf('GGL') >= 0 || (plate.indexOf('BVE') < 0);
+            }
+            if (!d) return view === 'new';
+            if (view === 'old') return d < cut;
+            return d >= cut;
+        }
+        function filterExpensesForVehicleView(items) {
+            const view = getActiveVehicleView();
+            return (items || []).filter(function(e) { return expenseMatchesVehicleView(e, view); });
+        }
+        window.setVehicleView = function(view) {
+            view = (view === 'old') ? 'old' : 'new';
+            if (typeof vehicleProfile === 'undefined' || !vehicleProfile) return;
+            vehicleProfile.activeVehicleView = view;
+            try {
+                if (typeof db !== 'undefined' && db) {
+                    db.collection('settings').doc('vehicleProfile').set({
+                        activeVehicleView: view,
+                        plate: vehicleProfile.plate || '06 GGL 764',
+                        previousPlate: vehicleProfile.previousPlate || '06 BVE 638',
+                        maintIntervalKm: 15000,
+                        updatedAt: new Date().toISOString()
+                    }, { merge: true });
+                }
+            } catch (_) {}
+            try { renderVehicleTab(); } catch (_) {}
+            try { refreshAppNotifications(); } catch (_) {}
+        };
+        function updateVehicleSwitcherUI() {
+            const view = getActiveVehicleView();
+            const btnNew = document.getElementById('vehBtnNew');
+            const btnOld = document.getElementById('vehBtnOld');
+            const label = document.getElementById('vehicleActivePlateLabel');
+            const v = vehicleProfile || {};
+            const newP = v.plate || '06 GGL 764';
+            const oldP = v.previousPlate || '06 BVE 638';
+            if (label) label.textContent = (view === 'old' ? oldP : newP);
+            function styleBtn(el, on) {
+                if (!el) return;
+                el.className = on
+                    ? 'px-3 py-1.5 rounded-xl text-xs font-black bg-indigo-600 text-white shadow-sm'
+                    : 'px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200';
+            }
+            styleBtn(btnNew, view === 'new');
+            styleBtn(btnOld, view === 'old');
+            if (btnNew) btnNew.textContent = newP;
+            if (btnOld) btnOld.textContent = oldP;
+        }
+
+
         window.renderVehicleTab = function() {
             try { renderVehicleProfileUI(); } catch (_) {}
-            const processed = getProcessedExpenses().filter(isVehicleExpense);
+            try { updateVehicleSwitcherUI(); } catch (_) {}
+            const processed = filterExpensesForVehicleView(getProcessedExpenses().filter(isVehicleExpense));
             const fuelItems = processed.filter(e => vehicleKind(e) === 'fuel');
             const maintItems = processed.filter(e => vehicleKind(e) === 'maint' || vehicleKind(e) === 'other');
 
@@ -1532,6 +1774,15 @@
                 expenseMonth: date.substring(0, 7),
                 statementPeriod: getPeriodKeyForDateStr(date),
                 vehicleSubtype: (category === 'Araç' || category === 'Ulaşım') ? vehicleSubtype : '',
+                vehiclePlate: (category === 'Araç' || category === 'Ulaşım')
+                    ? (function() {
+                        const v = vehicleProfile || {};
+                        const d0 = String(date || '').slice(0, 10);
+                        const cut = (typeof getVehicleCutoverDate === 'function') ? getVehicleCutoverDate() : '2026-11-02';
+                        if (d0 && d0 < cut) return v.previousPlate || '06 BVE 638';
+                        return v.plate || '06 GGL 764';
+                    })()
+                    : '',
                 billSubtype: category === 'Faturalar' ? billSubtype : '',
                 shopSubtype: isShopCat ? shopSubtype : '',
                 isEcommerce: isShopCat ? !!isEcommerce : false,

@@ -3005,8 +3005,14 @@
                 } else if (name === 'vehicleProfile') {
                     window._lazyUnsub.vehicleProfile = db.collection('settings').doc('vehicleProfile').onSnapshot(function(d) {
                         if (d.exists && d.data()) {
-                            vehicleProfile = Object.assign({}, vehicleProfile, d.data());
+                            var raw = d.data() || {};
+                            vehicleProfile = Object.assign({}, vehicleProfile, raw);
+                            if (!vehicleProfile.plate) vehicleProfile.plate = '06 GGL 764';
+                            if (!vehicleProfile.previousPlate) vehicleProfile.previousPlate = '06 BVE 638';
+                            if (vehicleProfile.activeVehicleView !== 'old') vehicleProfile.activeVehicleView = 'new';
+                            vehicleProfile.maintIntervalKm = 15000;
                             try { renderVehicleProfileUI(); } catch (_) {}
+                            try { if (typeof renderVehicleTab === 'function') renderVehicleTab(); } catch (_) {}
                             try { if (typeof refreshAppNotifications === 'function') refreshAppNotifications(); } catch (_) {}
                         }
                     }, function(e) { console.warn('vehicleProfile', e); });

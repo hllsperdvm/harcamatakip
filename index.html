@@ -776,7 +776,13 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                     <div class="flex items-start justify-between gap-3 mb-4">
                         <div>
                             <p class="text-[10px] font-black text-slate-400 uppercase tracking-wider">Aracım</p>
-                            <h2 id="vehicleNameDisplay" class="text-2xl font-black text-slate-900 mt-0.5">Toyota Corolla</h2>
+                            <h2 id="vehicleNameDisplay" class="text-2xl font-black text-slate-900 mt-0.5">Araç</h2>
+                            <p id="vehicleActivePlateLabel" class="text-sm font-bold text-indigo-600 mt-0.5">06 GGL 764</p>
+                            <div class="flex flex-wrap gap-2 mt-3" id="vehicleSwitcher">
+                                <button type="button" id="vehBtnNew" onclick="setVehicleView('new')" class="px-3 py-1.5 rounded-xl text-xs font-black bg-indigo-600 text-white shadow-sm">06 GGL 764</button>
+                                <button type="button" id="vehBtnOld" onclick="setVehicleView('old')" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">06 BVE 638</button>
+                            </div>
+                            <p class="text-[10px] text-slate-400 font-semibold mt-1.5">Varsayılan: yeni araç · Eski kayıtlar için 06 BVE 638</p>
                             <p class="text-sm font-bold text-slate-500 mt-1"><span id="vehicleKmDisplay">184.900</span> km</p>
                         </div>
                         <button type="button" onclick="toggleVehicleEdit()" class="text-xs font-bold px-3 py-2 rounded-xl bg-slate-100 text-slate-700">Düzenle</button>
@@ -786,6 +792,8 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         <div>
                             <label class="text-[10px] font-black text-slate-400 uppercase">Araç adı</label>
                             <input type="text" id="vehicleNameInput" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase mt-3">Plaka (yeni araç)</label>
+                            <input type="text" id="vehiclePlateInput" placeholder="06 GGL 764" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-bold outline-none ring-1 ring-slate-200">
                         </div>
                         <div>
                             <label class="text-[10px] font-black text-slate-400 uppercase">Güncel KM (elle düzeltilebilir)</label>
@@ -803,7 +811,10 @@ body.yuvam-offline #offlineBanner{display:block!important;position:fixed;top:0;l
                         </div>
                         <div>
                             <label class="text-[10px] font-black text-slate-400 uppercase">Bakım notları</label>
-                            <textarea id="vehicleMaintNotes" rows="2" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-medium outline-none ring-1 ring-slate-200" placeholder="Yapılan işlemler…"></textarea>
+                            <p class="text-[10px] text-slate-400 font-semibold mt-0.5 mb-1">Her ekleme ayrı not + tarih olarak kaydedilir</p>
+                            <textarea id="vehicleMaintNotes" rows="2" class="w-full mt-1 bg-slate-50 rounded-xl p-3 text-sm font-medium outline-none ring-1 ring-slate-200" placeholder="Yeni bakım notu yazın…"></textarea>
+                            <button type="button" onclick="addVehicleMaintNote()" class="mt-2 w-full sm:w-auto bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-sm hover:bg-indigo-700">+ Not Ekle</button>
+                            <div id="vehicleMaintNotesList" class="mt-3 space-y-2 max-h-56 overflow-y-auto"></div>
                         </div>
                         <div>
                             <label class="text-[10px] font-black text-slate-400 uppercase">Son muayene tarihi</label>
