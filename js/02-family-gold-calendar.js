@@ -1923,6 +1923,59 @@
             }
         };
 
+
+        window.openPlanPastModal = function() {
+            try { if (typeof renderPlanTab === 'function') renderPlanTab(); } catch (_) {}
+            const modal = document.getElementById('planPastModal');
+            const body = document.getElementById('planPastModalBody');
+            const items = window._planPastItems || [];
+            if (body) {
+                if (!items.length) {
+                    body.innerHTML = '<p class="text-sm text-slate-400 font-semibold text-center py-8">Geçmiş Kayıt Yok</p>';
+                } else {
+                    const sorted = items.slice().sort(function(a, b) {
+                        return String(b.sort || b.date || '').localeCompare(String(a.sort || a.date || ''));
+                    });
+                    body.innerHTML = sorted.map(function(it) {
+                        const due = it.date ? (typeof formatDateTR === 'function' ? formatDateTR(it.date) : it.date) : 'Tarihsiz';
+                        const days = it.date && typeof daysUntilYMD === 'function' ? daysUntilYMD(it.date) : null;
+                        const overdue = !it.done && days != null && days < 0;
+                        const status = it.done
+                            ? '<span class="text-[10px] font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-md">Tamamlandı</span>'
+                            : (overdue
+                                ? '<span class="text-[10px] font-black text-rose-700 bg-rose-100 px-1.5 py-0.5 rounded-md">❗ GEÇTİ</span>'
+                                : '');
+                        const title = (it.done ? '<span class="line-through opacity-60">' : '') + escapeHtml(it.title) + (it.done ? '</span>' : '');
+                        const sub = (it.source === 'task' ? '✅ Görev' : '📅 Takvim') + ' · ' + due + (it.meta ? ' · ' + escapeHtml(it.meta) : '');
+                        const tog = it.source === 'task'
+                            ? '<button type="button" onclick="familyToggleTask(\'' + escapeHtml(it.id) + '\',' + (it.done ? 'false' : 'true') + ');setTimeout(function(){openPlanPastModal();},300);" class="text-xs font-bold px-2 py-1 rounded-lg ' +
+                              (it.done ? 'text-slate-500 bg-slate-100' : 'text-emerald-700 bg-emerald-50') + '">' + (it.done ? 'Geri al' : 'Tamam') + '</button>'
+                            : '';
+                        const col = it.source === 'task' ? 'familyTasks' : 'familyCalendar';
+                        const del = '<button type="button" onclick="familyDelete(\'' + col + '\',\'' + escapeHtml(it.id) + '\');setTimeout(function(){openPlanPastModal();},300);" class="text-xs font-bold text-rose-600 px-2 py-1 rounded-lg hover:bg-rose-50">Sil</button>';
+                        return '<div class="flex flex-col gap-1 p-3 rounded-2xl bg-slate-50 border border-slate-100">' +
+                            '<div class="flex items-start justify-between gap-2">' +
+                            '<p class="text-sm font-bold text-slate-800 min-w-0">' + title + '</p>' + status +
+                            '</div>' +
+                            '<p class="text-[11px] text-slate-500 font-semibold">' + sub + '</p>' +
+                            '<div class="flex gap-1 mt-1">' + tog + del + '</div></div>';
+                    }).join('');
+                }
+            }
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+        };
+        window.closePlanPastModal = function() {
+            const modal = document.getElementById('planPastModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+            try { if (typeof renderPlanTab === 'function') renderPlanTab(); } catch (_) {}
+        };
+
         window.renderPlanTab = function() {
             const list = document.getElementById('familyPlanList');
             if (!list) {
@@ -1972,12 +2025,32 @@
                     });
                 });
             }
+            const todayYmd = (typeof todayDateStr === 'function') ? todayDateStr() : new Date().toISOString().slice(0, 10);
+            function isPlanPast(it) {
+                if (!it) return false;
+                if (it.done) return true;
+                const d = String(it.date || '').slice(0, 10);
+                if (d && d < todayYmd) return true;
+                return false;
+            }
+            const pastItems = items.filter(isPlanPast);
+            const activeItems = items.filter(function(it) { return !isPlanPast(it); });
+            window._planPastItems = pastItems;
+            items.length = 0;
+            activeItems.forEach(function(it) { items.push(it); });
             items.sort(function(a, b) {
-                if (a.done !== b.done) return a.done ? 1 : -1;
                 return String(a.sort).localeCompare(String(b.sort));
             });
             const moreHost = document.getElementById('familyPlanMore');
             if (moreHost) moreHost.innerHTML = '';
+            // Geçmiş buton sayacı
+            try {
+                const pastBtn = document.getElementById('planPastBtn');
+                if (pastBtn) {
+                    const n = pastItems.length;
+                    pastBtn.textContent = n ? ('Geçmiş (' + n + ')') : 'Geçmiş';
+                }
+            } catch (_) {}
             if (!items.length) {
                 list.innerHTML = f === 'task'
                     ? yuvamEmptyState('✅', 'Görev yok', 'Yeni görev ekleyin', null, null)
@@ -3009,6 +3082,11 @@
                             vehicleProfile = Object.assign({}, vehicleProfile, raw);
                             if (!vehicleProfile.plate) vehicleProfile.plate = '06 GGL 764';
                             if (!vehicleProfile.previousPlate) vehicleProfile.previousPlate = '06 BVE 638';
+                            (function() {
+                                var pn = String(vehicleProfile.previousName || '').trim();
+                                var pp = String(vehicleProfile.previousPlate || '06 BVE 638').trim();
+                                if (!pn || pn === pp || /BVE|GGL/i.test(pn)) vehicleProfile.previousName = 'Corolla 1.4 D-4D';
+                            })();
                             if (vehicleProfile.activeVehicleView !== 'old') vehicleProfile.activeVehicleView = 'new';
                             vehicleProfile.maintIntervalKm = 15000;
                             try { renderVehicleProfileUI(); } catch (_) {}

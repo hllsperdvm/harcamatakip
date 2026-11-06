@@ -883,28 +883,39 @@
             const kmEl = document.getElementById('vehicleKmDisplay');
             if (nameEl) {
                 // Profil kartı her zaman yeni araç bilgisi taşır; eski plaka seçiliyse sadece etiket
-                nameEl.textContent = isOld
-                    ? ('Eski araç · ' + plate)
-                    : ((v.name || 'Araç') + ' · ' + plate);
+                if (isOld) {
+                    var oldName = String(v.previousName || '').trim();
+                    var oldPlate = plate;
+                    if (!oldName || oldName === oldPlate || /BVE|GGL/i.test(oldName)) oldName = 'Corolla 1.4 D-4D';
+                    nameEl.textContent = oldName + ' · ' + oldPlate;
+                } else {
+                    var newName = String(v.name || 'Araç').trim();
+                    var newPlate = plate;
+                    if (newName === newPlate) newName = 'Corolla Hybrid';
+                    nameEl.textContent = newName + ' · ' + newPlate;
+                }
             }
             try { if (typeof updateVehicleSwitcherUI === 'function') updateVehicleSwitcherUI(); } catch (_) {}
 
             // KM + yaklaşanlar + detay kartları: sadece YENİ araç
+            const kmRow = document.getElementById('vehicleKmRow');
             if (kmEl) {
                 if (isOld) {
-                    kmEl.textContent = '—';
-                    kmEl.classList.add('opacity-40');
+                    kmEl.textContent = '';
+                    if (kmRow) kmRow.classList.add('hidden');
                 } else {
+                    if (kmRow) kmRow.classList.remove('hidden');
                     kmEl.textContent = (Number(v.totalKm) || 0).toLocaleString('tr-TR');
-                    kmEl.classList.remove('opacity-40');
                 }
             }
 
             const up = document.getElementById('vehicleUpcomingBox');
             if (up) {
                 if (isOld) {
-                    up.innerHTML = '<p class="text-xs text-slate-400 font-semibold">Eski araç seçili · profil/hatırlatma yok. Aşağıdan yakıt ve bakım grafiklerini açabilirsiniz.</p>';
+                    up.innerHTML = '';
+                    up.classList.add('hidden');
                 } else {
+                    up.classList.remove('hidden');
                     const items = getVehicleUpcomingItems();
                     if (!items.length) {
                         up.innerHTML = '<p class="text-xs text-slate-400 font-semibold">Yaklaşan araç hatırlatması yok</p>';
@@ -1065,6 +1076,12 @@
             p = p || {};
             if (!p.plate) p.plate = '06 GGL 764';
             if (!p.previousPlate) p.previousPlate = '06 BVE 638';
+            // Plaka yanlışlıkla isim alanına yazılmışsa düzelt
+            var pn = String(p.previousName || '').trim();
+            var pp = String(p.previousPlate || '06 BVE 638').trim();
+            if (!pn || pn === pp || /BVE|GGL|\d{2}\s*[A-Z]{1,3}\s*\d{2,4}/i.test(pn)) {
+                p.previousName = 'Corolla 1.4 D-4D';
+            }
             if (p.activeVehicleView !== 'old') p.activeVehicleView = 'new';
             p.maintIntervalKm = 15000;
             // Tek string not → liste
@@ -1131,7 +1148,7 @@
             const el = document.getElementById('vehicleMaintNotes');
             const text = el ? String(el.value || '').trim() : '';
             if (!text) {
-                alert('Not yazın');
+                alert('Not Yazın');
                 return;
             }
             if (!vehicleProfile) vehicleProfile = {};
@@ -1172,7 +1189,7 @@
                     maintNotes: '',
                     updatedAt: new Date().toISOString()
                 }, { merge: true });
-                if (typeof showToast === 'function') showToast(editId ? 'Not güncellendi' : 'Bakım notu eklendi', 'success');
+                if (typeof showToast === 'function') showToast(editId ? 'Not Güncellendi' : 'Bakım Notu Eklendi', 'success');
             } catch (err) {
                 console.error(err);
                 alert('Kaydedilemedi: ' + (err.message || err));

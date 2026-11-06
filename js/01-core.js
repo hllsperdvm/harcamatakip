@@ -574,9 +574,9 @@
                     (e.category || '');
                 const amt = (Number(e.displayAmount) || Number(e.amount) || 0).toLocaleString('tr-TR') + ' TL';
                 const key = 'exp-' + d + '-' + (e.id || desc) + '-' + Math.round((Number(e.displayAmount) || 0) * 100);
-                if (days === 0) {
-                    pushNotif(key, 'critical', '💸', 'Bugün: ' + desc, sub + ' · ' + amt + (e.person ? ' · ' + e.person : ''));
-                } else if (days <= 3) {
+                // Bugün vadesi gelen harcamalar yaklaşanlarda gösterilmez (işlem geçmişinde zaten var)
+                if (days === 0) return;
+                if (days <= 3) {
                     pushNotif(key, 'warning', '💸', days + ' gün sonra: ' + desc, formatDateTR(d) + ' · ' + amt);
                 } else {
                     pushNotif(key, 'info', '💳', days + ' gün sonra: ' + desc, formatDateTR(d) + ' · ' + amt);
@@ -1055,13 +1055,13 @@
         const LEGACY_SHOP_CATEGORIES = ['Gıda', 'Gida', 'Giyim', 'E-ticaret', 'Eticaret', 'E-Ticaret'];
         let paymentTypes = ["Nakit", "Kredi Kartı"];
         let bekirDebt = { amount: 0, paid: false, dueDate: '' };
-        // 02.11.2026 öncesi: eski araç 06 BVE 638 · sonrası: yeni 06 GGL 764
+        // 02.11.2026 öncesi: Corolla 1.4 D-4D 06 BVE 638 · sonrası: 06 GGL 764
         const VEHICLE_CUTOVER_DATE = '2026-11-02';
         let vehicleProfile = {
             name: 'Araç',
             plate: '06 GGL 764',
             previousPlate: '06 BVE 638',
-            previousName: '06 BVE 638',
+            previousName: 'Corolla 1.4 D-4D',
             activeVehicleView: 'new',
             totalKm: 0,
             maintDate: '',
